@@ -103,7 +103,8 @@ const Dictation = {
     const b = $('dictateBtn');
     b.classList.toggle('active', this.on);
     b.title = this.on ? 'Arrêter la dictée' : 'Dictée vocale : parle, ça écrit';
-    input.placeholder = this.on ? '🗣️ Parle, j\'écris pour toi… (dis « point », « virgule »…)' : (state.view?.type === 'pm' ? 'Message privé…' : 'Écris ton message…');
+    const small = matchMedia('(max-width: 760px)').matches;
+    input.placeholder = this.on ? (small ? '🗣️ Parle, j\'écris…' : '🗣️ Parle, j\'écris pour toi… (dis « point », « virgule »…)') : ((small ? input.dataset.short : input.dataset.full) || 'Écris ton message…');
   },
 };
 if (SpeechRec) $('dictateBtn').classList.remove('hidden');

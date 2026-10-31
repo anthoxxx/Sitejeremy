@@ -1005,3 +1005,85 @@ body.hub-open .modal-back { z-index: 260; }
   .composer.empty #attachBtn { display: inline-grid; }
   .chat-embed, .chat-spotify, .link-card { width: 100%; }
 }
+
+/* =====================================================================
+   Réajustement téléphone & tablette
+   ===================================================================== */
+.side-title { white-space: nowrap; gap: 8px; }
+.side-title .btn-sm { flex: none; }
+.composer .input { min-width: 0; flex: 1 1 auto; }
+.composer textarea::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- Tablettes (paysage et portrait) --- */
+@media (max-width: 1100px) {
+  .drawer-back.show { display: block; position: fixed; inset: 64px 0 0 0; background: rgba(0, 0, 0, .4); z-index: 40; }
+  .sidebar.right { width: 320px; }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  .app { grid-template-columns: 270px 1fr; }
+}
+/* Tablette en portrait : le chat prend toute la largeur, les salons s'ouvrent avec ☰ */
+@media (min-width: 761px) and (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar.left { position: fixed; left: 0; top: 64px; bottom: 0; width: 330px; z-index: 50; transform: translateX(-100%); transition: transform .2s; }
+  .sidebar.left.open { transform: none; box-shadow: var(--shadow); }
+  .mobile-only { display: inline-grid; }
+  .room-head { flex-wrap: nowrap; }
+  .room-head h2, .room-head p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bubble { max-width: 80%; }
+  .admin-layout { grid-template-columns: 210px 1fr; }
+  .admin-layout main { padding: 22px 20px; }
+}
+
+/* --- Téléphones --- */
+@media (max-width: 760px) {
+  .drawer-back.show { top: calc(56px + env(safe-area-inset-top)); }
+
+  /* En-tête : boutons compacts, pas de badge "Invité" coincé */
+  .app-header { gap: 0; padding-left: 4px; padding-right: 6px; }
+  .app-header .btn-icon { width: 38px; height: 38px; font-size: 1.05rem; }
+  .me-chip { border: 0; background: none; padding: 0; margin-left: 2px; }
+  .me-chip .badge { display: none; }
+  .me-chip .avatar { width: 36px; height: 36px; }
+
+  /* Bandeaux : une seule ligne, discrets */
+  .season-banner { margin: 6px 8px 0; padding: 4px 4px 4px 12px; font-size: .78rem; font-weight: 600; border-radius: 12px; }
+  .season-banner > :not(.btn-icon) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+  .season-banner .btn-icon { width: 26px; height: 26px; flex: none; }
+  .announce, .ghost-banner { font-size: .84rem; }
+
+  /* Zone de saisie : la place pour écrire d'abord */
+  .composer { gap: 4px; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); align-items: flex-end; }
+  .composer .btn-icon { width: 36px; height: 40px; padding: 0; font-size: 1.1rem; background: none; border-color: transparent; }
+  .composer .input { min-height: 42px; padding: 10px 12px; border-radius: 20px; line-height: 1.3; }
+  .composer:not(.empty) #dictateBtn, .composer:not(.empty) #attachBtn { display: none; }
+  .composer .send-btn { width: 42px; height: 42px; border-radius: 50%; }
+  .emoji-panel { bottom: 58px; }
+
+  /* Menu du compte */
+  .user-menu { max-height: calc(100dvh - 80px); overflow-y: auto; }
+  .um-item { padding: 12px 10px; font-size: 1rem; }
+
+  /* Éditeur de profil : barre d'enregistrement qui ne cache plus le contenu */
+  .editor-form { padding-bottom: 8px; }
+  .editor-save { padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 16px -8px rgba(0, 0, 0, .45); }
+  .editor-body { min-height: 0; }
+
+  /* Admin : tableaux transformés en fiches lisibles */
+  table.cards-on-mobile, table.cards-on-mobile tbody, table.cards-on-mobile tr, table.cards-on-mobile td { display: block; width: 100%; }
+  table.cards-on-mobile thead { display: none; }
+  table.cards-on-mobile tr { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; }
+  table.cards-on-mobile td { border: 0; padding: 4px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; overflow-wrap: anywhere; }
+  table.cards-on-mobile td[data-label]::before { content: attr(data-label); flex: 0 0 82px; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+  table.cards-on-mobile td:first-child::before { display: none; }
+  table.cards-on-mobile td:first-child { padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  table.cards-on-mobile td:empty { display: none; }
+  table.cards-on-mobile td .btn-sm { padding: 7px 10px; }
+  .table-wrap { overflow-x: visible; }
+  .toolbar { flex-wrap: wrap; }
+  .toolbar select.input { max-width: none !important; flex: 1 1 100%; }
+}
+@media (max-width: 380px) {
+  .app-header .btn-icon { width: 34px; }
+  .composer .btn-icon { width: 32px; }
+}

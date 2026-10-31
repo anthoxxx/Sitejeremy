@@ -587,3 +587,14 @@ function audioPlayerAdmin(url) {
   if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());
   go();
 })();
+
+// Sur téléphone, les tableaux deviennent des fiches : chaque cellule reçoit le nom de sa colonne
+function labelTables(root) {
+  root.querySelectorAll('table').forEach(t => {
+    const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!heads.length) return;
+    t.classList.add('cards-on-mobile');
+    t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (heads[i] && !td.dataset.label) td.dataset.label = heads[i]; }));
+  });
+}
+new MutationObserver(() => labelTables(document.getElementById('page'))).observe(document.getElementById('page'), { childList: true, subtree: true });

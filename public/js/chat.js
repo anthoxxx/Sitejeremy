@@ -61,6 +61,15 @@ $('toggleLeft').onclick = () => { $('right').classList.remove('open'); $('left')
 $('toggleRight').onclick = () => { $('left').classList.remove('open'); $('right').classList.toggle('open'); $('drawerBack').classList.toggle('show', $('right').classList.contains('open')); };
 $('drawerBack').onclick = closeDrawers;
 
+// Texte d'aide de la zone de saisie : version courte sur téléphone
+const smallScreen = matchMedia('(max-width: 760px)');
+function setPlaceholder(full, short = 'Message…') {
+  const inp = $('input');
+  inp.dataset.full = full; inp.dataset.short = short;
+  inp.placeholder = smallScreen.matches ? short : full;
+}
+smallScreen.addEventListener?.('change', () => { const inp = $('input'); if (inp.dataset.full) inp.placeholder = smallScreen.matches ? inp.dataset.short : inp.dataset.full; });
+
 // ---------- Rendu : en-tête utilisateur ----------
 function renderMe() {
   const chip = $('meChip');
@@ -202,7 +211,7 @@ function joinRoom(slug) {
     state.voice.set(slug, res.voice || []);
     try { localStorage.setItem('lc_room', slug); } catch (e) {}
     $('headProfile').classList.add('hidden');
-    $('input').placeholder = `Message dans ${res.room.name}…`;
+    setPlaceholder(`Message dans ${res.room.name}…`);
     $('messages').replaceChildren();
     res.history.forEach(m => addRoomMessage(m, false));
     addSys('Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
@@ -311,7 +320,7 @@ async function openPm(user) {
   $('headProfile').classList.remove('hidden');
   $('headProfile').onclick = () => openProfile(user.id);
   renderRoomHead();
-  $('input').placeholder = `Message privé à ${user.username}…`;
+  setPlaceholder(`Message privé à ${user.username}…`, `À ${user.username}…`);
   $('messages').replaceChildren(el('div', { class: 'sys' }, 'Conversation privée avec ' + user.username));
   renderConvs(); renderRooms(); closeDrawers();
   try {
@@ -422,7 +431,7 @@ function toggleUserMenu() {
   const m = $('userMenu');
   if (!m.classList.contains('hidden')) return closeUserMenu();
   const item = (icon, label, fn, cls = '') => el('button', { class: 'um-item ' + cls, onclick: () => { closeUserMenu(); fn(); } }, el('span', {}, icon), label);
-  m.replaceChildren(
+  m.replaceChildren(...[
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     item('🎮', 'Mini-jeux', () => Hub.open()),
@@ -430,7 +439,7 @@ function toggleUserMenu() {
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     item('🔑', 'Espace staff (code)', () => { location.href = '/staff'; }),
     el('div', { class: 'um-sep' }),
-    item('🚪', 'Se déconnecter', askLogout, 'danger'));
+    item('🚪', 'Se déconnecter', askLogout, 'danger')].filter(Boolean));
   m.classList.remove('hidden');
 }
 document.addEventListener('click', e => { if (!e.target.closest('.user-menu-wrap')) closeUserMenu(); });
