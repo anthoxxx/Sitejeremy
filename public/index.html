@@ -122,8 +122,8 @@
     err.textContent = '';
     btn.disabled = true;
     try {
-      await LC.api(f.dataset.endpoint, { method: 'POST', body: Object.fromEntries(new FormData(f)) });
-      location.href = '/chat';
+      const r = await LC.api(f.dataset.endpoint, { method: 'POST', body: Object.fromEntries(new FormData(f)) });
+      location.href = r && r.panel ? '/admin' : '/chat';
     } catch (ex) { err.textContent = ex.message; }
     btn.disabled = false;
   });

@@ -210,6 +210,8 @@ app.post('/api/register', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
+  // « admin » + mot de passe de l'espace admin marche aussi depuis le formulaire de connexion normal
+  if (isPanelName(req.body.username)) return panelLogin(req, res);
   if (tooMany('login:' + req.ip, 15)) return res.status(429).json({ error: 'Trop de tentatives, réessaie dans quelques minutes' });
   const u = getUserByName(clean(req.body.username, 20));
   if (!u || u.is_guest || u.panel || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || '')) {
@@ -1059,8 +1061,10 @@ function sendToCustoms(userId) {
 // ---------- Espace admin : connexion par identifiant + mot de passe ----------
 // L'identifiant (ADMIN_LOGIN, « admin » par défaut) et le mot de passe (ADMIN_PASSWORD) se règlent
 // sur le serveur : ils ne sont jamais écrits dans le code, qui est public.
-const PANEL_USER = String(process.env.ADMIN_LOGIN || 'admin').trim();
-const PANEL_HASH = process.env.ADMIN_PASSWORD ? bcrypt.hashSync(String(process.env.ADMIN_PASSWORD), 10) : null;
+const envText = v => String(v || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim(); // tolère les espaces et guillemets autour
+const PANEL_USER = envText(process.env.ADMIN_LOGIN) || 'admin';
+const PANEL_PASS = envText(process.env.ADMIN_PASSWORD);
+const PANEL_HASH = PANEL_PASS ? bcrypt.hashSync(PANEL_PASS, 10) : null;
 if (!PANEL_HASH) console.log('⚠️  ADMIN_PASSWORD n\'est pas réglé : la connexion à l\'espace admin (/admin) est désactivée');
 const isPanelName = n => String(n || '').trim().toLowerCase() === PANEL_USER.toLowerCase();
 function panelAccount() {
@@ -1077,10 +1081,11 @@ function panelAccount() {
   if (u.role !== 'superadmin' || u.banned || !u.verified) db.prepare("UPDATE users SET role='superadmin', banned=0, verified=1 WHERE id=?").run(u.id);
   return getUser(u.id);
 }
-app.post('/api/admin-login', (req, res) => {
+app.post('/api/admin-login', (req, res) => panelLogin(req, res));
+function panelLogin(req, res) {
   if (tooMany('panel:' + req.ip, 5, 15 * 60 * 1000) || tooMany('panel:all', 40, 60 * 60 * 1000))
     return res.status(429).json({ error: 'Trop d\'essais : réessaie dans 15 minutes' });
-  if (!PANEL_HASH) return res.status(503).json({ error: 'L\'espace admin n\'est pas encore configuré sur le serveur (réglage ADMIN_PASSWORD)' });
+  if (!PANEL_HASH) return res.status(503).json({ error: 'L\'espace admin n\'est pas encore activé : ajoute ADMIN_PASSWORD dans les réglages (Environment) de ton hébergeur, puis redémarre le site' });
   const ok = isPanelName(req.body.username) && bcrypt.compareSync(String(req.body.password || ''), PANEL_HASH);
   if (!ok) {
     log(null, 'admin_login', `❌ Connexion à l'espace admin refusée (identifiant « ${clean(req.body.username, 30)} »)`, { ip: req.ip });
@@ -1089,8 +1094,8 @@ app.post('/api/admin-login', (req, res) => {
   const u = panelAccount();
   createSession(res, u.id);
   log(u, 'admin_login', '✅ Connexion à l\'espace admin', { ip: req.ip });
-  res.json({ user: publicUser(u) });
-});
+  res.json({ user: publicUser(u), panel: true });
+}
 
 // ---------- Notifications ----------
 app.get('/api/notifications', auth, (req, res) => {
