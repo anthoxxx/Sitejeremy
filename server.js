@@ -199,7 +199,7 @@ app.post('/api/register', (req, res) => {
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
     clean(req.body.city, 40), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), now(), req.cookies.lc_dev, req.ip || '');
   createSession(res, info.lastInsertRowid);
-  log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Rose' : req.body.gender === 'h' ? 'Bleu' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
+  log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
@@ -237,7 +237,7 @@ app.post('/api/guest', (req, res) => {
     username, req.body.gender, parseInt(req.body.age, 10), clean(req.body.city, 40),
     COLORS[Math.floor(Math.random() * COLORS.length)], now(), now());
   createSession(res, info.lastInsertRowid);
-  log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Rose' : req.body.gender === 'h' ? 'Bleu' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
+  log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
 

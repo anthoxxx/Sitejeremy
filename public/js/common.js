@@ -32,9 +32,9 @@ window.LC = {
     document.documentElement.dataset.theme = cur;
     try { localStorage.setItem('lc_theme', cur); } catch (e) {}
   },
-  genderLabel: g => ({ h: 'Bleu', f: 'Rose', x: 'Autre' }[g] || 'Autre'),
+  genderLabel: g => ({ h: 'Homme', f: 'Femme', x: 'Autre' }[g] || 'Autre'),
   genderIcon: g => ({ h: '💙', f: '🩷', x: '💜' }[g] || '💜'),
-  GENDERS: [['f', '🩷 Rose'], ['h', '💙 Bleu'], ['x', '💜 Autre']],
+  GENDERS: [['h', '💙 Homme'], ['f', '🩷 Femme'], ['x', '💜 Autre']],
   ROLES: ['user', 'moderator', 'admin', 'superadmin'],
   rank(u) { return LC.ROLES.indexOf(u?.role); },
   isAdminRole(u) { return LC.rank(u) >= 2; },

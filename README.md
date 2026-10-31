@@ -34,7 +34,7 @@ Variables d'environnement facultatives :
 
 **Côté utilisateurs**
 - Connexion **invité** ou **compte membre**, avec **2 comptes maximum par personne** (même appareil ou même connexion, réglable par le super-admin)
-- Choix **🩷 Rose / 💙 Bleu / 💜 Autre**
+- Choix **💙 Homme / 🩷 Femme / 💜 Autre**
 - Salons officiels et **salons créés par les membres** (**co-gérants** nommés par le propriétaire, salon fermé sur invitation, exclusions, **fond d'écran** : 8 fonds animés tout prêts, GIF animé, vidéo MP4/WebM en boucle ou image)
 - **Messages privés**, @mentions, émojis, blocage, signalement
 - ⏳ **Salons temporaires** : tout le monde (même les invités) peut ouvrir en un clic un salon **à son pseudo** (« Salon de Lina ») ou **avec un nom au choix** ; il se ferme tout seul quelques minutes après le départ du dernier (réglable). Les noms des salons **permanents** et **temporaires** ont chacun leur couleur (modifiable dans Admin → Site)
