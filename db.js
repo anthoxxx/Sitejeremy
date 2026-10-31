@@ -131,6 +131,11 @@ addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 db.exec(`
+CREATE TABLE IF NOT EXISTS room_managers (
+  room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (room_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS user_mutes (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   muted_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

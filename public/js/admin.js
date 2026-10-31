@@ -191,7 +191,7 @@ async function rooms() {
         el('td', {}, r.ownerId ? `👑 ${r.ownerName}${r.isPrivate ? ' · 🔒 fermé' : ''}` : r.membersOnly ? '💎 Membres' : 'Tous'),
         el('td', {}, r.count), el('td', {}, r.voiceEnabled ? `🎙️ ${r.voice}` : 'off'),
         el('td', {},
-          r.ownerId ? null : el('button', { class: 'btn btn-sm', onclick: () => editRoom(r) }, '✏️'),
+          el('button', { class: 'btn btn-sm', title: 'Modifier', onclick: () => editRoom(r) }, '✏️'),
           el('button', { class: 'btn btn-sm', title: 'Vider les messages', onclick: async () => { if (confirm(`Vider tous les messages de ${r.name} ?`)) await run(() => api(`/api/admin/rooms/${r.id}/messages`, { method: 'DELETE' }), 'Salon vidé'); } }, '🧹'),
           el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { if (confirm(`Supprimer le salon ${r.name} ?`)) { await run(() => api('/api/admin/rooms/' + r.id, { method: 'DELETE' }), 'Salon supprimé'); rooms_(); } } }, '🗑')))))))));
 }

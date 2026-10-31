@@ -142,9 +142,10 @@ async function openRoomSettings(room) {
 
   const close = modal(
     el('h3', {}, '⚙️ Gérer « ' + room.name + ' »'),
-    room.ownerId ? field('Icône', icon.box) : null,
-    room.ownerId ? field('Nom', name) : null,
-    room.ownerId ? field('Description', desc) : null,
+    isRoomOwner(room) || !room.ownerId ? null : el('p', { class: 'help', style: 'margin-top:-6px' }, `👑 Tu es co-gérant de ce salon (propriétaire : ${room.ownerName}).`),
+    field('Icône', icon.box),
+    field('Nom', name),
+    field('Description', desc),
     bgField,
     field('📻 Radio du salon (tout le monde peut l\'écouter)', radio),
     toggleRow('🔒 Salon fermé', 'Seules les personnes invitées peuvent entrer. Les autres sont sortis immédiatement.', priv),
@@ -154,7 +155,7 @@ async function openRoomSettings(room) {
       err.textContent = '';
       try {
         const body = { stationId: radio.value ? parseInt(radio.value, 10) : null, isPrivate: priv.checked, voiceEnabled: voiceOn.checked };
-        if (room.ownerId) Object.assign(body, { name: name.value, description: desc.value, icon: icon.get() });
+        Object.assign(body, { name: name.value, description: desc.value, icon: icon.get() });
         const { room: updated } = await api('/api/rooms/' + room.id, { method: 'PATCH', body });
         Object.assign(room, updated);
         if (state.currentRoom?.id === room.id) state.currentRoom = updated;
@@ -167,13 +168,43 @@ async function openRoomSettings(room) {
       el('div', { class: 'row', style: 'gap:8px;margin-bottom:10px' }, inviteInput, el('button', { class: 'btn', style: 'flex:none', onclick: invite }, 'Inviter')),
       memberList),
     el('div', { class: 'staff-actions' }, el('h4', {}, '🚪 Personnes exclues'), banList),
-    room.ownerId ? el('div', { class: 'staff-actions' },
+    room.ownerId ? managersBox(room) : null,
+    room.ownerId && isRoomOwner(room) ? el('div', { class: 'staff-actions' },
       el('button', { class: 'btn btn-danger', style: 'width:100%', onclick: async () => {
         if (!confirm(`Supprimer définitivement le salon « ${room.name} » ?`)) return;
         try { await api('/api/rooms/' + room.id, { method: 'DELETE' }); close(); toast('🗑 Salon supprimé'); } catch (e) { toast(e.message); }
       } }, '🗑 Supprimer le salon')) : null,
     el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:12px', onclick: () => close() }, 'Fermer'));
   loadPeople();
+}
+
+// Propriétaire (ou équipe) du salon : peut le supprimer et choisir les co-gérants
+const isRoomOwner = r => !!r && (r.ownerId ? r.ownerId === state.me.id || isStaff() : LC.isAdminRole(state.me));
+
+// Co-gérants : d'autres personnes qui peuvent modifier le salon avec le propriétaire
+function managersBox(room) {
+  const list = el('div', { class: 'people-list' });
+  const input = el('input', { class: 'input', maxlength: 20, placeholder: 'Pseudo du co-gérant' });
+  const draw = managers => {
+    room.managers = managers;
+    list.replaceChildren(...(managers.length ? managers.map(m => el('div', { class: 'person' },
+      el('span', { style: 'flex:1' }, '👑 ' + m.username),
+      isRoomOwner(room) || m.id === state.me.id ? el('button', { class: 'btn btn-sm', onclick: async () => {
+        try { draw((await api(`/api/rooms/${room.id}/managers/${m.id}`, { method: 'DELETE' })).managers); toast(m.id === state.me.id ? 'Tu n\'es plus co-gérant' : `${m.username} n'est plus co-gérant`); } catch (e) { toast(e.message); }
+      } }, m.id === state.me.id ? 'Me retirer' : '✕ Retirer') : null))
+      : [el('div', { class: 'side-empty' }, 'Aucun co-gérant pour l\'instant')]));
+  };
+  const add = async () => {
+    if (!input.value.trim()) return;
+    try { draw((await api(`/api/rooms/${room.id}/managers`, { method: 'POST', body: { username: input.value.trim() } })).managers); toast(`👑 ${input.value.trim()} est maintenant co-gérant`); input.value = ''; } catch (e) { toast(e.message); }
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  draw(room.managers || []);
+  return el('div', { class: 'staff-actions' },
+    el('h4', {}, '👑 Co-gérants'),
+    el('p', { class: 'help', style: 'margin:0 0 8px' }, 'Ils peuvent modifier le salon (nom, fond, radio, invités, exclusions) mais pas le supprimer.'),
+    isRoomOwner(room) ? el('div', { class: 'row', style: 'gap:8px;margin-bottom:10px' }, input, el('button', { class: 'btn', style: 'flex:none', onclick: add }, 'Nommer')) : null,
+    list);
 }
 
 // Boutons ajoutés dans la fiche profil quand on gère le salon actuel
@@ -183,6 +214,9 @@ function roomActions(u, closeProfile) {
   return el('div', { class: 'staff-actions' },
     el('h4', {}, r.ownerId === state.me.id ? `Mon salon « ${r.name} »` : `Salon « ${r.name} »`),
     el('div', { class: 'actions' },
+      r.ownerId && isRoomOwner(r) && !(r.managers || []).some(m => m.id === u.id) && !u.isGuest ? el('button', { class: 'btn btn-sm', onclick: async () => {
+        try { await api(`/api/rooms/${r.id}/managers`, { method: 'POST', body: { userId: u.id } }); toast(`👑 ${u.username} est maintenant co-gérant`); closeProfile(); } catch (e) { toast(e.message); }
+      } }, '👑 Nommer co-gérant') : null,
       r.isPrivate ? el('button', { class: 'btn btn-sm', onclick: async () => {
         try { await api(`/api/rooms/${r.id}/members`, { method: 'POST', body: { userId: u.id } }); toast(`🎟️ ${u.username} invité`); } catch (e) { toast(e.message); }
       } }, '🎟️ Inviter') : null,

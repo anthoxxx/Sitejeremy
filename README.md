@@ -35,7 +35,7 @@ Variables d'environnement facultatives :
 **Côté utilisateurs**
 - Connexion **invité** ou **compte membre**, avec **2 comptes maximum par personne** (même appareil ou même connexion, réglable par le super-admin)
 - Choix **🩷 Rose / 💙 Bleu / 💜 Autre**
-- Salons officiels et **salons créés par les membres** (salon fermé sur invitation, exclusions, **fond d'écran** : 8 fonds animés tout prêts, GIF animé, vidéo MP4/WebM en boucle ou image)
+- Salons officiels et **salons créés par les membres** (**co-gérants** nommés par le propriétaire, salon fermé sur invitation, exclusions, **fond d'écran** : 8 fonds animés tout prêts, GIF animé, vidéo MP4/WebM en boucle ou image)
 - **Messages privés**, @mentions, émojis, blocage, signalement
 - 🔇 **Sourdine personnelle** : rendre quelqu'un muet *pour soi seul* pendant 30 s, 1 min, 5 min… ou une durée au choix en secondes / minutes / heures, avec compte à rebours ; ses messages sont repliés, il ne peut plus t'écrire en privé, t'appeler ni te défier, sa voix est coupée dans le vocal
 - 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde

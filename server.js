@@ -433,22 +433,31 @@ function roomOut(r) {
     ownerId: r.owner_id || null, ownerName: owner ? owner.username : null, isPrivate: !!r.is_private,
     voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
     count: roomCount(r.slug), voice: voiceList(r.slug).length, background: r.background || '',
+    managers: r.owner_id ? roomManagers(r.id) : [],
   };
 }
 // Peut-on entrer dans ce salon ?
 function roomAccess(user, room) {
   if (!room) return 'Salon introuvable';
-  if (isStaff(user) || room.owner_id === user.id) return null;
+  if (isStaff(user) || room.owner_id === user.id || isRoomManager(room.id, user.id)) return null;
   if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
   if (isRoomBanned(room.id, user.id)) return 'Tu as été exclu de ce salon';
   if (room.is_private && !isRoomMember(room.id, user.id)) return 'Ce salon est fermé : seules les personnes invitées peuvent entrer';
   return null;
 }
 // Peut-on gérer ce salon ? (propriétaire, ou équipe ; seuls les admins gèrent les salons officiels)
+// Co-gérants : personnes nommées par le propriétaire pour l'aider à gérer son salon
+const isRoomManager = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_managers WHERE room_id=? AND user_id=?').get(roomId, userId);
+const roomManagers = roomId => db.prepare('SELECT u.id, u.username FROM room_managers m JOIN users u ON u.id=m.user_id WHERE m.room_id=? ORDER BY u.username').all(roomId);
 function canManageRoom(user, room) {
   if (!room || !user) return false;
-  if (room.owner_id) return room.owner_id === user.id || isStaff(user);
+  if (room.owner_id) return room.owner_id === user.id || isStaff(user) || isRoomManager(room.id, user.id);
   return isAdminRole(user);
+}
+// Supprimer le salon et choisir les co-gérants : propriétaire ou équipe seulement
+function canOwnRoom(user, room) {
+  if (!room || !user) return false;
+  return room.owner_id ? room.owner_id === user.id || isStaff(user) : isAdminRole(user);
 }
 function slugify(s) {
   return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
@@ -524,7 +533,7 @@ app.patch('/api/rooms/:id', auth, (req, res) => {
 app.delete('/api/rooms/:id', auth, (req, res) => {
   const room = getRoom(req.params.id);
   if (!room || !room.owner_id) return res.status(400).json({ error: 'Seuls les salons de membres se suppriment ici' });
-  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  if (!canOwnRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
   deleteRoom(room, req.user);
   res.json({ ok: true });
 });
@@ -571,6 +580,7 @@ app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
   if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
   const target = getUser(req.params.userId);
   if (!target || target.id === req.user.id || target.id === room.owner_id) return res.status(400).json({ error: 'Impossible d\'exclure cette personne' });
+  if (isRoomManager(room.id, target.id) && !canOwnRoom(req.user, room)) return res.status(403).json({ error: 'Seul le propriétaire peut exclure un co-gérant' });
   if (rank(target) >= rank(req.user) && !isSuper(req.user)) return res.status(403).json({ error: 'Impossible d\'exclure un membre de l\'équipe' });
   db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
   db.prepare('INSERT OR IGNORE INTO room_bans (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
@@ -635,6 +645,33 @@ app.delete('/api/rooms/:id/background', auth, (req, res) => {
   db.prepare("UPDATE rooms SET background='' WHERE id=?").run(room.id);
   roomsChanged();
   res.json({ room: roomOut(getRoom(room.id)) });
+});
+
+app.post('/api/rooms/:id/managers', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!room || !room.owner_id) return res.status(400).json({ error: 'Les co-gérants existent seulement pour les salons de membres' });
+  if (!canOwnRoom(req.user, room)) return res.status(403).json({ error: 'Seul le propriétaire du salon peut nommer des co-gérants' });
+  const target = req.body.userId ? getUser(req.body.userId) : getUserByName(clean(req.body.username, 20));
+  if (!target) return res.status(404).json({ error: 'Pseudo introuvable' });
+  if (target.id === room.owner_id) return res.status(400).json({ error: 'C\'est déjà le propriétaire' });
+  if (target.is_guest) return res.status(400).json({ error: 'Un invité ne peut pas être co-gérant (il doit s\'inscrire)' });
+  if (roomManagers(room.id).length >= 10) return res.status(400).json({ error: '10 co-gérants maximum' });
+  db.prepare('INSERT OR IGNORE INTO room_managers (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
+  db.prepare('INSERT OR IGNORE INTO room_members (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
+  db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, target.id);
+  log(req.user, 'room_edit', `${target.username} nommé co-gérant du salon ${room.name}`);
+  notify(target.id, { type: 'room_invite', icon: '👑', title: `Tu es co-gérant de « ${room.name} »`, text: `${req.user.username} t'a confié la gestion de son salon : tu peux le modifier avec le bouton ⚙️.`, data: { slug: room.slug } });
+  roomsChanged();
+  res.json({ managers: roomManagers(room.id) });
+});
+app.delete('/api/rooms/:id/managers/:userId', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  const uid2 = parseInt(req.params.userId, 10);
+  // Le propriétaire retire qui il veut ; un co-gérant peut se retirer lui-même
+  if (!canOwnRoom(req.user, room) && req.user.id !== uid2) return res.status(403).json({ error: 'Seul le propriétaire du salon peut retirer un co-gérant' });
+  db.prepare('DELETE FROM room_managers WHERE room_id=? AND user_id=?').run(room.id, uid2);
+  roomsChanged();
+  res.json({ managers: roomManagers(room.id) });
 });
 
 function deleteRoom(room, actor) {

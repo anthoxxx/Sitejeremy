@@ -118,7 +118,7 @@ async function loadRooms() {
   renderRooms();
   renderRoomHead();
 }
-const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff()) : LC.isAdminRole(state.me));
+const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff() || (r.managers || []).some(m => m.id === state.me.id)) : LC.isAdminRole(state.me));
 
 function roomItem(r, counts) {
   const locked = r.membersOnly && state.me.isGuest;
@@ -130,7 +130,7 @@ function roomItem(r, counts) {
   },
     el('div', { class: 'ico' }, r.icon),
     el('div', { class: 'meta' },
-      el('div', { class: 'name' }, r.name, r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id ? ' 👑' : ''),
+      el('div', { class: 'name' }, r.name, r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
       el('div', { class: 'sub' }, r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
     v ? el('span', { class: 'pill voice-pill', title: 'En vocal' }, '🎙️' + v) : null,
     el('span', { class: 'pill' + (counts[r.slug] ? ' hot' : '') }, counts[r.slug] || 0));
