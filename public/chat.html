@@ -70,6 +70,7 @@
         <p id="headSub"></p>
       </div>
       <button class="btn btn-sm btn-ghost hidden" id="headRadio" title="Écouter la radio du salon"></button>
+      <button class="btn btn-icon hidden" id="headMedia" title="Photos, vidéos et liens partagés dans ce salon" aria-label="Médias">🖼️</button>
       <button class="btn btn-sm hidden" id="headVoice" title="Chat vocal"></button>
       <button class="btn btn-icon hidden" id="headSettings" title="Gérer le salon" aria-label="Gérer le salon">⚙️</button>
       <button class="btn btn-sm hidden" id="headCall" title="Appel audio">📞 <span class="lbl">Appeler</span></button>
@@ -87,6 +88,7 @@
     <div class="typing" id="typing"></div>
     <form class="composer" id="composer">
       <button type="button" class="btn btn-icon" id="emojiBtn" aria-label="Émojis">😊</button>
+      <button type="button" class="btn btn-icon" id="attachBtn" title="Envoyer une photo" aria-label="Envoyer une photo">📎</button>
       <button type="button" class="btn btn-icon hidden" id="dictateBtn" title="Dictée vocale : parle, ça écrit" aria-label="Dictée vocale">🗣️</button>
       <div class="emoji-panel hidden" id="emojiPanel"></div>
       <textarea class="input" id="input" rows="1" maxlength="1000" placeholder="Écris ton message…" spellcheck="true" lang="fr" autocapitalize="sentences" autocorrect="on"></textarea>
@@ -122,5 +124,6 @@
 <script src="/js/audio.js"></script>
 <script src="/js/mutes.js"></script>
 <script src="/js/games.js"></script>
+<script src="/js/share.js"></script>
 </body>
 </html>

@@ -168,6 +168,7 @@ function renderRoomHead() {
   const r = state.currentRoom;
   const inRoom = state.view?.type === 'room' && r;
   $('headRadio').classList.toggle('hidden', !inRoom || !r.station);
+  $('headMedia').classList.toggle('hidden', !inRoom);
   $('headVoice').classList.toggle('hidden', !inRoom || !state.voiceEnabled || !r.voiceEnabled);
   $('headSettings').classList.toggle('hidden', !inRoom || !canManage(r));
   const pmUser = state.view?.type === 'pm' ? state.convs.get(state.view.userId)?.user : null;
@@ -256,7 +257,7 @@ function addRoomMessage(m, live = true) {
         el('span', { class: 'who', onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user),
         el('span', { class: 'time' }, LC.time(m.createdAt))),
-      m.kind === 'audio' && m.media ? audioPlayer(m.media, m.duration) : el('div', { class: 'text' }, linkify(m.content))),
+      ...messageBody(m)),
     isStaff() ? el('button', { class: 'btn btn-sm btn-danger del', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null);
   $('messages').append(row);
   trimMessages();
@@ -325,7 +326,7 @@ async function openPm(user) {
 function addBubble(m) {
   const mine = m.from === state.me.id;
   $('messages').append(el('div', { class: 'bubble-row' + (mine ? ' mine' : '') },
-    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : '') }, m.kind === 'audio' && m.media ? audioPlayer(m.media, m.duration) : linkify(m.content), el('span', { class: 'time' }, LC.time(m.createdAt)))));
+    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time' }, LC.time(m.createdAt)))));
   trimMessages();
 }
 

@@ -926,6 +926,96 @@ function checkAudio(a, uid) {
   return { url, duration: Math.min(120, Math.max(1, Math.round(Number(a.duration) || 1))) };
 }
 
+// ---------- Photos partagées dans le chat ----------
+app.post('/api/media', auth, express.raw({ type: () => true, limit: '9mb' }), (req, res) => {
+  const u = req.user;
+  if (u.muted_until && u.muted_until > now()) return res.status(403).json({ error: 'Tu es rendu muet pour le moment' });
+  if (!isVerified(u)) return res.status(403).json({ error: NOT_VERIFIED });
+  if (tooMany('media:' + u.id, 40, 10 * 60 * 1000)) return res.status(429).json({ error: 'Trop de photos envoyées, patiente un peu' });
+  const buf = req.body;
+  if (!Buffer.isBuffer(buf) || buf.length < 100) return res.status(400).json({ error: 'Image vide' });
+  if (buf.length > 8 * 1024 * 1024) return res.status(400).json({ error: 'Image trop lourde (8 Mo maximum)' });
+  const type = IMAGE_TYPES.find(t => t.test(buf));
+  if (!type) return res.status(400).json({ error: 'Format accepté : JPG, PNG, GIF ou WEBP' });
+  const name = `img-${u.id}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  res.json({ url: '/uploads/' + name });
+});
+function checkImage(a, uid) {
+  if (!a || typeof a !== 'object') return null;
+  const url = String(a.url || '');
+  if (!new RegExp(`^/uploads/img-${uid}-[a-f0-9]{12}\\.(jpg|png|gif|webp)$`).test(url)) return null;
+  if (!fs.existsSync(path.join(uploadDir, path.basename(url)))) return null;
+  return { url };
+}
+
+// Aperçu d'un lien (titre, image, description) — protégé contre les adresses internes
+const dns = require('dns').promises;
+const net = require('net');
+const previewCache = new Map();
+function privateIp(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const x = ip.toLowerCase();
+  return x === '::1' || x === '::' || x.startsWith('fc') || x.startsWith('fd') || x.startsWith('fe80') || x.startsWith('::ffff:') && privateIp(x.slice(7));
+}
+async function safeFetch(url, hops = 0) {
+  const u = new URL(url);
+  if (!/^https?:$/.test(u.protocol) || hops > 3) throw new Error('bad');
+  const addrs = await dns.lookup(u.hostname, { all: true });
+  if (!addrs.length || addrs.some(a => privateIp(a.address))) throw new Error('blocked');
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const r = await fetch(u, { redirect: 'manual', signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ParadiseBot/1.0; aperçu de lien)', Accept: 'text/html' } });
+    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) return safeFetch(new URL(r.headers.get('location'), u).toString(), hops + 1);
+    if (!r.ok || !/text\/html/i.test(r.headers.get('content-type') || '')) throw new Error('not html');
+    const reader = r.body.getReader();
+    let html = '', size = 0;
+    while (size < 400000) { const { value, done } = await reader.read(); if (done) break; size += value.length; html += Buffer.from(value).toString('utf8'); if (/<\/head>/i.test(html)) break; }
+    ctrl.abort();
+    return { html, finalUrl: u.toString() };
+  } finally { clearTimeout(t); }
+}
+const decodeHtml = s => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(n)).trim();
+app.get('/api/preview', auth, async (req, res) => {
+  const url = String(req.query.url || '').slice(0, 1000);
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Lien invalide' });
+  if (previewCache.has(url)) return res.json(previewCache.get(url));
+  if (tooMany('preview:' + req.user.id, 60, 60 * 1000)) return res.status(429).json({ error: 'Trop de demandes' });
+  let out = { url };
+  try {
+    const { html, finalUrl } = await safeFetch(url);
+    const meta = name => {
+      const re = new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]*>`, 'i');
+      const tag = html.match(re)?.[0];
+      return tag ? decodeHtml(tag.match(/content=["']([^"']*)["']/i)?.[1]) : '';
+    };
+    let image = meta('og:image') || meta('twitter:image');
+    if (image) { try { image = new URL(image, finalUrl).toString(); } catch (e) { image = ''; } }
+    out = {
+      url, site: meta('og:site_name') || new URL(finalUrl).hostname.replace(/^www\./, ''),
+      title: (meta('og:title') || decodeHtml(html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1])).slice(0, 140),
+      description: (meta('og:description') || meta('description')).slice(0, 220),
+      image: /^https:\/\//.test(image) ? image : '',
+    };
+  } catch (e) { out = { url, site: (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch (er) { return ''; } })() }; }
+  if (previewCache.size > 500) previewCache.delete(previewCache.keys().next().value);
+  previewCache.set(url, out);
+  res.json(out);
+});
+// Galerie d'un salon : photos et liens partagés récemment
+app.get('/api/rooms/:slug/media', auth, (req, res) => {
+  const room = getRoomBySlug(req.params.slug);
+  const denied = roomAccess(req.user, room);
+  if (denied) return res.status(403).json({ error: denied });
+  const rows = db.prepare(`SELECT m.id, m.kind, m.media, m.content, m.created_at, u.username FROM messages m JOIN users u ON u.id=m.user_id
+    WHERE m.room_id=? AND (m.kind='image' OR m.content LIKE '%http%') ORDER BY m.id DESC LIMIT 120`).all(room.id);
+  res.json({ items: rows.map(r => ({ id: r.id, kind: r.kind, media: r.media, content: r.content, createdAt: r.created_at, username: r.username })) });
+});
+
 // ---------- Douane : vérifier quelqu'un, ouvrir / fermer ----------
 app.post('/api/customs/open', auth, (req, res) => {
   if (!isStaff(req.user)) return res.status(403).json({ error: 'Réservé au staff' });
@@ -1760,13 +1850,16 @@ io.on('connection', socket => {
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
     const audio = typeof payload === 'object' && payload ? checkAudio(payload.audio, uid) : null;
     if (typeof payload === 'object' && payload?.audio && !audio) return ack && ack({ error: 'Message vocal invalide' });
-    const content = audio ? '🎤 Message vocal' : filterWords(clean(typeof payload === 'string' ? payload : payload?.text, 500));
+    const image = typeof payload === 'object' && payload ? checkImage(payload.image, uid) : null;
+    if (typeof payload === 'object' && payload?.image && !image) return ack && ack({ error: 'Photo invalide' });
+    const caption = filterWords(clean(typeof payload === 'string' ? payload : payload?.text, 500));
+    const content = audio ? '🎤 Message vocal' : image ? caption || '🖼️ Photo' : caption;
     if (!content) return;
     const room = getRoomBySlug(entry.room);
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (room.slug === 'douane' && customsOn() && !customsOpen() && !isVerified(u)) return ack && ack({ error: '🛂 La douane est fermée pour le moment : attends qu\'un membre du staff l\'ouvre' });
-    const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
+    const kind = audio ? 'audio' : image ? 'image' : 'text', media = audio ? audio.url : image ? image.url : '', duration = audio ? audio.duration : 0;
     const anon = entry.ghost && entry.ghostAnon ? 1 : 0;
     const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon) VALUES (?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon);
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon });
@@ -1778,7 +1871,7 @@ io.on('connection', socket => {
     if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
 
-  socket.on('pm', ({ to, text, audio: rawAudio } = {}, ack) => {
+  socket.on('pm', ({ to, text, audio: rawAudio, image: rawImage } = {}, ack) => {
     const u = current();
     const target = getUser(parseInt(to, 10));
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
@@ -1791,9 +1884,12 @@ io.on('connection', socket => {
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
     const audio = rawAudio ? checkAudio(rawAudio, uid) : null;
     if (rawAudio && !audio) return ack && ack({ error: 'Message vocal invalide' });
-    const content = audio ? '🎤 Message vocal' : filterWords(clean(text, 1000));
+    const image = rawImage ? checkImage(rawImage, uid) : null;
+    if (rawImage && !image) return ack && ack({ error: 'Photo invalide' });
+    const caption = filterWords(clean(text, 1000));
+    const content = audio ? '🎤 Message vocal' : image ? caption || '🖼️ Photo' : caption;
     if (!content) return;
-    const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
+    const kind = audio ? 'audio' : image ? 'image' : 'text', media = audio ? audio.url : image ? image.url : '', duration = audio ? audio.duration : 0;
     const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(uid, target.id, content, now(), kind, media, duration);
     const m = pmOut({ id: info.lastInsertRowid, from_id: uid, to_id: target.id, content, created_at: now(), is_read: 0, kind, media, duration });
     emitToUser(target.id, 'pm', { ...m, fromUser: publicUser(u) });
@@ -1979,7 +2075,7 @@ setInterval(() => {
   db.prepare('DELETE FROM logs WHERE created_at<?').run(now() - 90 * 24 * 3600 * 1000);
   db.prepare("DELETE FROM private_messages WHERE kind='audio' AND created_at<?").run(now() - 30 * 24 * 3600 * 1000);
   for (const f of fs.readdirSync(uploadDir)) {
-    if (!f.startsWith('audio-')) continue;
+    if (!f.startsWith('audio-') && !f.startsWith('img-')) continue;
     try { if (fs.statSync(path.join(uploadDir, f)).mtimeMs < now() - 30 * 24 * 3600 * 1000) fs.unlinkSync(path.join(uploadDir, f)); } catch (e) {}
   }
 }, 3600 * 1000).unref();

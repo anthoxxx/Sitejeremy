@@ -513,7 +513,9 @@ async function logs() {
     if (l.action === 'message_delete' && l.data?.content) {
       extra.push(el('div', { class: 'log-deleted' },
         el('div', { class: 'help' }, `Message de ${l.data.author || '?'} dans ${l.data.room || '?'}${l.data.sentAt ? ' · envoyé le ' + LC.date(l.data.sentAt) : ''}`),
-        l.data.kind === 'audio' && l.data.media ? audioPlayerAdmin(l.data.media) : el('div', { class: 'log-quote' }, l.data.content)));
+        l.data.kind === 'audio' && l.data.media ? audioPlayerAdmin(l.data.media)
+          : l.data.kind === 'image' && l.data.media ? el('div', {}, el('a', { href: l.data.media, target: '_blank' }, el('img', { class: 'log-img', src: l.data.media, alt: '' })), l.data.content !== '🖼️ Photo' ? el('div', { class: 'log-quote' }, l.data.content) : null)
+          : el('div', { class: 'log-quote' }, l.data.content)));
     }
     if (l.data?.image) extra.push(el('a', { href: l.data.image, target: '_blank' }, el('img', { class: 'log-img', src: l.data.image, alt: '', loading: 'lazy' })));
     return el('div', { class: 'log-row cat-' + l.category, 'data-id': l.id },
