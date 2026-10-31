@@ -38,7 +38,7 @@ function ding() {
     o.start(); o.stop(audioCtx.currentTime + .35);
   } catch (e) {}
 }
-function renderSoundBtn() { $('soundBtn').textContent = state.sound ? '🔔' : '🔕'; }
+function renderSoundBtn() { $('soundBtn').textContent = state.sound ? '🔊' : '🔇'; }
 $('soundBtn').onclick = () => {
   state.sound = !state.sound;
   try { localStorage.setItem('lc_sound', state.sound ? '1' : '0'); } catch (e) {}
@@ -342,6 +342,7 @@ $('composer').onsubmit = e => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text || !state.view) return;
+  if (isMuted()) return toast('🔇 Tu es rendu muet pour le moment');
   const done = res => {
     if (res && res.error) return toast(res.error);
     input.value = ''; input.style.height = 'auto';
@@ -370,6 +371,8 @@ socket.on('hello', async ({ user, announcement }) => {
   state.me = user;
   renderMe();
   setAnnouncement(announcement);
+  loadNotifications();
+  renderMuteBanner();
   try {
     const { ids } = await api('/api/blocks');
     state.blocked = new Set(ids);
@@ -438,13 +441,10 @@ socket.on('room_deleted', ({ slug }) => {
 });
 socket.on('room_ejected', ({ slug, reason }) => {
   if (Voice.slug === slug) Voice.leave(false);
-  toast('🚪 ' + reason);
   if (state.view?.slug === slug) { state.view = null; state.currentRoom = null; joinDefaultRoom(); }
 });
-socket.on('room_invite', ({ room, by }) => {
-  ding();
-  toast(`🎟️ ${by} t'a invité dans « ${room.name} » — clique pour entrer`, () => joinRoom(room.slug));
-});
+// L'invitation arrive aussi comme notification (voir notifications.js)
+socket.on('room_invite', () => loadRooms());
 socket.on('room_radio', ({ slug, station, by }) => {
   const wasPlayingOld = state.currentRoom?.station && Media.isPlaying(state.currentRoom.station);
   if (state.currentRoom?.slug === slug) state.currentRoom.station = station;
@@ -462,8 +462,13 @@ socket.on('broadcast', ({ text, from }) => {
   if (state.view?.type === 'room') addSys(`📢 Annonce de ${from} : ${text}`, 'broadcast');
 });
 socket.on('staff_alert', ({ text }) => { ding(); toast('🛡️ ' + text, () => location.href = '/admin#reports'); });
-socket.on('kicked', ({ reason }) => { alert('Tu as été déconnecté : ' + reason); location.href = '/'; });
-socket.on('banned', ({ reason }) => { alert('Tu as été banni : ' + reason); location.href = '/'; });
+// Expulsion / bannissement : on garde le message pour l'afficher sur la page d'accueil
+function leaveWith(kind, reason) {
+  try { sessionStorage.setItem('lc_exit', JSON.stringify({ kind, reason, at: Date.now() })); } catch (e) {}
+  location.href = '/';
+}
+socket.on('kicked', ({ reason }) => leaveWith('kick', reason));
+socket.on('banned', ({ reason }) => leaveWith('ban', reason));
 socket.on('disconnect', reason => { Voice.leave(false); if (reason !== 'io server disconnect') addSys('Connexion perdue, reconnexion…'); });
 
 function setAnnouncement(text) {

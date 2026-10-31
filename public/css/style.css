@@ -385,3 +385,41 @@ td .btn { margin: 2px; }
   .editor-preview { border-radius: 24px 24px 0 0; border-right: 0; border-bottom: 1px solid var(--line); }
   .editor-preview .pcard { position: static; }
 }
+
+/* ===== Notifications ===== */
+.notif-wrap { position: relative; }
+#notifBtn { position: relative; }
+.notif-count { position: absolute; top: 3px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--red); color: #fff; font-size: .68rem; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--bg-2); }
+.notif-panel { position: absolute; right: 0; top: 48px; width: 360px; max-width: calc(100vw - 24px); max-height: 70vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); z-index: 120; padding: 8px; }
+.notif-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 10px; }
+.notif-desktop { display: block; width: 100%; text-align: left; border: 1px dashed var(--violet); background: rgba(139, 108, 255, .08); color: var(--text); border-radius: 12px; padding: 10px; margin-bottom: 8px; cursor: pointer; font-size: .82rem; }
+.notif-list { display: flex; flex-direction: column; gap: 2px; }
+.notif-item { display: flex; gap: 10px; padding: 10px; border-radius: 12px; cursor: pointer; }
+.notif-item:hover { background: var(--panel-2); }
+.notif-item.unread { background: rgba(255, 95, 162, .08); }
+.notif-item.important .notif-ico { background: rgba(255, 90, 110, .15); }
+.notif-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--panel-2); flex: none; font-size: 1.1rem; }
+.notif-item .meta { min-width: 0; flex: 1; }
+.notif-title { font-weight: 700; font-size: .9rem; }
+.notif-text { color: var(--muted); font-size: .82rem; margin-top: 2px; line-height: 1.4; }
+.notif-time { color: var(--muted); font-size: .72rem; margin-top: 4px; }
+
+/* Grande fenêtre de sanction */
+.sanction { text-align: center; --sc: var(--rose); }
+.sanction-ico { width: 72px; height: 72px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; font-size: 2.2rem; background: color-mix(in srgb, var(--sc, var(--rose)) 18%, transparent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--sc, var(--rose)) 10%, transparent); }
+.sanction h3 { margin: 0 0 8px; }
+.sanction p { color: var(--muted); line-height: 1.5; margin: 6px 0; }
+.sanction-timer { margin: 12px auto 4px; display: inline-block; padding: 8px 16px; border-radius: 999px; background: var(--bg-2); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold); }
+.sanction-time { font-size: .78rem; }
+.sanction-rules { display: inline-block; margin-top: 8px; font-size: .85rem; }
+
+/* Bandeau "muet" au-dessus de la zone d'écriture */
+.mute-banner { display: flex; align-items: center; gap: 12px; margin: 0 16px 6px; padding: 10px 14px; border-radius: 12px; background: rgba(255, 181, 71, .12); border: 1px solid rgba(255, 181, 71, .4); font-size: .9rem; }
+.mute-banner > span { font-size: 1.4rem; }
+.composer textarea:disabled { opacity: .55; cursor: not-allowed; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Accueil : message après expulsion / bannissement */
+.exit-card { text-align: center; margin-bottom: 16px; border-color: rgba(255, 90, 110, .4); }
+.exit-card h3 { margin: 0 0 6px; }
+.exit-card p { margin: 4px 0; color: var(--muted); }

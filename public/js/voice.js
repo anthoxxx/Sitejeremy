@@ -201,5 +201,8 @@ socket.on('voice_state', ({ slug, participants }) => {
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
-socket.on('voice_kicked', ({ reason }) => { Voice.leave(false); toast('🎙️ ' + reason); });
+socket.on('voice_kicked', ({ reason }) => {
+  Voice.leave(false);
+  if (reason !== 'Tu as été retiré du vocal') toast('🎙️ ' + reason); // le retrait par le propriétaire arrive en notification
+});
 window.addEventListener('beforeunload', () => Voice.leave());

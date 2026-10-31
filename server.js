@@ -56,7 +56,7 @@ function publicUser(u) {
 }
 // Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
 function selfUser(u) {
-  return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0 };
+  return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0 };
 }
 function adminUser(u) {
   return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen };
@@ -423,6 +423,7 @@ app.post('/api/rooms/:id/members', auth, (req, res) => {
   db.prepare('INSERT OR IGNORE INTO room_members (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
   db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, target.id);
   emitToUser(target.id, 'room_invite', { room: roomOut(room), by: req.user.username });
+  notify(target.id, { type: 'room_invite', icon: '🎟️', title: `Invitation dans « ${room.name} »`, text: `${req.user.username} t'a invité dans son salon.`, data: { slug: room.slug } });
   roomsChanged();
   res.json({ user: publicUser(target) });
 });
@@ -447,6 +448,8 @@ app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
   if (isStaff(target) && req.user.role !== 'admin') return res.status(403).json({ error: 'Impossible d\'exclure un membre de l\'équipe' });
   db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
   db.prepare('INSERT OR IGNORE INTO room_bans (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
+  const reason = clean(req.body.reason, 200);
+  notify(target.id, { type: 'room_kick', icon: '🚪', title: `Tu as été exclu du salon « ${room.name} »`, text: `Par ${req.user.username}. ${reasonText(reason)} Tu ne peux plus y revenir sauf s'il te réinvite.`, important: true });
   ejectFromRoom(target.id, room.slug, `Tu as été exclu du salon ${room.name}`);
   io.to('room:' + room.slug).emit('system', { room: room.slug, text: `${target.username} a été exclu du salon par ${req.user.username}` });
   roomsChanged();
@@ -510,6 +513,21 @@ app.post('/api/reports', auth, (req, res) => {
   if (tooMany('report:' + req.user.id, 10, 3600 * 1000)) return res.status(429).json({ error: 'Trop de signalements' });
   db.prepare('INSERT INTO reports (reporter_id,target_id,reason,created_at) VALUES (?,?,?,?)').run(req.user.id, target.id, reason, now());
   emitToStaff('staff_alert', { text: `Nouveau signalement contre ${target.username}` });
+  res.json({ ok: true });
+});
+
+// ---------- Notifications ----------
+app.get('/api/notifications', auth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 40').all(req.user.id);
+  const unread = db.prepare('SELECT COUNT(*) c FROM notifications WHERE user_id=? AND is_read=0').get(req.user.id).c;
+  res.json({ unread, notifications: rows.map(n => ({ id: n.id, type: n.type, icon: n.icon, title: n.title, text: n.text, data: parseJSON(n.data, {}), read: !!n.is_read, createdAt: n.created_at })) });
+});
+app.post('/api/notifications/read', auth, (req, res) => {
+  db.prepare('UPDATE notifications SET is_read=1 WHERE user_id=?').run(req.user.id);
+  res.json({ ok: true });
+});
+app.delete('/api/notifications', auth, (req, res) => {
+  db.prepare('DELETE FROM notifications WHERE user_id=?').run(req.user.id);
   res.json({ ok: true });
 });
 
@@ -589,6 +607,13 @@ admin.patch('/users/:id', (req, res) => {
     if (target.is_guest && req.body.role !== 'user') return res.status(400).json({ error: 'Un invité ne peut pas être promu' });
     db.prepare('UPDATE users SET role=? WHERE id=?').run(req.body.role, target.id);
     log(req.user, 'role', `${target.username} → ${req.body.role}`);
+    if (req.body.role !== target.role) {
+      const up = ROLES.indexOf(req.body.role) > ROLES.indexOf(target.role);
+      const label = { admin: 'administrateur', moderator: 'modérateur', user: 'membre' }[req.body.role];
+      notify(target.id, up
+        ? { type: 'role', icon: '🎖️', title: `Tu es maintenant ${label} !`, text: 'Merci de t\'impliquer dans la communauté. Le panneau 🛡️ Admin est accessible en haut du chat.' }
+        : { type: 'role', icon: '🎖️', title: `Ton rôle a changé : ${label}`, text: 'Ton rôle dans l\'équipe a été modifié par un administrateur.' });
+    }
   }
   if (req.body.banned !== undefined) {
     const banned = req.body.banned ? 1 : 0;
@@ -596,8 +621,11 @@ admin.patch('/users/:id', (req, res) => {
     db.prepare('UPDATE users SET banned=?, ban_reason=? WHERE id=?').run(banned, banned ? reason : '', target.id);
     log(req.user, banned ? 'ban' : 'unban', `${target.username}${reason ? ' : ' + reason : ''}`);
     if (banned) {
+      notify(target.id, { type: 'ban', icon: '⛔', title: 'Tu as été banni du chat', text: reasonText(reason), important: true });
       db.prepare('DELETE FROM sessions WHERE user_id=?').run(target.id);
       disconnectUser(target.id, 'banned', reason || 'Tu as été banni par la modération');
+    } else if (target.banned) {
+      notify(target.id, { type: 'unban', icon: '✅', title: 'Ton bannissement a été levé', text: 'Bon retour parmi nous ! Merci de respecter les règles du chat.' });
     }
   }
   const updated = getUser(target.id);
@@ -611,16 +639,36 @@ admin.post('/users/:id/mute', (req, res) => {
   const minutes = Math.min(10080, Math.max(0, parseInt(req.body.minutes, 10) || 0));
   const until = minutes ? now() + minutes * 60000 : 0;
   db.prepare('UPDATE users SET muted_until=? WHERE id=?').run(until, target.id);
-  log(req.user, minutes ? 'mute' : 'unmute', `${target.username}${minutes ? ' (' + minutes + ' min)' : ''}`);
-  emitToUser(target.id, 'system', { text: minutes ? `Tu es rendu muet pendant ${minutes} minute(s).` : 'Tu peux de nouveau parler.' });
+  const reason = clean(req.body.reason, 200);
+  log(req.user, minutes ? 'mute' : 'unmute', `${target.username}${minutes ? ' (' + minutes + ' min)' : ''}${reason ? ' : ' + reason : ''}`);
+  if (minutes) {
+    notify(target.id, { type: 'mute', icon: '🔇', title: `Tu es rendu muet pendant ${fmtDuration(minutes)}`, text: `Tu ne peux plus écrire ni parler en vocal jusqu'à la fin de la sanction. ${reasonText(reason)}`, data: { until }, important: true });
+    const e = online.get(target.id);
+    if (e) for (const sid of e.sockets) leaveVoiceBySocket(sid, null);
+  } else if (target.muted_until > now()) {
+    notify(target.id, { type: 'unmute', icon: '🔊', title: 'Tu peux de nouveau parler', text: 'La modération t\'a rendu la parole.', data: { until: 0 } });
+  }
+  res.json({ ok: true });
+});
+
+admin.post('/users/:id/warn', (req, res) => {
+  const target = getUser(req.params.id);
+  if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
+  const reason = clean(req.body.reason, 200);
+  if (!reason) return res.status(400).json({ error: 'Indique la raison de l\'avertissement' });
+  log(req.user, 'warn', `${target.username} : ${reason}`);
+  notify(target.id, { type: 'warn', icon: '⚠️', title: 'Avertissement de la modération', text: `${reasonText(reason)} En cas de récidive, une sanction pourra être appliquée.`, important: true });
   res.json({ ok: true });
 });
 
 admin.post('/users/:id/kick', (req, res) => {
   const target = getUser(req.params.id);
   if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
-  log(req.user, 'kick', target.username);
-  disconnectUser(target.id, 'kicked', clean(req.body.reason, 200) || 'Tu as été expulsé du chat');
+  const reason = clean(req.body.reason, 200);
+  log(req.user, 'kick', `${target.username}${reason ? ' : ' + reason : ''}`);
+  notify(target.id, { type: 'kick', icon: '👢', title: 'Tu as été expulsé du chat', text: `${reasonText(reason)} Tu peux te reconnecter, mais respecte les règles.` });
+  db.prepare('DELETE FROM sessions WHERE user_id=?').run(target.id); // il doit se reconnecter
+  disconnectUser(target.id, 'kicked', reason || 'Tu as été expulsé du chat par la modération');
   res.json({ ok: true });
 });
 
@@ -642,7 +690,7 @@ admin.post('/users/:id/reset-profile', (req, res) => {
     name_effect='none', avatar_frame='none' WHERE id=?`).run(target.id);
   log(req.user, 'profile_reset', target.username);
   refreshOnline(getUser(target.id));
-  emitToUser(target.id, 'system', { text: 'Ton profil a été réinitialisé par la modération.' });
+  notify(target.id, { type: 'profile_reset', icon: '🧹', title: 'Ton profil a été réinitialisé', text: 'Ta photo, ta bannière, ta bio et tes infos de profil ont été effacées par la modération car elles ne respectaient pas les règles.', important: true });
   res.json({ ok: true });
 });
 
@@ -709,6 +757,10 @@ admin.delete('/messages/:id', (req, res) => {
   db.prepare('DELETE FROM messages WHERE id=?').run(m.id);
   io.to('room:' + m.slug).emit('message_deleted', { id: m.id });
   log(req.user, 'message_delete', `#${m.id}`);
+  if (m.user_id !== req.user.id) {
+    const excerpt = m.content.length > 80 ? m.content.slice(0, 80) + '…' : m.content;
+    notify(m.user_id, { type: 'message_deleted', icon: '🗑', title: 'Un de tes messages a été supprimé', text: `« ${excerpt} » — supprimé par la modération.` });
+  }
   res.json({ ok: true });
 });
 
@@ -721,8 +773,12 @@ admin.get('/reports', (req, res) => {
 });
 admin.patch('/reports/:id', (req, res) => {
   const status = req.body.status === 'open' ? 'open' : 'closed';
-  db.prepare('UPDATE reports SET status=? WHERE id=?').run(status, req.params.id);
-  log(req.user, 'report_' + status, `#${req.params.id}`);
+  const rep = db.prepare('SELECT r.*, t.username target FROM reports r LEFT JOIN users t ON t.id=r.target_id WHERE r.id=?').get(req.params.id);
+  if (!rep) return res.status(404).json({ error: 'Signalement introuvable' });
+  db.prepare('UPDATE reports SET status=? WHERE id=?').run(status, rep.id);
+  log(req.user, 'report_' + status, `#${rep.id}`);
+  if (status === 'closed' && rep.status === 'open' && rep.reporter_id)
+    notify(rep.reporter_id, { type: 'report_done', icon: '🛡️', title: 'Ton signalement a été traité', text: `Merci ! La modération a examiné ton signalement${rep.target ? ' concernant ' + rep.target : ''}.` });
   res.json({ ok: true });
 });
 
@@ -829,6 +885,20 @@ function emitToUser(id, ev, data) {
   const e = online.get(id);
   if (e) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
+// ---------- Notifications (enregistrées + envoyées en direct) ----------
+// important = true → s'affiche en grand chez la personne (sanctions)
+function notify(userId, { type, icon = '🔔', title, text = '', data = {}, important = false }) {
+  const info = db.prepare('INSERT INTO notifications (user_id,type,icon,title,text,data,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run(userId, type, icon, title, text, JSON.stringify(data), now());
+  emitToUser(userId, 'notification', { id: info.lastInsertRowid, type, icon, title, text, data, important, read: false, createdAt: now() });
+}
+const reasonText = r => (r ? `Raison : ${r}` : 'Aucune raison précisée.');
+function fmtDuration(min) {
+  if (min >= 1440 && min % 1440 === 0) return `${min / 1440} jour${min > 1440 ? 's' : ''}`;
+  if (min >= 60 && min % 60 === 0) return `${min / 60} heure${min > 60 ? 's' : ''}`;
+  return `${min} minute${min > 1 ? 's' : ''}`;
+}
+
 function emitToStaff(ev, data) {
   for (const e of online.values()) if (isStaff(e.user)) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
@@ -1013,8 +1083,10 @@ io.on('connection', socket => {
     const room = slug && getRoomBySlug(slug);
     if (!room || !canManageRoom(current(), room)) return ack && ack({ error: 'Action non autorisée' });
     const target = voice.get(slug)?.get(String(targetSocketId));
-    if (target && target.userId === room.owner_id) return ack && ack({ error: 'Impossible de retirer le propriétaire' });
+    if (!target) return ack && ack({ error: 'Cette personne n\'est plus dans le vocal' });
+    if (target.userId === room.owner_id) return ack && ack({ error: 'Impossible de retirer le propriétaire' });
     leaveVoiceBySocket(String(targetSocketId), 'Tu as été retiré du vocal');
+    notify(target.userId, { type: 'voice_kick', icon: '🎙️', title: `Tu as été retiré du vocal de « ${room.name} »`, text: `Par ${current().username}.` });
     ack && ack({ ok: true });
   });
 
@@ -1040,6 +1112,7 @@ setInterval(() => {
   const ids = db.prepare('SELECT id FROM users WHERE is_guest=1 AND banned=0 AND last_seen<?').all(day).map(r => r.id).filter(id => !online.has(id));
   ids.forEach(id => deleteUserRecord(getUser(id)));
   db.prepare('DELETE FROM messages WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
+  db.prepare('DELETE FROM notifications WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
 }, 3600 * 1000).unref();
 
 server.listen(PORT, () => console.log(`✨ GajoxGaming en ligne sur http://localhost:${PORT}`));

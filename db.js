@@ -132,6 +132,21 @@ CREATE TABLE IF NOT EXISTS stations (
 );
 `);
 
+db.exec(`
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  icon TEXT DEFAULT '🔔',
+  title TEXT NOT NULL,
+  text TEXT DEFAULT '',
+  data TEXT DEFAULT '{}',
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, id);
+`);
+
 // Radios par défaut (modifiables dans l'admin → Radios)
 if (db.prepare('SELECT COUNT(*) c FROM stations').get().c === 0) {
   const ins = db.prepare('INSERT INTO stations (name,url,genre,icon,sort) VALUES (?,?,?,?,?)');

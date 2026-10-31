@@ -33,6 +33,8 @@
       </div>
     </div>
 
+    <div>
+    <div class="card exit-card hidden" id="exitCard"></div>
     <div class="card" id="authCard">
       <div class="tabs">
         <button data-tab="guest" class="active">Invité</button>
@@ -71,6 +73,7 @@
         <button class="btn btn-primary" style="width:100%">Créer mon compte</button>
         <small class="note">Ton pseudo est réservé et tu accèdes au salon VIP.</small>
       </form>
+    </div>
     </div>
   </section>
 
@@ -121,8 +124,24 @@
     } catch (ex) { err.textContent = ex.message; }
     btn.disabled = false;
   });
+  // Message après une expulsion ou un bannissement
+  let exited = false;
+  try {
+    const exit = JSON.parse(sessionStorage.getItem('lc_exit') || 'null');
+    if (exit && Date.now() - exit.at < 10 * 60 * 1000) {
+      sessionStorage.removeItem('lc_exit');
+      const card = document.getElementById('exitCard');
+      card.append(
+        LC.el('div', { class: 'sanction-ico' }, exit.kind === 'ban' ? '⛔' : '👢'),
+        LC.el('h3', {}, exit.kind === 'ban' ? 'Tu as été banni du chat' : 'Tu as été expulsé du chat'),
+        LC.el('p', {}, exit.reason ? 'Raison : ' + exit.reason : 'Aucune raison précisée.'),
+        LC.el('p', { class: 'help' }, exit.kind === 'ban' ? 'Tu ne peux plus te connecter avec ce compte.' : 'Tu peux te reconnecter, mais merci de respecter les règles.'));
+      card.classList.remove('hidden');
+      exited = true;
+    }
+  } catch (e) {}
   // Déjà connecté ?
-  LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
+  if (!exited) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
   LC.api('/api/stats').then(s => {
     onlineCount.textContent = s.online;
     statMembers.textContent = s.members;

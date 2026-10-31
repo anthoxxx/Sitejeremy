@@ -17,7 +17,11 @@
     <a href="/chat" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">Gajox<span>Gaming</span></span></a>
     <div class="spacer"></div>
     <a href="/admin" class="btn btn-sm btn-ghost hidden" id="adminLink">🛡️ Admin</a>
-    <button class="btn btn-icon" id="soundBtn" title="Son des notifications" aria-label="Son">🔔</button>
+    <div class="notif-wrap">
+      <button class="btn btn-icon" id="notifBtn" title="Notifications" aria-label="Notifications">🔔<span class="notif-count hidden" id="notifCount"></span></button>
+      <div class="notif-panel hidden" id="notifPanel"></div>
+    </div>
+    <button class="btn btn-icon" id="soundBtn" title="Son des notifications" aria-label="Son">🔊</button>
     <button class="btn btn-icon" onclick="LC.toggleTheme()" title="Thème" aria-label="Thème">🌓</button>
     <button class="btn btn-icon mobile-users" id="toggleRight" style="display:none" aria-label="Connectés">👥</button>
     <div class="me-chip" id="meChip"></div>
@@ -50,6 +54,7 @@
     <div class="voice-bar hidden" id="voiceBar"></div>
     <div class="announce hidden" id="announce"></div>
     <div class="messages" id="messages"></div>
+    <div class="mute-banner hidden" id="muteBanner"></div>
     <div class="typing" id="typing"></div>
     <form class="composer" id="composer">
       <button type="button" class="btn btn-icon" id="emojiBtn" aria-label="Émojis">😊</button>
@@ -80,5 +85,6 @@
 <script src="/js/media.js"></script>
 <script src="/js/rooms.js"></script>
 <script src="/js/profile.js"></script>
+<script src="/js/notifications.js"></script>
 </body>
 </html>

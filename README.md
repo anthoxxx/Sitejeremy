@@ -30,6 +30,7 @@ Variables d'environnement facultatives :
 - **Profils personnalisables** (aperçu en direct) : photo de profil (GIF animés acceptés), bannière (image ou dégradé), couleur et **effet du pseudo** (dégradé, néon, arc-en-ciel, or), **cadre de photo** (néon, or, arc-en-ciel, feu, glace), couleur du profil, **statut** avec émoji, bio, centres d'intérêt, jeux du moment, **réseaux** (Discord, Twitch, YouTube, TikTok, Instagram, Steam, PSN, Xbox), possibilité de cacher son âge et sa ville
 - **@mentions**, liens cliquables, émojis, son de notification
 - **Bloquer** et **signaler** un utilisateur
+- 🔔 **Notifications** : cloche avec compteur, historique, notifications du navigateur (même onglet caché). La personne est prévenue quand elle est **avertie, rendue muette (avec compte à rebours), expulsée, bannie, débannie**, exclue d'un salon, retirée du vocal, quand son message est supprimé, son profil réinitialisé, son rôle changé, son signalement traité ou quand on l'invite dans un salon. Les sanctions reçues hors ligne s'affichent à la connexion suivante.
 - 🎙️ **Chat vocal** dans chaque salon : micro on/off, couper le son, indicateur de qui parle (WebRTC, jusqu'à 8 personnes par défaut)
 - 🏠 **Salons créés par les membres** : nom, icône, description, **salon fermé** sur invitation, inviter / retirer des personnes, **exclure** quelqu'un, retirer quelqu'un du vocal, supprimer son salon
 - 📻 **Radio & musique** : lecteur intégré avec NRJ, Chérie FM, Nostalgie, Skyrock, Fun Radio, RTL2, Mouv', FIP, France Inter…, lecture d'un lien audio perso, et **radio du salon** choisie par son propriétaire
@@ -37,7 +38,7 @@ Variables d'environnement facultatives :
 
 **Panneau d'administration** (`/admin`)
 - Tableau de bord : connectés, membres, invités, messages du jour, fréquentation des salons
-- **Utilisateurs** : recherche, filtres, changer le rôle (membre / modérateur / admin), expulser, rendre muet, bannir / débannir, **réinitialiser un profil** (photo, bannière, bio…), supprimer, voir l'historique des messages
+- **Utilisateurs** : recherche, filtres, changer le rôle (membre / modérateur / admin), **sanctionner** (avertir, rendre muet avec durée, expulser, bannir — avec raison, la personne est notifiée), débannir, **réinitialiser un profil** (photo, bannière, bio…), supprimer, voir l'historique des messages
 - **Signalements** : traiter ou rouvrir
 - **Messages** : recherche et suppression (aussi possible directement dans le chat)
 - **Salons** : créer, modifier, réordonner, vider, supprimer, réserver aux membres

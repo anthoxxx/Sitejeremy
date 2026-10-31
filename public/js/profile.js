@@ -76,11 +76,9 @@ async function openProfile(id) {
       staff ? el('div', { class: 'staff-actions' },
         el('h4', {}, 'Modération'),
         el('div', { class: 'actions' },
-          el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 10 }, `${u.username} est muet 10 min`) }, '🔇 Muet 10 min'),
-          el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 0 }, `${u.username} peut reparler`) }, '🔊 Rendre la parole'),
-          el('button', { class: 'btn btn-sm', onclick: () => { if (confirm(`Effacer la photo, la bannière, la bio et les infos de ${u.username} ?`)) modAction(`/api/admin/users/${u.id}/reset-profile`, {}, 'Profil réinitialisé', close); } }, '🧹 Réinitialiser le profil'),
-          el('button', { class: 'btn btn-sm', onclick: () => { const r = prompt('Raison de l\'expulsion ?'); if (r !== null) modAction(`/api/admin/users/${u.id}/kick`, { reason: r }, `${u.username} expulsé`, close); } }, '👢 Expulser'),
-          el('button', { class: 'btn btn-sm btn-danger', onclick: () => { const r = prompt('Raison du bannissement ?'); if (r !== null) modAction(`/api/admin/users/${u.id}`, { banned: true, banReason: r }, `${u.username} banni`, close, 'PATCH'); } }, '⛔ Bannir'))) : null,
+          el('button', { class: 'btn btn-sm btn-danger', onclick: () => LC.sanctionModal(u, { toast, onDone: t => { if (t === 'kick' || t === 'ban') close(); } }) }, '🛡️ Sanctionner'),
+          el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 0 }, `${u.username} peut reparler (notifié)`) }, '🔊 Rendre la parole'),
+          el('button', { class: 'btn btn-sm', onclick: () => { if (confirm(`Effacer la photo, la bannière, la bio et les infos de ${u.username} ?`)) modAction(`/api/admin/users/${u.id}/reset-profile`, {}, 'Profil réinitialisé (notifié)', close); } }, '🧹 Réinitialiser le profil'))) : null,
       el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:14px', onclick: () => close() }, 'Fermer')));
 }
 
