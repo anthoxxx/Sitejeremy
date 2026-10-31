@@ -33,8 +33,7 @@ async function unmuteUser(u) {
 function afterMuteChange() {
   renderUsers();
   // Couper aussi sa voix dans le vocal
-  const parts = state.voice.get(Voice.slug) || [];
-  for (const p of parts) { const peer = Voice.peers.get(p.socketId); if (peer) peer.audio.muted = Voice.deaf || isUserMuted(p.userId); }
+  Voice.applyVolumes();
 }
 
 // Fenêtre « mettre en sourdine » avec choix de la durée

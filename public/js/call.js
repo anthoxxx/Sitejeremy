@@ -14,6 +14,8 @@ const Call = {
   facing: 'user',
   startedAt: 0,
   incoming: null,     // { callId, from, video } quand ça sonne
+  volume: loadNum('lc_call_vol', 1), // volume de l'autre personne (0 à 200 %)
+  vol: null,
   ui: null,
 
   async getMedia(video) {
@@ -79,6 +81,16 @@ const Call = {
     if (this.role === 'caller') this.videoSender = pc.addTransceiver(vt || 'video', { direction: 'sendrecv', streams: [this.local] }).sender;
     pc.ontrack = e => {
       this.remote.addTrack(e.track);
+      if (e.track.kind === 'audio') {
+        // Le son de l'autre passe par un amplificateur réglable
+        this.vol?.close();
+        this.volEl = this.volEl || new Audio();
+        this.volEl.srcObject = new MediaStream([e.track]);
+        this.volEl.play().catch(() => {});
+        this.vol = volumeChain(this.volEl, new MediaStream([e.track]));
+        if (!this.vol.gain) this.volEl.muted = false;
+        this.vol.set(this.volume);
+      }
       this.renderMedia();
     };
     pc.onicecandidate = e => { if (e.candidate) socket.emit('call_signal', { callId: this.id, data: { candidate: e.candidate } }); };
@@ -171,6 +183,8 @@ const Call = {
     Ring.stop();
     if (this.pc) { try { this.pc.close(); } catch (e) {} }
     if (this.local) this.local.getTracks().forEach(t => t.stop());
+    this.vol?.close(); this.vol = null;
+    if (this.volEl) { this.volEl.srcObject = null; this.volEl = null; }
     const dur = this.startedAt ? Math.round((Date.now() - this.startedAt) / 1000) : 0;
     if (reason) toast(`📞 ${reason}${dur ? ' · ' + fmtDur(dur) : ''}`);
     Object.assign(this, { id: null, peer: null, pc: null, local: null, remote: null, chain: Promise.resolve(), pending: [], startedAt: 0, videoSender: null, remoteVideo: false, remoteMuted: false });
@@ -201,6 +215,7 @@ const Call = {
     const rv = this.ui.querySelector('.call-remote');
     const lv = this.ui.querySelector('.call-local');
     if (this.remote && rv.srcObject !== this.remote) { rv.srcObject = this.remote; rv.play().catch(() => {}); }
+    rv.muted = true; // le son est joué à part, avec le réglage de volume
     const hasRemoteVideo = this.remoteVideo && this.remote?.getVideoTracks().length;
     this.ui.classList.toggle('remote-video', !!hasRemoteVideo);
     const myVideo = this.local?.getVideoTracks()[0];
@@ -212,9 +227,19 @@ const Call = {
     if (this.phase === 'live') st.textContent = this.remoteMuted ? '🔇 Micro coupé' : (hasRemoteVideo ? '' : '🎧 En appel');
     this.renderControls();
   },
+  setVolume(v) {
+    this.volume = v;
+    try { localStorage.setItem('lc_call_vol', String(v)); } catch (e) {}
+    this.vol?.set(v);
+  },
   renderControls() {
     if (!this.ui) return;
     const hasCam = !!this.local?.getVideoTracks()[0];
+    let volBox = this.ui.querySelector('.call-volume');
+    if (!volBox) {
+      volBox = el('div', { class: 'call-volume' }, volumeSlider(this.volume, v => this.setVolume(v)));
+      this.ui.append(volBox);
+    }
     this.ui.querySelector('.call-controls').replaceChildren(
       el('button', { class: 'call-btn' + (this.muted ? ' off' : ''), title: 'Micro', onclick: () => this.toggleMute() }, this.muted ? '🔇' : '🎤'),
       el('button', { class: 'call-btn' + (!hasCam || this.camOff ? ' off' : ''), title: 'Caméra', onclick: () => this.toggleCam() }, '📷'),

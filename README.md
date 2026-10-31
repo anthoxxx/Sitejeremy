@@ -44,6 +44,7 @@ Variables d'environnement facultatives :
 - 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde
 - 🗣️ **Dictée vocale** : on parle, le texte s'écrit (dire « point », « virgule », « point d'interrogation »…), plus correcteur orthographique du navigateur
 - 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
+- 🔊 **Volume réglable de 0 à 200 %** pendant les appels et dans le vocal des salons (volume général + volume de chaque personne)
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
 - 📻 **Radio** : lecteur intégré, radio du salon, lien audio perso
 - 🎮 **Mini-jeux** (bouton 🎮) : solo — Serpent, Démineur, Memory, Pendu, Taquin, Réflexes, Quiz ; à deux en direct — Morpion, 4 alignés, Chifoumi, Course de frappe, Quiz duel (invitation, revanche, arbitrage par le serveur) ; contre l'ordinateur pour Morpion, 4 alignés et Chifoumi ; records personnels et classements

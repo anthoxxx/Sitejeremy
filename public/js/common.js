@@ -74,7 +74,8 @@ window.LC = {
   // ----- Thèmes de fête -----
   SEASONS: {
     halloween: { label: 'Halloween', icon: '🎃', colors: ['#8b3dff', '#ff7a18', '#ffd23f'], fx: ['🎃', '🦇', '👻', '🕸️', '🍬'], anim: 'float', greeting: '🎃 Joyeux Halloween ! Des bonbons ou un sort ?' },
-    noel: { label: 'Noël', icon: '🎄', colors: ['#1fa055', '#e63946', '#ffd166'], fx: ['❄️', '❄', '❅', '✨', '❆'], anim: 'snow', greeting: '🎄 Joyeux Noël à toutes et à tous !' },
+    hiver: { label: 'Hiver', icon: '❄️', colors: ['#5b8cff', '#8fd3ff', '#e6f4ff'], fx: ['❄️', '❅', '❆'], anim: 'snow', flakes: true, greeting: '❄️ L\'hiver est là : couvre-toi bien et viens te réchauffer sur le chat !' },
+    noel: { label: 'Noël', icon: '🎄', colors: ['#1fa055', '#e63946', '#ffd166'], fx: ['❄️', '❄', '❅', '✨', '❆'], anim: 'snow', flakes: true, greeting: '🎄 Joyeux Noël à toutes et à tous !' },
     'nouvel-an': { label: 'Nouvel An', icon: '🎆', colors: ['#6d5dfc', '#ff4fd8', '#ffd700'], fx: ['✨', '🎉', '🎊', '🥂', '⭐'], anim: 'snow', greeting: '' },
     'saint-valentin': { label: 'Saint-Valentin', icon: '💘', colors: ['#ff3d7f', '#ff8fab', '#ffc2d1'], fx: ['💖', '💘', '💕', '🌹'], anim: 'float', greeting: '💘 Joyeuse Saint-Valentin ! Partagez l\'amour' },
     paques: { label: 'Pâques', icon: '🐣', colors: ['#3fbf7f', '#f472b6', '#facc15'], fx: ['🥚', '🐣', '🌷', '🐰', '🍫'], anim: 'snow', greeting: '🐣 Joyeuses Pâques ! La chasse aux œufs est ouverte' },
@@ -103,6 +104,14 @@ window.LC = {
     for (let i = 0; i < n; i++) {
       const dur = 9 + Math.random() * 10;
       box.append(LC.el('span', { style: `left:${Math.random() * 100}%;animation-duration:${dur}s;animation-delay:-${Math.random() * dur}s;font-size:${12 + Math.random() * 16}px;--drift:${(Math.random() * 80 - 40).toFixed(0)}px` }, s.fx[i % s.fx.length]));
+    }
+    // Vraie neige : de petits flocons blancs qui tombent doucement, en plus des emojis
+    if (s.flakes) {
+      const m = innerWidth < 760 ? 35 : 70;
+      for (let i = 0; i < m; i++) {
+        const dur = 7 + Math.random() * 12, size = 2 + Math.random() * 5;
+        box.append(LC.el('i', { class: 'flake', style: `left:${Math.random() * 100}%;width:${size}px;height:${size}px;opacity:${(0.35 + Math.random() * 0.6).toFixed(2)};animation-duration:${dur}s;animation-delay:-${Math.random() * dur}s;--drift:${(Math.random() * 60 - 30).toFixed(0)}px;filter:blur(${size > 5 ? 1 : 0}px)` }));
+      }
     }
     document.body.append(box);
   },

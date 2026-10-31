@@ -1,5 +1,29 @@
 // The Paradise — chat vocal dans les salons (WebRTC, connexions directes entre participants)
+// ---------- Volume réglable de 0 à 200 % (au-delà de 100 % le son est amplifié) ----------
+function volumeChain(audioEl, stream) {
+  const chain = { gain: null, src: null };
+  const ctx = Voice.audioCtx();
+  if (ctx) {
+    try {
+      chain.src = ctx.createMediaStreamSource(stream);
+      chain.gain = ctx.createGain();
+      chain.src.connect(chain.gain).connect(ctx.destination);
+      audioEl.muted = true; // le son passe par l'amplificateur, pas directement par l'élément
+    } catch (e) { chain.gain = null; }
+  }
+  chain.set = v => {
+    if (chain.gain) chain.gain.gain.value = v;
+    else { audioEl.muted = v === 0; audioEl.volume = Math.max(0, Math.min(1, v)); }
+  };
+  chain.close = () => { try { chain.src?.disconnect(); chain.gain?.disconnect(); } catch (e) {} };
+  return chain;
+}
+const loadNum = (k, d) => { try { const v = parseFloat(localStorage.getItem(k)); return Number.isFinite(v) ? v : d; } catch (e) { return d; } };
+const pct = v => Math.round(v * 100) + ' %';
+
 const Voice = {
+  master: loadNum('lc_voice_vol', 1),   // volume général du vocal
+  userVols: (() => { try { return JSON.parse(localStorage.getItem('lc_user_vol') || '{}'); } catch (e) { return {}; } })(), // volume par personne
   slug: null,          // salon dont on est dans le vocal
   stream: null,        // notre micro
   peers: new Map(),    // socketId -> { pc, audio, chain, pending }
@@ -76,6 +100,9 @@ const Voice = {
       const stream = e.streams[0] || new MediaStream([e.track]);
       audio.srcObject = stream;
       audio.play().catch(() => {});
+      p.vol?.close();
+      p.vol = volumeChain(audio, stream);
+      this.applyVolumes();
       this.meter(id, stream);
     };
     pc.onconnectionstatechange = () => {
@@ -94,6 +121,7 @@ const Voice = {
     const p = this.peers.get(id);
     if (!p) return;
     try { p.pc.close(); } catch (e) {}
+    p.vol?.close();
     p.audio.srcObject = null;
     this.peers.delete(id);
     this.unmeter(id);
@@ -159,9 +187,28 @@ const Voice = {
 
   toggleDeaf() {
     this.deaf = !this.deaf;
-    this.peers.forEach(p => { p.audio.muted = this.deaf; });
-    if (typeof afterMuteChange === 'function') afterMuteChange();
+    this.applyVolumes();
     renderVoice();
+  },
+  // Applique : son coupé, sourdine personnelle, volume général × volume de la personne
+  applyVolumes() {
+    const parts = state.voice.get(this.slug) || [];
+    for (const [id, p] of this.peers) {
+      const who = parts.find(x => x.socketId === id);
+      const silenced = this.deaf || (who && typeof isUserMuted === 'function' && isUserMuted(who.userId));
+      const v = silenced ? 0 : this.master * (who ? this.userVols[who.userId] ?? 1 : 1);
+      if (p.vol) p.vol.set(v); else p.audio.muted = v === 0;
+    }
+  },
+  setMaster(v) {
+    this.master = v;
+    try { localStorage.setItem('lc_voice_vol', String(v)); } catch (e) {}
+    this.applyVolumes();
+  },
+  setUserVol(userId, v) {
+    this.userVols[userId] = v;
+    try { localStorage.setItem('lc_user_vol', JSON.stringify(this.userVols)); } catch (e) {}
+    this.applyVolumes();
   },
 
   // ----- Détection de la parole -----
@@ -230,6 +277,7 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
       Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
+      el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
       el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'))
       : el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
 }
@@ -245,6 +293,7 @@ socket.on('voice_state', ({ slug, participants }) => {
   renderVoice();
   renderVideoGrid();
   renderRooms();
+  if (Voice.slug === slug) Voice.applyVolumes();
   if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
@@ -285,4 +334,25 @@ function renderVideoGrid() {
   grid.replaceChildren(...tiles.map(([, t]) => t));
   grid.classList.toggle('hidden', !tiles.length);
   grid.dataset.count = Math.min(tiles.length, 4);
+}
+
+// Curseur de volume réutilisable (0 à 200 %)
+function volumeSlider(value, onChange) {
+  const label = el('b', { class: 'vol-val' }, pct(value));
+  const range = el('input', { type: 'range', min: 0, max: 2, step: 0.05, value, class: 'vol-range' });
+  range.oninput = () => { const v = parseFloat(range.value); label.textContent = pct(v); onChange(v); };
+  return el('div', { class: 'vol-row' }, el('span', {}, '🔈'), range, el('span', {}, '🔊'), label);
+}
+// Fenêtre : volume général du vocal + volume de chaque personne
+function openVoiceVolume() {
+  const parts = (state.voice.get(Voice.slug) || []).filter(p => p.socketId !== socket.id);
+  const close = modal(
+    el('h3', {}, '🔊 Volume du vocal'),
+    el('div', { class: 'field' }, el('label', {}, 'Volume général'), volumeSlider(Voice.master, v => { Voice.setMaster(v); renderVoice(); })),
+    parts.length ? el('div', { class: 'field' }, el('label', {}, 'Volume de chaque personne'),
+      ...parts.map(p => el('div', { class: 'vol-person' }, el('div', { class: 'vol-who' }, LC.avatar(p), el('span', {}, p.username)),
+        volumeSlider(Voice.userVols[p.userId] ?? 1, v => Voice.setUserVol(p.userId, v)))))
+      : el('p', { class: 'help' }, 'Personne d\'autre dans le vocal pour le moment.'),
+    el('p', { class: 'help' }, 'Au-dessus de 100 %, le son est amplifié. Ces réglages sont gardés sur cet appareil.'),
+    el('button', { class: 'btn btn-ghost', style: 'width:100%', onclick: () => close() }, 'Fermer'));
 }

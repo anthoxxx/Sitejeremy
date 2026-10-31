@@ -948,3 +948,18 @@ body.hub-open .modal-back { z-index: 260; }
 .code-input { font-family: ui-monospace, monospace; letter-spacing: 1px; text-transform: uppercase; font-size: 16px; }
 .code-show { font-family: ui-monospace, monospace; font-size: 1rem; padding: 8px 12px; border-radius: 10px; background: var(--bg-2); letter-spacing: 1px; }
 .staff-foot { margin-top: 16px; }
+
+/* ===== Neige (thèmes Hiver et Noël) ===== */
+.season-fx .flake { position: absolute; top: -12px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, .8); animation: fall linear infinite; }
+:root[data-season="hiver"] { --bg: #070d1a; --bg-2: #0b1426; --panel: #111d35; --panel-2: #172744; }
+:root[data-theme="light"][data-season="hiver"] .season-fx .flake { background: #8fb8ff; box-shadow: 0 0 6px rgba(91, 140, 255, .6); }
+
+/* ===== Volume (appels et vocal) ===== */
+.vol-row { display: flex; align-items: center; gap: 8px; }
+.vol-range { flex: 1; accent-color: var(--rose); min-width: 0; }
+.vol-val { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.vol-person { padding: 8px 10px; border-radius: 12px; background: var(--bg-2); margin-bottom: 6px; }
+.vol-who { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; }
+.vol-who .avatar { width: 26px; height: 26px; font-size: .75rem; }
+.call-volume { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100px + env(safe-area-inset-bottom)); z-index: 2; width: min(340px, calc(100vw - 32px)); padding: 8px 14px; border-radius: 999px; background: rgba(0, 0, 0, .45); backdrop-filter: blur(8px); color: #fff; }
+.call-volume .vol-val { color: #fff; }
