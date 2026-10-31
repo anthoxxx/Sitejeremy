@@ -55,6 +55,7 @@ Variables d'environnement facultatives :
 - 📜 **Logs** (tout le staff) : connexions, inscriptions, invités, **messages supprimés avec leur contenu** (et les vocaux), salons, vocal, appels, signalements, sanctions, réglages… Filtres par catégorie, recherche, mise à jour **en direct**, gardés 90 jours. Les adresses IP ne sont visibles que par le super-admin.
 - 👻 **Mode fantôme** (super-admin) : bouton 👻 en haut du chat. Invisible dans la liste des connectés, les compteurs et les messages « a rejoint / a quitté » ; on peut lire tous les salons et modérer (les sanctions apparaissent « par la modération »), mais pas écrire, appeler ni rejoindre le vocal tant qu'il est actif.
 - 📻 **Radios avec vérification automatique** : au démarrage puis toutes les 6 heures, chaque radio est testée. Si elle ne marche plus, le site cherche un nouveau lien officiel sur l'annuaire libre radio-browser.info et la **répare** ; sinon il la **masque** pour les utilisateurs. Un bouton « 🔍 Vérifier et réparer » lance la vérification à la main.
+- 💾 **Sauvegardes** (super-admin) : télécharger les membres inscrits **avec leurs rôles** (et mots de passe chiffrés) en un fichier, les **restaurer** en un clic (même sur un site vidé), sauvegarde complète de la base, et sauvegardes automatiques quotidiennes sur le serveur (14 jours gardés)
 - 🌐 **Site** (super-admin) : nom, domaine, textes, couleurs, histoire, règlement, limite de comptes
 
 ## Mise en ligne

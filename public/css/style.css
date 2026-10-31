@@ -920,3 +920,5 @@ body.hub-open .modal-back { z-index: 260; }
 .room-type-card:disabled { opacity: .5; cursor: not-allowed; }
 .room-color-preview { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-weight: 700; }
 .side-title .btn-sm:not(.btn-primary) { padding: 3px 10px; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.backup-ok { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(51, 214, 166, .12); border: 1px solid rgba(51, 214, 166, .4); display: flex; flex-direction: column; gap: 4px; }
+.admin-layout aside .logo { font-size: 1.12rem; white-space: nowrap; }

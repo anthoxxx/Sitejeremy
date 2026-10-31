@@ -26,7 +26,8 @@ const io = new Server(server);
 const bigJson = express.json({ limit: '3mb' });
 const smallJson = express.json({ limit: '50kb' });
 const isUpload = p => p.startsWith('/api/me/image/') || p === '/api/audio' || /^\/api\/rooms\/\d+\/background$/.test(p);
-app.use((req, res, next) => (isUpload(req.path) ? bigJson : smallJson)(req, res, next));
+const hugeJson = express.json({ limit: '40mb' });
+app.use((req, res, next) => (req.path === '/api/admin/backup/import' ? hugeJson : isUpload(req.path) ? bigJson : smallJson)(req, res, next));
 app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
 app.set('trust proxy', true); // vraie adresse IP derrière l'hébergeur (Render…)
 app.use(cookieParser());
@@ -1267,6 +1268,112 @@ admin.put('/site', requireRole('superadmin'), (req, res) => {
 
 const logOut = (l, withIp) => ({ id: l.id, actorId: l.actor_id, actor: l.actor_name, action: l.action, details: l.details, category: l.category || 'system',
   ip: withIp ? l.ip : undefined, data: typeof l.data === 'string' ? parseJSON(l.data, {}) : (l.data || {}), createdAt: l.created_at });
+// ---------- Sauvegardes (super-admin) ----------
+// Membres inscrits + rôles (+ réglages du site) dans un fichier, et restauration depuis ce fichier.
+const BACKUP_DIR = path.join(dataDir, 'backups');
+fs.mkdirSync(BACKUP_DIR, { recursive: true });
+const USER_FIELDS = ['username', 'password_hash', 'gender', 'age', 'city', 'bio', 'color', 'role', 'created_at', 'last_seen', 'banned', 'ban_reason',
+  'banner_style', 'accent', 'name_effect', 'avatar_frame', 'status_emoji', 'status_text', 'interests', 'games', 'socials', 'show_age', 'show_city',
+  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner'];
+function exportData() {
+  const users = db.prepare('SELECT * FROM users WHERE is_guest=0 ORDER BY id').all().map(u => {
+    const o = {};
+    for (const k of USER_FIELDS) o[k] = u[k] ?? null;
+    return o;
+  });
+  const settings = getSettings();
+  return { app: 'The Paradise', version: 1, exportedAt: new Date().toISOString(), counts: { users: users.length }, users, settings };
+}
+admin.get('/backup/info', requireRole('superadmin'), (req, res) => {
+  const counts = {};
+  for (const r of db.prepare("SELECT role, COUNT(*) c FROM users WHERE is_guest=0 GROUP BY role").all()) counts[r.role] = r.c;
+  const auto = fs.readdirSync(BACKUP_DIR).filter(f => /^auto-.+\.(db|json)$/.test(f)).sort().reverse()
+    .map(f => ({ name: f, size: fs.statSync(path.join(BACKUP_DIR, f)).size, date: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }));
+  res.json({ counts, total: Object.values(counts).reduce((a, b) => a + b, 0), auto });
+});
+admin.get('/backup/users', requireRole('superadmin'), (req, res) => {
+  const data = exportData();
+  log(req.user, 'backup', `Sauvegarde téléchargée (${data.users.length} membres)`);
+  res.setHeader('Content-Disposition', `attachment; filename="sauvegarde-membres-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.json(data);
+});
+admin.get('/backup/db', requireRole('superadmin'), async (req, res) => {
+  const file = path.join(BACKUP_DIR, `manuel-${Date.now()}.db`);
+  try {
+    await db.backup(file);
+    log(req.user, 'backup', 'Sauvegarde complète de la base téléchargée');
+    res.download(file, `sauvegarde-complete-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
+  } catch (e) { res.status(500).json({ error: 'Sauvegarde impossible : ' + e.message }); }
+});
+admin.get('/backup/auto/:name', requireRole('superadmin'), (req, res) => {
+  const name = path.basename(String(req.params.name));
+  if (!/^auto-.+\.(db|json)$/.test(name) || !fs.existsSync(path.join(BACKUP_DIR, name))) return res.status(404).json({ error: 'Sauvegarde introuvable' });
+  res.download(path.join(BACKUP_DIR, name));
+});
+admin.post('/backup/import', requireRole('superadmin'), (req, res) => {
+  const b = req.body || {};
+  if (!Array.isArray(b.users)) return res.status(400).json({ error: 'Fichier de sauvegarde invalide' });
+  const withRoles = req.body.options?.roles !== false;
+  const withSettings = !!req.body.options?.settings;
+  const report = { created: 0, updated: 0, skipped: 0 };
+  const insert = db.prepare(`INSERT INTO users (${USER_FIELDS.join(',')}) VALUES (${USER_FIELDS.map(() => '?').join(',')})`);
+  const tx = db.transaction(() => {
+    for (const raw of b.users) {
+      const name = clean(raw?.username, 20);
+      if (!USERNAME_RE.test(name) || !raw.password_hash || !/^\$2[aby]\$/.test(String(raw.password_hash))) { report.skipped++; continue; }
+      const role = ROLES.includes(raw.role) ? raw.role : 'user';
+      // Les images ne sont pas dans le fichier : on garde le lien seulement si l'image existe encore sur ce serveur
+      const img = v => (v && String(v).startsWith('/uploads/') && fs.existsSync(path.join(uploadDir, path.basename(v))) ? v : '');
+      const DEF = { gender: 'x', color: '#8b6cff', banned: 0, show_age: 1, show_city: 1, show_birthday: 1, birth_day: 0, birth_month: 0, interests: '[]', games: '[]', socials: '{}',
+        banner_style: 'aurora', accent: '#ff5fa2', name_effect: 'none', avatar_frame: 'none', bio: '', city: '', ban_reason: '', status_emoji: '', status_text: '', device_id: '', signup_ip: '' };
+      const vals = () => USER_FIELDS.map(k => {
+        if (k === 'username') return name;
+        if (k === 'role') return withRoles ? role : 'user';
+        if (k === 'avatar' || k === 'banner') return img(raw[k]);
+        if (k === 'created_at') return Number(raw.created_at) || now();
+        if (k === 'gender') return ['h', 'f', 'x'].includes(raw.gender) ? raw.gender : 'x';
+        const v = raw[k] ?? DEF[k] ?? null;
+        return typeof v === 'object' && v !== null ? JSON.stringify(v) : v;
+      });
+      const existing = getUserByName(name);
+      if (!existing || existing.is_guest) {
+        if (existing) deleteUserRecord(existing);
+        try { insert.run(...vals()); report.created++; } catch (e) { report.skipped++; }
+      } else {
+        // Compte déjà présent : on remet son rôle (sans jamais retirer le super-admin qui restaure)
+        if (withRoles && existing.id !== req.user.id && existing.role !== role) {
+          db.prepare('UPDATE users SET role=? WHERE id=?').run(role, existing.id);
+          report.updated++;
+        } else report.skipped++;
+      }
+    }
+    if (withSettings && b.settings && typeof b.settings === 'object') {
+      for (const [k, v] of Object.entries(b.settings)) if (typeof v === 'string' && v.length < 25000) setSetting(k, v);
+    }
+  });
+  tx();
+  for (const e of online.values()) refreshOnline(getUser(e.user.id) || e.user);
+  log(req.user, 'backup', `Restauration : ${report.created} créé(s), ${report.updated} rôle(s) remis, ${report.skipped} ignoré(s)${withSettings ? ', réglages du site restaurés' : ''}`);
+  if (withSettings) io.emit('site_changed', { site: siteInfo() });
+  res.json({ report });
+});
+// Sauvegarde automatique chaque jour sur le serveur (on garde les 14 dernières)
+async function autoBackup() {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const dbFile = path.join(BACKUP_DIR, `auto-${day}.db`);
+    if (!fs.existsSync(dbFile)) {
+      await db.backup(dbFile);
+      fs.writeFileSync(path.join(BACKUP_DIR, `auto-${day}-membres.json`), JSON.stringify(exportData()));
+    }
+    const olds = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('auto-')).sort().reverse();
+    const days = [...new Set(olds.map(f => f.slice(5, 15)))];
+    for (const f of olds) if (!days.slice(0, 14).includes(f.slice(5, 15))) fs.unlink(path.join(BACKUP_DIR, f), () => {});
+  } catch (e) { console.error('Sauvegarde automatique impossible :', e.message); }
+}
+setTimeout(autoBackup, 20000).unref();
+setInterval(autoBackup, 6 * 3600 * 1000).unref();
+
 admin.get('/logs', (req, res) => {
   const where = [], args = [];
   if (req.query.category && req.query.category !== 'all') { where.push('category=?'); args.push(String(req.query.category)); }

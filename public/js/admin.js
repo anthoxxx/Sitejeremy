@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, logs };
+const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && name === 'site')) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -390,6 +390,59 @@ async function site() {
 }
 
 // ---------- Journal ----------
+// ---------- Sauvegardes (super-admin) ----------
+async function backups() {
+  const info = await api('/api/admin/backup/info');
+  const roleCount = r => info.counts[r] || 0;
+  const file = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden' });
+  const optRoles = el('input', { type: 'checkbox', checked: true });
+  const optSettings = el('input', { type: 'checkbox' });
+  const result = el('div', {});
+  file.onchange = async () => {
+    const f = file.files[0];
+    if (!f) return;
+    result.replaceChildren(el('p', { class: 'help' }, '⏳ Restauration en cours…'));
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.users)) throw new Error('Ce fichier n\'est pas une sauvegarde des membres');
+      if (!confirm(`Restaurer ${data.users.length} membre(s) depuis ce fichier ?`)) { result.replaceChildren(); return; }
+      const { report } = await api('/api/admin/backup/import', { method: 'POST', body: { users: data.users, settings: data.settings, options: { roles: optRoles.checked, settings: optSettings.checked } } });
+      result.replaceChildren(el('div', { class: 'backup-ok' },
+        el('b', {}, '✅ Restauration terminée'),
+        el('div', {}, `✨ ${report.created} compte(s) recréé(s) · 🎖️ ${report.updated} rôle(s) remis · ${report.skipped} déjà à jour ou ignoré(s)`),
+        el('div', { class: 'help' }, 'Les membres restaurés se connectent avec leur pseudo et leur mot de passe habituels.')));
+      toast('✅ Sauvegarde restaurée');
+    } catch (e) { result.replaceChildren(el('p', { class: 'error' }, '❌ ' + e.message)); }
+    file.value = '';
+  };
+  const fmtSize = n => (n > 1048576 ? (n / 1048576).toFixed(1) + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko');
+  page.replaceChildren(...header('💾 Sauvegardes', 'Garde une copie de tes membres et de leurs rôles, et remets-les en place si besoin.'),
+    el('div', { class: 'kpis' },
+      el('div', { class: 'kpi' }, el('span', {}, '👤 Membres inscrits'), el('b', {}, info.total)),
+      el('div', { class: 'kpi' }, el('span', {}, '👑 Super-admins'), el('b', {}, roleCount('superadmin'))),
+      el('div', { class: 'kpi' }, el('span', {}, '🛡️ Admins'), el('b', {}, roleCount('admin'))),
+      el('div', { class: 'kpi' }, el('span', {}, '🎖️ Modérateurs'), el('b', {}, roleCount('moderator')))),
+    el('div', { class: 'panel' }, el('h2', {}, '⬇️ Télécharger une sauvegarde'),
+      el('p', { class: 'help', style: 'margin:0 0 12px' }, 'Le fichier contient tous les membres inscrits avec leur rôle, leur profil et leur mot de passe (chiffré : personne ne peut le lire). Garde-le précieusement, ne le partage pas.'),
+      el('div', { class: 'toolbar' },
+        el('a', { class: 'btn btn-primary', href: '/api/admin/backup/users', download: '' }, '👥 Membres + rôles (.json)'),
+        el('a', { class: 'btn', href: '/api/admin/backup/db', download: '' }, '🗄️ Sauvegarde complète (.db)')),
+      el('p', { class: 'help', style: 'margin:8px 0 0' }, 'La sauvegarde complète contient tout (messages, salons, scores…) : utile pour déménager le site sur un autre serveur.')),
+    el('div', { class: 'panel' }, el('h2', {}, '⬆️ Restaurer les membres'),
+      el('p', { class: 'help', style: 'margin:0 0 10px' }, 'Choisis un fichier « sauvegarde-membres-….json ». Les comptes manquants sont recréés ; les comptes déjà présents ne sont pas touchés (sauf leur rôle si tu coches la case).'),
+      el('label', { class: 'switch' }, el('span', {}, '🎖️ Remettre les rôles (super-admin, admin, modérateur)'), optRoles),
+      el('label', { class: 'switch' }, el('span', {}, '🌐 Restaurer aussi les réglages du site (nom, textes, règlement, couleurs…)'), optSettings),
+      el('button', { class: 'btn btn-primary', style: 'margin-top:12px', onclick: () => file.click() }, '📂 Choisir le fichier de sauvegarde'),
+      file, result),
+    el('div', { class: 'panel' }, el('h2', {}, '🕒 Sauvegardes automatiques du serveur'),
+      el('p', { class: 'help', style: 'margin:0 0 10px' }, 'Le site fait une sauvegarde tout seul chaque jour et garde les 14 derniers jours. ⚠️ Elles sont sur le serveur : si le serveur est effacé (ex. Render gratuit), elles disparaissent aussi. Télécharge régulièrement une copie sur ton ordinateur.'),
+      info.auto.length ? el('div', { class: 'table-wrap' }, el('table', {},
+        el('thead', {}, el('tr', {}, ...['Fichier', 'Taille', 'Date', ''].map(h => el('th', {}, h)))),
+        el('tbody', {}, ...info.auto.map(a => el('tr', {}, el('td', {}, a.name.endsWith('.json') ? '👥 ' + a.name : '🗄️ ' + a.name), el('td', {}, fmtSize(a.size)), el('td', {}, LC.date(a.date)),
+          el('td', {}, el('a', { class: 'btn btn-sm', href: '/api/admin/backup/auto/' + encodeURIComponent(a.name), download: '' }, '⬇️')))))))
+        : el('p', { class: 'empty' }, 'La première sauvegarde automatique sera faite quelques secondes après le démarrage du site.')));
+}
+
 // ---------- Logs : tout ce qui se passe sur le site (accès staff) ----------
 const LOG_LABELS = {
   ban: '⛔ Bannissement', unban: '✅ Débannissement', kick: '👢 Expulsion', mute: '🔇 Mute', unmute: '🔊 Parole rendue', warn: '⚠️ Avertissement',
@@ -399,7 +452,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;

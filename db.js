@@ -339,7 +339,7 @@ const LOG_CATEGORIES = {
   voice: ['voice_join', 'call'],
   games: ['game'],
   reports: ['report_new'],
-  system: ['settings', 'site', 'station_create', 'station_edit', 'station_delete', 'stations_check', 'ghost'],
+  system: ['backup', 'settings', 'site', 'station_create', 'station_edit', 'station_delete', 'stations_check', 'ghost'],
 };
 const categoryOf = action => Object.keys(LOG_CATEGORIES).find(c => LOG_CATEGORIES[c].includes(action)) || 'system';
 const logListeners = [];
