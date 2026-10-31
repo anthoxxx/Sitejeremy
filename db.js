@@ -96,6 +96,20 @@ addColumn('rooms', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE')
 addColumn('rooms', 'is_private', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('rooms', 'station_id', 'INTEGER');
 addColumn('rooms', 'voice_enabled', 'INTEGER NOT NULL DEFAULT 1');
+// Personnalisation du profil
+addColumn('users', 'avatar', "TEXT DEFAULT ''");
+addColumn('users', 'banner', "TEXT DEFAULT ''");
+addColumn('users', 'banner_style', "TEXT DEFAULT 'aurora'");
+addColumn('users', 'accent', "TEXT DEFAULT '#ff5fa2'");
+addColumn('users', 'name_effect', "TEXT DEFAULT 'none'");
+addColumn('users', 'avatar_frame', "TEXT DEFAULT 'none'");
+addColumn('users', 'status_emoji', "TEXT DEFAULT ''");
+addColumn('users', 'status_text', "TEXT DEFAULT ''");
+addColumn('users', 'interests', "TEXT DEFAULT '[]'");
+addColumn('users', 'games', "TEXT DEFAULT '[]'");
+addColumn('users', 'socials', "TEXT DEFAULT '{}'");
+addColumn('users', 'show_age', 'INTEGER NOT NULL DEFAULT 1');
+addColumn('users', 'show_city', 'INTEGER NOT NULL DEFAULT 1');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS room_members (
@@ -180,4 +194,4 @@ function log(actor, action, details = '') {
     .run(actor ? actor.id : null, actor ? actor.username : 'système', action, details, Date.now());
 }
 
-module.exports = { db, getSettings, setSetting, log };
+module.exports = { db, dataDir, getSettings, setSetting, log };

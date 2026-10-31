@@ -122,7 +122,7 @@ function roomActions(u, closeProfile) {
   const r = state.currentRoom;
   if (state.view?.type !== 'room' || !canManage(r) || u.id === r.ownerId || u.id === state.me.id) return null;
   return el('div', { class: 'staff-actions' },
-    el('h4', {}, `Mon salon « ${r.name} »`),
+    el('h4', {}, r.ownerId === state.me.id ? `Mon salon « ${r.name} »` : `Salon « ${r.name} »`),
     el('div', { class: 'actions' },
       r.isPrivate ? el('button', { class: 'btn btn-sm', onclick: async () => {
         try { await api(`/api/rooms/${r.id}/members`, { method: 'POST', body: { userId: u.id } }); toast(`🎟️ ${u.username} invité`); } catch (e) { toast(e.message); }

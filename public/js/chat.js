@@ -174,12 +174,12 @@ function linkify(text) {
 function addRoomMessage(m, live = true) {
   if (state.blocked.has(m.userId)) return;
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, role: m.role };
+  const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
-        el('span', { class: 'who', style: `color:${m.color}`, onclick: () => openProfile(m.userId) }, m.username),
+        el('span', { class: 'who', onclick: () => openProfile(m.userId) }, LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user),
         el('span', { class: 'time' }, LC.time(m.createdAt))),
       el('div', { class: 'text' }, linkify(m.content))),
@@ -271,8 +271,9 @@ function renderUsers() {
     return el('div', { class: 'list-item', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.username, ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
-        el('div', { class: 'sub' }, [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · '))));
+        el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
+        el('div', { class: 'sub' }, u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
+          : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · '))));
   }));
 }
 $('userSearch').oninput = renderUsers;
@@ -292,43 +293,7 @@ function modal(...content) {
   return close;
 }
 
-async function openProfile(id) {
-  if (id === state.me.id) return openMyProfile();
-  let data;
-  try { data = await api('/api/users/' + id); } catch (e) { return toast(e.message); }
-  const u = data.user;
-  const blocked = state.blocked.has(u.id);
-  let close;
-  const staff = isStaff() && (state.me.role === 'admin' || u.role === 'user');
-  close = modal(
-    el('div', { class: 'profile-head' },
-      LC.avatar(u, true),
-      el('h3', {}, u.username, ' ', LC.badge(u)),
-      el('p', {}, `${LC.genderLabel(u.gender)}${u.age ? ' · ' + u.age + ' ans' : ''}${u.city ? ' · ' + u.city : ''}`),
-      el('p', { style: 'font-size:.85rem;margin-top:4px' }, data.online ? '🟢 En ligne' : '⚪ Hors ligne')),
-    el('div', { class: 'bio' }, u.bio || 'Aucune description.'),
-    el('div', { class: 'actions' },
-      el('button', { class: 'btn btn-primary', onclick: () => { close(); openPm(u); } }, '💌 Message privé'),
-      el('button', { class: 'btn', onclick: () => { close(); mention(u.username); } }, '@ Mentionner'),
-      el('button', { class: 'btn', onclick: async () => {
-        try {
-          await api('/api/blocks/' + u.id, { method: blocked ? 'DELETE' : 'POST' });
-          blocked ? state.blocked.delete(u.id) : state.blocked.add(u.id);
-          toast(blocked ? `${u.username} débloqué` : `${u.username} bloqué`);
-          close(); renderUsers(); renderConvs();
-        } catch (e) { toast(e.message); }
-      } }, blocked ? '✅ Débloquer' : '🚫 Bloquer'),
-      el('button', { class: 'btn', onclick: () => { close(); openReport(u); } }, '⚠️ Signaler')),
-    roomActions(u, () => close()),
-    staff ? el('div', { class: 'staff-actions' },
-      el('h4', {}, 'Modération'),
-      el('div', { class: 'actions' },
-        el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 10 }, `${u.username} est muet 10 min`) }, '🔇 Muet 10 min'),
-        el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 0 }, `${u.username} peut reparler`) }, '🔊 Rendre la parole'),
-        el('button', { class: 'btn btn-sm', onclick: () => { const r = prompt('Raison de l\'expulsion ?'); if (r !== null) modAction(`/api/admin/users/${u.id}/kick`, { reason: r }, `${u.username} expulsé`, close); } }, '👢 Expulser'),
-        el('button', { class: 'btn btn-sm btn-danger', onclick: () => { const r = prompt('Raison du bannissement ?'); if (r !== null) modAction(`/api/admin/users/${u.id}`, { banned: true, banReason: r }, `${u.username} banni`, close, 'PATCH'); } }, '⛔ Bannir'))) : null,
-    el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:14px', onclick: () => close() }, 'Fermer'));
-}
+// openProfile() et openMyProfile() sont dans profile.js
 async function modAction(url, body, msg, after, method = 'POST') {
   try { await api(url, { method, body }); toast('✅ ' + msg); after && after(); } catch (e) { toast(e.message); }
 }
@@ -353,35 +318,6 @@ function openReport(u) {
   reason.focus();
 }
 
-function openMyProfile() {
-  const u = state.me;
-  const f = (label, input) => el('div', { class: 'field' }, el('label', {}, label), input);
-  const age = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: u.age || '' });
-  const city = el('input', { class: 'input', maxlength: 40, value: u.city || '' });
-  const gender = el('select', { class: 'input' }, ...[['f', 'Femme'], ['h', 'Homme'], ['x', 'Autre']].map(([v, l]) => el('option', { value: v, selected: u.gender === v }, l)));
-  const color = el('input', { type: 'color', value: u.color, style: 'width:100%;height:44px;border:0;background:none;cursor:pointer' });
-  const bio = el('textarea', { class: 'input', rows: 3, maxlength: 300 }, u.bio || '');
-  const err = el('div', { class: 'error' });
-  const pwCur = el('input', { class: 'input', type: 'password', placeholder: 'Mot de passe actuel', autocomplete: 'current-password' });
-  const pwNew = el('input', { class: 'input', type: 'password', placeholder: 'Nouveau mot de passe', autocomplete: 'new-password', style: 'margin-top:8px' });
-  const close = modal(
-    el('div', { class: 'profile-head' }, LC.avatar(u, true), el('h3', {}, u.username, ' ', LC.badge(u))),
-    el('div', { class: 'row', style: 'margin-top:16px' }, f('Âge', age), f('Genre', gender)),
-    el('div', { class: 'row' }, f('Ville', city), f('Couleur du pseudo', color)),
-    f('Ma description', bio),
-    u.isGuest ? el('p', { style: 'color:var(--muted);font-size:.85rem' }, '💡 Tu es invité : déconnecte-toi puis inscris-toi pour réserver ton pseudo.')
-      : f('Changer de mot de passe', el('div', {}, pwCur, pwNew)),
-    err,
-    el('div', { class: 'actions' },
-      el('button', { class: 'btn btn-primary', onclick: async () => {
-        try {
-          const { user } = await api('/api/me', { method: 'PUT', body: { age: age.value, city: city.value, gender: gender.value, color: color.value, bio: bio.value } });
-          if (!u.isGuest && pwNew.value) await api('/api/me/password', { method: 'PUT', body: { current: pwCur.value, next: pwNew.value } });
-          state.me = user; renderMe(); close(); toast('Profil mis à jour ✨');
-        } catch (e) { err.textContent = e.message; }
-      } }, 'Enregistrer'),
-      el('button', { class: 'btn btn-danger', onclick: logout }, 'Déconnexion')));
-}
 async function logout() {
   await api('/api/logout', { method: 'POST' }).catch(() => {});
   location.href = '/';

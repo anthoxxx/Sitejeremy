@@ -37,8 +37,28 @@ window.LC = {
   time(ts) { return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); },
   date(ts) { return ts ? new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
   avatar(u, big) {
-    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : ''), style: `background:${u.color || '#8b6cff'}` }, (u.username || '?')[0].toUpperCase());
+    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
+    if (u.avatar) a.append(LC.el('img', { src: u.avatar, alt: '', loading: 'lazy' }));
+    else a.append((u.username || '?')[0].toUpperCase());
     return a;
+  },
+  // Pseudo avec sa couleur et son effet
+  name(u, extraClass = '') {
+    const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
+    return LC.el('span', { class: 'uname' + fx + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+  },
+  BANNERS: {
+    aurora: 'linear-gradient(135deg,#8b6cff,#ff5fa2 60%,#ffb547)',
+    sunset: 'linear-gradient(135deg,#ff7a59,#ff3d77 50%,#7b2ff7)',
+    ocean: 'linear-gradient(135deg,#0ea5e9,#2563eb 50%,#312e81)',
+    neon: 'linear-gradient(135deg,#00f5d4,#7b2ff7 55%,#f72585)',
+    forest: 'linear-gradient(135deg,#16a34a,#0d9488 50%,#164e63)',
+    midnight: 'linear-gradient(135deg,#1e1b4b,#312e81 50%,#0f172a)',
+    candy: 'linear-gradient(135deg,#f9a8d4,#c4b5fd 50%,#a5f3fc)',
+    lava: 'linear-gradient(135deg,#f97316,#dc2626 50%,#450a0a)',
+  },
+  bannerCss(u) {
+    return u.banner ? `url("${u.banner}") center/cover no-repeat` : (LC.BANNERS[u.bannerStyle] || LC.BANNERS.aurora);
   },
   badge(u) {
     if (u.role === 'admin') return LC.el('span', { class: 'badge admin' }, 'Admin');

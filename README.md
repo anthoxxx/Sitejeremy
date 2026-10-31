@@ -27,7 +27,7 @@ Variables d'environnement facultatives :
 - 9 **salons** par défaut (Général, Rencontres, tranches d'âge, Amitié, Jeux vidéo, Musique, Salon VIP réservé aux membres)
 - **Messages privés** avec notifications, compteur de non-lus et indicateur de saisie
 - Liste des **connectés** avec recherche et filtres (femmes / hommes / salon actuel)
-- **Profils** : âge, ville, description, couleur du pseudo
+- **Profils personnalisables** (aperçu en direct) : photo de profil (GIF animés acceptés), bannière (image ou dégradé), couleur et **effet du pseudo** (dégradé, néon, arc-en-ciel, or), **cadre de photo** (néon, or, arc-en-ciel, feu, glace), couleur du profil, **statut** avec émoji, bio, centres d'intérêt, jeux du moment, **réseaux** (Discord, Twitch, YouTube, TikTok, Instagram, Steam, PSN, Xbox), possibilité de cacher son âge et sa ville
 - **@mentions**, liens cliquables, émojis, son de notification
 - **Bloquer** et **signaler** un utilisateur
 - 🎙️ **Chat vocal** dans chaque salon : micro on/off, couper le son, indicateur de qui parle (WebRTC, jusqu'à 8 personnes par défaut)
@@ -37,7 +37,7 @@ Variables d'environnement facultatives :
 
 **Panneau d'administration** (`/admin`)
 - Tableau de bord : connectés, membres, invités, messages du jour, fréquentation des salons
-- **Utilisateurs** : recherche, filtres, changer le rôle (membre / modérateur / admin), expulser, rendre muet, bannir / débannir, supprimer, voir l'historique des messages
+- **Utilisateurs** : recherche, filtres, changer le rôle (membre / modérateur / admin), expulser, rendre muet, bannir / débannir, **réinitialiser un profil** (photo, bannière, bio…), supprimer, voir l'historique des messages
 - **Signalements** : traiter ou rouvrir
 - **Messages** : recherche et suppression (aussi possible directement dans le chat)
 - **Salons** : créer, modifier, réordonner, vider, supprimer, réserver aux membres
@@ -52,7 +52,7 @@ Les **modérateurs** ont accès au tableau de bord, aux utilisateurs (sauf rôle
 
 Node.js, Express, Socket.io, SQLite (better-sqlite3), bcrypt. Aucun framework front : HTML, CSS et JS natifs dans `public/`.
 
-Pour héberger le site, il faut un hébergeur qui fait tourner Node.js (Render, Railway, Fly.io, un VPS…), car un hébergement statique ne suffit pas. Pense à conserver le dossier `data/` (disque persistant).
+Pour héberger le site, il faut un hébergeur qui fait tourner Node.js (Render, Railway, Fly.io, un VPS…), car un hébergement statique ne suffit pas. Pense à conserver le dossier `data/` (disque persistant) : il contient la base de données **et les photos de profil** (`data/uploads`).
 
 ## Notes
 

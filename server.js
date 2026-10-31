@@ -6,7 +6,10 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const { Server } = require('socket.io');
-const { db, getSettings, setSetting, log } = require('./db');
+const fs = require('fs');
+const { db, dataDir, getSettings, setSetting, log } = require('./db');
+const uploadDir = path.join(dataDir, 'uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
 
 const PORT = process.env.PORT || 3000;
 const COOKIE = 'lc_session';
@@ -18,24 +21,59 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.json({ limit: '50kb' }));
+// Les images de profil ont droit à une taille plus grande que le reste
+const bigJson = express.json({ limit: '3mb' });
+const smallJson = express.json({ limit: '50kb' });
+app.use((req, res, next) => (req.path.startsWith('/api/me/image/') ? bigJson : smallJson)(req, res, next));
+app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ---------- Utilitaires ----------
 const now = () => Date.now();
 const clean = (s, max) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
+// Comme clean() mais garde les retours à la ligne (3 lignes vides max d'affilée)
+const cleanMultiline = (s, max) => String(s ?? '').replace(/\r/g, '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
 const USERNAME_RE = /^[\p{L}\p{N}_\-]{3,20}$/u;
+
+const parseJSON = (v, d) => { try { const x = JSON.parse(v); return x ?? d; } catch (e) { return d; } };
+const NAME_EFFECTS = ['none', 'gradient', 'glow', 'rainbow', 'gold'];
+const FRAMES = ['none', 'neon', 'gold', 'rainbow', 'fire', 'ice'];
+const BANNER_STYLES = ['aurora', 'sunset', 'ocean', 'neon', 'forest', 'midnight', 'candy', 'lava'];
+const SOCIALS = ['discord', 'twitch', 'instagram', 'tiktok', 'youtube', 'steam', 'psn', 'xbox'];
 
 function publicUser(u) {
   if (!u) return null;
   return {
-    id: u.id, username: u.username, gender: u.gender, age: u.age, city: u.city,
+    id: u.id, username: u.username, gender: u.gender,
+    age: u.show_age === 0 ? null : u.age, city: u.show_city === 0 ? '' : u.city,
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
+    avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none',
+    statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
+    interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
   };
 }
+// Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
+function selfUser(u) {
+  return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0 };
+}
 function adminUser(u) {
-  return { ...publicUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen };
+  return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen };
+}
+// Mini-profil pour les messages, le vocal…
+const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none' });
+
+// Fichiers d'images de profil
+function removeUpload(url) {
+  if (!url || !url.startsWith('/uploads/')) return;
+  fs.unlink(path.join(uploadDir, path.basename(url)), () => {});
+}
+function deleteUserRecord(u) {
+  if (!u) return;
+  removeUpload(u.avatar);
+  removeUpload(u.banner);
+  db.prepare('DELETE FROM users WHERE id=?').run(u.id);
 }
 const getUser = id => db.prepare('SELECT * FROM users WHERE id=?').get(id);
 const getUserByName = name => db.prepare('SELECT * FROM users WHERE username=?').get(name);
@@ -112,7 +150,7 @@ app.post('/api/register', (req, res) => {
   if (err) return res.status(400).json({ error: err });
   const existing = getUserByName(username);
   if (existing && (existing.banned || !(existing.is_guest && !online.has(existing.id)))) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
-  if (existing) db.prepare('DELETE FROM users WHERE id=?').run(existing.id);
+  if (existing) deleteUserRecord(existing);
 
   const isFirst = db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c === 0;
   const role = isFirst || (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === username.toLowerCase()) ? 'admin' : 'user';
@@ -148,7 +186,7 @@ app.post('/api/guest', (req, res) => {
     if (!existing.is_guest) return res.status(409).json({ error: 'Ce pseudo appartient à un membre inscrit' });
     if (online.has(existing.id)) return res.status(409).json({ error: 'Ce pseudo est déjà utilisé en ce moment' });
     if (existing.banned) return res.status(403).json({ error: 'Ce pseudo est banni' });
-    db.prepare('DELETE FROM users WHERE id=?').run(existing.id);
+    deleteUserRecord(existing);
   }
   const info = db.prepare(`INSERT INTO users (username,gender,age,city,color,is_guest,created_at,last_seen)
     VALUES (?,?,?,?,?,1,?,?)`).run(
@@ -165,20 +203,81 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/me', auth, (req, res) => res.json({ user: publicUser(req.user) }));
+app.get('/api/me', auth, (req, res) => res.json({ user: selfUser(req.user) }));
 
 app.put('/api/me', auth, (req, res) => {
   const u = req.user;
-  const gender = req.body.gender ?? u.gender;
-  const age = req.body.age ?? u.age;
+  const b = req.body;
+  const gender = b.gender ?? u.gender;
+  const age = b.age ?? u.age;
   const err = validateProfile({ gender, age });
   if (err) return res.status(400).json({ error: err });
-  const color = /^#[0-9a-f]{6}$/i.test(req.body.color || '') ? req.body.color : u.color;
-  db.prepare('UPDATE users SET gender=?,age=?,city=?,bio=?,color=? WHERE id=?')
-    .run(gender, parseInt(age, 10), clean(req.body.city ?? u.city, 40), clean(req.body.bio ?? u.bio, 300), color, u.id);
+  const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(v || '') ? v : d);
+  const pick = (v, list, d) => (list.includes(v) ? v : d);
+  const list = (v, max, len) => (Array.isArray(v) ? [...new Set(v.map(x => filterWords(clean(x, len))).filter(Boolean))].slice(0, max) : null);
+  let socials = parseJSON(u.socials, {});
+  if (b.socials && typeof b.socials === 'object') {
+    socials = {};
+    for (const k of SOCIALS) {
+      const h = clean(b.socials[k], 40).replace(/^@/, '');
+      if (h && /^[\p{L}\p{N}_.#\-]{1,40}$/u.test(h)) socials[k] = h;
+    }
+  }
+  db.prepare(`UPDATE users SET gender=?, age=?, city=?, bio=?, color=?, accent=?, name_effect=?, avatar_frame=?, banner_style=?,
+    status_emoji=?, status_text=?, interests=?, games=?, socials=?, show_age=?, show_city=? WHERE id=?`).run(
+    gender, parseInt(age, 10),
+    b.city !== undefined ? filterWords(clean(b.city, 40)) : u.city,
+    b.bio !== undefined ? filterWords(cleanMultiline(b.bio, 500)) : u.bio,
+    hex(b.color, u.color), hex(b.accent, u.accent || '#ff5fa2'),
+    pick(b.nameEffect, NAME_EFFECTS, u.name_effect || 'none'),
+    pick(b.frame, FRAMES, u.avatar_frame || 'none'),
+    pick(b.bannerStyle, BANNER_STYLES, u.banner_style || 'aurora'),
+    b.statusEmoji !== undefined ? clean(b.statusEmoji, 8) : u.status_emoji,
+    b.statusText !== undefined ? filterWords(clean(b.statusText, 60)) : u.status_text,
+    JSON.stringify(list(b.interests, 10, 24) ?? parseJSON(u.interests, [])),
+    JSON.stringify(list(b.games, 8, 40) ?? parseJSON(u.games, [])),
+    JSON.stringify(socials),
+    b.showAge !== undefined ? (b.showAge ? 1 : 0) : u.show_age,
+    b.showCity !== undefined ? (b.showCity ? 1 : 0) : u.show_city,
+    u.id);
   const updated = getUser(u.id);
   refreshOnline(updated);
-  res.json({ user: publicUser(updated) });
+  res.json({ user: selfUser(updated) });
+});
+
+// Photo de profil et bannière (image envoyée en base64, déjà redimensionnée par le navigateur)
+const IMAGE_TYPES = [
+  { ext: 'jpg', test: b => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: 'png', test: b => b.slice(0, 4).toString('hex') === '89504e47' },
+  { ext: 'gif', test: b => b.slice(0, 4).toString('ascii') === 'GIF8' },
+  { ext: 'webp', test: b => b.slice(0, 4).toString('ascii') === 'RIFF' && b.slice(8, 12).toString('ascii') === 'WEBP' },
+];
+app.post('/api/me/image/:kind', auth, (req, res) => {
+  const kind = req.params.kind;
+  if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
+  if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
+  const m = /^data:image\/[a-z+]+;base64,(.+)$/i.exec(String(req.body.data || ''));
+  if (!m) return res.status(400).json({ error: 'Image invalide' });
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Image trop lourde (2 Mo maximum)' });
+  const type = IMAGE_TYPES.find(t => t.test(buf));
+  if (!type) return res.status(400).json({ error: 'Format accepté : JPG, PNG, GIF ou WEBP' });
+  const name = `${kind}-${req.user.id}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  removeUpload(req.user[kind]);
+  db.prepare(`UPDATE users SET ${kind}=? WHERE id=?`).run('/uploads/' + name, req.user.id);
+  const updated = getUser(req.user.id);
+  refreshOnline(updated);
+  res.json({ user: selfUser(updated) });
+});
+app.delete('/api/me/image/:kind', auth, (req, res) => {
+  const kind = req.params.kind;
+  if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
+  removeUpload(req.user[kind]);
+  db.prepare(`UPDATE users SET ${kind}='' WHERE id=?`).run(req.user.id);
+  const updated = getUser(req.user.id);
+  refreshOnline(updated);
+  res.json({ user: selfUser(updated) });
 });
 
 app.put('/api/me/password', auth, (req, res) => {
@@ -529,8 +628,21 @@ admin.delete('/users/:id', requireRole('admin'), (req, res) => {
   const target = getUser(req.params.id);
   if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
   disconnectUser(target.id, 'kicked', 'Ton compte a été supprimé');
-  db.prepare('DELETE FROM users WHERE id=?').run(target.id);
+  deleteUserRecord(target);
   log(req.user, 'delete_user', target.username);
+  res.json({ ok: true });
+});
+
+admin.post('/users/:id/reset-profile', (req, res) => {
+  const target = getUser(req.params.id);
+  if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
+  removeUpload(target.avatar);
+  removeUpload(target.banner);
+  db.prepare(`UPDATE users SET avatar='', banner='', bio='', status_text='', status_emoji='', interests='[]', games='[]', socials='{}',
+    name_effect='none', avatar_frame='none' WHERE id=?`).run(target.id);
+  log(req.user, 'profile_reset', target.username);
+  refreshOnline(getUser(target.id));
+  emitToUser(target.id, 'system', { text: 'Ton profil a été réinitialisé par la modération.' });
   res.json({ ok: true });
 });
 
@@ -785,7 +897,7 @@ io.on('connection', socket => {
   entry.sockets.add(socket.id);
   db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
 
-  socket.emit('hello', { user: publicUser(entry.user), announcement: getSettings().announcement });
+  socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement });
   broadcastPresence();
 
   let lastMsg = 0;
@@ -807,7 +919,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (prev !== room.slug) {
@@ -829,7 +941,7 @@ io.on('connection', socket => {
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at) VALUES (?,?,?,?)').run(room.id, uid, content, now());
-    const msg = msgOut({ id: info.lastInsertRowid, user_id: uid, username: u.username, color: u.color, gender: u.gender, role: u.role, content, created_at: now() });
+    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now() });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
     ack && ack({ ok: true });
   });
@@ -878,7 +990,7 @@ io.on('connection', socket => {
     if (voiceList(slug).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum)` });
     const peers = voiceList(slug);
     if (!voice.has(slug)) voice.set(slug, new Map());
-    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, muted: false });
+    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: false });
     voiceOf.set(socket.id, slug);
     ack && ack({ peers });
     emitVoiceState(slug);
@@ -919,15 +1031,14 @@ io.on('connection', socket => {
 });
 
 function msgOut(m) {
-  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, content: m.content, createdAt: m.created_at };
+  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at };
 }
 
 // Nettoyage : invités inactifs depuis 24 h et vieux messages (30 jours)
 setInterval(() => {
   const day = now() - 24 * 3600 * 1000;
   const ids = db.prepare('SELECT id FROM users WHERE is_guest=1 AND banned=0 AND last_seen<?').all(day).map(r => r.id).filter(id => !online.has(id));
-  const del = db.prepare('DELETE FROM users WHERE id=?');
-  ids.forEach(id => del.run(id));
+  ids.forEach(id => deleteUserRecord(getUser(id)));
   db.prepare('DELETE FROM messages WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
 }, 3600 * 1000).unref();
 

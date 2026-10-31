@@ -177,7 +177,7 @@ function renderVoice() {
     el('div', { class: 'voice-people' }, ...parts.map(p => {
       const mine = p.socketId === socket.id;
       return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
-        el('div', { class: 'avatar', style: `background:${p.color}` }, p.username[0].toUpperCase()),
+        LC.avatar(p),
         el('span', {}, p.username), p.muted ? el('span', {}, '🔇') : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     })),
