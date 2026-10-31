@@ -56,6 +56,11 @@ Variables d'environnement facultatives :
 - 📻 **Radios avec vérification automatique** : au démarrage puis toutes les 6 heures, chaque radio est testée. Si elle ne marche plus, le site cherche un nouveau lien officiel sur l'annuaire libre radio-browser.info et la **répare** ; sinon il la **masque** pour les utilisateurs. Un bouton « 🔍 Vérifier et réparer » lance la vérification à la main.
 - 🌐 **Site** (super-admin) : nom, domaine, textes, couleurs, histoire, règlement, limite de comptes
 
+## Mise en ligne
+
+- **Sur un VPS IONOS (ou autre VPS Ubuntu)** : suis le guide [`deploy/GUIDE-IONOS.md`](deploy/GUIDE-IONOS.md) — une seule commande installe tout (Node.js, Nginx, HTTPS gratuit, serveur d'appels TURN, pare-feu).
+- Mise à jour : `bash /opt/theparadis/deploy/update.sh`
+
 ## Technique
 
 Node.js, Express, Socket.io, SQLite (better-sqlite3), bcrypt, WebRTC. Aucun framework front : HTML, CSS et JS natifs dans `public/`.
