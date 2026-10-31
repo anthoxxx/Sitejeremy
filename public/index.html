@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LustryChat — Chat gratuit sans inscription</title>
+  <meta name="description" content="LustryChat : le chat gratuit en temps réel. Salons de discussion, messages privés, rencontres et amitié, avec ou sans inscription.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<div class="landing">
+  <header class="topnav">
+    <a href="/" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">Lustry<span>Chat</span></span></a>
+    <nav>
+      <button class="btn btn-icon" onclick="LC.toggleTheme()" title="Changer de thème" aria-label="Changer de thème">🌓</button>
+      <a class="btn btn-ghost btn-sm" href="#regles">Règles</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <div class="live"><span class="dot"></span><span id="onlineCount">…</span> personnes connectées</div>
+      <h1>Discute, rencontre,<br><em>brille</em> sur LustryChat.</h1>
+      <p class="lead">Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.</p>
+      <div class="stats">
+        <div><b id="statMembers">–</b><span>membres</span></div>
+        <div><b id="statRooms">–</b><span>salons</span></div>
+        <div><b>100%</b><span>gratuit</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="authCard">
+      <div class="tabs">
+        <button data-tab="guest" class="active">Invité</button>
+        <button data-tab="login">Connexion</button>
+        <button data-tab="register">Inscription</button>
+      </div>
+
+      <form id="form-guest" data-endpoint="/api/guest">
+        <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required placeholder="Ton pseudo" autocomplete="nickname"></div>
+        <div class="row">
+          <div class="field"><label>Âge</label><input class="input" name="age" type="number" min="18" max="99" required placeholder="25"></div>
+          <div class="field"><label>Ville <span style="opacity:.6">(facultatif)</span></label><input class="input" name="city" maxlength="40" placeholder="Paris"></div>
+        </div>
+        <div class="field"><label>Je suis</label><div class="gender-pick" data-name="gender"></div></div>
+        <div class="error"></div>
+        <button class="btn btn-primary" style="width:100%">Entrer dans le chat ✨</button>
+        <small class="note">Sans inscription. En entrant, tu confirmes avoir l'âge minimum et accepter les règles.</small>
+      </form>
+
+      <form id="form-login" data-endpoint="/api/login" class="hidden">
+        <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required autocomplete="username"></div>
+        <div class="field"><label>Mot de passe</label><input class="input" name="password" type="password" required autocomplete="current-password"></div>
+        <div class="error"></div>
+        <button class="btn btn-primary" style="width:100%">Se connecter</button>
+      </form>
+
+      <form id="form-register" data-endpoint="/api/register" class="hidden">
+        <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required autocomplete="username"></div>
+        <div class="field"><label>Mot de passe</label><input class="input" name="password" type="password" minlength="6" required autocomplete="new-password"></div>
+        <div class="row">
+          <div class="field"><label>Âge</label><input class="input" name="age" type="number" min="18" max="99" required></div>
+          <div class="field"><label>Ville</label><input class="input" name="city" maxlength="40"></div>
+        </div>
+        <div class="field"><label>Je suis</label><div class="gender-pick" data-name="gender"></div></div>
+        <div class="error"></div>
+        <button class="btn btn-primary" style="width:100%">Créer mon compte</button>
+        <small class="note">Ton pseudo est réservé et tu accèdes au salon VIP.</small>
+      </form>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature"><div class="ico">⚡</div><h3>Instantané</h3><p>Messages en temps réel, indicateur de saisie et notifications sonores.</p></div>
+    <div class="feature"><div class="ico">💌</div><h3>Messages privés</h3><p>Discute en tête-à-tête avec qui tu veux, en toute discrétion.</p></div>
+    <div class="feature"><div class="ico">🏠</div><h3>Salons thématiques</h3><p>Rencontres, amitié, âge, musique, jeux… trouve ton salon.</p></div>
+    <div class="feature"><div class="ico">🛡️</div><h3>Modéré</h3><p>Blocage, signalement et une équipe de modération active.</p></div>
+  </section>
+
+  <section class="features" id="regles" style="grid-template-columns:1fr">
+    <div class="feature">
+      <div class="ico">📜</div><h3>Les règles du chat</h3>
+      <p>Respect de tous · Pas d'insultes, de harcèlement ni de contenu illégal · Pas de spam ni de publicité · Aucune donnée personnelle partagée sans accord · Les mineurs ne sont pas autorisés. Tout manquement peut entraîner une expulsion ou un bannissement.</p>
+    </div>
+  </section>
+
+  <footer class="site">
+    <span>© <span id="year"></span> LustryChat — Tous droits réservés</span>
+    <span>Fait avec 💜 pour discuter librement</span>
+  </footer>
+</div>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+  // Choix du genre
+  document.querySelectorAll('.gender-pick').forEach((box, i) => {
+    [['f', 'Femme'], ['h', 'Homme'], ['x', 'Autre']].forEach(([v, l], j) => {
+      const id = `g${i}${v}`;
+      box.append(LC.el('input', { type: 'radio', name: 'gender', value: v, id, checked: j === 0 }), LC.el('label', { for: id }, l));
+    });
+  });
+  // Onglets
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('#authCard form').forEach(f => f.classList.toggle('hidden', f.id !== 'form-' + b.dataset.tab));
+  });
+  // Envoi
+  document.querySelectorAll('#authCard form').forEach(f => f.onsubmit = async e => {
+    e.preventDefault();
+    const err = f.querySelector('.error');
+    const btn = f.querySelector('button');
+    err.textContent = '';
+    btn.disabled = true;
+    try {
+      await LC.api(f.dataset.endpoint, { method: 'POST', body: Object.fromEntries(new FormData(f)) });
+      location.href = '/chat';
+    } catch (ex) { err.textContent = ex.message; }
+    btn.disabled = false;
+  });
+  // Déjà connecté ?
+  LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
+  LC.api('/api/stats').then(s => {
+    onlineCount.textContent = s.online;
+    statMembers.textContent = s.members;
+    statRooms.textContent = s.rooms;
+    document.querySelectorAll('input[name=age]').forEach(i => i.min = s.minAge);
+    if (!s.guestsAllowed) document.querySelector('[data-tab=login]').click(), document.querySelector('[data-tab=guest]').classList.add('hidden');
+    if (!s.registrationOpen) document.querySelector('[data-tab=register]').classList.add('hidden');
+  }).catch(() => {});
+</script>
+</body>
+</html>

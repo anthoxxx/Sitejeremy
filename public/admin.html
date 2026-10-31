@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LustryChat — Administration</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/common.js"></script>
+</head>
+<body>
+<div class="admin-layout">
+  <aside id="nav">
+    <a href="/admin" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">Lustry<span>Chat</span></span></a>
+    <div class="list-item" data-page="dashboard"><div class="ico">📊</div><div class="name">Tableau de bord</div></div>
+    <div class="list-item" data-page="users"><div class="ico">👥</div><div class="name">Utilisateurs</div></div>
+    <div class="list-item" data-page="reports"><div class="ico">⚠️</div><div class="name">Signalements</div><span class="pill hot hidden" id="navReports"></span></div>
+    <div class="list-item" data-page="messages"><div class="ico">💬</div><div class="name">Messages</div></div>
+    <div class="list-item admin-only" data-page="rooms"><div class="ico">🏠</div><div class="name">Salons</div></div>
+    <div class="list-item admin-only" data-page="settings"><div class="ico">⚙️</div><div class="name">Réglages</div></div>
+    <div class="list-item" data-page="logs"><div class="ico">📜</div><div class="name">Journal</div></div>
+    <div class="side-title" style="margin-top:24px"></div>
+    <a class="list-item" href="/chat"><div class="ico">↩️</div><div class="name">Retour au chat</div></a>
+    <div class="list-item" onclick="LC.toggleTheme()"><div class="ico">🌓</div><div class="name">Thème</div></div>
+  </aside>
+  <main id="page"></main>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="/js/admin.js"></script>
+</body>
+</html>
