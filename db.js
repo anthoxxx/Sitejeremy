@@ -322,6 +322,13 @@ for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
   }
 }
 
+// Une seule fois : les pseudos qui avaient une couleur tirée au hasard prennent la couleur de leur genre
+if (!db.prepare("SELECT 1 FROM settings WHERE key='genderColors'").get()) {
+  db.prepare(`UPDATE users SET color = CASE gender WHEN 'h' THEN '#4fb3ff' WHEN 'f' THEN '#ff5fa2' ELSE '#a78bfa' END
+    WHERE lower(color) IN ('#8b6cff','#ff5fa2','#ffb547','#33d6a6','#4fb3ff','#ff7a59','#c86bff','#f2e94e')`).run();
+  db.prepare("INSERT INTO settings (key,value) VALUES ('genderColors','1')").run();
+}
+
 function getSettings() {
   const out = {};
   for (const row of db.prepare('SELECT key,value FROM settings').all()) out[row.key] = row.value;

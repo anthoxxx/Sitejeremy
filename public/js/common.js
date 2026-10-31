@@ -35,6 +35,7 @@ window.LC = {
   genderLabel: g => ({ h: 'Homme', f: 'Femme', x: 'Autre' }[g] || 'Autre'),
   genderIcon: g => ({ h: '💙', f: '🩷', x: '💜' }[g] || '💜'),
   GENDERS: [['h', '💙 Homme'], ['f', '🩷 Femme'], ['x', '💜 Autre']],
+  GENDER_COLORS: { h: '#4fb3ff', f: '#ff5fa2', x: '#a78bfa' },
   ROLES: ['user', 'moderator', 'admin', 'superadmin'],
   rank(u) { return LC.ROLES.indexOf(u?.role); },
   isAdminRole(u) { return LC.rank(u) >= 2; },

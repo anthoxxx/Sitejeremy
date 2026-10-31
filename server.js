@@ -16,7 +16,9 @@ const COOKIE = 'lc_session';
 const ROLES = ['user', 'moderator', 'admin', 'superadmin'];
 const rank = u => ROLES.indexOf(u?.role);
 const GENDERS = ['h', 'f', 'x'];
-const COLORS = ['#8b6cff', '#ff5fa2', '#ffb547', '#33d6a6', '#4fb3ff', '#ff7a59', '#c86bff', '#f2e94e'];
+// Couleur du pseudo par défaut selon le genre : bleu (homme), rose (femme), violet (autre)
+const GENDER_COLORS = { h: '#4fb3ff', f: '#ff5fa2', x: '#a78bfa' };
+const genderColor = g => GENDER_COLORS[g] || GENDER_COLORS.x;
 
 const app = express();
 const server = http.createServer(app);
@@ -197,7 +199,7 @@ app.post('/api/register', (req, res) => {
   const info = db.prepare(`INSERT INTO users (username,password_hash,gender,age,city,color,role,created_at,last_seen,device_id,signup_ip)
     VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
-    clean(req.body.city, 40), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), now(), req.cookies.lc_dev, req.ip || '');
+    clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '');
   createSession(res, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
@@ -235,7 +237,7 @@ app.post('/api/guest', (req, res) => {
   const info = db.prepare(`INSERT INTO users (username,gender,age,city,color,is_guest,created_at,last_seen)
     VALUES (?,?,?,?,?,1,?,?)`).run(
     username, req.body.gender, parseInt(req.body.age, 10), clean(req.body.city, 40),
-    COLORS[Math.floor(Math.random() * COLORS.length)], now(), now());
+    genderColor(req.body.gender), now(), now());
   createSession(res, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
@@ -283,7 +285,9 @@ app.put('/api/me', auth, (req, res) => {
     gender, parseInt(age, 10),
     b.city !== undefined ? filterWords(clean(b.city, 40)) : u.city,
     b.bio !== undefined ? filterWords(cleanMultiline(b.bio, 500)) : u.bio,
-    hex(b.color, u.color), hex(b.accent, u.accent || '#ff5fa2'),
+    // Si la personne change de genre et garde la couleur par défaut, la couleur suit le nouveau genre
+    (() => { const c = hex(b.color, u.color); return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
+    hex(b.accent, u.accent || '#ff5fa2'),
     pick(b.nameEffect, NAME_EFFECTS, u.name_effect || 'none'),
     pick(b.frame, FRAMES, u.avatar_frame || 'none'),
     pick(b.bannerStyle, BANNER_STYLES, u.banner_style || 'aurora'),

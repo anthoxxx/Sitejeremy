@@ -192,20 +192,37 @@ function openMyProfile() {
       file, status);
   };
 
+  const namePick = colorPick('color');
   // --- Onglet Apparence ---
   const tabLook = el('div', {},
     f('📷 Photo de profil', imageButtons('avatar', 256, 256), 'JPG, PNG, WEBP ou GIF animé (1,5 Mo max pour les GIF).'),
     f('🖼️ Bannière', el('div', {}, imageButtons('banner', 1200, 400),
       el('small', { class: 'help', style: 'display:block;margin:10px 0 6px' }, 'Ou un dégradé (utilisé quand il n\'y a pas d\'image) :'),
       choice(Object.keys(LC.BANNERS).map(k => [k, k]), 'bannerStyle', v => el('span', { class: 'banner-swatch', style: `background:${LC.BANNERS[v]}` })))),
-    f('🎨 Couleur du pseudo', colorPick('color')),
+    f('🎨 Couleur du pseudo', el('div', {}, namePick,
+      el('button', { type: 'button', class: 'btn btn-sm', style: 'margin-top:8px', onclick: () => {
+        const inp = namePick.querySelector('input[type=color]');
+        inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
+        inp.dispatchEvent(new Event('input'));
+      } }, '↺ Couleur par défaut (💙 homme · 🩷 femme · 💜 autre)'))),
     f('✨ Effet du pseudo', choice(NAME_FX, 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
     f('⭕ Cadre de la photo', choice(FRAMES_UI, 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
   // --- Onglet Infos ---
   const age = bind(el('input', { class: 'input', type: 'number', min: 13, max: 99, value: d.age || '' }), 'age', v => parseInt(v, 10) || '');
-  const gender = bind(el('select', { class: 'input' }, ...LC.GENDERS.map(([v, l]) => el('option', { value: v, selected: d.gender === v }, l))), 'gender');
+  const gender = el('select', { class: 'input' }, ...LC.GENDERS.map(([v, l]) => el('option', { value: v, selected: d.gender === v }, l)));
+  gender.addEventListener('input', () => {
+    // La couleur par défaut suit le genre
+    const followDefault = (d.color || '').toLowerCase() === (LC.GENDER_COLORS[d.gender] || '');
+    d.gender = gender.value;
+    if (followDefault) {
+      const inp = namePick.querySelector('input[type=color]');
+      inp.value = LC.GENDER_COLORS[d.gender];
+      inp.dispatchEvent(new Event('input'));
+    }
+    refresh();
+  });
   const city = bind(el('input', { class: 'input', maxlength: 40, value: d.city || '' }), 'city');
   const bioCount = el('small', { class: 'help' }, `${(d.bio || '').length}/500`);
   const bio = bind(el('textarea', { class: 'input', rows: 4, maxlength: 500, placeholder: 'Parle un peu de toi…' }, d.bio || ''), 'bio', v => { bioCount.textContent = `${v.length}/500`; return v; });
