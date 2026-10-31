@@ -1,4 +1,4 @@
-// LustryChat — panneau d'administration
+// GajoxGaming — panneau d'administration
 const { el, api } = LC;
 const page = document.getElementById('page');
 let me = null;
@@ -35,7 +35,7 @@ async function dashboard() {
   const max = Math.max(1, ...s.rooms.map(r => r.count));
   const text = el('input', { class: 'input', maxlength: 300, placeholder: 'Message à envoyer à tous les connectés…' });
   page.replaceChildren(
-    ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de LustryChat.`),
+    ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de GajoxGaming.`),
     el('div', { class: 'kpis' },
       kpi('🟢 En ligne', s.online), kpi('👤 Membres', s.members), kpi('🎭 Invités', s.guests),
       kpi('✨ Nouveaux (24 h)', s.newToday), kpi('💬 Messages (24 h)', s.messagesToday), kpi('💌 Privés (24 h)', s.pmToday),

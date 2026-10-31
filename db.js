@@ -1,4 +1,4 @@
-// Base de données SQLite de LustryChat
+// Base de données SQLite de GajoxGaming
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
@@ -6,7 +6,7 @@ const Database = require('better-sqlite3');
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(path.join(dataDir, 'lustrychat.db'));
+const db = new Database(path.join(dataDir, 'gajoxgaming.db'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 

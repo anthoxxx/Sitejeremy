@@ -1,4 +1,4 @@
-# ✨ LustryChat
+# ✨ GajoxGaming
 
 Chat gratuit en temps réel : salons, messages privés, connexion invité ou membre, et panneau d'administration complet.
 

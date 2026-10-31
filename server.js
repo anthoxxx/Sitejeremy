@@ -1,4 +1,4 @@
-// LustryChat — serveur principal (Express + Socket.io)
+// GajoxGaming — serveur principal (Express + Socket.io)
 const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
@@ -632,4 +632,4 @@ setInterval(() => {
   db.prepare('DELETE FROM messages WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
 }, 3600 * 1000).unref();
 
-server.listen(PORT, () => console.log(`✨ LustryChat en ligne sur http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✨ GajoxGaming en ligne sur http://localhost:${PORT}`));
