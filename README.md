@@ -35,13 +35,15 @@ Variables d'environnement facultatives :
 **Côté utilisateurs**
 - Connexion **invité** ou **compte membre**, avec **2 comptes maximum par personne** (même appareil ou même connexion, réglable par le super-admin)
 - Choix **🩷 Rose / 💙 Bleu / 💜 Autre**
-- Salons officiels et **salons créés par les membres** (salon fermé sur invitation, exclusions, **fond d'écran personnalisé**)
+- Salons officiels et **salons créés par les membres** (salon fermé sur invitation, exclusions, **fond d'écran** : 8 fonds animés tout prêts, GIF animé, vidéo MP4/WebM en boucle ou image)
 - **Messages privés**, @mentions, émojis, blocage, signalement
+- 🔇 **Sourdine personnelle** : rendre quelqu'un muet *pour soi seul* pendant 30 s, 1 min, 5 min… ou une durée au choix en secondes / minutes / heures, avec compte à rebours ; ses messages sont repliés, il ne peut plus t'écrire en privé, t'appeler ni te défier, sa voix est coupée dans le vocal
 - 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde
 - 🗣️ **Dictée vocale** : on parle, le texte s'écrit (dire « point », « virgule », « point d'interrogation »…), plus correcteur orthographique du navigateur
 - 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
 - 📻 **Radio** : lecteur intégré, radio du salon, lien audio perso
+- 🎮 **Mini-jeux** (bouton 🎮) : solo — Serpent, Démineur, Memory, Pendu, Taquin, Réflexes, Quiz ; à deux en direct — Morpion, 4 alignés, Chifoumi, Course de frappe, Quiz duel (invitation, revanche, arbitrage par le serveur) ; contre l'ordinateur pour Morpion, 4 alignés et Chifoumi ; records personnels et classements
 - 🎨 **Profils personnalisables** : photo, bannière, effets de pseudo, cadres, statut, bio, jeux, réseaux
 - 🔔 **Notifications** : sanctions, invitations, rôle, appels manqués…
 - 📖 Pages **Notre histoire** et 📜 **Règlement**

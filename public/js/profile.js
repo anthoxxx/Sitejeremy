@@ -76,7 +76,11 @@ async function openProfile(id) {
             close(); renderUsers(); renderConvs();
           } catch (e) { toast(e.message); }
         } }, blocked ? '✅ Débloquer' : '🚫 Bloquer'),
-        el('button', { class: 'btn', onclick: () => { close(); openReport(u); } }, '⚠️ Signaler')),
+        el('button', { class: 'btn', onclick: () => { close(); openReport(u); } }, '⚠️ Signaler'),
+        isUserMuted(u.id)
+          ? el('button', { class: 'btn', onclick: () => { close(); unmuteUser(u); } }, '🔊 Fin de sourdine ', el('small', { 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)))
+          : el('button', { class: 'btn', title: 'Ne plus voir ses messages pendant un moment', onclick: () => { close(); openMutePicker(u); } }, '🔇 Sourdine'),
+        el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier')),
       roomActions(u, () => close()),
       staff ? el('div', { class: 'staff-actions' },
         el('h4', {}, 'Modération'),

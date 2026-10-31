@@ -52,39 +52,62 @@ async function openRoomSettings(room) {
     ...Media.stations.map(s => el('option', { value: s.id, selected: room.station?.id === s.id }, `${s.icon} ${s.name}${s.genre ? ' · ' + s.genre : ''}`)));
   const err = el('div', { class: 'error' });
 
-  // Fond d'écran du salon
-  const bgPreview = el('div', { class: 'bg-preview' });
-  const drawBg = () => {
-    bgPreview.style.backgroundImage = room.background ? `url("${room.background}")` : '';
-    bgPreview.replaceChildren(room.background ? '' : el('span', {}, 'Aucun fond d\'écran'));
+  // Fond d'écran du salon : fond animé tout prêt, GIF animé, vidéo ou image
+  const bgPreview = el('div', { class: 'bg-preview room-bg' });
+  const presets = el('div', { class: 'bg-presets' });
+  const applyRoom = updated => {
+    room.background = updated.background;
+    if (state.currentRoom?.id === room.id) state.currentRoom.background = updated.background;
+    drawBg(); renderRoomHead();
   };
-  drawBg();
-  const bgFile = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' });
+  const drawBg = () => {
+    paintRoomBg(bgPreview, room.background);
+    if (!room.background) bgPreview.append(el('span', { class: 'bg-none' }, 'Aucun fond'));
+    presets.replaceChildren(...BG_PRESETS.map(([k, label]) => el('button', {
+      type: 'button', class: 'bg-preset' + (room.background === 'preset:' + k ? ' active' : ''), title: label,
+      onclick: async () => {
+        try { const { room: u } = await api('/api/rooms/' + room.id, { method: 'PATCH', body: { backgroundPreset: k } }); applyRoom(u); bgStatus.textContent = `✅ Fond animé « ${label} » appliqué`; } catch (e) { toast(e.message); }
+      },
+    }, el('span', { class: 'room-bg preset-' + k }, el('i'), el('i'), el('i')), el('small', {}, label))));
+  };
+  const bgFile = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm', class: 'hidden' });
   const bgStatus = el('small', { class: 'help' });
   bgFile.onchange = async () => {
-    if (!bgFile.files[0]) return;
+    const f = bgFile.files[0];
+    if (!f) return;
     bgStatus.textContent = '⏳ Envoi…';
     try {
-      const data = await readImage(bgFile.files[0], 1600, 1000);
-      const { room: updated } = await api(`/api/rooms/${room.id}/background`, { method: 'POST', body: { data } });
-      room.background = updated.background;
-      if (state.currentRoom?.id === room.id) state.currentRoom.background = updated.background;
-      drawBg(); renderRoomHead(); bgStatus.textContent = '✅ Fond d\'écran appliqué';
+      let updated;
+      if (f.type === 'image/gif' || f.type.startsWith('video/')) {
+        // GIF animés et vidéos : envoyés tels quels pour garder l'animation
+        if (f.size > (f.type.startsWith('video/') ? 12 : 6) * 1024 * 1024) throw new Error(f.type.startsWith('video/') ? 'Vidéo trop lourde (12 Mo max, quelques secondes en boucle suffisent)' : 'GIF trop lourd (6 Mo max)');
+        const r = await fetch(`/api/rooms/${room.id}/background/file`, { method: 'POST', body: f, headers: { 'Content-Type': 'application/octet-stream' }, credentials: 'same-origin' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Envoi impossible');
+        updated = d.room;
+      } else {
+        const data = await readImage(f, 1600, 1000);
+        updated = (await api(`/api/rooms/${room.id}/background`, { method: 'POST', body: { data } })).room;
+      }
+      applyRoom(updated);
+      bgStatus.textContent = '✅ Fond appliqué';
     } catch (e) { bgStatus.textContent = '❌ ' + e.message; }
     bgFile.value = '';
   };
+  drawBg();
   const bgField = field('🖼️ Fond d\'écran du salon (visible par tous dans ce salon)', el('div', {},
     bgPreview,
-    el('div', { class: 'row', style: 'gap:8px;margin-top:8px' },
-      el('button', { type: 'button', class: 'btn btn-sm btn-primary', style: 'flex:none', onclick: () => bgFile.click() }, '🖼️ Choisir une image'),
-      room.background !== undefined ? el('button', { type: 'button', class: 'btn btn-sm', style: 'flex:none', onclick: async () => {
+    el('div', { class: 'help', style: 'margin:10px 0 6px' }, '✨ Fonds animés :'),
+    presets,
+    el('div', { class: 'row', style: 'gap:8px;margin-top:10px;flex-wrap:wrap' },
+      el('button', { type: 'button', class: 'btn btn-sm btn-primary', style: 'flex:none', onclick: () => bgFile.click() }, '📁 Mon image, GIF ou vidéo'),
+      el('button', { type: 'button', class: 'btn btn-sm', style: 'flex:none', onclick: async () => {
         try {
           await api(`/api/rooms/${room.id}/background`, { method: 'DELETE' });
-          room.background = '';
-          if (state.currentRoom?.id === room.id) state.currentRoom.background = '';
-          drawBg(); renderRoomHead(); bgStatus.textContent = 'Fond d\'écran retiré';
+          applyRoom({ background: '' }); bgStatus.textContent = 'Fond retiré';
         } catch (e) { toast(e.message); }
-      } }, 'Retirer') : null),
+      } }, 'Retirer')),
+    el('small', { class: 'help', style: 'display:block;margin-top:4px' }, 'GIF animé (6 Mo max) ou petite vidéo MP4/WebM en boucle (12 Mo max, sans le son).'),
     bgFile, bgStatus));
 
   const inviteInput = el('input', { class: 'input', maxlength: 20, placeholder: 'Pseudo à inviter' });
@@ -167,4 +190,28 @@ function roomActions(u, closeProfile) {
         if (!confirm(`Exclure ${u.username} du salon ? Il ne pourra plus y revenir.`)) return;
         try { await api(`/api/rooms/${r.id}/kick/${u.id}`, { method: 'POST' }); toast(`🚪 ${u.username} exclu`); closeProfile(); } catch (e) { toast(e.message); }
       } }, '🚪 Exclure du salon')));
+}
+
+// ---------- Fonds de salon (aussi utilisés par chat.js) ----------
+const BG_PRESETS = [['aurore', 'Aurore'], ['etoiles', 'Étoiles'], ['galaxie', 'Galaxie'], ['vagues', 'Vagues néon'], ['bulles', 'Bulles'], ['pluie', 'Pluie'], ['coucher', 'Coucher de soleil'], ['feu', 'Feu de camp']];
+function paintRoomBg(box, bg) {
+  box.className = box.className.split(' ').filter(c => !c.startsWith('preset-')).join(' ');
+  box.style.backgroundImage = '';
+  box.replaceChildren();
+  if (!bg) return;
+  if (bg.startsWith('preset:')) { box.classList.add('preset-' + bg.slice(7)); box.append(el('i'), el('i'), el('i')); return; }
+  if (/\.(mp4|webm)$/i.test(bg)) {
+    const v = el('video', { autoplay: true, muted: true, loop: true, playsinline: true, src: bg });
+    v.muted = true; box.append(v); v.play().catch(() => {});
+    return;
+  }
+  box.style.backgroundImage = `url("${bg}")`;
+}
+function renderRoomBg(r) {
+  const box = $('roomBg');
+  const bg = r?.background || '';
+  document.querySelector('.main').classList.toggle('has-room-bg', !!bg);
+  if (box.dataset.bg === bg) return;
+  box.dataset.bg = bg;
+  paintRoomBg(box, bg);
 }

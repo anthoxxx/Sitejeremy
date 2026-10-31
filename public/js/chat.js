@@ -156,10 +156,8 @@ function renderRoomHead() {
   $('headCall').classList.toggle('hidden', !pmUser);
   $('headVideo').classList.toggle('hidden', !pmUser);
   if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); }
-  // Fond d'écran du salon
-  const main = document.querySelector('.main');
-  main.classList.toggle('has-bg', !!(inRoom && r.background));
-  main.style.setProperty('--room-bg', inRoom && r.background ? `url("${r.background}")` : 'none');
+  // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
+  renderRoomBg(inRoom ? r : null);
   if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); return; }
   $('headIcon').textContent = r.icon;
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
@@ -219,6 +217,13 @@ function linkify(text) {
 
 function addRoomMessage(m, live = true) {
   if (state.blocked.has(m.userId)) return;
+  if (!m._force && typeof isUserMuted === 'function' && m.userId && isUserMuted(m.userId)) {
+    // Message d'une personne en sourdine : replié, on peut cliquer pour l'afficher
+    const ph = el('div', { class: 'sys muted-msg', title: 'Clique pour afficher quand même' }, `🔇 Message masqué de ${m.username} (sourdine)`);
+    ph.onclick = () => { addRoomMessage({ ...m, _force: true }, false); ph.replaceWith($('messages').lastChild); };
+    $('messages').append(ph);
+    return;
+  }
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
   const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
@@ -315,12 +320,13 @@ function renderUsers() {
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'));
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
-    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
+    const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
+    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
         el('div', { class: 'name' }, u.ghost ? '👻 ' : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
-        el('div', { class: 'sub' }, u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
-          : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · '))));
+        el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
+          : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))));
   }));
 }
 $('userSearch').oninput = renderUsers;
@@ -438,6 +444,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
   renderMe();
   applyGhost(ghost);
   loadBirthdays();
+  loadMutes();
   showSeasonBanner();
   setAnnouncement(announcement);
   loadNotifications();
@@ -472,6 +479,8 @@ socket.on('system', ({ room, text }) => {
   if (state.view?.type === 'room' && state.view.slug === room) addSys(text);
 });
 socket.on('typing', ({ room, username }) => {
+  const who = state.online.find(u => u.username === username);
+  if (who && typeof isUserMuted === 'function' && isUserMuted(who.id)) return;
   if (state.view?.type === 'room' && state.view.slug === room) { typers.set(username, Date.now()); renderTyping(); }
 });
 socket.on('pm_typing', ({ from }) => {

@@ -494,6 +494,13 @@ app.patch('/api/rooms/:id', auth, (req, res) => {
   if (name.length < 2) return res.status(400).json({ error: 'Nom trop court' });
   let stationId = room.station_id;
   if (b.stationId !== undefined) stationId = b.stationId ? (getStation(b.stationId) ? parseInt(b.stationId, 10) : room.station_id) : null;
+  if (b.backgroundPreset !== undefined) {
+    const key = String(b.backgroundPreset);
+    if (key && !BG_PRESETS.includes(key)) return res.status(400).json({ error: 'Fond animé inconnu' });
+    removeUpload(room.background);
+    db.prepare('UPDATE rooms SET background=? WHERE id=?').run(key ? 'preset:' + key : '', room.id);
+    if (key) log(req.user, 'room_background', `Fond animé « ${key} » pour le salon ${room.name}`);
+  }
   db.prepare('UPDATE rooms SET name=?,description=?,icon=?,is_private=?,station_id=?,voice_enabled=? WHERE id=?').run(
     name,
     b.description !== undefined ? clean(b.description, 120) : room.description,
@@ -585,6 +592,30 @@ app.delete('/api/rooms/:id/bans/:userId', auth, (req, res) => {
 });
 
 // Fond d'écran d'un salon (propriétaire ou équipe)
+const BG_PRESETS = ['aurore', 'etoiles', 'galaxie', 'vagues', 'bulles', 'pluie', 'coucher', 'feu'];
+// GIF animé ou vidéo (MP4 / WebM) envoyé tel quel, sans conversion
+const VIDEO_TYPES = [
+  { ext: 'mp4', test: b => b.slice(4, 8).toString('ascii') === 'ftyp' },
+  { ext: 'webm', test: b => b.slice(0, 4).toString('hex') === '1a45dfa3' },
+];
+app.post('/api/rooms/:id/background/file', auth, express.raw({ type: () => true, limit: '12mb' }), (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
+  const buf = req.body;
+  if (!Buffer.isBuffer(buf) || buf.length < 100) return res.status(400).json({ error: 'Fichier vide' });
+  const img = IMAGE_TYPES.find(t => t.test(buf));
+  const vid = !img && VIDEO_TYPES.find(t => t.test(buf));
+  if (!img && !vid) return res.status(400).json({ error: 'Formats acceptés : GIF, JPG, PNG, WEBP, MP4 ou WebM' });
+  if (img && buf.length > 6 * 1024 * 1024) return res.status(400).json({ error: 'Image trop lourde (6 Mo maximum)' });
+  const name = `room-${room.id}-${crypto.randomBytes(6).toString('hex')}.${(img || vid).ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  removeUpload(room.background);
+  db.prepare('UPDATE rooms SET background=? WHERE id=?').run('/uploads/' + name, room.id);
+  log(req.user, 'room_background', `Nouveau fond ${vid ? 'vidéo' : img.ext === 'gif' ? 'animé (GIF)' : 'd\'écran'} pour le salon ${room.name}`, { data: { image: img ? '/uploads/' + name : '' } });
+  roomsChanged();
+  res.json({ room: roomOut(getRoom(room.id)) });
+});
 app.post('/api/rooms/:id/background', auth, (req, res) => {
   const room = getRoom(req.params.id);
   if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
@@ -713,6 +744,25 @@ app.get('/api/users/:id', auth, (req, res) => {
 
 // ---------- Blocages & signalements ----------
 const isBlocked = (a, b) => !!db.prepare('SELECT 1 FROM blocks WHERE user_id=? AND blocked_id=?').get(a, b);
+// Mute personnel : « a » a rendu « b » muet pour lui seul pendant un certain temps
+const isMutedBy = (a, b) => !!db.prepare('SELECT 1 FROM user_mutes WHERE user_id=? AND muted_id=? AND until>?').get(a, b, Date.now());
+app.get('/api/mutes', auth, (req, res) => {
+  db.prepare('DELETE FROM user_mutes WHERE until<?').run(now());
+  res.json({ mutes: db.prepare('SELECT muted_id, until FROM user_mutes WHERE user_id=?').all(req.user.id).map(r => ({ userId: r.muted_id, until: r.until })) });
+});
+app.post('/api/mutes/:id', auth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const seconds = Math.round(Number(req.body.seconds));
+  if (id === req.user.id || !getUser(id)) return res.status(400).json({ error: 'Impossible' });
+  if (!(seconds >= 1 && seconds <= 30 * 24 * 3600)) return res.status(400).json({ error: 'Durée invalide (de 1 seconde à 30 jours)' });
+  const until = now() + seconds * 1000;
+  db.prepare('INSERT INTO user_mutes (user_id,muted_id,until) VALUES (?,?,?) ON CONFLICT(user_id,muted_id) DO UPDATE SET until=excluded.until').run(req.user.id, id, until);
+  res.json({ userId: id, until });
+});
+app.delete('/api/mutes/:id', auth, (req, res) => {
+  db.prepare('DELETE FROM user_mutes WHERE user_id=? AND muted_id=?').run(req.user.id, req.params.id);
+  res.json({ ok: true });
+});
 app.get('/api/blocks', auth, (req, res) => {
   res.json({ ids: db.prepare('SELECT blocked_id FROM blocks WHERE user_id=?').all(req.user.id).map(r => r.blocked_id) });
 });
@@ -1150,6 +1200,10 @@ admin.get('/logs', (req, res) => {
 
 app.use('/api/admin', admin);
 
+// Mini-jeux (scores, classements, parties à deux)
+const Games = require('./games')({ app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
+app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
+
 // Pages
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
@@ -1385,6 +1439,7 @@ io.on('connection', socket => {
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid)) return ack && ack({ error: 'Cette personne ne reçoit pas tes messages' });
+    if (isMutedBy(target.id, uid)) return ack && ack({ error: `${target.username} t'a mis en sourdine pour le moment` });
     if (isBlocked(uid, target.id)) return ack && ack({ error: 'Tu as bloqué cette personne' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
     const audio = rawAudio ? checkAudio(rawAudio, uid) : null;
@@ -1404,6 +1459,8 @@ io.on('connection', socket => {
   });
 
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
+
+  Games.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {
@@ -1439,7 +1496,7 @@ io.on('connection', socket => {
     if (!target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
     if (!visibleOnline(target.id, u)) return ack && ack({ error: `${target.username} n'est pas connecté` });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
-    if (isBlocked(target.id, uid) || isBlocked(uid, target.id)) return ack && ack({ error: 'Appel impossible avec cette personne' });
+    if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Appel impossible avec cette personne pour le moment' });
     if (callOfSocket.has(socket.id) || userInCall(uid)) return ack && ack({ error: 'Tu es déjà en appel' });
     if (userInCall(target.id)) return ack && ack({ error: `${target.username} est déjà en appel` });
     if (tooMany('call:' + uid, 20, 10 * 60 * 1000)) return ack && ack({ error: 'Trop d\'appels, patiente un peu' });
@@ -1549,6 +1606,7 @@ io.on('connection', socket => {
     entry.sockets.delete(socket.id);
     if (entry.sockets.size === 0) {
       online.delete(uid);
+      Games.onUserGone(uid);
       db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
       if (entry.room && !entry.ghost) io.to('room:' + entry.room).emit('system', { room: entry.room, text: `${entry.user.username} s'est déconnecté` });
       schedulePresence();

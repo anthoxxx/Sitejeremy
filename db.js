@@ -130,6 +130,25 @@ addColumn('private_messages', 'kind', "TEXT DEFAULT 'text'");
 addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
+db.exec(`
+CREATE TABLE IF NOT EXISTS user_mutes (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  muted_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  until INTEGER NOT NULL,
+  PRIMARY KEY (user_id, muted_id)
+);
+CREATE TABLE IF NOT EXISTS game_scores (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  game TEXT NOT NULL,
+  best INTEGER,
+  wins INTEGER NOT NULL DEFAULT 0,
+  losses INTEGER NOT NULL DEFAULT 0,
+  draws INTEGER NOT NULL DEFAULT 0,
+  played INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, game)
+);
+`);
 addColumn('rooms', 'background', "TEXT DEFAULT ''");
 
 // Rôle super-admin : s'il n'y en a pas encore, le plus ancien admin le devient
@@ -297,6 +316,7 @@ const LOG_CATEGORIES = {
   accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],
   voice: ['voice_join', 'call'],
+  games: ['game'],
   reports: ['report_new'],
   system: ['settings', 'site', 'station_create', 'station_edit', 'station_delete', 'stations_check', 'ghost'],
 };

@@ -160,6 +160,7 @@ const Voice = {
   toggleDeaf() {
     this.deaf = !this.deaf;
     this.peers.forEach(p => { p.audio.muted = this.deaf; });
+    if (typeof afterMuteChange === 'function') afterMuteChange();
     renderVoice();
   },
 
@@ -244,6 +245,7 @@ socket.on('voice_state', ({ slug, participants }) => {
   renderVoice();
   renderVideoGrid();
   renderRooms();
+  if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));

@@ -17,6 +17,7 @@
     <button class="btn btn-icon mobile-only" id="toggleLeft" aria-label="Salons">☰</button>
     <a href="/chat" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradis</span></span></a>
     <div class="spacer"></div>
+ <button class="btn btn-icon" id="gamesBtn" title="Mini-jeux" aria-label="Mini-jeux">🎮</button>
     <button class="btn btn-icon hidden" id="ghostBtn" title="Mode fantôme (invisible)" aria-label="Mode fantôme">👻</button>
     <a href="/admin" class="btn btn-sm btn-ghost hidden" id="adminLink" title="Administration">🛡️ <span class="lbl">Admin</span></a>
     <div class="notif-wrap">
@@ -42,6 +43,7 @@
       <div class="side-title">Messages privés <span class="pill" id="pmTotal">0</span></div>
       <div id="pmList"></div>
       <div class="side-links">
+        <button type="button" id="gamesLink">🎮 Mini-jeux</button>
         <a href="/histoire" target="_blank">📖 Histoire</a>
         <a href="/reglement" target="_blank">📜 Règlement</a>
         <button type="button" id="fxBtn" title="Activer / couper les animations de fête">✨ Effets</button>
@@ -53,6 +55,7 @@
   </aside>
 
   <section class="main">
+    <div class="room-bg" id="roomBg" aria-hidden="true"></div>
     <div class="room-head">
       <div class="list-item" style="padding:0;cursor:default"><div class="ico" id="headIcon">✨</div></div>
       <div style="flex:1;min-width:0">
@@ -109,5 +112,7 @@
 <script src="/js/notifications.js"></script>
 <script src="/js/call.js"></script>
 <script src="/js/audio.js"></script>
+<script src="/js/mutes.js"></script>
+<script src="/js/games.js"></script>
 </body>
 </html>
