@@ -161,6 +161,11 @@ else
 fi
 echo
 echo " 👑 Inscris-toi en premier sur le site : le premier compte devient super-admin."
+sleep 2
+if [ -f "$DATA_DIR/code-super-admin.txt" ]; then
+  echo " 🔑 Code de secours super-admin (à entrer sur https://$DOMAIN/staff) : $(cat "$DATA_DIR/code-super-admin.txt")"
+  echo "    Pour le revoir plus tard :  cat $DATA_DIR/code-super-admin.txt"
+fi
 echo " 📁 Données (base + photos + vocaux) : $DATA_DIR"
 echo " 🔄 Mettre à jour plus tard :  bash $APP_DIR/deploy/update.sh"
 echo " 📜 Voir les journaux :         journalctl -u theparadis -f"

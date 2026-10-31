@@ -216,6 +216,11 @@ app.post('/api/login', (req, res) => {
     return res.status(401).json({ error: 'Pseudo ou mot de passe incorrect' });
   }
   if (u.banned) return res.status(403).json({ error: 'Compte banni : ' + (u.ban_reason || 'aucune raison donnée') });
+  // Le pseudo indiqué dans ADMIN_USER (réglage du serveur) redevient super-admin à la connexion
+  if (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === u.username.toLowerCase() && u.role !== 'superadmin') {
+    db.prepare("UPDATE users SET role='superadmin', verified=1 WHERE id=?").run(u.id);
+    log(u, 'admin_auto', `${u.username} est redevenu super-administrateur (ADMIN_USER)`);
+  }
   createSession(res, u.id);
   log(u, 'login', 'Connexion', { ip: req.ip });
   res.json({ user: publicUser(u) });
@@ -957,6 +962,53 @@ function sendToCustoms(userId) {
   ejectFromRoom(userId, e.room, NOT_VERIFIED);
 }
 
+// ---------- Espace staff : codes d'accès ----------
+// 1) Code de secours super-admin : variable SUPERADMIN_CODE, sinon généré et écrit dans data/code-super-admin.txt
+// 2) Codes staff créés par le super-admin (modérateur, admin…), à usage limité
+const randomCode = (prefix = 'PARADISE') => `${prefix}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}`;
+const MASTER_FILE = path.join(dataDir, 'code-super-admin.txt');
+function masterCode() {
+  if (process.env.SUPERADMIN_CODE && process.env.SUPERADMIN_CODE.length >= 8) return process.env.SUPERADMIN_CODE.trim();
+  try { const c = fs.readFileSync(MASTER_FILE, 'utf8').trim(); if (c.length >= 8) return c; } catch (e) {}
+  const c = randomCode('SUPER');
+  fs.writeFileSync(MASTER_FILE, c + '\n', { mode: 0o600 });
+  return c;
+}
+console.log(`🔑 Code de secours super-admin : ${masterCode()}  (à entrer sur /staff)`);
+const sameCode = (a, b) => {
+  const x = Buffer.from(String(a).trim().toUpperCase()), y = Buffer.from(String(b).trim().toUpperCase());
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+const maskCode = c => String(c).slice(0, 6) + '…';
+app.post('/api/staff/redeem', auth, (req, res) => {
+  if (tooMany('redeem:' + req.ip, 6, 15 * 60 * 1000) || tooMany('redeemu:' + req.user.id, 6, 15 * 60 * 1000))
+    return res.status(429).json({ error: 'Trop d\'essais : réessaie dans 15 minutes' });
+  const code = String(req.body.code || '').trim().toUpperCase();
+  if (code.length < 8) return res.status(400).json({ error: 'Code invalide' });
+  if (req.user.is_guest) return res.status(403).json({ error: 'Connecte-toi avec un compte inscrit (pas en invité) pour utiliser un code staff' });
+  let role = null;
+  if (sameCode(code, masterCode())) role = 'superadmin';
+  else {
+    const row = db.prepare('SELECT * FROM staff_codes WHERE code=?').get(code);
+    if (row && row.uses_left > 0 && (!row.expires_at || row.expires_at > now())) {
+      role = row.role;
+      db.prepare('UPDATE staff_codes SET uses_left=uses_left-1 WHERE code=?').run(code);
+    }
+  }
+  if (!role) {
+    log(req.user, 'staff_code', `❌ Code staff incorrect essayé (${maskCode(code)})`, { ip: req.ip });
+    return res.status(400).json({ error: 'Code incorrect ou expiré' });
+  }
+  if (ROLES.indexOf(role) <= rank(req.user)) return res.json({ role: req.user.role, unchanged: true });
+  db.prepare('UPDATE users SET role=?, verified=1 WHERE id=?').run(role, req.user.id);
+  const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: 'modérateur' }[role];
+  log(req.user, 'staff_code', `✅ ${req.user.username} est devenu ${label} avec un code (${maskCode(code)})`, { ip: req.ip });
+  notify(req.user.id, { type: 'role', icon: '🎖️', title: `Tu es maintenant ${label} !`, text: 'Le panneau 🛡️ Admin est accessible en haut du chat.' });
+  refreshOnline(getUser(req.user.id));
+  emitToStaff('staff_alert', { text: `🔑 ${req.user.username} est devenu ${label} avec un code staff` });
+  res.json({ role });
+});
+
 // ---------- Notifications ----------
 app.get('/api/notifications', auth, (req, res) => {
   const rows = db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 40').all(req.user.id);
@@ -1445,6 +1497,33 @@ async function autoBackup() {
 setTimeout(autoBackup, 20000).unref();
 setInterval(autoBackup, 6 * 3600 * 1000).unref();
 
+// Codes staff (super-admin)
+admin.get('/staff-codes', requireRole('superadmin'), (req, res) => {
+  db.prepare('DELETE FROM staff_codes WHERE uses_left<=0 OR (expires_at IS NOT NULL AND expires_at<?)').run(now());
+  res.json({ master: masterCode(), fromEnv: !!process.env.SUPERADMIN_CODE, codes: db.prepare('SELECT * FROM staff_codes ORDER BY created_at DESC').all() });
+});
+admin.post('/staff-codes', requireRole('superadmin'), (req, res) => {
+  const role = ['moderator', 'admin', 'superadmin'].includes(req.body.role) ? req.body.role : 'moderator';
+  const uses = Math.min(50, Math.max(1, parseInt(req.body.uses, 10) || 1));
+  const days = Math.min(365, Math.max(0, parseInt(req.body.days, 10) || 0));
+  const code = randomCode('STAFF');
+  db.prepare('INSERT INTO staff_codes (code,role,uses_left,expires_at,note,created_by,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run(code, role, uses, days ? now() + days * 86400000 : null, clean(req.body.note, 60), req.user.username, now());
+  log(req.user, 'staff_code', `Code staff créé : ${role}, ${uses} utilisation(s)${days ? `, valable ${days} j` : ''}`);
+  res.json({ code });
+});
+admin.delete('/staff-codes/:code', requireRole('superadmin'), (req, res) => {
+  db.prepare('DELETE FROM staff_codes WHERE code=?').run(String(req.params.code));
+  res.json({ ok: true });
+});
+admin.post('/staff-codes/master', requireRole('superadmin'), (req, res) => {
+  if (process.env.SUPERADMIN_CODE) return res.status(400).json({ error: 'Le code de secours est fixé par le serveur (SUPERADMIN_CODE)' });
+  const c = randomCode('SUPER');
+  fs.writeFileSync(MASTER_FILE, c + '\n', { mode: 0o600 });
+  log(req.user, 'staff_code', 'Code de secours super-admin renouvelé');
+  res.json({ master: c });
+});
+
 admin.get('/logs', (req, res) => {
   const where = [], args = [];
   if (req.query.category && req.query.category !== 'all') { where.push('category=?'); args.push(String(req.query.category)); }
@@ -1468,6 +1547,7 @@ app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 // Pages
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
 app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'page.html')));
 
 // ---------- Temps réel ----------

@@ -56,6 +56,13 @@ Le script installe tout tout seul (Node.js, le site, le serveur web, le HTTPS gr
 - **Redémarrer** : `systemctl restart theparadis`
 - **Où sont les données** (comptes, messages, photos, vocaux) : `/var/lib/theparadis` — pense à le sauvegarder de temps en temps.
 
+## 🔑 Si tu perds ton rôle de super-admin
+Connecte-toi au VPS puis affiche le code de secours :
+```
+cat /var/lib/theparadis/code-super-admin.txt
+```
+Va sur `https://theparadise.fr/staff`, connecte-toi avec ton compte et entre ce code : tu redeviens super-admin.
+
 ## En cas de problème
 - **« Le certificat HTTPS n'a pas pu être créé »** → le domaine ne pointe pas encore vers le VPS (étape 3). Attends un peu et relance : `bash install.sh theparadise.fr ton-email@exemple.fr`
 - **La page ne s'affiche pas** → vérifie les ports 80/443 (étape 2).
