@@ -835,7 +835,7 @@ body.hub-open { overflow: hidden; }
 .quiz-q { font-size: 1.2rem; font-weight: 700; text-align: center; margin: 8px 0 12px; }
 .quiz-timer { height: 6px; border-radius: 99px; background: var(--bg-2); overflow: hidden; margin-bottom: 14px; }
 .quiz-timer i { display: block; height: 100%; width: 100%; background: var(--grad); }
-.quiz-timer i.run { width: 0; transition: width 15s linear; }
+.quiz-timer i.run { width: 0; transition: width var(--qt, 10s) linear; }
 .quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .quiz-choice { padding: 14px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-weight: 600; cursor: pointer; font-size: .95rem; }
 .quiz-choice:hover:not(:disabled) { border-color: var(--violet); }

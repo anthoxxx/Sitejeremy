@@ -45,15 +45,22 @@ const Hub = {
     if (location.hash === '#jeux') history.replaceState(null, '', location.pathname);
   },
   stop() { this.cleanups.splice(0).forEach(fn => { try { fn(); } catch (e) {} }); },
-  async home() {
+  // La liste s'affiche tout de suite ; les records arrivent ensuite
+  home() {
+    this.renderHome();
+    api('/api/games/me').then(d => {
+      this.myScores = d.scores;
+      if (!Match.active && this.body.querySelector('.game-grid')) this.renderHome();
+    }).catch(() => {});
+  },
+  renderHome() {
     this.stop();
-    try { this.myScores = (await api('/api/games/me')).scores; } catch (e) {}
     const tabs = [['solo', '🎯 Solo'], ['multi', '👥 À deux'], ['top', '🏆 Classements']];
     const content = el('div', { class: 'gh-content' });
     this.body.replaceChildren(
       el('div', { class: 'tabs' }, ...tabs.map(([k, l]) => el('button', { class: this.tab === k ? 'active' : '', onclick: () => { this.tab = k; this.home(); } }, l))),
       content);
-    if (this.tab === 'top') return this.leaderboard(content);
+    if (this.tab === 'top') { if (!content.childNodes.length) this.leaderboard(content); return; }
     const list = GAME_LIST[this.tab];
     content.append(el('div', { class: 'game-grid' }, ...list.map(g => {
       const sc = this.myScores[g.id];
@@ -254,7 +261,7 @@ const SOLO_GAMES = {
         } else {
           lock = true;
           const a = first; first = null;
-          setTimeout(() => { a.open = c.open = false; a.btn.classList.remove('flip'); c.btn.classList.remove('flip'); lock = false; }, 800);
+          setTimeout(() => { a.open = c.open = false; a.btn.classList.remove('flip'); c.btn.classList.remove('flip'); lock = false; }, 550);
         }
       };
       grid.append(c.btn);
@@ -288,7 +295,7 @@ const SOLO_GAMES = {
         kb.querySelector(`[data-l="${c}"]`)?.classList.add(w.includes(c) ? 'good' : 'bad');
         if (!w.includes(c)) errors++;
         draw();
-        if ([...w].every(x => tried.has(x))) { done = true; streak++; draw(); toast(`✅ Bravo, c'était ${w} !`); setTimeout(round, 900); }
+        if ([...w].every(x => tried.has(x))) { done = true; streak++; draw(); toast(`✅ Bravo, c'était ${w} !`); setTimeout(round, 500); }
         else if (errors >= 7) { done = true; word.textContent = [...w].join(' '); g.end(streak, `Le mot était ${w}`); }
       };
       kb.replaceChildren(...'AZERTYUIOPQSDFGHJKLMWXCVBN'.split('').map(c => el('button', { 'data-l': c, onclick: () => guess(c) }, c)));
@@ -330,7 +337,7 @@ const SOLO_GAMES = {
     const zone = el('button', { class: 'reflex-zone' }, 'Clique pour commencer');
     const go = () => {
       stateR = 'wait'; zone.className = 'reflex-zone wait'; zone.textContent = 'Attends le vert…';
-      timer = setTimeout(() => { stateR = 'go'; zone.className = 'reflex-zone go'; zone.textContent = 'CLIQUE !'; t0 = performance.now(); }, 1200 + Math.random() * 2800);
+      timer = setTimeout(() => { stateR = 'go'; zone.className = 'reflex-zone go'; zone.textContent = 'CLIQUE !'; t0 = performance.now(); }, 900 + Math.random() * 2100);
     };
     zone.onclick = () => {
       if (stateR === 'idle' || stateR === 'result') return go();
@@ -373,13 +380,14 @@ const SOLO_GAMES = {
         if (ok) score += 10 + Math.max(0, Math.round(5 - (Date.now() - t0) / 3000));
         box.querySelectorAll('.quiz-choice').forEach((b, k) => b.classList.add(k === q.answer ? 'good' : k === c ? 'bad' : 'dim'));
         g.info(`Question ${i + 1}/${questions.length} · ${score} pts`);
-        setTimeout(() => { i++; show(); }, 1300);
+        setTimeout(() => { i++; show(); }, 700);
       };
       box.replaceChildren(el('div', { class: 'quiz-q' }, q.q), bar,
         el('div', { class: 'quiz-choices' }, ...q.choices.map((c, k) => el('button', { class: 'quiz-choice', onclick: e => pick(k, e.target) }, c))));
+      bar.style.setProperty('--qt', '12s');
       requestAnimationFrame(() => bar.firstChild.classList.add('run'));
       g.info(`Question ${i + 1}/${questions.length} · ${score} pts`);
-      timer = setTimeout(() => pick(-1), 15000);
+      timer = setTimeout(() => pick(-1), 12000);
     };
     g.onCleanup(() => clearTimeout(timer));
     show();
@@ -428,9 +436,16 @@ function invite(g, u) {
   socket.emit('game_invite', { to: u.id, game: g.id }, r => {
     if (r?.error) return toast('🎮 ' + r.error);
     Match.pending = r.id;
+    const left = el('p', { class: 'help' }, `Invitation envoyée à ${u.username}… 20 s`);
+    const end = Date.now() + 20000;
+    const tick = setInterval(() => {
+      const s2 = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      left.textContent = `Invitation envoyée à ${u.username}… ${s2} s`;
+      if (!document.body.contains(left)) clearInterval(tick);
+    }, 500);
     waitClose = modal(el('div', { class: 'center' },
       el('div', { class: 'ring-avatar' }, LC.avatar(u, true)),
-      el('h3', {}, `${g.icon} ${g.name}`), el('p', { class: 'help' }, `Invitation envoyée à ${u.username}… (30 s)`),
+      el('h3', {}, `${g.icon} ${g.name}`), left,
       el('button', { class: 'btn', onclick: () => { socket.emit('game_invite_cancel', r.id); waitClose(); waitClose = null; } }, 'Annuler')));
   });
 }
@@ -581,6 +596,7 @@ const RENDER = {
         }, c, st.reveal && st.other === k ? el('span', { class: 'quiz-other' }, ` ← ${other.username}`) : '')))));
       if (!st.reveal) {
         const delay = Math.max(0, st.qStart - Date.now());
+        bar.style.setProperty('--qt', '10s');
         setTimeout(() => bar.firstChild?.classList.add('run'), delay);
       }
     } else {
@@ -613,7 +629,7 @@ const Bot = {
       morpion: () => ({ board: Array(9).fill(null), turn: 0 }),
       quatre: () => ({ board: Array.from({ length: 6 }, () => Array(7).fill(null)), turn: 0 }),
       chifoumi: () => ({ picks: [null, null], score: [0, 0], history: [], target: 3 }),
-      frappe: () => ({ phrase: FRAPPE_PHRASES[rand(FRAPPE_PHRASES.length)], startAt: Date.now() + 3500, progress: [0, 0], times: [null, null] }),
+      frappe: () => ({ phrase: FRAPPE_PHRASES[rand(FRAPPE_PHRASES.length)], startAt: Date.now() + 2500, progress: [0, 0], times: [null, null] }),
     }[game]();
     matchUI = null;
     Object.assign(Match, { active: true, id: 'bot-' + Date.now(), game, you: 0, players: game === 'frappe' ? [me, { ...me, username: '—' }] : [me, BOT_USER], over: false, bot: true, state: init });
@@ -627,11 +643,11 @@ const Bot = {
     if (Match.game === 'morpion') {
       if (s.turn !== 0 || s.board[m.cell] !== null) return;
       tttPlay(s, m.cell, 0); done();
-      if (!s.over) setTimeout(() => { tttPlay(s, tttBest(s.board), 1); done(); }, 450);
+      if (!s.over) setTimeout(() => { tttPlay(s, tttBest(s.board), 1); done(); }, 250);
     } else if (Match.game === 'quatre') {
       if (s.turn !== 0 || !c4Drop(s, m.col, 0)) return;
       done();
-      if (!s.over) setTimeout(() => { c4Drop(s, c4Bot(s.board), 1); done(); }, 500);
+      if (!s.over) setTimeout(() => { c4Drop(s, c4Bot(s.board), 1); done(); }, 300);
     } else if (Match.game === 'chifoumi') {
       if (s.picks[0]) return;
       s.picks[0] = m.pick; done();
@@ -645,7 +661,7 @@ const Bot = {
         s.picks = [null, null];
         if (s.score[0] >= s.target || s.score[1] >= s.target) { s.over = true; s.winner = s.score[0] > s.score[1] ? 0 : 1; }
         done();
-      }, 600);
+      }, 300);
     } else if (Match.game === 'frappe') {
       if (Date.now() < s.startAt) return;
       const t = String(m.typed || '');

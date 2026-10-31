@@ -128,7 +128,7 @@ const ENGINES = {
     view: (s, p) => ({ ...s, picks: s.picks.map((x, i) => (i === p ? x : x ? 'caché' : null)) }),
   },
   frappe: {
-    init: () => ({ phrase: PHRASES[Math.floor(Math.random() * PHRASES.length)], startAt: Date.now() + 3500, progress: [0, 0], times: [null, null] }),
+    init: () => ({ phrase: PHRASES[Math.floor(Math.random() * PHRASES.length)], startAt: Date.now() + 2500, progress: [0, 0], times: [null, null] }),
     move(s, p, m) {
       if (Date.now() < s.startAt) return 'Attends le départ !';
       if (s.times[p] !== null) return null;
@@ -143,7 +143,7 @@ const ENGINES = {
     },
   },
   quizduel: {
-    init: () => ({ questions: shuffle([...QUESTIONS]).slice(0, 7), idx: 0, answers: [], scores: [0, 0], qStart: Date.now() + 2000, reveal: false }),
+    init: () => ({ questions: shuffle([...QUESTIONS]).slice(0, 7), idx: 0, answers: [], scores: [0, 0], qStart: Date.now() + 600, reveal: false }),
     move(s, p, m) {
       if (s.reveal || Date.now() < s.qStart) return null;
       const a = s.answers[s.idx] || (s.answers[s.idx] = [null, null]);
@@ -152,7 +152,7 @@ const ENGINES = {
       if (!(choice >= 0 && choice < 4)) return 'Réponse invalide';
       const ms = Date.now() - s.qStart;
       a[p] = { choice, ms };
-      if (choice === s.questions[s.idx].answer) s.scores[p] += 10 + Math.max(0, Math.round(5 - ms / 3000));
+      if (choice === s.questions[s.idx].answer) s.scores[p] += 10 + Math.max(0, Math.round(5 - ms / 2000));
       if (a[0] !== null && a[1] !== null) s.reveal = true;
     },
     view: (s, p) => {
@@ -252,15 +252,15 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
     const s = g.state;
     if (s.reveal) {
       g.timer = setTimeout(() => {
-        s.idx++; s.reveal = false; s.qStart = now() + 800;
+        s.idx++; s.reveal = false; s.qStart = now() + 300;
         if (s.idx >= s.questions.length) {
           s.over = true; s.winner = s.scores[0] === s.scores[1] ? null : s.scores[0] > s.scores[1] ? 0 : 1;
           emitState(g); return finish(g);
         }
         emitState(g); scheduleQuiz(g);
-      }, 3000);
+      }, 1500);
     } else {
-      g.timer = setTimeout(() => { s.reveal = true; emitState(g); scheduleQuiz(g); }, Math.max(0, s.qStart - now()) + 15000);
+      g.timer = setTimeout(() => { s.reveal = true; emitState(g); scheduleQuiz(g); }, Math.max(0, s.qStart - now()) + 10000);
     }
   }
 
@@ -277,7 +277,7 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
         if (gameOf(target.id)) return ack && ack({ error: `${target.username} est déjà en train de jouer` });
         if (tooMany('ginv:' + uid, 15, 5 * 60 * 1000)) return ack && ack({ error: 'Trop d\'invitations, patiente un peu' });
         const id = crypto.randomBytes(6).toString('hex');
-        const inv = { id, from: uid, to: target.id, game, timer: setTimeout(() => { invites.delete(id); emitToUser(uid, 'game_invite_result', { id, accepted: false, reason: `${target.username} n'a pas répondu` }); emitToUser(target.id, 'game_invite_cancel', { id }); }, 30000) };
+        const inv = { id, from: uid, to: target.id, game, timer: setTimeout(() => { invites.delete(id); emitToUser(uid, 'game_invite_result', { id, accepted: false, reason: `${target.username} n'a pas répondu` }); emitToUser(target.id, 'game_invite_cancel', { id }); }, 20000) };
         invites.set(id, inv);
         emitToUser(target.id, 'game_invite', { id, game, from: publicUser(u) });
         ack && ack({ id });
