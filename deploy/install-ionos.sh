@@ -162,9 +162,10 @@ fi
 echo
 echo " 👑 Inscris-toi en premier sur le site : le premier compte devient super-admin."
 sleep 2
-if [ -f "$DATA_DIR/code-super-admin.txt" ]; then
-  echo " 🔑 Code de secours super-admin (à entrer sur https://$DOMAIN/staff) : $(cat "$DATA_DIR/code-super-admin.txt")"
-  echo "    Pour le revoir plus tard :  cat $DATA_DIR/code-super-admin.txt"
+if ! grep -q '^ADMIN_PASSWORD=' "$ENV_FILE"; then
+  echo " 🔐 Espace admin (https://$DOMAIN/admin) pas encore configuré. Pour le régler :"
+  echo "    nano $ENV_FILE   puis ajoute les lignes  ADMIN_LOGIN=admin  et  ADMIN_PASSWORD=ton-mot-de-passe"
+  echo "    puis :  systemctl restart theparadis"
 fi
 echo " 📁 Données (base + photos + vocaux) : $DATA_DIR"
 echo " 🔄 Mettre à jour plus tard :  bash $APP_DIR/deploy/update.sh"

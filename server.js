@@ -182,6 +182,7 @@ app.post('/api/register', (req, res) => {
   const username = clean(req.body.username, 20);
   const password = String(req.body.password || '');
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
+  if (isPanelName(username)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
   if (password.length < 6) return res.status(400).json({ error: 'Mot de passe : 6 caractères minimum' });
   const err = validateProfile(req.body);
   if (err) return res.status(400).json({ error: err });
@@ -211,7 +212,7 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   if (tooMany('login:' + req.ip, 15)) return res.status(429).json({ error: 'Trop de tentatives, réessaie dans quelques minutes' });
   const u = getUserByName(clean(req.body.username, 20));
-  if (!u || u.is_guest || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || '')) {
+  if (!u || u.is_guest || u.panel || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || '')) {
     if (u && !u.is_guest) log(u, 'login', 'Échec de connexion (mauvais mot de passe)', { ip: req.ip });
     return res.status(401).json({ error: 'Pseudo ou mot de passe incorrect' });
   }
@@ -232,6 +233,7 @@ app.post('/api/guest', (req, res) => {
   if (tooMany('guest:' + req.ip, 20)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
+  if (isPanelName(username)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
   const err = validateProfile(req.body);
   if (err) return res.status(400).json({ error: err });
   const existing = getUserByName(username);
@@ -1054,51 +1056,40 @@ function sendToCustoms(userId) {
   ejectFromRoom(userId, e.room, NOT_VERIFIED);
 }
 
-// ---------- Espace staff : codes d'accès ----------
-// 1) Code de secours super-admin : variable SUPERADMIN_CODE, sinon généré et écrit dans data/code-super-admin.txt
-// 2) Codes staff créés par le super-admin (modérateur, admin…), à usage limité
-const randomCode = (prefix = 'PARADISE') => `${prefix}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}-${crypto.randomBytes(9).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}`;
-const MASTER_FILE = path.join(dataDir, 'code-super-admin.txt');
-function masterCode() {
-  if (process.env.SUPERADMIN_CODE && process.env.SUPERADMIN_CODE.length >= 8) return process.env.SUPERADMIN_CODE.trim();
-  try { const c = fs.readFileSync(MASTER_FILE, 'utf8').trim(); if (c.length >= 8) return c; } catch (e) {}
-  const c = randomCode('SUPER');
-  fs.writeFileSync(MASTER_FILE, c + '\n', { mode: 0o600 });
-  return c;
+// ---------- Espace admin : connexion par identifiant + mot de passe ----------
+// L'identifiant (ADMIN_LOGIN, « admin » par défaut) et le mot de passe (ADMIN_PASSWORD) se règlent
+// sur le serveur : ils ne sont jamais écrits dans le code, qui est public.
+const PANEL_USER = String(process.env.ADMIN_LOGIN || 'admin').trim();
+const PANEL_HASH = process.env.ADMIN_PASSWORD ? bcrypt.hashSync(String(process.env.ADMIN_PASSWORD), 10) : null;
+if (!PANEL_HASH) console.log('⚠️  ADMIN_PASSWORD n\'est pas réglé : la connexion à l\'espace admin (/admin) est désactivée');
+const isPanelName = n => String(n || '').trim().toLowerCase() === PANEL_USER.toLowerCase();
+function panelAccount() {
+  let u = getUserByName(PANEL_USER);
+  if (u && !u.panel) { // quelqu'un d'autre porte ce pseudo : il est renommé pour ne pas recevoir les droits
+    db.prepare('UPDATE users SET username=? WHERE id=?').run((PANEL_USER + '_' + u.id).slice(0, 20), u.id);
+    u = null;
+  }
+  if (!u) {
+    const info = db.prepare(`INSERT INTO users (username,password_hash,gender,age,city,color,role,created_at,last_seen,verified,panel)
+      VALUES (?,?,?,?,?,?,?,?,?,1,1)`).run(PANEL_USER, bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10), 'x', 30, '', '#ffb547', 'superadmin', now(), now());
+    return getUser(info.lastInsertRowid);
+  }
+  if (u.role !== 'superadmin' || u.banned || !u.verified) db.prepare("UPDATE users SET role='superadmin', banned=0, verified=1 WHERE id=?").run(u.id);
+  return getUser(u.id);
 }
-console.log(`🔑 Code de secours super-admin : ${masterCode()}  (à entrer sur /staff)`);
-const sameCode = (a, b) => {
-  const x = Buffer.from(String(a).trim().toUpperCase()), y = Buffer.from(String(b).trim().toUpperCase());
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-};
-const maskCode = c => String(c).slice(0, 6) + '…';
-app.post('/api/staff/redeem', auth, (req, res) => {
-  if (tooMany('redeem:' + req.ip, 6, 15 * 60 * 1000) || tooMany('redeemu:' + req.user.id, 6, 15 * 60 * 1000))
+app.post('/api/admin-login', (req, res) => {
+  if (tooMany('panel:' + req.ip, 5, 15 * 60 * 1000) || tooMany('panel:all', 40, 60 * 60 * 1000))
     return res.status(429).json({ error: 'Trop d\'essais : réessaie dans 15 minutes' });
-  const code = String(req.body.code || '').trim().toUpperCase();
-  if (code.length < 8) return res.status(400).json({ error: 'Code invalide' });
-  if (req.user.is_guest) return res.status(403).json({ error: 'Connecte-toi avec un compte inscrit (pas en invité) pour utiliser un code staff' });
-  let role = null;
-  if (sameCode(code, masterCode())) role = 'superadmin';
-  else {
-    const row = db.prepare('SELECT * FROM staff_codes WHERE code=?').get(code);
-    if (row && row.uses_left > 0 && (!row.expires_at || row.expires_at > now())) {
-      role = row.role;
-      db.prepare('UPDATE staff_codes SET uses_left=uses_left-1 WHERE code=?').run(code);
-    }
+  if (!PANEL_HASH) return res.status(503).json({ error: 'L\'espace admin n\'est pas encore configuré sur le serveur (réglage ADMIN_PASSWORD)' });
+  const ok = isPanelName(req.body.username) && bcrypt.compareSync(String(req.body.password || ''), PANEL_HASH);
+  if (!ok) {
+    log(null, 'admin_login', `❌ Connexion à l'espace admin refusée (identifiant « ${clean(req.body.username, 30)} »)`, { ip: req.ip });
+    return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect' });
   }
-  if (!role) {
-    log(req.user, 'staff_code', `❌ Code staff incorrect essayé (${maskCode(code)})`, { ip: req.ip });
-    return res.status(400).json({ error: 'Code incorrect ou expiré' });
-  }
-  if (ROLES.indexOf(role) <= rank(req.user)) return res.json({ role: req.user.role, unchanged: true });
-  db.prepare('UPDATE users SET role=?, verified=1 WHERE id=?').run(role, req.user.id);
-  const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: 'modérateur' }[role];
-  log(req.user, 'staff_code', `✅ ${req.user.username} est devenu ${label} avec un code (${maskCode(code)})`, { ip: req.ip });
-  notify(req.user.id, { type: 'role', icon: '🎖️', title: `Tu es maintenant ${label} !`, text: 'Le panneau 🛡️ Admin est accessible en haut du chat.' });
-  refreshOnline(getUser(req.user.id));
-  emitToStaff('staff_alert', { text: `🔑 ${req.user.username} est devenu ${label} avec un code staff` });
-  res.json({ role });
+  const u = panelAccount();
+  createSession(res, u.id);
+  log(u, 'admin_login', '✅ Connexion à l\'espace admin', { ip: req.ip });
+  res.json({ user: publicUser(u) });
 });
 
 // ---------- Notifications ----------
@@ -1589,33 +1580,6 @@ async function autoBackup() {
 setTimeout(autoBackup, 20000).unref();
 setInterval(autoBackup, 6 * 3600 * 1000).unref();
 
-// Codes staff (super-admin)
-admin.get('/staff-codes', requireRole('superadmin'), (req, res) => {
-  db.prepare('DELETE FROM staff_codes WHERE uses_left<=0 OR (expires_at IS NOT NULL AND expires_at<?)').run(now());
-  res.json({ master: masterCode(), fromEnv: !!process.env.SUPERADMIN_CODE, codes: db.prepare('SELECT * FROM staff_codes ORDER BY created_at DESC').all() });
-});
-admin.post('/staff-codes', requireRole('superadmin'), (req, res) => {
-  const role = ['moderator', 'admin', 'superadmin'].includes(req.body.role) ? req.body.role : 'moderator';
-  const uses = Math.min(50, Math.max(1, parseInt(req.body.uses, 10) || 1));
-  const days = Math.min(365, Math.max(0, parseInt(req.body.days, 10) || 0));
-  const code = randomCode('STAFF');
-  db.prepare('INSERT INTO staff_codes (code,role,uses_left,expires_at,note,created_by,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run(code, role, uses, days ? now() + days * 86400000 : null, clean(req.body.note, 60), req.user.username, now());
-  log(req.user, 'staff_code', `Code staff créé : ${role}, ${uses} utilisation(s)${days ? `, valable ${days} j` : ''}`);
-  res.json({ code });
-});
-admin.delete('/staff-codes/:code', requireRole('superadmin'), (req, res) => {
-  db.prepare('DELETE FROM staff_codes WHERE code=?').run(String(req.params.code));
-  res.json({ ok: true });
-});
-admin.post('/staff-codes/master', requireRole('superadmin'), (req, res) => {
-  if (process.env.SUPERADMIN_CODE) return res.status(400).json({ error: 'Le code de secours est fixé par le serveur (SUPERADMIN_CODE)' });
-  const c = randomCode('SUPER');
-  fs.writeFileSync(MASTER_FILE, c + '\n', { mode: 0o600 });
-  log(req.user, 'staff_code', 'Code de secours super-admin renouvelé');
-  res.json({ master: c });
-});
-
 admin.get('/logs', (req, res) => {
   const where = [], args = [];
   if (req.query.category && req.query.category !== 'all') { where.push('category=?'); args.push(String(req.query.category)); }
@@ -1639,7 +1603,7 @@ app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 // Pages
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
+app.get('/staff', (req, res) => res.redirect('/admin'));
 app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'page.html')));
 
 // ---------- Temps réel ----------

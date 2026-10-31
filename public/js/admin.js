@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, backups, codes, logs };
+const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && ['site', 'backups', 'codes'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -393,46 +393,6 @@ async function site() {
 }
 
 // ---------- Journal ----------
-// ---------- Codes staff (super-admin) ----------
-async function codes(newCode) {
-  const d = await api('/api/admin/staff-codes');
-  const ROLE = { superadmin: '👑 Super-admin', admin: '🛡️ Admin', moderator: '🎖️ Modérateur' };
-  const role = el('select', { class: 'input', style: 'max-width:190px' }, ...Object.entries(ROLE).reverse().map(([v, l]) => el('option', { value: v }, l)));
-  const uses = el('input', { class: 'input', type: 'number', min: 1, max: 50, value: 1, style: 'max-width:90px', title: 'Nombre d\'utilisations' });
-  const days = el('input', { class: 'input', type: 'number', min: 0, max: 365, value: 7, style: 'max-width:90px', title: 'Valable (jours), 0 = sans limite' });
-  const note = el('input', { class: 'input', maxlength: 60, placeholder: 'Pour qui ? (facultatif)' });
-  const fresh = el('div', {});
-  if (newCode) fresh.append(el('div', { class: 'backup-ok' }, el('b', {}, 'Nouveau code — donne-le à la personne :'),
-    el('div', { class: 'toolbar', style: 'margin:6px 0 0' }, el('code', { class: 'code-show' }, newCode), el('button', { class: 'btn btn-sm', onclick: () => { navigator.clipboard?.writeText(newCode); toast('📋 Code copié'); } }, '📋 Copier')),
-    el('div', { class: 'help' }, `Elle va sur ${location.origin}/staff, se connecte avec son compte et entre ce code.`)));
-  const masterBox = el('code', { class: 'code-show' }, '••••-••••-••••');
-  const copy = t => { navigator.clipboard?.writeText(t); toast('📋 Code copié'); };
-  page.replaceChildren(...header('🔑 Codes staff', 'Donne un rôle à quelqu\'un de ton équipe : il va sur /staff, se connecte et entre le code.'),
-    el('div', { class: 'panel' }, el('h2', {}, '➕ Créer un code'),
-      el('div', { class: 'toolbar' }, role, el('label', { class: 'help' }, 'Utilisations'), uses, el('label', { class: 'help' }, 'Jours'), days, note,
-        el('button', { class: 'btn btn-primary', onclick: async () => {
-          if (role.value === 'superadmin' && !confirm('Un code SUPER-ADMIN donne TOUS les pouvoirs (y compris sur toi). Continuer ?')) return;
-          const r = await run(() => api('/api/admin/staff-codes', { method: 'POST', body: { role: role.value, uses: uses.value, days: days.value, note: note.value } }), 'Code créé');
-          codes(r.code);
-        } }, 'Créer')),
-      fresh),
-    el('div', { class: 'panel' }, el('h2', {}, '📋 Codes actifs'),
-      d.codes.length ? el('div', { class: 'table-wrap' }, el('table', {},
-        el('thead', {}, el('tr', {}, ...['Code', 'Rôle', 'Restant', 'Expire', 'Pour', 'Créé par', ''].map(h => el('th', {}, h)))),
-        el('tbody', {}, ...d.codes.map(c => el('tr', {},
-          el('td', {}, el('code', {}, c.code)), el('td', {}, ROLE[c.role] || c.role), el('td', {}, c.uses_left),
-          el('td', {}, c.expires_at ? LC.date(c.expires_at) : 'jamais'), el('td', {}, c.note || '—'), el('td', {}, c.created_by),
-          el('td', {}, el('button', { class: 'btn btn-sm', onclick: () => copy(c.code) }, '📋'),
-            el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { await run(() => api('/api/admin/staff-codes/' + encodeURIComponent(c.code), { method: 'DELETE' }), 'Code supprimé'); codes(); } }, '🗑')))))))
-        : el('p', { class: 'empty' }, 'Aucun code actif')),
-    el('div', { class: 'panel' }, el('h2', {}, '🆘 Code de secours super-admin'),
-      el('p', { class: 'help', style: 'margin:0 0 10px' }, 'Si un jour tu perds ton rôle de super-admin, ce code te le redonne sur /staff. Garde-le pour toi seul.' + (d.fromEnv ? ' Il est fixé par le réglage SUPERADMIN_CODE du serveur.' : '')),
-      el('div', { class: 'toolbar' }, masterBox,
-        el('button', { class: 'btn btn-sm', onclick: () => { masterBox.textContent = masterBox.textContent.includes('•') ? d.master : '••••-••••-••••'; } }, '👁️ Afficher'),
-        el('button', { class: 'btn btn-sm', onclick: () => copy(d.master) }, '📋 Copier'),
-        d.fromEnv ? null : el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { if (!confirm('Créer un nouveau code de secours ? L\'ancien ne marchera plus.')) return; const r = await run(() => api('/api/admin/staff-codes/master', { method: 'POST' }), 'Nouveau code de secours'); d.master = r.master; masterBox.textContent = r.master; } }, '🔄 Changer'))));
-}
-
 // ---------- Sauvegardes (super-admin) ----------
 async function backups() {
   const info = await api('/api/admin/backup/info');
@@ -495,7 +455,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;
@@ -571,16 +531,37 @@ function audioPlayerAdmin(url) {
   return el('audio', { controls: true, preload: 'none', src: url, style: 'width:100%;max-width:320px;margin-top:6px' });
 }
 
+// ---------- Connexion à l'espace admin ----------
+function showAdminLogin() {
+  const user = el('input', { class: 'input', name: 'username', required: true, autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', placeholder: 'admin' });
+  const pass = el('input', { class: 'input', name: 'password', type: 'password', required: true, autocomplete: 'current-password' });
+  const err = el('div', { class: 'error' });
+  const btn = el('button', { class: 'btn btn-primary', style: 'width:100%' }, 'Se connecter');
+  const form = el('form', {}, el('div', { class: 'field' }, el('label', {}, "Nom d'utilisateur"), user),
+    el('div', { class: 'field' }, el('label', {}, 'Mot de passe'), pass), err, btn);
+  form.onsubmit = async ev => {
+    ev.preventDefault(); err.textContent = ''; btn.disabled = true;
+    try {
+      await api('/api/admin-login', { method: 'POST', body: { username: user.value, password: pass.value } });
+      location.reload();
+    } catch (x) { err.textContent = x.message; btn.disabled = false; pass.value = ''; pass.focus(); }
+  };
+  page.replaceChildren(el('div', { class: 'card admin-login' },
+    el('div', { class: 'staff-ico' }, '🛡️'), el('h1', {}, 'Espace admin'),
+    el('p', { class: 'help center' }, 'Connecte-toi pour gérer les utilisateurs et le site.'),
+    form, el('p', { class: 'help center', style: 'margin-top:14px' }, el('a', { href: '/' }, "← Retour à l'accueil"))));
+  user.focus();
+}
+
 // ---------- Démarrage ----------
 (async () => {
   try {
     const d = await api('/api/admin/stats');
     me = d.me;
   } catch (e) {
-    page.replaceChildren(el('div', { class: 'card', style: 'max-width:440px;margin:80px auto;text-align:center' },
-      el('h2', {}, '🔒 Accès réservé'), el('p', { style: 'color:var(--muted)' }, 'Cette page est réservée à l\'équipe de modération.'),
-      el('a', { class: 'btn btn-primary', href: '/' }, 'Retour à l\'accueil')));
     document.getElementById('nav').classList.add('hidden');
+    document.querySelector('.admin-layout').classList.add('locked');
+    showAdminLogin();
     return;
   }
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());

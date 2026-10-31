@@ -437,7 +437,6 @@ function toggleUserMenu() {
     item('🎮', 'Mini-jeux', () => Hub.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
-    item('🔑', 'Espace staff (code)', () => { location.href = '/staff'; }),
     el('div', { class: 'um-sep' }),
     item('🚪', 'Se déconnecter', askLogout, 'danger')].filter(Boolean));
   m.classList.remove('hidden');

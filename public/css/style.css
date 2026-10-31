@@ -1087,3 +1087,11 @@ body.hub-open .modal-back { z-index: 260; }
   .app-header .btn-icon { width: 34px; }
   .composer .btn-icon { width: 32px; }
 }
+
+/* ===== Connexion à l'espace admin ===== */
+.admin-layout.locked { grid-template-columns: 1fr; }
+.admin-layout.locked main { display: grid; place-items: start center; padding-top: 10vh; }
+.admin-login { width: 100%; max-width: 420px; }
+.admin-login h1 { text-align: center; margin: 4px 0 6px; }
+.admin-login .input { font-size: 16px; }
+@media (max-width: 760px) { .admin-layout { grid-template-rows: auto 1fr; align-content: start; } }
