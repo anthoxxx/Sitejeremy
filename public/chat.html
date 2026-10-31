@@ -17,6 +17,7 @@
     <button class="btn btn-icon mobile-only" id="toggleLeft" aria-label="Salons">☰</button>
     <a href="/chat" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradis</span></span></a>
     <div class="spacer"></div>
+    <button class="btn btn-icon hidden" id="ghostBtn" title="Mode fantôme (invisible)" aria-label="Mode fantôme">👻</button>
     <a href="/admin" class="btn btn-sm btn-ghost hidden" id="adminLink" title="Administration">🛡️ <span class="lbl">Admin</span></a>
     <div class="notif-wrap">
       <button class="btn btn-icon" id="notifBtn" title="Notifications" aria-label="Notifications">🔔<span class="notif-count hidden" id="notifCount"></span></button>
@@ -61,6 +62,7 @@
       <button class="btn btn-sm btn-ghost hidden" id="headProfile">👤 <span class="lbl">Profil</span></button>
     </div>
     <div class="video-grid hidden" id="videoGrid"></div>
+    <div class="ghost-banner hidden" id="ghostBanner"></div>
     <div class="voice-bar hidden" id="voiceBar"></div>
     <div class="announce hidden" id="announce"></div>
     <div class="messages" id="messages"></div>
@@ -68,9 +70,12 @@
     <div class="typing" id="typing"></div>
     <form class="composer" id="composer">
       <button type="button" class="btn btn-icon" id="emojiBtn" aria-label="Émojis">😊</button>
+      <button type="button" class="btn btn-icon hidden" id="dictateBtn" title="Dictée vocale : parle, ça écrit" aria-label="Dictée vocale">🗣️</button>
       <div class="emoji-panel hidden" id="emojiPanel"></div>
-      <textarea class="input" id="input" rows="1" maxlength="1000" placeholder="Écris ton message…"></textarea>
+      <textarea class="input" id="input" rows="1" maxlength="1000" placeholder="Écris ton message…" spellcheck="true" lang="fr" autocapitalize="sentences" autocorrect="on"></textarea>
+      <button type="button" class="btn btn-icon rec-btn" id="recBtn" title="Envoyer un message vocal" aria-label="Message vocal">🎤</button>
       <button class="btn btn-primary send-btn" aria-label="Envoyer"><span class="lbl">Envoyer</span><span class="send-ico">➤</span></button>
+      <div class="rec-bar hidden" id="recBar"></div>
     </form>
   </section>
 
@@ -97,5 +102,6 @@
 <script src="/js/profile.js"></script>
 <script src="/js/notifications.js"></script>
 <script src="/js/call.js"></script>
+<script src="/js/audio.js"></script>
 </body>
 </html>

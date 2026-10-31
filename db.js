@@ -113,6 +113,17 @@ addColumn('users', 'show_city', 'INTEGER NOT NULL DEFAULT 1');
 // Limite de comptes par personne + fonds d'écran de salon + état des radios
 addColumn('users', 'device_id', "TEXT DEFAULT ''");
 addColumn('users', 'signup_ip', "TEXT DEFAULT ''");
+addColumn('users', 'ghost', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('logs', 'category', "TEXT DEFAULT 'system'");
+addColumn('logs', 'ip', "TEXT DEFAULT ''");
+addColumn('logs', 'data', "TEXT DEFAULT '{}'");
+addColumn('messages', 'kind', "TEXT DEFAULT 'text'");
+addColumn('messages', 'media', "TEXT DEFAULT ''");
+addColumn('messages', 'duration', 'INTEGER DEFAULT 0');
+addColumn('private_messages', 'kind', "TEXT DEFAULT 'text'");
+addColumn('private_messages', 'media', "TEXT DEFAULT ''");
+addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
+db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 addColumn('rooms', 'background', "TEXT DEFAULT ''");
 
 // Rôle super-admin : s'il n'y en a pas encore, le plus ancien admin le devient
@@ -272,9 +283,29 @@ function getSettings() {
 function setSetting(key, value) {
   db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, String(value));
 }
-function log(actor, action, details = '') {
-  db.prepare('INSERT INTO logs (actor_id,actor_name,action,details,created_at) VALUES (?,?,?,?,?)')
-    .run(actor ? actor.id : null, actor ? actor.username : 'système', action, details, Date.now());
+// ---------- Journal de tout ce qui se passe sur le site ----------
+const LOG_CATEGORIES = {
+  moderation: ['ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
+  messages: ['message_delete', 'room_clear'],
+  accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit'],
+  rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],
+  voice: ['voice_join', 'call'],
+  reports: ['report_new'],
+  system: ['settings', 'site', 'station_create', 'station_edit', 'station_delete', 'stations_check', 'ghost'],
+};
+const categoryOf = action => Object.keys(LOG_CATEGORIES).find(c => LOG_CATEGORIES[c].includes(action)) || 'system';
+const logListeners = [];
+function log(actor, action, details = '', extra = {}) {
+  const entry = {
+    actor_id: actor ? actor.id : null, actor_name: actor ? actor.username : 'système', action, details,
+    category: categoryOf(action), ip: extra.ip || '', data: JSON.stringify(extra.data || {}), created_at: Date.now(),
+  };
+  const info = db.prepare('INSERT INTO logs (actor_id,actor_name,action,details,category,ip,data,created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(entry.actor_id, entry.actor_name, entry.action, entry.details, entry.category, entry.ip, entry.data, entry.created_at);
+  entry.id = info.lastInsertRowid;
+  for (const fn of logListeners) { try { fn(entry); } catch (e) {} }
+  return entry;
 }
+log.onEntry = fn => logListeners.push(fn);
 
 module.exports = { db, dataDir, getSettings, setSetting, log };

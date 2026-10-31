@@ -67,7 +67,32 @@ function renderMe() {
   chip.replaceChildren(...[LC.avatar(state.me), el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me)].filter(Boolean));
   chip.onclick = openMyProfile;
   $('adminLink').classList.toggle('hidden', !isStaff());
+  $('ghostBtn').classList.toggle('hidden', state.me.role !== 'superadmin');
 }
+
+// ---------- Mode fantôme (super-admin) ----------
+function setGhost(on) {
+  socket.emit('ghost', on, res => {
+    if (res?.error) return toast(res.error);
+    applyGhost(res.ghost);
+    toast(res.ghost ? '👻 Mode fantôme activé : personne ne te voit' : '👋 Tu es de nouveau visible');
+  });
+}
+function applyGhost(on) {
+  state.ghost = !!on;
+  document.body.classList.toggle('ghost-mode', state.ghost);
+  $('ghostBtn').classList.toggle('active', state.ghost);
+  $('ghostBtn').title = state.ghost ? 'Quitter le mode fantôme' : 'Mode fantôme (invisible)';
+  const b = $('ghostBanner');
+  b.classList.toggle('hidden', !state.ghost);
+  b.replaceChildren(el('span', { class: 'ghost-ico' }, '👻'),
+    el('div', { style: 'flex:1;min-width:0' }, el('b', {}, 'Mode fantôme actif'),
+      el('div', { class: 'help' }, 'Tu n\'apparais nulle part : ni dans les connectés, ni dans les compteurs. Tu peux lire tous les salons et modérer, sans écrire.')),
+    el('button', { class: 'btn btn-sm', onclick: () => setGhost(false) }, 'Redevenir visible'));
+  if (state.ghost && Voice.slug) Voice.leave(false);
+  renderMuteBanner();
+}
+$('ghostBtn').onclick = () => setGhost(!state.ghost);
 
 // ---------- Salons ----------
 async function loadRooms() {
@@ -193,7 +218,7 @@ function addRoomMessage(m, live = true) {
         el('span', { class: 'who', onclick: () => openProfile(m.userId) }, LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user),
         el('span', { class: 'time' }, LC.time(m.createdAt))),
-      el('div', { class: 'text' }, linkify(m.content))),
+      m.kind === 'audio' && m.media ? audioPlayer(m.media, m.duration) : el('div', { class: 'text' }, linkify(m.content))),
     isStaff() ? el('button', { class: 'btn btn-sm btn-danger del', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null);
   $('messages').append(row);
   trimMessages();
@@ -261,7 +286,7 @@ async function openPm(user) {
 function addBubble(m) {
   const mine = m.from === state.me.id;
   $('messages').append(el('div', { class: 'bubble-row' + (mine ? ' mine' : '') },
-    el('div', { class: 'bubble' }, linkify(m.content), el('span', { class: 'time' }, LC.time(m.createdAt)))));
+    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : '') }, m.kind === 'audio' && m.media ? audioPlayer(m.media, m.duration) : linkify(m.content), el('span', { class: 'time' }, LC.time(m.createdAt)))));
   trimMessages();
 }
 
@@ -279,10 +304,10 @@ function renderUsers() {
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'));
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
-    return el('div', { class: 'list-item', onclick: () => openProfile(u.id) },
+    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
         el('div', { class: 'sub' }, u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · '))));
   }));
@@ -353,10 +378,13 @@ $('composer').onsubmit = e => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text || !state.view) return;
+  if (state.ghost) return toast('👻 Tu es en mode fantôme : quitte-le pour écrire');
   if (isMuted()) return toast('🔇 Tu es rendu muet pour le moment');
+  if (Dictation.on) Dictation.stop();
   const done = res => {
     if (res && res.error) return toast(res.error);
     input.value = ''; input.style.height = 'auto';
+    input.dispatchEvent(new Event('input'));
   };
   if (state.view.type === 'room') socket.emit('message', text, done);
   else socket.emit('pm', { to: state.view.userId, text }, done);
@@ -378,9 +406,10 @@ setInterval(renderTyping, 1000);
 socket.on('connect_error', err => {
   if (err.message === 'unauthorized' || err.message === 'banned') location.href = '/';
 });
-socket.on('hello', async ({ user, announcement }) => {
+socket.on('hello', async ({ user, announcement, ghost }) => {
   state.me = user;
   renderMe();
+  applyGhost(ghost);
   setAnnouncement(announcement);
   loadNotifications();
   renderMuteBanner();
@@ -467,6 +496,7 @@ socket.on('room_radio', ({ slug, station, by }) => {
 });
 socket.on('rooms_changed', async () => { await loadRooms(); if (!state.view) joinDefaultRoom(); });
 socket.on('announcement', ({ text }) => setAnnouncement(text));
+socket.on('ghost_state', ({ ghost }) => applyGhost(ghost));
 socket.on('site_changed', ({ site }) => { LC.applySite(site); try { localStorage.setItem('lc_site', JSON.stringify(site)); } catch (e) {} });
 socket.on('broadcast', ({ text, from }) => {
   ding();

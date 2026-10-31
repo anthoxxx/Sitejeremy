@@ -25,7 +25,7 @@ Variables d'environnement facultatives :
 
 | Rôle | Peut faire |
 |------|-----------|
-| **Super-admin** | **Tout** : nom du site, textes de l'accueil, couleurs, pages Histoire et Règlement, limite de comptes, nommer / retirer des admins et d'autres super-admins, sanctionner n'importe qui, plus tout ce que font les admins |
+| **Super-admin** | **Tout** (+ mode fantôme 👻 et adresses IP dans les logs) : nom du site, textes de l'accueil, couleurs, pages Histoire et Règlement, limite de comptes, nommer / retirer des admins et d'autres super-admins, sanctionner n'importe qui, plus tout ce que font les admins |
 | **Admin** | Salons officiels, radios, réglages, nommer des modérateurs, sanctionner les modérateurs et les membres |
 | **Modérateur** | Sanctionner les membres, signalements, messages, journal |
 | **Membre** | Utiliser le chat, créer ses salons |
@@ -37,6 +37,8 @@ Variables d'environnement facultatives :
 - Choix **🩷 Rose / 💙 Bleu / 💜 Autre**
 - Salons officiels et **salons créés par les membres** (salon fermé sur invitation, exclusions, **fond d'écran personnalisé**)
 - **Messages privés**, @mentions, émojis, blocage, signalement
+- 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde
+- 🗣️ **Dictée vocale** : on parle, le texte s'écrit (dire « point », « virgule », « point d'interrogation »…), plus correcteur orthographique du navigateur
 - 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
 - 📻 **Radio** : lecteur intégré, radio du salon, lien audio perso
@@ -46,7 +48,9 @@ Variables d'environnement facultatives :
 - Thème sombre / clair, interface **pensée pour le téléphone** (menus en tiroir, fenêtres qui montent du bas, pas de zoom gênant sur iPhone)
 
 **Panneau d'administration** (`/admin`)
-- Tableau de bord, utilisateurs (avec les **comptes liés** à une même personne), sanctions, signalements, messages, salons, journal
+- Tableau de bord, utilisateurs (avec les **comptes liés** à une même personne), sanctions, signalements, messages, salons
+- 📜 **Logs** (tout le staff) : connexions, inscriptions, invités, **messages supprimés avec leur contenu** (et les vocaux), salons, vocal, appels, signalements, sanctions, réglages… Filtres par catégorie, recherche, mise à jour **en direct**, gardés 90 jours. Les adresses IP ne sont visibles que par le super-admin.
+- 👻 **Mode fantôme** (super-admin) : bouton 👻 en haut du chat. Invisible dans la liste des connectés, les compteurs et les messages « a rejoint / a quitté » ; on peut lire tous les salons et modérer (les sanctions apparaissent « par la modération »), mais pas écrire, appeler ni rejoindre le vocal tant qu'il est actif.
 - 📻 **Radios avec vérification automatique** : au démarrage puis toutes les 6 heures, chaque radio est testée. Si elle ne marche plus, le site cherche un nouveau lien officiel sur l'annuaire libre radio-browser.info et la **répare** ; sinon il la **masque** pour les utilisateurs. Un bouton « 🔍 Vérifier et réparer » lance la vérification à la main.
 - 🌐 **Site** (super-admin) : nom, domaine, textes, couleurs, histoire, règlement, limite de comptes
 

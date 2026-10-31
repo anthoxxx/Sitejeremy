@@ -25,7 +25,7 @@ const io = new Server(server);
 // Les images de profil ont droit à une taille plus grande que le reste
 const bigJson = express.json({ limit: '3mb' });
 const smallJson = express.json({ limit: '50kb' });
-const isUpload = p => p.startsWith('/api/me/image/') || /^\/api\/rooms\/\d+\/background$/.test(p);
+const isUpload = p => p.startsWith('/api/me/image/') || p === '/api/audio' || /^\/api\/rooms\/\d+\/background$/.test(p);
 app.use((req, res, next) => (isUpload(req.path) ? bigJson : smallJson)(req, res, next));
 app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
 app.set('trust proxy', true); // vraie adresse IP derrière l'hébergeur (Render…)
@@ -170,6 +170,7 @@ app.post('/api/register', (req, res) => {
   const maxAccounts = parseInt(getSettings().maxAccounts, 10) || 0;
   if (maxAccounts > 0) {
     const already = db.prepare("SELECT COUNT(*) c FROM users WHERE is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(req.cookies.lc_dev, req.ip).c;
+    if (already >= maxAccounts) log(null, 'account_limit', `Inscription refusée pour « ${username} » : ${already} compte(s) déjà créé(s) depuis cet appareil ou cette connexion`, { ip: req.ip });
     if (already >= maxAccounts) return res.status(403).json({ error: `Tu as déjà ${already} compte(s) sur ${getSettings().siteName} : ${maxAccounts} maximum par personne. Connecte-toi avec un de tes comptes.` });
   }
   const isFirst = db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c === 0;
@@ -179,6 +180,7 @@ app.post('/api/register', (req, res) => {
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
     clean(req.body.city, 40), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), now(), req.cookies.lc_dev, req.ip || '');
   createSession(res, info.lastInsertRowid);
+  log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Rose' : req.body.gender === 'h' ? 'Bleu' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
@@ -186,10 +188,13 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   if (tooMany('login:' + req.ip, 15)) return res.status(429).json({ error: 'Trop de tentatives, réessaie dans quelques minutes' });
   const u = getUserByName(clean(req.body.username, 20));
-  if (!u || u.is_guest || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || ''))
+  if (!u || u.is_guest || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || '')) {
+    if (u && !u.is_guest) log(u, 'login', 'Échec de connexion (mauvais mot de passe)', { ip: req.ip });
     return res.status(401).json({ error: 'Pseudo ou mot de passe incorrect' });
+  }
   if (u.banned) return res.status(403).json({ error: 'Compte banni : ' + (u.ban_reason || 'aucune raison donnée') });
   createSession(res, u.id);
+  log(u, 'login', 'Connexion', { ip: req.ip });
   res.json({ user: publicUser(u) });
 });
 
@@ -213,11 +218,14 @@ app.post('/api/guest', (req, res) => {
     username, req.body.gender, parseInt(req.body.age, 10), clean(req.body.city, 40),
     COLORS[Math.floor(Math.random() * COLORS.length)], now(), now());
   createSession(res, info.lastInsertRowid);
+  log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Rose' : req.body.gender === 'h' ? 'Bleu' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
 
 app.post('/api/logout', (req, res) => {
   const token = req.cookies[COOKIE];
+  const who = userFromToken(token);
+  if (who) log(who, 'logout', 'Déconnexion', { ip: req.ip });
   if (token) db.prepare('DELETE FROM sessions WHERE token=?').run(token);
   res.clearCookie(COOKIE);
   res.json({ ok: true });
@@ -291,6 +299,7 @@ app.post('/api/me/image/:kind', auth, (req, res) => {
   if (saved.error) return res.status(400).json({ error: saved.error });
   removeUpload(req.user[kind]);
   db.prepare(`UPDATE users SET ${kind}=? WHERE id=?`).run(saved.url, req.user.id);
+  log(req.user, 'profile_update', kind === 'avatar' ? 'Nouvelle photo de profil' : 'Nouvelle bannière de profil', { data: { image: saved.url } });
   const updated = getUser(req.user.id);
   refreshOnline(updated);
   res.json({ user: selfUser(updated) });
@@ -328,7 +337,7 @@ app.get('/api/site', (req, res) => res.json({ site: siteInfo() }));
 
 app.get('/api/stats', (req, res) => {
   res.json({
-    online: online.size,
+    online: [...online.values()].filter(e => !e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
     guestsAllowed: getSettings().guestsAllowed === '1',
@@ -422,6 +431,7 @@ app.patch('/api/rooms/:id', auth, (req, res) => {
     b.voiceEnabled !== undefined ? (b.voiceEnabled ? 1 : 0) : room.voice_enabled,
     room.id);
   const updated = getRoom(room.id);
+  if (!!updated.is_private !== !!room.is_private) log(req.user, 'room_private', `Salon ${updated.name} ${updated.is_private ? 'fermé (sur invitation)' : 'ouvert à tous'}`);
   // Salon passé en "fermé" : on fait sortir les personnes non invitées
   if (updated.is_private && !room.is_private) {
     for (const [uid2, e] of online) if (roomAccess(e.user, updated)) ejectFromRoom(uid2, updated.slug, 'Le salon a été fermé par son propriétaire');
@@ -459,6 +469,7 @@ app.post('/api/rooms/:id/members', auth, (req, res) => {
   db.prepare('INSERT OR IGNORE INTO room_members (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
   db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, target.id);
   emitToUser(target.id, 'room_invite', { room: roomOut(room), by: req.user.username });
+  log(req.user, 'room_invite', `${target.username} invité dans le salon ${room.name}`);
   notify(target.id, { type: 'room_invite', icon: '🎟️', title: `Invitation dans « ${room.name} »`, text: `${req.user.username} t'a invité dans son salon.`, data: { slug: room.slug } });
   roomsChanged();
   res.json({ user: publicUser(target) });
@@ -485,9 +496,11 @@ app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
   db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
   db.prepare('INSERT OR IGNORE INTO room_bans (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
   const reason = clean(req.body.reason, 200);
-  notify(target.id, { type: 'room_kick', icon: '🚪', title: `Tu as été exclu du salon « ${room.name} »`, text: `Par ${req.user.username}. ${reasonText(reason)} Tu ne peux plus y revenir sauf s'il te réinvite.`, important: true });
+  const byName = displayName(req.user);
+  log(req.user, 'room_kick', `${target.username} exclu du salon ${room.name}${reason ? ' : ' + reason : ''}`);
+  notify(target.id, { type: 'room_kick', icon: '🚪', title: `Tu as été exclu du salon « ${room.name} »`, text: `Par ${byName}. ${reasonText(reason)} Tu ne peux plus y revenir sauf s'il te réinvite.`, important: true });
   ejectFromRoom(target.id, room.slug, `Tu as été exclu du salon ${room.name}`);
-  io.to('room:' + room.slug).emit('system', { room: room.slug, text: `${target.username} a été exclu du salon par ${req.user.username}` });
+  io.to('room:' + room.slug).emit('system', { room: room.slug, text: `${target.username} a été exclu du salon par ${byName}` });
   roomsChanged();
   res.json({ ok: true });
 });
@@ -508,6 +521,7 @@ app.post('/api/rooms/:id/background', auth, (req, res) => {
   if (saved.error) return res.status(400).json({ error: saved.error });
   removeUpload(room.background);
   db.prepare('UPDATE rooms SET background=? WHERE id=?').run(saved.url, room.id);
+  log(req.user, 'room_background', `Nouveau fond d'écran pour le salon ${room.name}`, { data: { image: saved.url } });
   roomsChanged();
   res.json({ room: roomOut(getRoom(room.id)) });
 });
@@ -622,7 +636,7 @@ app.get('/api/ice', auth, (req, res) => {
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  res.json({ user: publicUser(u), online: online.has(u.id), blocked: isBlocked(req.user.id, u.id) });
+  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id) });
 });
 
 // ---------- Blocages & signalements ----------
@@ -647,9 +661,42 @@ app.post('/api/reports', auth, (req, res) => {
   if (!target || !reason) return res.status(400).json({ error: 'Signalement incomplet' });
   if (tooMany('report:' + req.user.id, 10, 3600 * 1000)) return res.status(429).json({ error: 'Trop de signalements' });
   db.prepare('INSERT INTO reports (reporter_id,target_id,reason,created_at) VALUES (?,?,?,?)').run(req.user.id, target.id, reason, now());
+  log(req.user, 'report_new', `Signalement contre ${target.username} : ${reason}`);
   emitToStaff('staff_alert', { text: `Nouveau signalement contre ${target.username}` });
   res.json({ ok: true });
 });
+
+// ---------- Messages vocaux ----------
+const AUDIO_TYPES = [
+  { ext: 'webm', test: b => b.slice(0, 4).toString('hex') === '1a45dfa3' },
+  { ext: 'ogg', test: b => b.slice(0, 4).toString('ascii') === 'OggS' },
+  { ext: 'm4a', test: b => b.slice(4, 8).toString('ascii') === 'ftyp' },
+  { ext: 'mp3', test: b => b.slice(0, 3).toString('ascii') === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) },
+  { ext: 'wav', test: b => b.slice(0, 4).toString('ascii') === 'RIFF' && b.slice(8, 12).toString('ascii') === 'WAVE' },
+];
+app.post('/api/audio', auth, (req, res) => {
+  const u = req.user;
+  if (u.muted_until && u.muted_until > now()) return res.status(403).json({ error: 'Tu es rendu muet pour le moment' });
+  if (tooMany('audio:' + u.id, 30, 10 * 60 * 1000)) return res.status(429).json({ error: 'Trop de messages vocaux, patiente un peu' });
+  const m = /^data:audio\/[a-z0-9.+-]+(;[^,]*)?;base64,(.+)$/i.exec(String(req.body.data || ''));
+  if (!m) return res.status(400).json({ error: 'Enregistrement invalide' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length < 500) return res.status(400).json({ error: 'Enregistrement trop court' });
+  if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'Message vocal trop long (2 minutes maximum)' });
+  const type = AUDIO_TYPES.find(t => t.test(buf));
+  if (!type) return res.status(400).json({ error: 'Format audio non reconnu' });
+  const name = `audio-${u.id}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  res.json({ url: '/uploads/' + name });
+});
+// Vérifie qu'un message vocal appartient bien à son auteur
+function checkAudio(a, uid) {
+  if (!a || typeof a !== 'object') return null;
+  const url = String(a.url || '');
+  if (!new RegExp(`^/uploads/audio-${uid}-[a-f0-9]{12}\\.(webm|ogg|m4a|mp3|wav)$`).test(url)) return null;
+  if (!fs.existsSync(path.join(uploadDir, path.basename(url)))) return null;
+  return { url, duration: Math.min(120, Math.max(1, Math.round(Number(a.duration) || 1))) };
+}
 
 // ---------- Notifications ----------
 app.get('/api/notifications', auth, (req, res) => {
@@ -677,7 +724,7 @@ app.get('/api/pm', auth, (req, res) => {
   const convs = rows.map(r => {
     const u = getUser(r.other);
     const last = db.prepare('SELECT content,created_at FROM private_messages WHERE id=?').get(r.last_id);
-    return u && { user: publicUser(u), online: online.has(u.id), unread: r.unread, last };
+    return u && { user: publicUser(u), online: visibleOnline(u.id, req.user), unread: r.unread, last };
   }).filter(Boolean);
   res.json({ conversations: convs });
 });
@@ -689,7 +736,7 @@ app.get('/api/pm/:id', auth, (req, res) => {
   db.prepare('UPDATE private_messages SET is_read=1 WHERE from_id=? AND to_id=?').run(other, req.user.id);
   res.json({ messages: msgs.map(pmOut) });
 });
-const pmOut = m => ({ id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: !!m.is_read });
+const pmOut = m => ({ id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: !!m.is_read, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0 });
 
 // ---------- Administration ----------
 const admin = express.Router();
@@ -716,14 +763,14 @@ admin.get('/users', (req, res) => {
   const page = Math.max(0, parseInt(req.query.page, 10) || 0);
   const filter = req.query.filter || 'all';
   let where = 'username LIKE ?';
-  if (filter === 'online') where += ` AND id IN (${[...online.keys()].join(',') || 0})`;
+  if (filter === 'online') where += ` AND id IN (${[...online.keys()].filter(id => visibleOnline(id, req.user)).join(',') || 0})`;
   if (filter === 'banned') where += ' AND banned=1';
   if (filter === 'staff') where += " AND role IN ('superadmin','admin','moderator')";
   if (filter === 'guests') where += ' AND is_guest=1';
   if (filter === 'members') where += ' AND is_guest=0';
   const total = db.prepare(`SELECT COUNT(*) c FROM users WHERE ${where}`).get(q).c;
   const users = db.prepare(`SELECT * FROM users WHERE ${where} ORDER BY id DESC LIMIT 25 OFFSET ?`).all(q, page * 25);
-  res.json({ total, page, users: users.map(u => ({ ...adminUser(u), online: online.has(u.id) })) });
+  res.json({ total, page, users: users.map(u => ({ ...adminUser(u), online: visibleOnline(u.id, req.user), ghost: isSuper(req.user) && isGhost(u.id) })) });
 });
 
 // On ne peut agir que sur quelqu'un de rang inférieur (le super-admin peut agir sur tout le monde sauf lui-même)
@@ -742,7 +789,8 @@ admin.patch('/users/:id', (req, res) => {
     if (!isSuper(req.user) && ROLES.indexOf(req.body.role) >= rank(req.user)) return res.status(403).json({ error: 'Seul le super-admin peut nommer des administrateurs' });
     if (target.is_guest && req.body.role !== 'user') return res.status(400).json({ error: 'Un invité ne peut pas être promu' });
     db.prepare('UPDATE users SET role=? WHERE id=?').run(req.body.role, target.id);
-    log(req.user, 'role', `${target.username} → ${req.body.role}`);
+    const ROLE_FR = { superadmin: 'super-admin', admin: 'admin', moderator: 'modérateur', user: 'membre' };
+    log(req.user, 'role', `${target.username} : ${ROLE_FR[target.role] || target.role} → ${ROLE_FR[req.body.role]}`);
     if (req.body.role !== target.role) {
       const up = ROLES.indexOf(req.body.role) > ROLES.indexOf(target.role);
       const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: 'modérateur', user: 'membre' }[req.body.role];
@@ -877,8 +925,9 @@ admin.delete('/rooms/:id', requireRole('admin'), (req, res) => {
 admin.delete('/rooms/:id/messages', requireRole('admin'), (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id=?').get(req.params.id);
   if (!room) return res.status(404).json({ error: 'Salon introuvable' });
+  const count = db.prepare('SELECT COUNT(*) c FROM messages WHERE room_id=?').get(room.id).c;
   db.prepare('DELETE FROM messages WHERE room_id=?').run(room.id);
-  log(req.user, 'room_clear', room.name);
+  log(req.user, 'room_clear', `Salon ${room.name} vidé (${count} message(s) supprimé(s))`);
   io.to('room:' + room.slug).emit('room_cleared', { slug: room.slug });
   res.json({ ok: true });
 });
@@ -891,11 +940,12 @@ admin.get('/messages', (req, res) => {
   res.json({ messages: msgs.map(m => ({ id: m.id, userId: m.user_id, username: m.username, room: m.room, content: m.content, createdAt: m.created_at })) });
 });
 admin.delete('/messages/:id', (req, res) => {
-  const m = db.prepare('SELECT m.*, r.slug FROM messages m JOIN rooms r ON r.id=m.room_id WHERE m.id=?').get(req.params.id);
+  const m = db.prepare('SELECT m.*, r.slug, r.name room_name, u.username author FROM messages m JOIN rooms r ON r.id=m.room_id LEFT JOIN users u ON u.id=m.user_id WHERE m.id=?').get(req.params.id);
   if (!m) return res.status(404).json({ error: 'Message introuvable' });
   db.prepare('DELETE FROM messages WHERE id=?').run(m.id);
   io.to('room:' + m.slug).emit('message_deleted', { id: m.id });
-  log(req.user, 'message_delete', `#${m.id}`);
+  log(req.user, 'message_delete', `Message de ${m.author || '?'} dans ${m.room_name} : « ${m.content} »`,
+    { data: { author: m.author, authorId: m.user_id, room: m.room_name, content: m.content, kind: m.kind, media: m.media, sentAt: m.created_at } });
   if (m.user_id !== req.user.id) {
     const excerpt = m.content.length > 80 ? m.content.slice(0, 80) + '…' : m.content;
     notify(m.user_id, { type: 'message_deleted', icon: '🗑', title: 'Un de tes messages a été supprimé', text: `« ${excerpt} » — supprimé par la modération.` });
@@ -1008,8 +1058,20 @@ admin.put('/site', requireRole('superadmin'), (req, res) => {
   res.json({ site: siteInfo() });
 });
 
+const logOut = (l, withIp) => ({ id: l.id, actorId: l.actor_id, actor: l.actor_name, action: l.action, details: l.details, category: l.category || 'system',
+  ip: withIp ? l.ip : undefined, data: typeof l.data === 'string' ? parseJSON(l.data, {}) : (l.data || {}), createdAt: l.created_at });
 admin.get('/logs', (req, res) => {
-  res.json({ logs: db.prepare('SELECT * FROM logs ORDER BY id DESC LIMIT 200').all() });
+  const where = [], args = [];
+  if (req.query.category && req.query.category !== 'all') { where.push('category=?'); args.push(String(req.query.category)); }
+  if (req.query.q) { where.push('(details LIKE ? OR actor_name LIKE ?)'); const q = '%' + clean(req.query.q, 60) + '%'; args.push(q, q); }
+  const before = parseInt(req.query.before, 10);
+  if (before) { where.push('id<?'); args.push(before); }
+  const after = parseInt(req.query.after, 10);
+  if (after) { where.push('id>?'); args.push(after); }
+  const rows = db.prepare(`SELECT * FROM logs ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 100`).all(...args);
+  const counts = {};
+  for (const r of db.prepare('SELECT category, COUNT(*) c FROM logs WHERE created_at>? GROUP BY category').all(now() - 24 * 3600 * 1000)) counts[r.category] = r.c;
+  res.json({ logs: rows.map(l => logOut(l, isSuper(req.user))), counts, more: rows.length === 100 });
 });
 
 app.use('/api/admin', admin);
@@ -1024,15 +1086,33 @@ app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirn
 const online = new Map();
 
 function onlineOut(entry) {
-  return { ...publicUser(entry.user), room: entry.room };
+  return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
 }
+// Mode fantôme : le super-admin est invisible pour tout le monde sauf les autres super-admins
+const isGhost = id => !!online.get(id)?.ghost;
+const visibleOnline = (id, viewer) => online.has(id) && (!isGhost(id) || isSuper(viewer));
+const displayName = u => (isGhost(u.id) ? 'la modération' : u.username);
 function roomCount(slug) {
   let c = 0;
-  for (const e of online.values()) if (e.room === slug) c++;
+  for (const e of online.values()) if (e.room === slug && !e.ghost) c++;
   return c;
 }
 function broadcastPresence() {
-  io.emit('presence', { users: [...online.values()].map(onlineOut) });
+  const all = [...online.values()];
+  io.except('supers').emit('presence', { users: all.filter(e => !e.ghost).map(onlineOut) });
+  io.to('supers').emit('presence', { users: all.map(onlineOut) });
+}
+function syncSuperRoom(entry) {
+  for (const sid of entry.sockets) {
+    const sk = io.sockets.sockets.get(sid);
+    if (!sk) continue;
+    if (isSuper(entry.user)) sk.join('supers'); else sk.leave('supers');
+  }
+  if (!isSuper(entry.user) && entry.ghost) {
+    entry.ghost = false;
+    db.prepare('UPDATE users SET ghost=0 WHERE id=?').run(entry.user.id);
+    emitToUser(entry.user.id, 'ghost_state', { ghost: false });
+  }
 }
 let presenceTimer = null;
 function schedulePresence() {
@@ -1041,12 +1121,20 @@ function schedulePresence() {
 }
 function refreshOnline(user) {
   const e = online.get(user.id);
-  if (e) { e.user = user; schedulePresence(); }
+  if (e) { e.user = user; syncSuperRoom(e); schedulePresence(); }
 }
 function emitToUser(id, ev, data) {
   const e = online.get(id);
   if (e) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
+log.onEntry(entry => {
+  for (const e of online.values()) {
+    if (!isStaff(e.user)) continue;
+    const out = logOut(entry, isSuper(e.user));
+    for (const sid of e.sockets) io.to(sid).emit('log', out);
+  }
+});
+
 // ---------- Notifications (enregistrées + envoyées en direct) ----------
 // important = true → s'affiche en grand chez la personne (sanctions)
 function notify(userId, { type, icon = '🔔', title, text = '', data = {}, important = false }) {
@@ -1118,6 +1206,13 @@ const userInCall = id => [...calls.values()].some(c => c.callerId === id || c.ca
 function endCall(callId, { by = null, reason = 'Appel terminé', missed = false } = {}) {
   const c = calls.get(callId);
   if (!c) return;
+  const a = getUser(c.callerId), b2 = getUser(c.calleeId);
+  if (a && b2) {
+    const secs = c.startedAt ? Math.round((now() - c.startedAt) / 1000) : 0;
+    log(a, 'call', c.accepted
+      ? `Appel ${c.video ? 'vidéo' : 'audio'} avec ${b2.username} (${Math.floor(secs / 60)} min ${secs % 60} s)`
+      : `Appel ${c.video ? 'vidéo' : 'audio'} vers ${b2.username} sans réponse (${reason})`);
+  }
   calls.delete(callId);
   clearTimeout(c.timer);
   callOfSocket.delete(c.callerSocket);
@@ -1144,13 +1239,15 @@ io.on('connection', socket => {
   const uid = socket.data.userId;
   let entry = online.get(uid);
   if (!entry) {
-    entry = { user: getUser(uid), sockets: new Set(), room: null };
+    const u0 = getUser(uid);
+    entry = { user: u0, sockets: new Set(), room: null, ghost: !!(u0.ghost && u0.role === 'superadmin') };
     online.set(uid, entry);
   }
   entry.sockets.add(socket.id);
+  if (isSuper(entry.user)) socket.join('supers');
   db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
 
-  socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement });
+  socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement, ghost: !!entry.ghost });
   broadcastPresence();
 
   let lastMsg = 0;
@@ -1175,35 +1272,39 @@ io.on('connection', socket => {
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
-    if (prev !== room.slug) {
+    if (prev !== room.slug && !entry.ghost) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
     }
     schedulePresence();
   });
 
-  socket.on('message', (text, ack) => {
+  socket.on('message', (payload, ack) => {
     const u = current();
     if (!u || u.banned) return;
+    if (entry.ghost) return ack && ack({ error: '👻 Tu es en mode fantôme : quitte-le pour écrire' });
     if (!entry.room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
-    const content = filterWords(clean(text, 500));
+    const audio = typeof payload === 'object' && payload ? checkAudio(payload.audio, uid) : null;
+    if (typeof payload === 'object' && payload?.audio && !audio) return ack && ack({ error: 'Message vocal invalide' });
+    const content = audio ? '🎤 Message vocal' : filterWords(clean(typeof payload === 'string' ? payload : payload?.text, 500));
     if (!content) return;
     const room = getRoomBySlug(entry.room);
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
-    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at) VALUES (?,?,?,?)').run(room.id, uid, content, now());
-    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now() });
+    const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
+    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration);
+    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
     ack && ack({ ok: true });
   });
 
   socket.on('typing', () => {
-    if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.user.username });
+    if (entry.room && !entry.ghost) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.user.username });
   });
 
-  socket.on('pm', ({ to, text } = {}, ack) => {
+  socket.on('pm', ({ to, text, audio: rawAudio } = {}, ack) => {
     const u = current();
     const target = getUser(parseInt(to, 10));
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
@@ -1211,10 +1312,13 @@ io.on('connection', socket => {
     if (isBlocked(target.id, uid)) return ack && ack({ error: 'Cette personne ne reçoit pas tes messages' });
     if (isBlocked(uid, target.id)) return ack && ack({ error: 'Tu as bloqué cette personne' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
-    const content = filterWords(clean(text, 1000));
+    const audio = rawAudio ? checkAudio(rawAudio, uid) : null;
+    if (rawAudio && !audio) return ack && ack({ error: 'Message vocal invalide' });
+    const content = audio ? '🎤 Message vocal' : filterWords(clean(text, 1000));
     if (!content) return;
-    const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at) VALUES (?,?,?,?)').run(uid, target.id, content, now());
-    const m = pmOut({ id: info.lastInsertRowid, from_id: uid, to_id: target.id, content, created_at: now(), is_read: 0 });
+    const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
+    const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(uid, target.id, content, now(), kind, media, duration);
+    const m = pmOut({ id: info.lastInsertRowid, from_id: uid, to_id: target.id, content, created_at: now(), is_read: 0, kind, media, duration });
     emitToUser(target.id, 'pm', { ...m, fromUser: publicUser(u) });
     emitToUser(uid, 'pm', { ...m, fromUser: publicUser(u) });
     ack && ack({ ok: true, message: m });
@@ -1226,12 +1330,34 @@ io.on('connection', socket => {
 
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
 
+  // ----- Mode fantôme (super-admin) -----
+  socket.on('ghost', (on, ack) => {
+    const u = current();
+    if (!isSuper(u)) return ack && ack({ error: 'Réservé au super-admin' });
+    const wanted = !!on;
+    if (wanted === !!entry.ghost) return ack && ack({ ghost: wanted });
+    entry.ghost = wanted;
+    db.prepare('UPDATE users SET ghost=? WHERE id=?').run(wanted ? 1 : 0, uid);
+    if (wanted) {
+      for (const sid of entry.sockets) leaveVoiceBySocket(sid, null);
+      // Pour les autres, c'est comme s'il venait de partir (et inversement)
+      if (entry.room) io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} s'est déconnecté` });
+    } else if (entry.room) {
+      io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} a rejoint le salon` });
+    }
+    log(u, 'ghost', wanted ? 'Mode fantôme activé 👻' : 'Mode fantôme désactivé');
+    emitToUser(uid, 'ghost_state', { ghost: wanted });
+    schedulePresence();
+    ack && ack({ ghost: wanted });
+  });
+
   // ----- Appels -----
   socket.on('call_invite', ({ to, video } = {}, ack) => {
     const u = current();
     const target = getUser(parseInt(to, 10));
     if (!target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
-    if (!online.has(target.id)) return ack && ack({ error: `${target.username} n'est pas connecté` });
+    if (entry.ghost) return ack && ack({ error: '👻 Quitte le mode fantôme pour appeler' });
+    if (!visibleOnline(target.id, u)) return ack && ack({ error: `${target.username} n'est pas connecté` });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id)) return ack && ack({ error: 'Appel impossible avec cette personne' });
     if (callOfSocket.has(socket.id) || userInCall(uid)) return ack && ack({ error: 'Tu es déjà en appel' });
@@ -1250,6 +1376,7 @@ io.on('connection', socket => {
     if (!c || c.accepted || c.calleeId !== uid) return;
     if (callOfSocket.has(socket.id)) return;
     c.accepted = true;
+    c.startedAt = now();
     c.calleeSocket = socket.id;
     clearTimeout(c.timer);
     callOfSocket.set(socket.id, String(callId));
@@ -1288,6 +1415,7 @@ io.on('connection', socket => {
     const room = slug && getRoomBySlug(slug);
     const s = getSettings();
     if (!room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
+    if (entry.ghost) return ack && ack({ error: '👻 Quitte le mode fantôme pour rejoindre le vocal' });
     if (s.voiceEnabled !== '1' || !room.voice_enabled) return ack && ack({ error: 'Le vocal est désactivé dans ce salon' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
@@ -1298,6 +1426,7 @@ io.on('connection', socket => {
     const peers = voiceList(slug);
     if (!voice.has(slug)) voice.set(slug, new Map());
     voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: false, video: false });
+    log(u, 'voice_join', `A rejoint le vocal du salon ${room.name}`);
     voiceOf.set(socket.id, slug);
     ack && ack({ peers });
     emitVoiceState(slug);
@@ -1330,7 +1459,7 @@ io.on('connection', socket => {
     if (!target) return ack && ack({ error: 'Cette personne n\'est plus dans le vocal' });
     if (target.userId === room.owner_id) return ack && ack({ error: 'Impossible de retirer le propriétaire' });
     leaveVoiceBySocket(String(targetSocketId), 'Tu as été retiré du vocal');
-    notify(target.userId, { type: 'voice_kick', icon: '🎙️', title: `Tu as été retiré du vocal de « ${room.name} »`, text: `Par ${current().username}.` });
+    notify(target.userId, { type: 'voice_kick', icon: '🎙️', title: `Tu as été retiré du vocal de « ${room.name} »`, text: `Par ${displayName(current())}.` });
     ack && ack({ ok: true });
   });
 
@@ -1342,14 +1471,14 @@ io.on('connection', socket => {
     if (entry.sockets.size === 0) {
       online.delete(uid);
       db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
-      if (entry.room) io.to('room:' + entry.room).emit('system', { room: entry.room, text: `${entry.user.username} s'est déconnecté` });
+      if (entry.room && !entry.ghost) io.to('room:' + entry.room).emit('system', { room: entry.room, text: `${entry.user.username} s'est déconnecté` });
       schedulePresence();
     }
   });
 });
 
 function msgOut(m) {
-  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at };
+  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0 };
 }
 
 // Nettoyage : invités inactifs depuis 24 h et vieux messages (30 jours)
@@ -1359,6 +1488,12 @@ setInterval(() => {
   ids.forEach(id => deleteUserRecord(getUser(id)));
   db.prepare('DELETE FROM messages WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
   db.prepare('DELETE FROM notifications WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
+  db.prepare('DELETE FROM logs WHERE created_at<?').run(now() - 90 * 24 * 3600 * 1000);
+  db.prepare("DELETE FROM private_messages WHERE kind='audio' AND created_at<?").run(now() - 30 * 24 * 3600 * 1000);
+  for (const f of fs.readdirSync(uploadDir)) {
+    if (!f.startsWith('audio-')) continue;
+    try { if (fs.statSync(path.join(uploadDir, f)).mtimeMs < now() - 30 * 24 * 3600 * 1000) fs.unlinkSync(path.join(uploadDir, f)); } catch (e) {}
+  }
 }, 3600 * 1000).unref();
 
 server.listen(PORT, () => console.log(`✨ The Paradis en ligne sur http://localhost:${PORT}`));

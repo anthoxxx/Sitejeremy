@@ -357,16 +357,87 @@ async function site() {
 }
 
 // ---------- Journal ----------
+// ---------- Logs : tout ce qui se passe sur le site (accès staff) ----------
+const LOG_LABELS = {
+  ban: '⛔ Bannissement', unban: '✅ Débannissement', kick: '👢 Expulsion', mute: '🔇 Mute', unmute: '🔊 Parole rendue', warn: '⚠️ Avertissement',
+  role: '🎖️ Rôle', delete_user: '🗑 Compte supprimé', profile_reset: '🧹 Profil réinitialisé', broadcast: '📢 Annonce',
+  report_open: '⚠️ Signalement rouvert', report_closed: '✅ Signalement traité', report_new: '🚨 Nouveau signalement',
+  message_delete: '🗑 Message supprimé', room_clear: '🧹 Salon vidé',
+  register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
+  room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
+  voice_join: '🎙️ Vocal', call: '📞 Appel',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme',
+};
+const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
+let logsPoll = null;
 async function logs() {
-  const { logs } = await api('/api/admin/logs');
-  const labels = { ban: '⛔ Bannissement', unban: '✅ Débannissement', kick: '👢 Expulsion', mute: '🔇 Mutisme', unmute: '🔊 Parole rendue', role: '🎖️ Rôle',
-    delete_user: '🗑 Suppression compte', room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_clear: '🧹 Salon vidé',
-    message_delete: '💬 Message supprimé', site: '🌐 Site modifié', stations_check: '🩺 Vérification des radios', warn: '⚠️ Avertissement', profile_reset: '🧹 Profil réinitialisé', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', settings: '⚙️ Réglages', broadcast: '📢 Annonce', report_closed: '⚠️ Signalement traité', report_open: '⚠️ Signalement rouvert', admin_auto: '👑 Admin' };
-  page.replaceChildren(...header('Journal de modération', 'Toutes les actions de l\'équipe, des plus récentes aux plus anciennes.'),
-    el('div', { class: 'panel' }, logs.length ? el('div', { class: 'table-wrap' }, el('table', {},
-      el('thead', {}, el('tr', {}, ...['Date', 'Par', 'Action', 'Détails'].map(h => el('th', {}, h)))),
-      el('tbody', {}, ...logs.map(l => el('tr', {}, el('td', { style: 'white-space:nowrap' }, LC.date(l.created_at)), el('td', {}, el('b', {}, l.actor_name || '—')),
-        el('td', {}, labels[l.action] || l.action), el('td', {}, l.details || '')))))) : el('p', { class: 'empty' }, 'Aucune action pour le moment')));
+  clearInterval(logsPoll);
+  let category = 'all', q = '', newest = 0, oldest = 0;
+  const list = el('div', { class: 'log-list' });
+  const more = el('button', { class: 'btn btn-ghost hidden', style: 'width:100%;margin-top:12px' }, 'Voir plus ancien');
+  const tabs = el('div', { class: 'log-tabs' });
+  const search = el('input', { class: 'input', placeholder: 'Rechercher un pseudo, un mot…' });
+  const live = el('span', { class: 'live-dot' }, '● En direct');
+
+  const row = l => {
+    const extra = [];
+    if (l.action === 'message_delete' && l.data?.content) {
+      extra.push(el('div', { class: 'log-deleted' },
+        el('div', { class: 'help' }, `Message de ${l.data.author || '?'} dans ${l.data.room || '?'}${l.data.sentAt ? ' · envoyé le ' + LC.date(l.data.sentAt) : ''}`),
+        l.data.kind === 'audio' && l.data.media ? audioPlayerAdmin(l.data.media) : el('div', { class: 'log-quote' }, l.data.content)));
+    }
+    if (l.data?.image) extra.push(el('a', { href: l.data.image, target: '_blank' }, el('img', { class: 'log-img', src: l.data.image, alt: '', loading: 'lazy' })));
+    return el('div', { class: 'log-row cat-' + l.category, 'data-id': l.id },
+      el('div', { class: 'log-time' }, LC.date(l.createdAt)),
+      el('div', { class: 'log-main' },
+        el('div', { class: 'log-head' },
+          el('span', { class: 'log-tag' }, LOG_LABELS[l.action] || l.action),
+          el('button', { class: 'log-actor', title: 'Voir toutes les actions de ' + l.actor, onclick: () => { search.value = l.actor; q = l.actor; load(); } }, l.actor || 'système'),
+          l.ip ? el('span', { class: 'log-ip', title: 'Adresse IP (visible par le super-admin uniquement)' }, l.ip) : null),
+        l.action === 'message_delete' ? null : el('div', { class: 'log-details' }, l.details),
+        ...extra));
+  };
+  const drawTabs = counts => tabs.replaceChildren(...LOG_TABS.map(([k, label]) => el('button', {
+    class: 'choice' + (category === k ? ' active' : ''), onclick: () => { category = k; load(); },
+  }, label, k !== 'all' && counts?.[k] ? el('span', { class: 'pill', style: 'margin-left:6px' }, counts[k]) : null)));
+
+  const url = extra => `/api/admin/logs?category=${category}&q=${encodeURIComponent(q)}${extra}`;
+  async function load() {
+    const d = await api(url(''));
+    drawTabs(d.counts);
+    list.replaceChildren(...(d.logs.length ? d.logs.map(row) : [el('p', { class: 'empty' }, 'Rien pour le moment')]));
+    newest = d.logs[0]?.id || newest;
+    oldest = d.logs[d.logs.length - 1]?.id || 0;
+    more.classList.toggle('hidden', !d.more);
+  }
+  more.onclick = async () => {
+    const d = await api(url('&before=' + oldest));
+    list.append(...d.logs.map(row));
+    oldest = d.logs[d.logs.length - 1]?.id || oldest;
+    more.classList.toggle('hidden', !d.more);
+  };
+  let t;
+  search.oninput = () => { clearTimeout(t); t = setTimeout(() => { q = search.value.trim(); load(); }, 300); };
+
+  page.replaceChildren(...header('📜 Logs', 'Tout ce qui se passe sur le site : connexions, inscriptions, messages supprimés (avec leur contenu), salons, vocal, appels, sanctions… Gardés 90 jours.'),
+    el('div', { class: 'panel' }, el('div', { class: 'toolbar' }, search, live), tabs, list, more));
+  await load();
+  // Mise à jour en direct
+  logsPoll = setInterval(async () => {
+    if (!document.body.contains(list)) return clearInterval(logsPoll);
+    if (!newest) return;
+    try {
+      const d = await api(url('&after=' + newest));
+      if (!d.logs.length) return;
+      if (list.querySelector('.empty')) list.replaceChildren();
+      d.logs.slice().reverse().forEach(l => { const r = row(l); r.classList.add('fresh'); list.prepend(r); });
+      newest = d.logs[0].id;
+      drawTabs(d.counts);
+    } catch (e) {}
+  }, 4000);
+}
+function audioPlayerAdmin(url) {
+  return el('audio', { controls: true, preload: 'none', src: url, style: 'width:100%;max-width:320px;margin-top:6px' });
 }
 
 // ---------- Démarrage ----------
