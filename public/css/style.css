@@ -646,3 +646,64 @@ body { -webkit-tap-highlight-color: transparent; }
   .rec-hint { display: none; }
   .rec-bar .btn-primary { margin-left: auto; }
 }
+
+/* ===== Thèmes de fête ===== */
+.season-badge { font-size: .9em; margin-left: -4px; animation: badgebob 3s ease-in-out infinite; display: inline-block; }
+@keyframes badgebob { 50% { transform: translateY(-3px) rotate(-8deg); } }
+.season-fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.season-fx span { position: absolute; top: -40px; opacity: .85; will-change: transform; }
+.season-fx.snow span { animation: fall linear infinite; }
+.season-fx.float span { top: auto; bottom: -40px; animation: rise linear infinite; opacity: .6; }
+@keyframes fall { to { transform: translate(var(--drift), 110vh) rotate(360deg); } }
+@keyframes rise { 0% { transform: translate(0, 0); } 50% { transform: translate(var(--drift), -55vh); } 100% { transform: translate(0, -115vh); } }
+.season-greet { display: inline-block; margin: 0 0 14px; padding: 8px 16px; border-radius: 999px; background: var(--grad); color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
+.season-banner { display: flex; align-items: center; gap: 8px; margin: 10px 16px 0; padding: 8px 8px 8px 16px; border-radius: 14px; background: var(--grad); color: #fff; font-weight: 700; flex: none; }
+.season-banner .btn-icon { color: #fff; width: 32px; height: 32px; }
+:root[data-season="halloween"] { --bg: #0b0710; --bg-2: #120b1a; --panel: #1a1024; --panel-2: #25152f; }
+:root[data-season="noel"] { --bg: #08130f; --bg-2: #0c1b15; --panel: #11241c; --panel-2: #183026; }
+:root[data-season="nouvel-an"] { --bg: #07071a; --bg-2: #0c0c26; --panel: #131337; --panel-2: #1c1c48; }
+:root[data-season="saint-valentin"] { --bg: #170812; --bg-2: #1f0b18; --panel: #2a1022; --panel-2: #36152c; }
+:root[data-theme="light"][data-season] { --bg: #f6f3ff; --bg-2: #ede8ff; --panel: #ffffff; --panel-2: #f3efff; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.theme-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px; border-radius: 14px; border: 2px solid var(--line); background: var(--bg-2); cursor: pointer; color: var(--text); }
+.theme-card[style] { background: linear-gradient(135deg, color-mix(in srgb, var(--t1) 30%, var(--bg-2)), color-mix(in srgb, var(--t2) 25%, var(--bg-2))); }
+.theme-card.active { border-color: var(--rose); box-shadow: 0 0 0 3px rgba(255, 95, 162, .25); }
+.theme-ico { font-size: 1.8rem; }
+.theme-card small { color: var(--muted); font-size: .72rem; }
+
+/* Confettis */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 400; overflow: hidden; }
+.confetti i { position: absolute; top: -20px; width: 9px; height: 14px; border-radius: 2px; font-style: normal; font-size: 22px; animation: confetti linear forwards; }
+@keyframes confetti { to { transform: translate(var(--x), 105vh) rotate(var(--r)); opacity: .9; } }
+
+/* ===== Anniversaires ===== */
+.uname-wrap { white-space: nowrap; }
+.bday-cake { display: inline-block; animation: badgebob 2s ease-in-out infinite; }
+.pbday { margin-top: 10px; display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--grad); color: #fff; font-weight: 700; font-size: .88rem; }
+.bday-item .meta { cursor: pointer; }
+.bday-big { font-size: 4rem; animation: badgebob 1.6s ease-in-out infinite; }
+.bday-modal h3 { font-size: 1.4rem; }
+
+/* ===== Mode fantôme : signature ===== */
+.ghost-sign { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ghost-sign .choice { padding: 5px 10px; font-size: .8rem; }
+
+/* ===== « est en train d'écrire… » ===== */
+.typing { height: 26px; display: flex; align-items: center; gap: 8px; padding: 0 22px; opacity: 0; transition: opacity .2s; font-style: normal; }
+.typing.on { opacity: 1; }
+.typing-dots { display: inline-flex; gap: 3px; padding: 6px 9px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); }
+.typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--rose); animation: tdot 1.2s infinite ease-in-out; }
+.typing-dots i:nth-child(2) { animation-delay: .15s; }
+.typing-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes tdot { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+.typing-text { font-size: .8rem; color: var(--muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-item.is-typing .sub::before { content: '✍️ écrit… · '; color: var(--rose); font-weight: 600; }
+
+@media (max-width: 760px) {
+  .season-banner { margin: 8px 8px 0; font-size: .85rem; }
+  .typing { padding: 0 10px; height: 24px; }
+  .ghost-banner { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) { .season-fx, .confetti { display: none; } }
+.bday-cake { margin-left: 3px; }
+.app ~ .season-fx span, body .app + .season-fx span { opacity: .45; }

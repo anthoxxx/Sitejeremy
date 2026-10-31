@@ -53,6 +53,21 @@ const FRAMES = ['none', 'neon', 'gold', 'rainbow', 'fire', 'ice'];
 const BANNER_STYLES = ['aurora', 'sunset', 'ocean', 'neon', 'forest', 'midnight', 'candy', 'lava'];
 const SOCIALS = ['discord', 'twitch', 'instagram', 'tiktok', 'youtube', 'steam', 'psn', 'xbox'];
 
+// ---------- Dates (heure de Paris) & anniversaires ----------
+function parisToday() {
+  const p = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date());
+  const g = t => parseInt(p.find(x => x.type === t).value, 10);
+  return { d: g('day'), m: g('month'), y: g('year') };
+}
+function isBirthday(u) {
+  if (!u || !u.birth_day || !u.birth_month || u.show_birthday === 0) return false;
+  const t = parisToday();
+  if (u.birth_day === t.d && u.birth_month === t.m) return true;
+  // né un 29 février : on fête le 28 les années non bissextiles
+  const leap = (t.y % 4 === 0 && t.y % 100 !== 0) || t.y % 400 === 0;
+  return u.birth_day === 29 && u.birth_month === 2 && !leap && t.d === 28 && t.m === 2;
+}
+
 function publicUser(u) {
   if (!u) return null;
   return {
@@ -63,18 +78,21 @@ function publicUser(u) {
     nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none',
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
+    birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
+    isBirthday: isBirthday(u),
   };
 }
 // Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
 function selfUser(u) {
-  return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0 };
+  return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
+    birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0 };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
   return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none' });
+const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -251,6 +269,14 @@ app.put('/api/me', auth, (req, res) => {
       if (h && /^[\p{L}\p{N}_.#\-]{1,40}$/u.test(h)) socials[k] = h;
     }
   }
+  let bd = u.birth_day || 0, bm = u.birth_month || 0;
+  if (b.birthDay !== undefined || b.birthMonth !== undefined) {
+    bd = parseInt(b.birthDay, 10) || 0; bm = parseInt(b.birthMonth, 10) || 0;
+    const maxDay = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][bm - 1] || 0;
+    if (!bd || !bm || bd > maxDay) { bd = 0; bm = 0; }
+  }
+  db.prepare('UPDATE users SET birth_day=?, birth_month=?, show_birthday=? WHERE id=?').run(bd, bm,
+    b.showBirthday !== undefined ? (b.showBirthday ? 1 : 0) : u.show_birthday, u.id);
   db.prepare(`UPDATE users SET gender=?, age=?, city=?, bio=?, color=?, accent=?, name_effect=?, avatar_frame=?, banner_style=?,
     status_emoji=?, status_text=?, interests=?, games=?, socials=?, show_age=?, show_city=? WHERE id=?`).run(
     gender, parseInt(age, 10),
@@ -270,6 +296,7 @@ app.put('/api/me', auth, (req, res) => {
     u.id);
   const updated = getUser(u.id);
   refreshOnline(updated);
+  celebrateBirthday(updated);
   res.json({ user: selfUser(updated) });
 });
 
@@ -325,15 +352,60 @@ app.put('/api/me/password', auth, (req, res) => {
 
 // ---------- Données publiques ----------
 // Contenu du site (nom, textes, couleurs, histoire, règlement) — modifiable par le super-admin
+// Thèmes de fête : 'auto' = selon la date (heure de Paris)
+const THEMES = ['halloween', 'noel', 'nouvel-an', 'saint-valentin', 'paques', 'ete'];
+function easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(y, month - 1, day));
+}
+function autoTheme() {
+  const { d, m, y } = parisToday();
+  const md = m * 100 + d;
+  if (md >= 1024 && md <= 1101) return 'halloween';
+  if (md >= 1201 && md <= 1226) return 'noel';
+  if (md >= 1227 || md <= 103) return 'nouvel-an';
+  if (md >= 210 && md <= 215) return 'saint-valentin';
+  const diff = (Date.UTC(y, m - 1, d) - easter(y).getTime()) / 86400000;
+  if (diff >= -3 && diff <= 1) return 'paques';
+  return '';
+}
+function activeTheme() {
+  const mode = getSettings().theme || 'auto';
+  if (mode === 'auto') return autoTheme();
+  return THEMES.includes(mode) ? mode : '';
+}
+
 const SITE_KEYS = ['siteName', 'siteDomain', 'heroTitle', 'heroText', 'footerText', 'colorViolet', 'colorRose', 'colorGold', 'historyContent', 'rulesContent'];
 function siteInfo() {
   const s = getSettings();
   const out = {};
   for (const k of SITE_KEYS) out[k] = s[k] || '';
   out.maxAccounts = parseInt(s.maxAccounts, 10) || 0;
+  out.themeMode = s.theme || 'auto';
+  out.theme = activeTheme();
   return out;
 }
 app.get('/api/site', (req, res) => res.json({ site: siteInfo() }));
+
+// Anniversaires du jour
+app.get('/api/birthdays', auth, (req, res) => {
+  const t = parisToday();
+  const rows = db.prepare('SELECT * FROM users WHERE is_guest=0 AND banned=0 AND show_birthday=1 AND birth_day>0').all().filter(isBirthday);
+  res.json({ today: `${t.d}/${t.m}`, users: rows.map(u => ({ ...publicUser(u), online: visibleOnline(u.id, req.user) })) });
+});
+// Fête l'anniversaire une fois par an : notification + annonce à tout le monde
+function celebrateBirthday(u) {
+  if (!u || u.is_guest || !isBirthday(u)) return;
+  const year = parisToday().y;
+  if (u.bday_year === year) return;
+  db.prepare('UPDATE users SET bday_year=? WHERE id=?').run(year, u.id);
+  const site = getSettings().siteName || 'The Paradis';
+  notify(u.id, { type: 'birthday', icon: '🎂', title: `Joyeux anniversaire ${u.username} ! 🎉`, text: `Toute l'équipe de ${site} te souhaite une journée magique. Profite bien de ta journée ! 🥳`, important: true });
+  io.emit('birthday', { user: publicUser(u) });
+  log(u, 'birthday', `🎂 Anniversaire de ${u.username} fêté sur le site`);
+}
 
 app.get('/api/stats', (req, res) => {
   res.json({
@@ -745,7 +817,8 @@ admin.use(auth, requireRole('admin', 'moderator'));
 admin.get('/stats', (req, res) => {
   const day = now() - 24 * 3600 * 1000;
   res.json({
-    online: online.size,
+    online: [...online.values()].filter(e => !e.ghost).length,
+    ghosts: [...online.values()].filter(e => e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     guests: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=1').get().c,
     banned: db.prepare('SELECT COUNT(*) c FROM users WHERE banned=1').get().c,
@@ -937,7 +1010,7 @@ admin.get('/messages', (req, res) => {
   const q = '%' + clean(req.query.q, 60) + '%';
   const msgs = db.prepare(`SELECT m.*, u.username, r.name room FROM messages m JOIN users u ON u.id=m.user_id JOIN rooms r ON r.id=m.room_id
     WHERE m.content LIKE ? OR u.username LIKE ? ORDER BY m.id DESC LIMIT 100`).all(q, q);
-  res.json({ messages: msgs.map(m => ({ id: m.id, userId: m.user_id, username: m.username, room: m.room, content: m.content, createdAt: m.created_at })) });
+  res.json({ messages: msgs.map(m => ({ id: m.id, userId: m.user_id, username: m.anon ? m.username + ' (👻 signé Modération)' : m.username, room: m.room, content: m.content, createdAt: m.created_at })) });
 });
 admin.delete('/messages/:id', (req, res) => {
   const m = db.prepare('SELECT m.*, r.slug, r.name room_name, u.username author FROM messages m JOIN rooms r ON r.id=m.room_id LEFT JOIN users u ON u.id=m.user_id WHERE m.id=?').get(req.params.id);
@@ -1052,6 +1125,7 @@ admin.put('/site', requireRole('superadmin'), (req, res) => {
     setSetting(k, v);
   }
   for (const k of ['colorViolet', 'colorRose', 'colorGold']) if (/^#[0-9a-f]{6}$/i.test(b[k] || '')) setSetting(k, b[k]);
+  if (b.theme !== undefined && (b.theme === 'auto' || b.theme === 'none' || THEMES.includes(b.theme))) setSetting('theme', b.theme);
   if (b.maxAccounts !== undefined) setSetting('maxAccounts', Math.min(20, Math.max(0, parseInt(b.maxAccounts, 10) || 0)));
   log(req.user, 'site', 'Contenu du site modifié');
   io.emit('site_changed', { site: siteInfo() });
@@ -1240,14 +1314,15 @@ io.on('connection', socket => {
   let entry = online.get(uid);
   if (!entry) {
     const u0 = getUser(uid);
-    entry = { user: u0, sockets: new Set(), room: null, ghost: !!(u0.ghost && u0.role === 'superadmin') };
+    entry = { user: u0, sockets: new Set(), room: null, ghost: !!(u0.ghost && u0.role === 'superadmin'), ghostAnon: !!u0.ghost_anon };
     online.set(uid, entry);
   }
   entry.sockets.add(socket.id);
   if (isSuper(entry.user)) socket.join('supers');
   db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
 
-  socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement, ghost: !!entry.ghost });
+  socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement, ghost: !!entry.ghost, ghostAnon: !!entry.ghostAnon });
+  setTimeout(() => celebrateBirthday(getUser(uid)), 2500);
   broadcastPresence();
 
   let lastMsg = 0;
@@ -1269,7 +1344,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (prev !== room.slug && !entry.ghost) {
@@ -1282,7 +1357,6 @@ io.on('connection', socket => {
   socket.on('message', (payload, ack) => {
     const u = current();
     if (!u || u.banned) return;
-    if (entry.ghost) return ack && ack({ error: '👻 Tu es en mode fantôme : quitte-le pour écrire' });
     if (!entry.room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
@@ -1294,14 +1368,15 @@ io.on('connection', socket => {
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
-    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration);
-    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration });
+    const anon = entry.ghost && entry.ghostAnon ? 1 : 0;
+    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon) VALUES (?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon);
+    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
     ack && ack({ ok: true });
   });
 
   socket.on('typing', () => {
-    if (entry.room && !entry.ghost) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.user.username });
+    if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
 
   socket.on('pm', ({ to, text, audio: rawAudio } = {}, ack) => {
@@ -1339,7 +1414,6 @@ io.on('connection', socket => {
     entry.ghost = wanted;
     db.prepare('UPDATE users SET ghost=? WHERE id=?').run(wanted ? 1 : 0, uid);
     if (wanted) {
-      for (const sid of entry.sockets) leaveVoiceBySocket(sid, null);
       // Pour les autres, c'est comme s'il venait de partir (et inversement)
       if (entry.room) io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} s'est déconnecté` });
     } else if (entry.room) {
@@ -1351,12 +1425,18 @@ io.on('connection', socket => {
     ack && ack({ ghost: wanted });
   });
 
+  socket.on('ghost_anon', (on, ack) => {
+    if (!isSuper(current())) return ack && ack({ error: 'Réservé au super-admin' });
+    entry.ghostAnon = !!on;
+    db.prepare('UPDATE users SET ghost_anon=? WHERE id=?').run(on ? 1 : 0, uid);
+    ack && ack({ ghostAnon: entry.ghostAnon });
+  });
+
   // ----- Appels -----
   socket.on('call_invite', ({ to, video } = {}, ack) => {
     const u = current();
     const target = getUser(parseInt(to, 10));
     if (!target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
-    if (entry.ghost) return ack && ack({ error: '👻 Quitte le mode fantôme pour appeler' });
     if (!visibleOnline(target.id, u)) return ack && ack({ error: `${target.username} n'est pas connecté` });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id)) return ack && ack({ error: 'Appel impossible avec cette personne' });
@@ -1415,7 +1495,6 @@ io.on('connection', socket => {
     const room = slug && getRoomBySlug(slug);
     const s = getSettings();
     if (!room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
-    if (entry.ghost) return ack && ack({ error: '👻 Quitte le mode fantôme pour rejoindre le vocal' });
     if (s.voiceEnabled !== '1' || !room.voice_enabled) return ack && ack({ error: 'Le vocal est désactivé dans ce salon' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
@@ -1478,6 +1557,9 @@ io.on('connection', socket => {
 });
 
 function msgOut(m) {
+  // Message signé « Modération » (super-admin en mode fantôme anonyme) : l'identité reste visible dans l'admin
+  if (m.anon) return { id: m.id, userId: 0, username: 'Modération', color: '#c3b8ff', gender: 'x', role: 'moderation', avatar: '', nameEffect: 'glow', frame: 'none', isBirthday: false,
+    content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, anon: true };
   return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0 };
 }
 
@@ -1495,5 +1577,12 @@ setInterval(() => {
     try { if (fs.statSync(path.join(uploadDir, f)).mtimeMs < now() - 30 * 24 * 3600 * 1000) fs.unlinkSync(path.join(uploadDir, f)); } catch (e) {}
   }
 }, 3600 * 1000).unref();
+
+let lastTheme = activeTheme();
+setInterval(() => {
+  const t = activeTheme();
+  if (t !== lastTheme) { lastTheme = t; io.emit('site_changed', { site: siteInfo() }); }
+  for (const e of online.values()) celebrateBirthday(getUser(e.user.id));
+}, 10 * 60 * 1000).unref();
 
 server.listen(PORT, () => console.log(`✨ The Paradis en ligne sur http://localhost:${PORT}`));

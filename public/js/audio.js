@@ -50,7 +50,7 @@ const Dictation = {
   finalText: '',
   start() {
     if (!SpeechRec) return toast('🗣️ La dictée n\'est pas disponible sur ce navigateur (essaie Chrome, Edge ou Safari)');
-    if (state.ghost || isMuted()) return toast(state.ghost ? '👻 Quitte le mode fantôme pour écrire' : '🔇 Tu es rendu muet pour le moment');
+    if (isMuted()) return toast('🔇 Tu es rendu muet pour le moment');
     const rec = new SpeechRec();
     rec.lang = 'fr-FR';
     rec.continuous = true;
@@ -115,7 +115,6 @@ const Recorder = {
   async start() {
     if (this.mr) return;
     if (!state.view) return;
-    if (state.ghost) return toast('👻 Quitte le mode fantôme pour envoyer un vocal');
     if (isMuted()) return toast('🔇 Tu es rendu muet pour le moment');
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast('🎤 Ton navigateur ne permet pas d\'enregistrer (il faut un site en https)');
     if (Dictation.on) Dictation.stop();

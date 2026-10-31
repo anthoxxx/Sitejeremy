@@ -25,7 +25,8 @@
 
   <section class="hero">
     <div>
-      <div class="live"><span class="dot"></span><span id="onlineCount">…</span> personnes connectées</div>
+      <div class="season-greet hidden" data-season-greeting></div>
+      <div class="live"><span class="dot"></span><span id="onlineCount">…</span> <span id="onlineLabel">personnes connectées</span></div>
       <h1 data-site-rich="heroTitle">Discute, rencontre, <em>brille</em> sur The Paradis.</h1>
       <p class="lead" data-site="heroText">Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.</p>
       <div class="stats">
@@ -146,6 +147,7 @@
   if (!exited) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
   LC.api('/api/stats').then(s => {
     onlineCount.textContent = s.online;
+    onlineLabel.textContent = s.online > 1 ? "personnes connectées" : "personne connectée";
     statMembers.textContent = s.members;
     statRooms.textContent = s.rooms;
     document.querySelectorAll('input[name=age]').forEach(i => i.min = s.minAge);

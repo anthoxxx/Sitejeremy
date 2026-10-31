@@ -23,8 +23,10 @@ function profileCard(u, opts = {}) {
     el('div', { class: 'pbody' },
       el('div', { class: 'pavatar' }, LC.avatar(u, true)),
       el('div', { class: 'pname' }, LC.name(u), ' ', LC.badge(u)),
+      u.isBirthday ? el('div', { class: 'pbday' }, '🎉 C\'est son anniversaire aujourd\'hui ! 🎂') : null,
       u.statusEmoji || u.statusText ? el('div', { class: 'pstatus' }, `${u.statusEmoji || ''} ${u.statusText || ''}`.trim()) : null,
       el('div', { class: 'pinfo' }, info, opts.online !== undefined ? el('span', {}, opts.online ? ' · 🟢 En ligne' : ' · ⚪ Hors ligne') : null),
+      u.birthday ? el('div', { class: 'pinfo' }, `🎂 Anniversaire : ${u.birthday.day} ${LC.MONTHS[u.birthday.month - 1]}`) : null,
       el('div', { class: 'psection' }, el('h5', {}, 'À propos'), el('div', { class: 'pbio' }, u.bio || 'Aucune description pour l\'instant.')),
       u.interests?.length ? el('div', { class: 'psection' }, el('h5', {}, '✨ Centres d\'intérêt'),
         el('div', { class: 'ptags' }, ...u.interests.map(t => el('span', { class: 'ptag' }, t)))) : null,
@@ -61,6 +63,7 @@ async function openProfile(id) {
     profileCard(u, { online: data.online }),
     el('div', { class: 'pactions' },
       el('div', { class: 'actions' },
+        u.isBirthday ? el('button', { class: 'btn btn-primary', style: 'flex-basis:100%', onclick: () => { close(); wishBirthday(u); } }, '🎂 Lui souhaiter un joyeux anniversaire') : null,
         el('button', { class: 'btn btn-primary', onclick: () => { close(); openPm(u); } }, '💌 Message privé'),
         el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, false); } }, '📞 Appeler'),
         el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, true); } }, '📹 Visio'),
@@ -210,6 +213,11 @@ function openMyProfile() {
     f('Ville', city),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher mon âge aux autres'), bind(el('input', { type: 'checkbox', checked: d.showAge !== false }), 'showAge')),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher ma ville aux autres'), bind(el('input', { type: 'checkbox', checked: d.showCity !== false }), 'showCity')),
+    f('🎂 Mon anniversaire', el('div', { class: 'row', style: 'gap:8px' },
+      bind(el('select', { class: 'input' }, el('option', { value: 0 }, 'Jour'), ...Array.from({ length: 31 }, (_, i) => el('option', { value: i + 1, selected: d.birthDay === i + 1 }, i + 1))), 'birthDay', v => parseInt(v, 10) || 0),
+      bind(el('select', { class: 'input' }, el('option', { value: 0 }, 'Mois'), ...LC.MONTHS.map((m, i) => el('option', { value: i + 1, selected: d.birthMonth === i + 1 }, m))), 'birthMonth', v => parseInt(v, 10) || 0)),
+      'Le jour J, un 🎂 s\'affiche à côté de ton pseudo et tout le monde est prévenu pour te le souhaiter !'),
+    el('label', { class: 'switch' }, el('span', {}, 'Fêter mon anniversaire sur le site'), bind(el('input', { type: 'checkbox', checked: d.showBirthday !== false }), 'showBirthday')),
     f('✨ Centres d\'intérêt', tagInput(d.interests || [], 10, 'Ex : Manga, Foot, Rap… puis Entrée', v => { d.interests = [...v]; refresh(); })),
     f('🎮 Jeux du moment', tagInput(d.games || [], 8, 'Ex : Fortnite, GTA V… puis Entrée', v => { d.games = [...v]; refresh(); })));
 
@@ -257,6 +265,7 @@ function openMyProfile() {
                 age: d.age, gender: d.gender, city: d.city, bio: d.bio, color: d.color, accent: d.accent,
                 nameEffect: d.nameEffect, frame: d.frame, bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
+                birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
               } });
               state.me = user; renderMe(); close(); toast('✨ Profil enregistré !');
             } catch (e) { err.textContent = e.message; }

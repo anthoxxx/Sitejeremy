@@ -318,6 +318,18 @@ async function site() {
   const heroText = area('heroText', 3);
   const colors = ['colorViolet', 'colorRose', 'colorGold'].map(k => el('input', { type: 'color', value: s[k] || '#8b6cff', class: 'color-input', style: 'width:56px;height:40px' }));
   const maxAcc = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxAccounts, style: 'max-width:100px' });
+  // Thème de fête
+  let themeMode = s.themeMode || 'auto';
+  const themeBox = el('div', { class: 'theme-grid' });
+  const drawThemes = () => themeBox.replaceChildren(...[
+    ['auto', '📅', 'Automatique', 'Selon la date'], ['none', '🚫', 'Aucun', 'Thème normal'],
+    ...Object.entries(LC.SEASONS).map(([k, t]) => [k, t.icon, t.label, 'Toujours actif']),
+  ].map(([k, icon, label, sub]) => el('button', {
+    type: 'button', class: 'theme-card' + (themeMode === k ? ' active' : ''),
+    style: LC.SEASONS[k] ? `--t1:${LC.SEASONS[k].colors[0]};--t2:${LC.SEASONS[k].colors[1]};--t3:${LC.SEASONS[k].colors[2]}` : '',
+    onclick: () => { themeMode = k; drawThemes(); LC.applySeason(k === 'auto' ? s.theme : k === 'none' ? '' : k); },
+  }, el('span', { class: 'theme-ico' }, icon), el('b', {}, label), el('small', {}, sub))));
+  drawThemes();
   const editor = (key, label) => {
     const ta = area(key, 16);
     const prev = el('div', { class: 'page-content rich-preview' });
@@ -332,7 +344,7 @@ async function site() {
   const save = async () => {
     const body = {
       siteName: name.value, siteDomain: domain.value, heroTitle: title.value, heroText: heroText.value, footerText: footer.value,
-      colorViolet: colors[0].value, colorRose: colors[1].value, colorGold: colors[2].value, maxAccounts: maxAcc.value,
+      colorViolet: colors[0].value, colorRose: colors[1].value, colorGold: colors[2].value, maxAccounts: maxAcc.value, theme: themeMode,
       historyContent: hist.ta.value, rulesContent: rules.ta.value,
     };
     const { site: saved } = await run(() => api('/api/admin/site', { method: 'PUT', body }), 'Site mis à jour pour tout le monde');
@@ -346,6 +358,9 @@ async function site() {
       el('div', { class: 'field' }, el('label', {}, 'Grand titre de l\'accueil (mets un mot entre *étoiles* pour le colorer)'), title),
       el('div', { class: 'field' }, el('label', {}, 'Texte de présentation de l\'accueil'), heroText),
       el('div', { class: 'field' }, el('label', {}, 'Texte du bas de page'), footer)),
+    el('div', { class: 'panel' }, el('h2', {}, '🎉 Thème de fête'),
+      el('p', { class: 'help', style: 'margin:0 0 12px' }, `En automatique : 🎃 Halloween du 24 oct. au 1er nov., 🎄 Noël du 1er au 26 déc., 🎆 Nouvel An du 27 déc. au 3 janv., 💘 Saint-Valentin du 10 au 15 févr., 🐣 Pâques (3 jours avant à 1 jour après). Thème actif aujourd'hui : ${s.theme ? LC.SEASONS[s.theme].icon + ' ' + LC.SEASONS[s.theme].label : 'aucun'}. Les couleurs du thème remplacent les couleurs du site pendant la fête.`),
+      themeBox),
     el('div', { class: 'panel' }, el('h2', {}, '🎨 Couleurs du site'),
       el('div', { class: 'toolbar' }, ...['Couleur 1', 'Couleur 2', 'Couleur 3'].map((l, i) => el('label', { style: 'display:flex;gap:8px;align-items:center' }, colors[i], l)),
         el('button', { class: 'btn btn-sm', onclick: () => { ['#8b6cff', '#ff5fa2', '#ffb547'].forEach((c, i) => { colors[i].value = c; colors[i].dispatchEvent(new Event('input')); }); } }, '↺ Couleurs d\'origine')),

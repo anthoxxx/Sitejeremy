@@ -60,13 +60,68 @@ window.LC = {
     if (document.title.includes(' — ')) document.title = document.title.replace(/^(\(\d+\) )?.*? — /, `$1${site.siteName} — `);
     else document.title = site.siteName;
     const root = document.documentElement.style;
-    if (site.colorViolet) root.setProperty('--violet', site.colorViolet);
-    if (site.colorRose) root.setProperty('--rose', site.colorRose);
-    if (site.colorGold) root.setProperty('--gold', site.colorGold);
+    const season = LC.SEASONS[site.theme];
+    const colors = season ? season.colors : [site.colorViolet, site.colorRose, site.colorGold];
+    ['--violet', '--rose', '--gold'].forEach((v, i) => { if (colors[i]) root.setProperty(v, colors[i]); });
+    LC.applySeason(site.theme);
     document.querySelectorAll('[data-site]').forEach(e => { e.textContent = site[e.dataset.site] || ''; });
     document.querySelectorAll('[data-site-rich]').forEach(e => e.replaceChildren(LC.emphasis(site[e.dataset.siteRich] || '')));
     document.dispatchEvent(new CustomEvent('site', { detail: site }));
   },
+  // ----- Thèmes de fête -----
+  SEASONS: {
+    halloween: { label: 'Halloween', icon: '🎃', colors: ['#8b3dff', '#ff7a18', '#ffd23f'], fx: ['🎃', '🦇', '👻', '🕸️', '🍬'], anim: 'float', greeting: '🎃 Joyeux Halloween ! Des bonbons ou un sort ?' },
+    noel: { label: 'Noël', icon: '🎄', colors: ['#1fa055', '#e63946', '#ffd166'], fx: ['❄️', '❄', '❅', '✨', '❆'], anim: 'snow', greeting: '🎄 Joyeux Noël à toutes et à tous !' },
+    'nouvel-an': { label: 'Nouvel An', icon: '🎆', colors: ['#6d5dfc', '#ff4fd8', '#ffd700'], fx: ['✨', '🎉', '🎊', '🥂', '⭐'], anim: 'snow', greeting: '' },
+    'saint-valentin': { label: 'Saint-Valentin', icon: '💘', colors: ['#ff3d7f', '#ff8fab', '#ffc2d1'], fx: ['💖', '💘', '💕', '🌹'], anim: 'float', greeting: '💘 Joyeuse Saint-Valentin ! Partagez l\'amour' },
+    paques: { label: 'Pâques', icon: '🐣', colors: ['#3fbf7f', '#f472b6', '#facc15'], fx: ['🥚', '🐣', '🌷', '🐰', '🍫'], anim: 'snow', greeting: '🐣 Joyeuses Pâques ! La chasse aux œufs est ouverte' },
+    ete: { label: 'Été', icon: '☀️', colors: ['#00b4ff', '#ff8a00', '#ffd60a'], fx: ['☀️', '🌴', '🍉', '🏖️', '🍹'], anim: 'float', greeting: '☀️ Bel été à tous !' },
+  },
+  greeting(key) {
+    const s = LC.SEASONS[key];
+    if (!s) return '';
+    if (key === 'nouvel-an') { const d = new Date(); return `🎆 Bonne année ${d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()} ! Plein de bonheur à tous ✨`; }
+    return s.greeting;
+  },
+  fxEnabled() { try { return localStorage.getItem('lc_fx') !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return true; } },
+  applySeason(key) {
+    const s = LC.SEASONS[key];
+    document.documentElement.dataset.season = s ? key : '';
+    document.querySelectorAll('.logo').forEach(l => {
+      l.querySelector('.season-badge')?.remove();
+      if (s) l.append(LC.el('span', { class: 'season-badge', title: s.label }, s.icon));
+    });
+    document.querySelectorAll('[data-season-greeting]').forEach(e => { e.textContent = LC.greeting(key); e.classList.toggle('hidden', !s); });
+    let box = document.getElementById('seasonFx');
+    if (box) box.remove();
+    if (!s || !LC.fxEnabled() || !document.body) return;
+    box = LC.el('div', { id: 'seasonFx', class: 'season-fx ' + s.anim, 'aria-hidden': 'true' });
+    const n = innerWidth < 760 ? 10 : 18;
+    for (let i = 0; i < n; i++) {
+      const dur = 9 + Math.random() * 10;
+      box.append(LC.el('span', { style: `left:${Math.random() * 100}%;animation-duration:${dur}s;animation-delay:-${Math.random() * dur}s;font-size:${12 + Math.random() * 16}px;--drift:${(Math.random() * 80 - 40).toFixed(0)}px` }, s.fx[i % s.fx.length]));
+    }
+    document.body.append(box);
+  },
+  toggleFx() {
+    try { localStorage.setItem('lc_fx', LC.fxEnabled() ? '0' : '1'); } catch (e) {}
+    LC.applySeason(LC.site?.theme);
+    return LC.fxEnabled();
+  },
+  // Pluie de confettis (anniversaires, nouvel an…)
+  confetti(emojis) {
+    if (!LC.fxEnabled()) return;
+    const colors = ['#ff5fa2', '#8b6cff', '#ffb547', '#33d6a6', '#4fb3ff', '#ff4d4d'];
+    const box = LC.el('div', { class: 'confetti', 'aria-hidden': 'true' });
+    for (let i = 0; i < 90; i++) {
+      const emoji = emojis && i % 6 === 0 ? emojis[i % emojis.length] : '';
+      box.append(LC.el('i', { style: `left:${Math.random() * 100}%;background:${emoji ? 'none' : colors[i % colors.length]};animation-delay:${Math.random() * .8}s;animation-duration:${2.4 + Math.random() * 1.8}s;--r:${Math.random() * 720 - 360}deg;--x:${Math.random() * 160 - 80}px` }, emoji));
+    }
+    document.body.append(box);
+    setTimeout(() => box.remove(), 5000);
+  },
+  MONTHS: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+
   // *mot* → mot mis en valeur (dégradé)
   emphasis(text) {
     const f = document.createDocumentFragment();
@@ -112,7 +167,9 @@ window.LC = {
   // Pseudo avec sa couleur et son effet
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
-    return LC.el('span', { class: 'uname' + fx + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+    const n = LC.el('span', { class: 'uname' + fx + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+    if (!u.isBirthday) return n;
+    return LC.el('span', { class: 'uname-wrap' }, n, LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂'));
   },
   BANNERS: {
     aurora: 'linear-gradient(135deg,#8b6cff,#ff5fa2 60%,#ffb547)',
@@ -177,6 +234,7 @@ window.LC = {
     document.body.append(back);
   },
   badge(u) {
+    if (u.role === 'moderation') return LC.el('span', { class: 'badge moderator' }, 'Équipe');
     if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');
     if (u.role === 'admin') return LC.el('span', { class: 'badge admin' }, 'Admin');
     if (u.role === 'moderator') return LC.el('span', { class: 'badge moderator' }, 'Modo');

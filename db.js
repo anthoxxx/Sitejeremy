@@ -114,6 +114,12 @@ addColumn('users', 'show_city', 'INTEGER NOT NULL DEFAULT 1');
 addColumn('users', 'device_id', "TEXT DEFAULT ''");
 addColumn('users', 'signup_ip', "TEXT DEFAULT ''");
 addColumn('users', 'ghost', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'ghost_anon', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'birth_day', 'INTEGER DEFAULT 0');
+addColumn('users', 'birth_month', 'INTEGER DEFAULT 0');
+addColumn('users', 'show_birthday', 'INTEGER NOT NULL DEFAULT 1');
+addColumn('users', 'bday_year', 'INTEGER DEFAULT 0');
+addColumn('messages', 'anon', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('logs', 'category', "TEXT DEFAULT 'system'");
 addColumn('logs', 'ip', "TEXT DEFAULT ''");
 addColumn('logs', 'data', "TEXT DEFAULT '{}'");
@@ -218,6 +224,7 @@ const defaults = {
   userRoomsEnabled: '1',
   maxUserRooms: '2',
   maxAccounts: '2',
+  theme: 'auto',
   siteName: 'The Paradis',
   siteDomain: 'theparadis.fr',
   heroTitle: 'Discute, rencontre, *brille* sur The Paradis.',
@@ -287,7 +294,7 @@ function setSetting(key, value) {
 const LOG_CATEGORIES = {
   moderation: ['ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
   messages: ['message_delete', 'room_clear'],
-  accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit'],
+  accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],
   voice: ['voice_join', 'call'],
   reports: ['report_new'],

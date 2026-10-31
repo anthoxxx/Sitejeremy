@@ -110,6 +110,7 @@ socket.on('notification', n => {
     Notifs.unread++;
     renderNotifCount();
   }
+  if (n.type === 'birthday') { showBirthday(n); desktopNotify(n); return; }
   if (IMPORTANT.includes(n.type)) showSanction(n);
   else toast(`${n.icon} ${n.title}`, notifAction(n));
   desktopNotify(n);
@@ -137,13 +138,12 @@ function muteLeft(until) {
 }
 function renderMuteBanner() {
   const muted = isMuted();
-  const locked = muted || !!state.ghost;
+  const locked = muted;
   const b = $('muteBanner');
   b.classList.toggle('hidden', !muted);
   $('input').disabled = locked;
   $('composer').querySelectorAll('.send-btn, #recBtn, #dictateBtn').forEach(x => { x.disabled = locked; });
-  if (state.ghost) $('input').placeholder = '👻 Mode fantôme : tu observes sans être vu';
-  else if ($('input').placeholder.startsWith('👻')) $('input').placeholder = 'Écris ton message…';
+  if ($('input').placeholder.startsWith('👻')) $('input').placeholder = 'Écris ton message…';
   if (muted) {
     b.replaceChildren(el('span', {}, '🔇'), el('div', {},
       el('b', {}, 'Tu es rendu muet par la modération'),
@@ -163,3 +163,14 @@ setInterval(() => {
   }
   document.querySelectorAll('.sanction-timer').forEach(t => { t.textContent = muteLeft(+t.dataset.until); });
 }, 1000);
+
+// Fenêtre de fête pour la personne dont c'est l'anniversaire
+function showBirthday(n) {
+  LC.confetti(['🎂', '🎉', '🎈', '🎁']);
+  setTimeout(() => LC.confetti(['🎂', '🥳']), 1500);
+  const close = modal(el('div', { class: 'sanction bday-modal' },
+    el('div', { class: 'bday-big' }, '🎂'),
+    el('h3', {}, n.title),
+    el('p', {}, n.text),
+    el('button', { class: 'btn btn-primary', style: 'width:100%;margin-top:16px', onclick: () => close() }, 'Merci ! 🥳')));
+}

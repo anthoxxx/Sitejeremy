@@ -31,6 +31,10 @@
 
   <aside class="sidebar left" id="left">
     <div class="side-scroll">
+      <div class="hidden" id="bdaySection">
+        <div class="side-title">🎂 Anniversaires du jour</div>
+        <div id="bdayList"></div>
+      </div>
       <div class="side-title">Salons officiels</div>
       <div id="roomList"></div>
       <div class="side-title">Salons des membres <button class="btn btn-sm btn-primary hidden" id="createRoomBtn" title="Créer mon salon">＋ Créer</button></div>
@@ -40,6 +44,7 @@
       <div class="side-links">
         <a href="/histoire" target="_blank">📖 Histoire</a>
         <a href="/reglement" target="_blank">📜 Règlement</a>
+        <button type="button" id="fxBtn" title="Activer / couper les animations de fête">✨ Effets</button>
         <button type="button" class="mobile-only-inline" onclick="LC.toggleTheme()">🌓 Thème</button>
         <button type="button" class="mobile-only-inline" id="soundBtn2">🔊 Son</button>
       </div>
@@ -62,6 +67,7 @@
       <button class="btn btn-sm btn-ghost hidden" id="headProfile">👤 <span class="lbl">Profil</span></button>
     </div>
     <div class="video-grid hidden" id="videoGrid"></div>
+    <div class="season-banner hidden" id="seasonBanner"></div>
     <div class="ghost-banner hidden" id="ghostBanner"></div>
     <div class="voice-bar hidden" id="voiceBar"></div>
     <div class="announce hidden" id="announce"></div>

@@ -78,6 +78,13 @@ function setGhost(on) {
     toast(res.ghost ? '👻 Mode fantôme activé : personne ne te voit' : '👋 Tu es de nouveau visible');
   });
 }
+function setGhostAnon(on) {
+  socket.emit('ghost_anon', on, res => {
+    if (res?.error) return toast(res.error);
+    state.ghostAnon = res.ghostAnon;
+    applyGhost(state.ghost);
+  });
+}
 function applyGhost(on) {
   state.ghost = !!on;
   document.body.classList.toggle('ghost-mode', state.ghost);
@@ -87,9 +94,11 @@ function applyGhost(on) {
   b.classList.toggle('hidden', !state.ghost);
   b.replaceChildren(el('span', { class: 'ghost-ico' }, '👻'),
     el('div', { style: 'flex:1;min-width:0' }, el('b', {}, 'Mode fantôme actif'),
-      el('div', { class: 'help' }, 'Tu n\'apparais nulle part : ni dans les connectés, ni dans les compteurs. Tu peux lire tous les salons et modérer, sans écrire.')),
+      el('div', { class: 'help' }, 'Tu n\'apparais ni dans les connectés ni dans les compteurs. Tu peux tout lire, écrire, modérer, appeler.')),
+    el('div', { class: 'ghost-sign' }, el('span', { class: 'help' }, 'Signer :'),
+      el('button', { class: 'choice' + (!state.ghostAnon ? ' active' : ''), onclick: () => setGhostAnon(false) }, 'Mon pseudo'),
+      el('button', { class: 'choice' + (state.ghostAnon ? ' active' : ''), onclick: () => setGhostAnon(true) }, '🛡️ Modération')),
     el('button', { class: 'btn btn-sm', onclick: () => setGhost(false) }, 'Redevenir visible'));
-  if (state.ghost && Voice.slug) Voice.leave(false);
   renderMuteBanner();
 }
 $('ghostBtn').onclick = () => setGhost(!state.ghost);
@@ -128,7 +137,7 @@ function roomItem(r, counts) {
 }
 function renderRooms() {
   const counts = {};
-  state.online.forEach(u => { if (u.room) counts[u.room] = (counts[u.room] || 0) + 1; });
+  state.online.forEach(u => { if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1; });
   const official = state.rooms.filter(r => !r.ownerId);
   const members = state.rooms.filter(r => r.ownerId).sort((a, b) => (counts[b.slug] || 0) - (counts[a.slug] || 0));
   $('roomList').replaceChildren(...official.map(r => roomItem(r, counts)));
@@ -169,6 +178,7 @@ function joinRoom(slug) {
     if (res.error) return toast(res.error);
     if (Voice.slug && Voice.slug !== slug) Voice.leave(false);
     state.view = { type: 'room', slug };
+    typers.clear(); renderTyping();
     state.currentRoom = res.room;
     state.voice.set(slug, res.voice || []);
     try { localStorage.setItem('lc_room', slug); } catch (e) {}
@@ -210,12 +220,12 @@ function linkify(text) {
 function addRoomMessage(m, live = true) {
   if (state.blocked.has(m.userId)) return;
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect };
+  const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
-        el('span', { class: 'who', onclick: () => openProfile(m.userId) }, LC.name(user)),
+        el('span', { class: 'who', onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user),
         el('span', { class: 'time' }, LC.time(m.createdAt))),
       m.kind === 'audio' && m.media ? audioPlayer(m.media, m.duration) : el('div', { class: 'text' }, linkify(m.content))),
@@ -261,6 +271,7 @@ function renderConvs() {
 
 async function openPm(user) {
   state.view = { type: 'pm', userId: user.id };
+  typers.clear(); renderTyping();
   if (!state.convs.has(user.id)) state.convs.set(user.id, { user, unread: 0, last: null });
   const conv = state.convs.get(user.id);
   conv.unread = 0;
@@ -294,7 +305,7 @@ function addBubble(m) {
 function renderUsers() {
   const q = $('userSearch').value.trim().toLowerCase();
   let users = state.online.filter(u => !state.blocked.has(u.id));
-  $('onlineCount').textContent = state.online.length;
+  $('onlineCount').textContent = state.online.filter(u => !u.ghost).length;
   if (state.filter === 'f' || state.filter === 'h') users = users.filter(u => u.gender === state.filter);
   if (state.filter === 'room') users = users.filter(u => state.view?.type === 'room' && u.room === state.view.slug);
   if (q) users = users.filter(u => u.username.toLowerCase().includes(q));
@@ -378,7 +389,6 @@ $('composer').onsubmit = e => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text || !state.view) return;
-  if (state.ghost) return toast('👻 Tu es en mode fantôme : quitte-le pour écrire');
   if (isMuted()) return toast('🔇 Tu es rendu muet pour le moment');
   if (Dictation.on) Dictation.stop();
   const done = res => {
@@ -398,18 +408,37 @@ const socket = io();
 const typers = new Map();
 function renderTyping() {
   const now = Date.now();
-  const names = [...typers.entries()].filter(([, t]) => now - t < 3000).map(([n]) => n);
-  $('typing').textContent = names.length ? `${names.slice(0, 3).join(', ')} ${names.length > 1 ? 'écrivent' : 'écrit'}…` : '';
+  for (const [n, t] of typers) if (now - t > 4000) typers.delete(n);
+  const names = [...typers.keys()];
+  const box = $('typing');
+  box.classList.toggle('on', names.length > 0);
+  if (!names.length) { box.replaceChildren(); markTypingUsers(); return; }
+  const who = names.length === 1 ? `${names[0]} est en train d'écrire`
+    : names.length === 2 ? `${names[0]} et ${names[1]} sont en train d'écrire`
+    : names.length === 3 ? `${names[0]}, ${names[1]} et ${names[2]} sont en train d'écrire`
+    : 'Plusieurs personnes sont en train d\'écrire';
+  box.replaceChildren(el('span', { class: 'typing-dots' }, el('i'), el('i'), el('i')), el('span', { class: 'typing-text' }, who));
+  markTypingUsers();
+}
+// « ✍️ écrit… » à côté des pseudos dans la liste des connectés
+function markTypingUsers() {
+  document.querySelectorAll('#userList .list-item').forEach(li => {
+    const name = li.querySelector('.uname')?.textContent;
+    li.classList.toggle('is-typing', !!name && typers.has(name));
+  });
 }
 setInterval(renderTyping, 1000);
 
 socket.on('connect_error', err => {
   if (err.message === 'unauthorized' || err.message === 'banned') location.href = '/';
 });
-socket.on('hello', async ({ user, announcement, ghost }) => {
+socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
   state.me = user;
+  state.ghostAnon = !!ghostAnon;
   renderMe();
   applyGhost(ghost);
+  loadBirthdays();
+  showSeasonBanner();
   setAnnouncement(announcement);
   loadNotifications();
   renderMuteBanner();
@@ -517,3 +546,43 @@ function setAnnouncement(text) {
   $('announce').textContent = text ? '📢 ' + text : '';
   $('announce').classList.toggle('hidden', !text);
 }
+
+// ---------- Anniversaires ----------
+async function loadBirthdays() {
+  try {
+    const { users } = await api('/api/birthdays');
+    const box = $('bdayList');
+    $('bdaySection').classList.toggle('hidden', !users.length);
+    box.replaceChildren(...users.map(u => el('div', { class: 'list-item bday-item' },
+      LC.avatar(u),
+      el('div', { class: 'meta', onclick: () => openProfile(u.id) }, el('div', { class: 'name' }, LC.name(u)), el('div', { class: 'sub' }, u.online ? '🟢 en ligne' : 'hors ligne')),
+      u.id !== state.me.id ? el('button', { class: 'btn btn-sm', title: 'Lui souhaiter', onclick: () => wishBirthday(u) }, '🎉') : el('span', { class: 'pill hot' }, 'Toi !'))));
+  } catch (e) {}
+}
+function wishBirthday(u) {
+  openPm(u);
+  setTimeout(() => { input.value = `Joyeux anniversaire ${u.username} ! 🎂🎉 Passe une super journée !`; input.dispatchEvent(new Event('input')); input.focus(); }, 300);
+}
+socket.on('birthday', ({ user }) => {
+  loadBirthdays();
+  if (user.id === state.me?.id) return; // la personne reçoit sa propre fenêtre de fête
+  LC.confetti(['🎂', '🎉', '🎈']);
+  ding();
+  toast(`🎂 C'est l'anniversaire de ${user.username} aujourd'hui ! Clique pour lui souhaiter 🎉`, () => wishBirthday(user));
+  if (state.view?.type === 'room') addSys(`🎂 C'est l'anniversaire de ${user.username} aujourd'hui ! Souhaitez-lui plein de bonnes choses 🎉`, 'broadcast');
+});
+
+// ---------- Thème de fête : bannière du jour ----------
+function showSeasonBanner() {
+  const key = LC.site?.theme;
+  const b = $('seasonBanner');
+  let closed = '';
+  try { closed = localStorage.getItem('lc_season_closed') || ''; } catch (e) {}
+  const today = new Date().toDateString() + key;
+  if (!key || !LC.SEASONS[key] || closed === today) return b.classList.add('hidden');
+  b.replaceChildren(el('span', { style: 'flex:1' }, LC.greeting(key)),
+    el('button', { class: 'btn btn-icon', title: 'Fermer', onclick: () => { b.classList.add('hidden'); try { localStorage.setItem('lc_season_closed', today); } catch (e) {} } }, '✕'));
+  b.classList.remove('hidden');
+}
+document.addEventListener('site', () => showSeasonBanner());
+$('fxBtn').onclick = () => { const on = LC.toggleFx(); $('fxBtn').textContent = on ? '✨ Effets' : '✨ Effets coupés'; };
