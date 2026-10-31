@@ -922,3 +922,15 @@ body.hub-open .modal-back { z-index: 260; }
 .side-title .btn-sm:not(.btn-primary) { padding: 3px 10px; font-size: .72rem; letter-spacing: 0; text-transform: none; }
 .backup-ok { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(51, 214, 166, .12); border: 1px solid rgba(51, 214, 166, .4); display: flex; flex-direction: column; gap: 4px; }
 .admin-layout aside .logo { font-size: 1.12rem; white-space: nowrap; }
+
+/* ===== Menu de mon compte ===== */
+.user-menu-wrap { position: relative; }
+.user-menu { position: absolute; right: 0; top: 52px; width: 250px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 8px; z-index: 130; animation: sheet .15s ease; }
+.um-head { display: flex; align-items: center; gap: 10px; padding: 8px 8px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.um-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 10px; background: none; color: var(--text); cursor: pointer; font-size: .92rem; text-align: left; }
+.um-item:hover { background: var(--panel-2); }
+.um-item span { width: 22px; text-align: center; }
+.um-item.danger { color: var(--red); font-weight: 700; }
+.um-sep { height: 1px; background: var(--line); margin: 6px 4px; }
+.side-links .logout-link { color: var(--red); border-color: rgba(255, 90, 110, .4); }
+@media (max-width: 760px) { .user-menu { position: fixed; right: 8px; top: calc(60px + env(safe-area-inset-top)); width: min(280px, calc(100vw - 16px)); } }

@@ -65,7 +65,7 @@ $('drawerBack').onclick = closeDrawers;
 function renderMe() {
   const chip = $('meChip');
   chip.replaceChildren(...[LC.avatar(state.me), el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me)].filter(Boolean));
-  chip.onclick = openMyProfile;
+  chip.onclick = e => { e.stopPropagation(); toggleUserMenu(); };
   $('adminLink').classList.toggle('hidden', !isStaff());
   $('ghostBtn').classList.toggle('hidden', state.me.role !== 'superadmin');
 }
@@ -389,9 +389,42 @@ function openReport(u) {
 }
 
 async function logout() {
+  try { if (Voice.slug) Voice.leave(); } catch (e) {}
+  try { if (Call.id) Call.hangup(); } catch (e) {}
   await api('/api/logout', { method: 'POST' }).catch(() => {});
+  try { sessionStorage.setItem('lc_exit', JSON.stringify({ kind: 'logout', at: Date.now() })); } catch (e) {}
   location.href = '/';
 }
+// Demande de confirmation avant de se déconnecter
+function askLogout() {
+  closeUserMenu();
+  const close = modal(el('div', { class: 'center' },
+    el('div', { style: 'font-size:2.6rem' }, '🚪'),
+    el('h3', {}, 'Se déconnecter ?'),
+    el('p', { class: 'help' }, state.me?.isGuest ? 'Tu es invité : ton pseudo sera libéré et ton profil effacé dans 24 h.' : 'Tu pourras te reconnecter quand tu veux avec ton pseudo et ton mot de passe.'),
+    el('div', { class: 'actions', style: 'margin-top:14px' },
+      el('button', { class: 'btn btn-ghost', onclick: () => close() }, 'Rester'),
+      el('button', { class: 'btn btn-danger', onclick: () => { close(); logout(); } }, '🚪 Se déconnecter'))));
+}
+
+// ---------- Menu de mon compte (clic sur mon pseudo) ----------
+function closeUserMenu() { $('userMenu').classList.add('hidden'); }
+function toggleUserMenu() {
+  const m = $('userMenu');
+  if (!m.classList.contains('hidden')) return closeUserMenu();
+  const item = (icon, label, fn, cls = '') => el('button', { class: 'um-item ' + cls, onclick: () => { closeUserMenu(); fn(); } }, el('span', {}, icon), label);
+  m.replaceChildren(
+    el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
+    item('✏️', 'Personnaliser mon profil', openMyProfile),
+    item('🎮', 'Mini-jeux', () => Hub.open()),
+    isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
+    item('🌓', 'Changer le thème', () => LC.toggleTheme()),
+    el('div', { class: 'um-sep' }),
+    item('🚪', 'Se déconnecter', askLogout, 'danger'));
+  m.classList.remove('hidden');
+}
+document.addEventListener('click', e => { if (!e.target.closest('.user-menu-wrap')) closeUserMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUserMenu(); });
 
 // ---------- Saisie ----------
 const input = $('input');

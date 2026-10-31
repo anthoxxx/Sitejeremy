@@ -27,7 +27,10 @@
     <button class="btn btn-icon desk-only" id="soundBtn" title="Son des notifications" aria-label="Son">🔊</button>
     <button class="btn btn-icon desk-only" onclick="LC.toggleTheme()" title="Thème" aria-label="Thème">🌓</button>
     <button class="btn btn-icon mobile-users" id="toggleRight" style="display:none" aria-label="Connectés">👥</button>
-    <div class="me-chip" id="meChip"></div>
+    <div class="user-menu-wrap">
+      <div class="me-chip" id="meChip" title="Mon compte"></div>
+      <div class="user-menu hidden" id="userMenu"></div>
+    </div>
   </header>
 
   <aside class="sidebar left" id="left">
@@ -52,6 +55,7 @@
         <button type="button" id="fxBtn" title="Activer / couper les animations de fête">✨ Effets</button>
         <button type="button" class="mobile-only-inline" onclick="LC.toggleTheme()">🌓 Thème</button>
         <button type="button" class="mobile-only-inline" id="soundBtn2">🔊 Son</button>
+        <button type="button" class="logout-link" onclick="askLogout()">🚪 Déconnexion</button>
       </div>
     </div>
     <div class="player" id="player"></div>

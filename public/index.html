@@ -131,7 +131,13 @@
   let exited = false;
   try {
     const exit = JSON.parse(sessionStorage.getItem('lc_exit') || 'null');
-    if (exit && Date.now() - exit.at < 10 * 60 * 1000) {
+    if (exit && exit.kind === 'logout' && Date.now() - exit.at < 60 * 1000) {
+      sessionStorage.removeItem('lc_exit');
+      const card = document.getElementById('exitCard');
+      card.append(LC.el('div', { class: 'sanction-ico' }, '👋'), LC.el('h3', {}, 'Tu es bien déconnecté'), LC.el('p', {}, 'À bientôt sur le chat !'));
+      card.classList.remove('hidden');
+      exited = true;
+    } else if (exit && Date.now() - exit.at < 10 * 60 * 1000) {
       sessionStorage.removeItem('lc_exit');
       const card = document.getElementById('exitCard');
       card.append(
