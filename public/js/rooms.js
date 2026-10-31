@@ -1,4 +1,4 @@
-// GajoxGaming — salons créés par les membres : création, gestion, invitations, exclusions
+// The Paradis — salons créés par les membres : création, gestion, invitations, exclusions
 const ROOM_ICONS = ['🏠', '🎮', '🎧', '🔥', '💜', '🌙', '🍕', '⚽', '🎬', '🎤', '🕹️', '👾', '🏆', '💬', '🌴', '🍻'];
 
 function iconPicker(current) {
@@ -16,7 +16,7 @@ $('createRoomBtn').onclick = openCreateRoom;
 
 function openCreateRoom() {
   const icon = iconPicker('🎮');
-  const name = el('input', { class: 'input', maxlength: 30, placeholder: 'Ex : La team Gajox' });
+  const name = el('input', { class: 'input', maxlength: 30, placeholder: 'Ex : La team Paradis' });
   const desc = el('input', { class: 'input', maxlength: 120, placeholder: 'De quoi on parle ici ?' });
   const priv = el('input', { type: 'checkbox' });
   const err = el('div', { class: 'error' });
@@ -51,6 +51,41 @@ async function openRoomSettings(room) {
     el('option', { value: '' }, '— Pas de radio —'),
     ...Media.stations.map(s => el('option', { value: s.id, selected: room.station?.id === s.id }, `${s.icon} ${s.name}${s.genre ? ' · ' + s.genre : ''}`)));
   const err = el('div', { class: 'error' });
+
+  // Fond d'écran du salon
+  const bgPreview = el('div', { class: 'bg-preview' });
+  const drawBg = () => {
+    bgPreview.style.backgroundImage = room.background ? `url("${room.background}")` : '';
+    bgPreview.replaceChildren(room.background ? '' : el('span', {}, 'Aucun fond d\'écran'));
+  };
+  drawBg();
+  const bgFile = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' });
+  const bgStatus = el('small', { class: 'help' });
+  bgFile.onchange = async () => {
+    if (!bgFile.files[0]) return;
+    bgStatus.textContent = '⏳ Envoi…';
+    try {
+      const data = await readImage(bgFile.files[0], 1600, 1000);
+      const { room: updated } = await api(`/api/rooms/${room.id}/background`, { method: 'POST', body: { data } });
+      room.background = updated.background;
+      if (state.currentRoom?.id === room.id) state.currentRoom.background = updated.background;
+      drawBg(); renderRoomHead(); bgStatus.textContent = '✅ Fond d\'écran appliqué';
+    } catch (e) { bgStatus.textContent = '❌ ' + e.message; }
+    bgFile.value = '';
+  };
+  const bgField = field('🖼️ Fond d\'écran du salon (visible par tous dans ce salon)', el('div', {},
+    bgPreview,
+    el('div', { class: 'row', style: 'gap:8px;margin-top:8px' },
+      el('button', { type: 'button', class: 'btn btn-sm btn-primary', style: 'flex:none', onclick: () => bgFile.click() }, '🖼️ Choisir une image'),
+      room.background !== undefined ? el('button', { type: 'button', class: 'btn btn-sm', style: 'flex:none', onclick: async () => {
+        try {
+          await api(`/api/rooms/${room.id}/background`, { method: 'DELETE' });
+          room.background = '';
+          if (state.currentRoom?.id === room.id) state.currentRoom.background = '';
+          drawBg(); renderRoomHead(); bgStatus.textContent = 'Fond d\'écran retiré';
+        } catch (e) { toast(e.message); }
+      } }, 'Retirer') : null),
+    bgFile, bgStatus));
 
   const inviteInput = el('input', { class: 'input', maxlength: 20, placeholder: 'Pseudo à inviter' });
   const memberList = el('div', { class: 'people-list' });
@@ -87,6 +122,7 @@ async function openRoomSettings(room) {
     room.ownerId ? field('Icône', icon.box) : null,
     room.ownerId ? field('Nom', name) : null,
     room.ownerId ? field('Description', desc) : null,
+    bgField,
     field('📻 Radio du salon (tout le monde peut l\'écouter)', radio),
     toggleRow('🔒 Salon fermé', 'Seules les personnes invitées peuvent entrer. Les autres sont sortis immédiatement.', priv),
     toggleRow('🎙️ Chat vocal', 'Autoriser le vocal dans ce salon', voiceOn),

@@ -1,4 +1,4 @@
-// GajoxGaming — chat vocal dans les salons (WebRTC, connexions directes entre participants)
+// The Paradis — chat vocal dans les salons (WebRTC, connexions directes entre participants)
 const Voice = {
   slug: null,          // salon dont on est dans le vocal
   stream: null,        // notre micro
@@ -9,6 +9,8 @@ const Voice = {
   meters: new Map(),   // clé -> analyseur de volume (pour l'effet "parle")
   ctx: null,
   joining: false,
+  cam: null,           // piste vidéo de notre caméra (null = caméra coupée)
+  facing: 'user',      // caméra avant / arrière (téléphone)
 
   async join() {
     if (this.joining || state.view?.type !== 'room') return;
@@ -40,6 +42,7 @@ const Voice = {
 
   leave(notify = true) {
     if (notify && this.slug) socket.emit('voice_leave');
+    if (this.cam) { this.cam.stop(); this.cam = null; }
     for (const id of [...this.peers.keys()]) this.closePeer(id);
     this.stopLocal();
     this.slug = null;
@@ -58,14 +61,22 @@ const Voice = {
     const audio = new Audio();
     audio.autoplay = true;
     audio.muted = this.deaf;
-    const p = { pc, audio, chain: Promise.resolve(), pending: [] };
+    const p = { pc, audio, chain: Promise.resolve(), pending: [], videoSender: null, videoStream: null };
     this.peers.set(id, p);
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
+    // Un canal vidéo est toujours prévu : allumer la caméra n'a pas besoin de renégocier
+    if (initiator) p.videoSender = pc.addTransceiver(this.cam || 'video', { direction: 'sendrecv' }).sender;
     pc.onicecandidate = e => { if (e.candidate) socket.emit('voice_signal', { to: id, data: { candidate: e.candidate } }); };
     pc.ontrack = e => {
-      audio.srcObject = e.streams[0];
+      if (e.track.kind === 'video') {
+        p.videoStream = new MediaStream([e.track]);
+        renderVideoGrid();
+        return;
+      }
+      const stream = e.streams[0] || new MediaStream([e.track]);
+      audio.srcObject = stream;
       audio.play().catch(() => {});
-      this.meter(id, e.streams[0]);
+      this.meter(id, stream);
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'failed') toast('⚠️ Connexion vocale impossible avec un participant (réseau trop restrictif)');
@@ -97,6 +108,8 @@ const Voice = {
         for (const c of p.pending) await p.pc.addIceCandidate(c).catch(() => {});
         p.pending = [];
         if (data.sdp.type === 'offer') {
+          const t = p.pc.getTransceivers().find(x => x.receiver.track && x.receiver.track.kind === 'video');
+          if (t) { t.direction = 'sendrecv'; p.videoSender = t.sender; if (this.cam) await t.sender.replaceTrack(this.cam).catch(() => {}); }
           await p.pc.setLocalDescription(await p.pc.createAnswer());
           socket.emit('voice_signal', { to: from, data: { sdp: p.pc.localDescription } });
         }
@@ -112,6 +125,36 @@ const Voice = {
     if (this.stream) this.stream.getAudioTracks().forEach(t => { t.enabled = !this.muted; });
     socket.emit('voice_mute', this.muted);
     renderVoice();
+  },
+
+  async toggleCam() {
+    if (this.cam) {
+      this.cam.stop();
+      this.cam = null;
+      this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(null).catch(() => {}));
+      socket.emit('voice_video', false);
+      renderVoice(); renderVideoGrid();
+      return;
+    }
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 } } });
+      this.cam = st.getVideoTracks()[0];
+    } catch (e) { return toast('📷 Accès à la caméra refusé ou aucune caméra trouvée'); }
+    this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(this.cam).catch(() => {}));
+    socket.emit('voice_video', true);
+    renderVoice(); renderVideoGrid();
+  },
+  async switchCam() {
+    if (!this.cam) return;
+    this.facing = this.facing === 'user' ? 'environment' : 'user';
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 } } });
+      const old = this.cam;
+      this.cam = st.getVideoTracks()[0];
+      this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(this.cam).catch(() => {}));
+      old.stop();
+      renderVideoGrid();
+    } catch (e) { toast('📷 Impossible de changer de caméra'); }
   },
 
   toggleDeaf() {
@@ -178,12 +221,14 @@ function renderVoice() {
       const mine = p.socketId === socket.id;
       return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
         LC.avatar(p),
-        el('span', {}, p.username), p.muted ? el('span', {}, '🔇') : null,
+        el('span', { class: 'vname' }, p.username), p.video ? el('span', {}, '📷') : null, p.muted ? el('span', {}, '🔇') : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     })),
     inThis ? el('div', { class: 'voice-ctrl' },
-      el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: 'Micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇 Micro coupé' : '🎤 Micro'),
-      el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈 Son coupé' : '🎧 Son'),
+      el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: Voice.muted ? 'Rallumer le micro' : 'Couper le micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇' : '🎤', el('span', { class: 'lbl' }, Voice.muted ? ' Micro coupé' : ' Micro')),
+      el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
+      Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
+      el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'))
       : el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
 }
@@ -197,6 +242,7 @@ socket.on('voice_state', ({ slug, participants }) => {
     for (const id of [...Voice.peers.keys()]) if (!ids.has(id)) Voice.closePeer(id);
   }
   renderVoice();
+  renderVideoGrid();
   renderRooms();
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
@@ -206,3 +252,35 @@ socket.on('voice_kicked', ({ reason }) => {
   if (reason !== 'Tu as été retiré du vocal') toast('🎙️ ' + reason); // le retrait par le propriétaire arrive en notification
 });
 window.addEventListener('beforeunload', () => Voice.leave());
+
+// ----- Mosaïque vidéo du salon -----
+const videoEls = new Map(); // clé -> élément <div class="vtile">
+function renderVideoGrid() {
+  const grid = $('videoGrid');
+  const r = state.currentRoom;
+  const inThis = r && state.view?.type === 'room' && Voice.slug === r.slug;
+  const parts = inThis ? (state.voice.get(r.slug) || []).filter(p => p.video) : [];
+  const tiles = [];
+  for (const p of parts) {
+    const mine = p.socketId === socket.id;
+    const stream = mine ? (Voice.cam ? new MediaStream([Voice.cam]) : null) : Voice.peers.get(p.socketId)?.videoStream;
+    if (!stream) continue;
+    const key = mine ? 'me' : p.socketId;
+    let tile = videoEls.get(key);
+    if (!tile) {
+      const v = el('video', { autoplay: true, playsinline: true, muted: true });
+      v.muted = true;
+      tile = el('div', { class: 'vtile' + (mine ? ' mine' : ''), onclick: () => tile.classList.toggle('big') }, v, el('span', { class: 'vtile-name' }));
+      videoEls.set(key, tile);
+    }
+    const v = tile.querySelector('video');
+    const track = stream.getVideoTracks()[0];
+    if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== track) { v.srcObject = stream; v.play().catch(() => {}); }
+    tile.querySelector('.vtile-name').textContent = mine ? 'Toi' : p.username;
+    tiles.push([key, tile]);
+  }
+  for (const k of [...videoEls.keys()]) if (!tiles.some(([key]) => key === k)) videoEls.delete(k);
+  grid.replaceChildren(...tiles.map(([, t]) => t));
+  grid.classList.toggle('hidden', !tiles.length);
+  grid.dataset.count = Math.min(tiles.length, 4);
+}

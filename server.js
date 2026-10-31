@@ -1,4 +1,4 @@
-// GajoxGaming — serveur principal (Express + Socket.io)
+// The Paradis — serveur principal (Express + Socket.io)
 const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
@@ -13,7 +13,8 @@ fs.mkdirSync(uploadDir, { recursive: true });
 
 const PORT = process.env.PORT || 3000;
 const COOKIE = 'lc_session';
-const ROLES = ['user', 'moderator', 'admin'];
+const ROLES = ['user', 'moderator', 'admin', 'superadmin'];
+const rank = u => ROLES.indexOf(u?.role);
 const GENDERS = ['h', 'f', 'x'];
 const COLORS = ['#8b6cff', '#ff5fa2', '#ffb547', '#33d6a6', '#4fb3ff', '#ff7a59', '#c86bff', '#f2e94e'];
 
@@ -24,9 +25,19 @@ const io = new Server(server);
 // Les images de profil ont droit à une taille plus grande que le reste
 const bigJson = express.json({ limit: '3mb' });
 const smallJson = express.json({ limit: '50kb' });
-app.use((req, res, next) => (req.path.startsWith('/api/me/image/') ? bigJson : smallJson)(req, res, next));
+const isUpload = p => p.startsWith('/api/me/image/') || /^\/api\/rooms\/\d+\/background$/.test(p);
+app.use((req, res, next) => (isUpload(req.path) ? bigJson : smallJson)(req, res, next));
 app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
+app.set('trust proxy', true); // vraie adresse IP derrière l'hébergeur (Render…)
 app.use(cookieParser());
+// Identifiant d'appareil (sert à limiter le nombre de comptes par personne)
+app.use((req, res, next) => {
+  if (!/^[a-f0-9]{32}$/.test(req.cookies.lc_dev || '')) {
+    req.cookies.lc_dev = crypto.randomBytes(16).toString('hex');
+    res.cookie('lc_dev', req.cookies.lc_dev, { httpOnly: true, sameSite: 'lax', maxAge: 2 * 365 * 24 * 3600 * 1000 });
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ---------- Utilitaires ----------
@@ -59,7 +70,8 @@ function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0 };
 }
 function adminUser(u) {
-  return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen };
+  const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
+  return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
 const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none' });
@@ -125,9 +137,12 @@ function auth(req, res, next) {
   req.user = u;
   next();
 }
+// requireRole('admin') laisse aussi passer les rôles au-dessus (super-admin)
 const requireRole = (...roles) => (req, res, next) =>
-  roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'Accès refusé' });
-const isStaff = u => u && (u.role === 'admin' || u.role === 'moderator');
+  rank(req.user) >= Math.min(...roles.map(r => ROLES.indexOf(r))) ? next() : res.status(403).json({ error: 'Accès refusé' });
+const isStaff = u => !!u && rank(u) >= 1;
+const isAdminRole = u => !!u && rank(u) >= 2;
+const isSuper = u => !!u && u.role === 'superadmin';
 
 // ---------- Authentification ----------
 function validateProfile({ gender, age }) {
@@ -152,14 +167,19 @@ app.post('/api/register', (req, res) => {
   if (existing && (existing.banned || !(existing.is_guest && !online.has(existing.id)))) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
   if (existing) deleteUserRecord(existing);
 
+  const maxAccounts = parseInt(getSettings().maxAccounts, 10) || 0;
+  if (maxAccounts > 0) {
+    const already = db.prepare("SELECT COUNT(*) c FROM users WHERE is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(req.cookies.lc_dev, req.ip).c;
+    if (already >= maxAccounts) return res.status(403).json({ error: `Tu as déjà ${already} compte(s) sur ${getSettings().siteName} : ${maxAccounts} maximum par personne. Connecte-toi avec un de tes comptes.` });
+  }
   const isFirst = db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c === 0;
-  const role = isFirst || (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === username.toLowerCase()) ? 'admin' : 'user';
-  const info = db.prepare(`INSERT INTO users (username,password_hash,gender,age,city,color,role,created_at,last_seen)
-    VALUES (?,?,?,?,?,?,?,?,?)`).run(
+  const role = isFirst || (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === username.toLowerCase()) ? 'superadmin' : 'user';
+  const info = db.prepare(`INSERT INTO users (username,password_hash,gender,age,city,color,role,created_at,last_seen,device_id,signup_ip)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
-    clean(req.body.city, 40), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), now());
+    clean(req.body.city, 40), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), now(), req.cookies.lc_dev, req.ip || '');
   createSession(res, info.lastInsertRowid);
-  if (role === 'admin') log(null, 'admin_auto', `${username} est devenu administrateur`);
+  if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
 
@@ -252,20 +272,25 @@ const IMAGE_TYPES = [
   { ext: 'gif', test: b => b.slice(0, 4).toString('ascii') === 'GIF8' },
   { ext: 'webp', test: b => b.slice(0, 4).toString('ascii') === 'RIFF' && b.slice(8, 12).toString('ascii') === 'WEBP' },
 ];
+function saveImage(dataUrl, prefix) {
+  const m = /^data:image\/[a-z+]+;base64,(.+)$/i.exec(String(dataUrl || ''));
+  if (!m) return { error: 'Image invalide' };
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length > 2 * 1024 * 1024) return { error: 'Image trop lourde (2 Mo maximum)' };
+  const type = IMAGE_TYPES.find(t => t.test(buf));
+  if (!type) return { error: 'Format accepté : JPG, PNG, GIF ou WEBP' };
+  const name = `${prefix}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  return { url: '/uploads/' + name };
+}
 app.post('/api/me/image/:kind', auth, (req, res) => {
   const kind = req.params.kind;
   if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
   if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
-  const m = /^data:image\/[a-z+]+;base64,(.+)$/i.exec(String(req.body.data || ''));
-  if (!m) return res.status(400).json({ error: 'Image invalide' });
-  const buf = Buffer.from(m[1], 'base64');
-  if (buf.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Image trop lourde (2 Mo maximum)' });
-  const type = IMAGE_TYPES.find(t => t.test(buf));
-  if (!type) return res.status(400).json({ error: 'Format accepté : JPG, PNG, GIF ou WEBP' });
-  const name = `${kind}-${req.user.id}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
-  fs.writeFileSync(path.join(uploadDir, name), buf);
+  const saved = saveImage(req.body.data, `${kind}-${req.user.id}`);
+  if (saved.error) return res.status(400).json({ error: saved.error });
   removeUpload(req.user[kind]);
-  db.prepare(`UPDATE users SET ${kind}=? WHERE id=?`).run('/uploads/' + name, req.user.id);
+  db.prepare(`UPDATE users SET ${kind}=? WHERE id=?`).run(saved.url, req.user.id);
   const updated = getUser(req.user.id);
   refreshOnline(updated);
   res.json({ user: selfUser(updated) });
@@ -290,6 +315,17 @@ app.put('/api/me/password', auth, (req, res) => {
 });
 
 // ---------- Données publiques ----------
+// Contenu du site (nom, textes, couleurs, histoire, règlement) — modifiable par le super-admin
+const SITE_KEYS = ['siteName', 'siteDomain', 'heroTitle', 'heroText', 'footerText', 'colorViolet', 'colorRose', 'colorGold', 'historyContent', 'rulesContent'];
+function siteInfo() {
+  const s = getSettings();
+  const out = {};
+  for (const k of SITE_KEYS) out[k] = s[k] || '';
+  out.maxAccounts = parseInt(s.maxAccounts, 10) || 0;
+  return out;
+}
+app.get('/api/site', (req, res) => res.json({ site: siteInfo() }));
+
 app.get('/api/stats', (req, res) => {
   res.json({
     online: online.size,
@@ -315,7 +351,7 @@ function roomOut(r) {
     id: r.id, slug: r.slug, name: r.name, description: r.description, icon: r.icon, membersOnly: !!r.members_only, sort: r.sort,
     ownerId: r.owner_id || null, ownerName: owner ? owner.username : null, isPrivate: !!r.is_private,
     voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
-    count: roomCount(r.slug), voice: voiceList(r.slug).length,
+    count: roomCount(r.slug), voice: voiceList(r.slug).length, background: r.background || '',
   };
 }
 // Peut-on entrer dans ce salon ?
@@ -331,7 +367,7 @@ function roomAccess(user, room) {
 function canManageRoom(user, room) {
   if (!room || !user) return false;
   if (room.owner_id) return room.owner_id === user.id || isStaff(user);
-  return user.role === 'admin';
+  return isAdminRole(user);
 }
 function slugify(s) {
   return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
@@ -445,7 +481,7 @@ app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
   if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
   const target = getUser(req.params.userId);
   if (!target || target.id === req.user.id || target.id === room.owner_id) return res.status(400).json({ error: 'Impossible d\'exclure cette personne' });
-  if (isStaff(target) && req.user.role !== 'admin') return res.status(403).json({ error: 'Impossible d\'exclure un membre de l\'équipe' });
+  if (rank(target) >= rank(req.user) && !isSuper(req.user)) return res.status(403).json({ error: 'Impossible d\'exclure un membre de l\'équipe' });
   db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
   db.prepare('INSERT OR IGNORE INTO room_bans (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
   const reason = clean(req.body.reason, 200);
@@ -463,7 +499,29 @@ app.delete('/api/rooms/:id/bans/:userId', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Fond d'écran d'un salon (propriétaire ou équipe)
+app.post('/api/rooms/:id/background', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
+  const saved = saveImage(req.body.data, `room-${room.id}`);
+  if (saved.error) return res.status(400).json({ error: saved.error });
+  removeUpload(room.background);
+  db.prepare('UPDATE rooms SET background=? WHERE id=?').run(saved.url, room.id);
+  roomsChanged();
+  res.json({ room: roomOut(getRoom(room.id)) });
+});
+app.delete('/api/rooms/:id/background', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  removeUpload(room.background);
+  db.prepare("UPDATE rooms SET background='' WHERE id=?").run(room.id);
+  roomsChanged();
+  res.json({ room: roomOut(getRoom(room.id)) });
+});
+
 function deleteRoom(room, actor) {
+  removeUpload(room.background);
   for (const p of voiceList(room.slug)) leaveVoiceBySocket(p.socketId, 'Le salon a été supprimé');
   db.prepare('DELETE FROM rooms WHERE id=?').run(room.id);
   for (const e of online.values()) if (e.room === room.slug) e.room = null;
@@ -475,9 +533,86 @@ function deleteRoom(room, actor) {
 }
 
 // ---------- Radios & vocal ----------
+// Les radios en panne sont masquées pour les utilisateurs
 app.get('/api/stations', auth, (req, res) => {
-  res.json({ stations: db.prepare('SELECT * FROM stations ORDER BY sort, id').all().map(stationOut) });
+  res.json({ stations: db.prepare("SELECT * FROM stations WHERE status<>'broken' ORDER BY sort, id").all().map(stationOut) });
 });
+
+// ---------- Vérification automatique des radios ----------
+// Teste un flux : il doit répondre et envoyer de l'audio lisible par un navigateur
+async function testStream(url) {
+  if (!/^https:\/\//i.test(url)) return { ok: false, note: 'Lien non sécurisé (http) : bloqué par les navigateurs sur un site en https' };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 9000);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (radio-check)', 'Icy-MetaData': '0' } });
+    const type = (r.headers.get('content-type') || '').toLowerCase();
+    if (!r.ok) return { ok: false, note: `Le serveur répond ${r.status}` };
+    if (/mpegurl|m3u|pls|text\/html/.test(type)) return { ok: false, note: `Format non lisible directement (${type || 'inconnu'})` };
+    const reader = r.body.getReader();
+    let got = 0;
+    while (got < 4096) { const { value, done } = await reader.read(); if (done) break; got += value.length; }
+    ctrl.abort();
+    if (got < 1024) return { ok: false, note: 'Aucun son reçu' };
+    return { ok: true, note: type || 'audio' };
+  } catch (e) {
+    return { ok: false, note: e.name === 'AbortError' ? 'Pas de réponse (délai dépassé)' : 'Injoignable : ' + (e.cause?.code || e.message) };
+  } finally { clearTimeout(timer); }
+}
+// Cherche un lien de remplacement sur l'annuaire libre radio-browser.info
+async function findReplacement(name) {
+  const norm = x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const target = norm(name);
+  for (const host of ['de1.api.radio-browser.info', 'nl1.api.radio-browser.info', 'at1.api.radio-browser.info']) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(`https://${host}/json/stations/search?name=${encodeURIComponent(name)}&countrycode=FR&hidebroken=true&order=clickcount&reverse=true&limit=15`,
+        { signal: ctrl.signal, headers: { 'User-Agent': 'ParadisChat/1.0' } });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const list = await r.json();
+      const candidates = list.filter(x => norm(x.name).startsWith(target) || norm(x.name) === target)
+        .map(x => x.url_resolved || x.url).filter(u => /^https:\/\//i.test(u));
+      for (const url of [...new Set(candidates)].slice(0, 6)) {
+        const t2 = await testStream(url);
+        if (t2.ok) return url;
+      }
+      return null;
+    } catch (e) { /* on essaie le serveur suivant */ }
+  }
+  return null;
+}
+let checking = false;
+async function checkStations({ repair = true, actor = null, ids = null } = {}) {
+  if (checking) return { busy: true };
+  checking = true;
+  const report = { ok: 0, repaired: [], broken: [] };
+  try {
+    const list = db.prepare('SELECT * FROM stations ORDER BY sort, id').all().filter(st => !ids || ids.includes(st.id));
+    for (const st of list) {
+      let res = await testStream(st.url);
+      let url = st.url;
+      if (!res.ok && repair) {
+        const alt = await findReplacement(st.name);
+        if (alt && alt !== st.url) { url = alt; res = { ok: true, note: 'Lien réparé automatiquement' }; report.repaired.push(st.name); }
+      }
+      if (res.ok && url === st.url) report.ok++;
+      if (!res.ok) report.broken.push(st.name);
+      db.prepare('UPDATE stations SET url=?, status=?, checked_at=?, check_note=? WHERE id=?').run(url, res.ok ? 'ok' : 'broken', now(), res.note, st.id);
+    }
+    db.prepare("UPDATE rooms SET station_id=NULL WHERE station_id IN (SELECT id FROM stations WHERE status='broken')").run();
+    log(actor, 'stations_check', `${report.ok} OK, ${report.repaired.length} réparée(s), ${report.broken.length} en panne (masquée(s))`);
+    io.emit('stations_changed');
+    roomsChanged();
+  } finally { checking = false; }
+  return report;
+}
+// Vérification au démarrage puis toutes les 6 heures (désactivable avec RADIO_CHECK=0)
+if (process.env.RADIO_CHECK !== '0') {
+  setTimeout(() => checkStations().catch(() => {}), 15000).unref();
+  setInterval(() => checkStations().catch(() => {}), 6 * 3600 * 1000).unref();
+}
 app.get('/api/ice', auth, (req, res) => {
   const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
   if (process.env.TURN_URL) iceServers.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER, credential: process.env.TURN_PASS });
@@ -583,7 +718,7 @@ admin.get('/users', (req, res) => {
   let where = 'username LIKE ?';
   if (filter === 'online') where += ` AND id IN (${[...online.keys()].join(',') || 0})`;
   if (filter === 'banned') where += ' AND banned=1';
-  if (filter === 'staff') where += " AND role IN ('admin','moderator')";
+  if (filter === 'staff') where += " AND role IN ('superadmin','admin','moderator')";
   if (filter === 'guests') where += ' AND is_guest=1';
   if (filter === 'members') where += ' AND is_guest=0';
   const total = db.prepare(`SELECT COUNT(*) c FROM users WHERE ${where}`).get(q).c;
@@ -591,25 +726,26 @@ admin.get('/users', (req, res) => {
   res.json({ total, page, users: users.map(u => ({ ...adminUser(u), online: online.has(u.id) })) });
 });
 
+// On ne peut agir que sur quelqu'un de rang inférieur (le super-admin peut agir sur tout le monde sauf lui-même)
 function canModerate(actor, target) {
-  if (!target) return false;
-  if (actor.id === target.id) return false;
-  if (actor.role === 'admin') return true;
-  return target.role === 'user';
+  if (!target || actor.id === target.id) return false;
+  if (isSuper(actor)) return true;
+  return rank(actor) > rank(target);
 }
 
 admin.patch('/users/:id', (req, res) => {
   const target = getUser(req.params.id);
   if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée sur cet utilisateur' });
   if (req.body.role !== undefined) {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Seul un admin peut changer les rôles' });
+    if (!isAdminRole(req.user)) return res.status(403).json({ error: 'Seul un admin peut changer les rôles' });
     if (!ROLES.includes(req.body.role)) return res.status(400).json({ error: 'Rôle invalide' });
+    if (!isSuper(req.user) && ROLES.indexOf(req.body.role) >= rank(req.user)) return res.status(403).json({ error: 'Seul le super-admin peut nommer des administrateurs' });
     if (target.is_guest && req.body.role !== 'user') return res.status(400).json({ error: 'Un invité ne peut pas être promu' });
     db.prepare('UPDATE users SET role=? WHERE id=?').run(req.body.role, target.id);
     log(req.user, 'role', `${target.username} → ${req.body.role}`);
     if (req.body.role !== target.role) {
       const up = ROLES.indexOf(req.body.role) > ROLES.indexOf(target.role);
-      const label = { admin: 'administrateur', moderator: 'modérateur', user: 'membre' }[req.body.role];
+      const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: 'modérateur', user: 'membre' }[req.body.role];
       notify(target.id, up
         ? { type: 'role', icon: '🎖️', title: `Tu es maintenant ${label} !`, text: 'Merci de t\'impliquer dans la communauté. Le panneau 🛡️ Admin est accessible en haut du chat.' }
         : { type: 'role', icon: '🎖️', title: `Ton rôle a changé : ${label}`, text: 'Ton rôle dans l\'équipe a été modifié par un administrateur.' });
@@ -644,7 +780,10 @@ admin.post('/users/:id/mute', (req, res) => {
   if (minutes) {
     notify(target.id, { type: 'mute', icon: '🔇', title: `Tu es rendu muet pendant ${fmtDuration(minutes)}`, text: `Tu ne peux plus écrire ni parler en vocal jusqu'à la fin de la sanction. ${reasonText(reason)}`, data: { until }, important: true });
     const e = online.get(target.id);
-    if (e) for (const sid of e.sockets) leaveVoiceBySocket(sid, null);
+    if (e) for (const sid of e.sockets) {
+      leaveVoiceBySocket(sid, null);
+      if (callOfSocket.has(sid)) endCall(callOfSocket.get(sid), { by: sid, reason: 'Appel interrompu' });
+    }
   } else if (target.muted_until > now()) {
     notify(target.id, { type: 'unmute', icon: '🔊', title: 'Tu peux de nouveau parler', text: 'La modération t\'a rendu la parole.', data: { until: 0 } });
   }
@@ -808,7 +947,13 @@ function stationInput(b) {
 }
 const validStream = st => st.name && /^https?:\/\//i.test(st.url);
 admin.get('/stations', requireRole('admin'), (req, res) => {
-  res.json({ stations: db.prepare('SELECT * FROM stations ORDER BY sort, id').all() });
+  res.json({ stations: db.prepare('SELECT * FROM stations ORDER BY sort, id').all(), checking });
+});
+admin.post('/stations/check', requireRole('admin'), async (req, res) => {
+  const ids = Array.isArray(req.body.ids) ? req.body.ids.map(Number) : null;
+  const report = await checkStations({ repair: req.body.repair !== false, actor: req.user, ids });
+  if (report.busy) return res.status(409).json({ error: 'Une vérification est déjà en cours, patiente un peu' });
+  res.json({ report });
 });
 admin.post('/stations', requireRole('admin'), (req, res) => {
   const st = stationInput(req.body);
@@ -823,7 +968,7 @@ admin.patch('/stations/:id', requireRole('admin'), (req, res) => {
   if (!cur) return res.status(404).json({ error: 'Radio introuvable' });
   const st = stationInput({ ...cur, ...req.body });
   if (!validStream(st)) return res.status(400).json({ error: 'Nom et lien du flux (http/https) obligatoires' });
-  db.prepare('UPDATE stations SET name=?,url=?,genre=?,icon=?,sort=? WHERE id=?').run(st.name, st.url, st.genre, st.icon, st.sort, cur.id);
+  db.prepare("UPDATE stations SET name=?,url=?,genre=?,icon=?,sort=?, status=CASE WHEN url=? THEN status ELSE 'unknown' END WHERE id=?").run(st.name, st.url, st.genre, st.icon, st.sort, st.url, cur.id);
   log(req.user, 'station_edit', st.name);
   io.emit('stations_changed');
   res.json({ ok: true });
@@ -847,6 +992,22 @@ admin.post('/broadcast', (req, res) => {
   res.json({ ok: true });
 });
 
+admin.put('/site', requireRole('superadmin'), (req, res) => {
+  const b = req.body;
+  const limits = { siteName: 40, siteDomain: 60, heroTitle: 120, heroText: 400, footerText: 120, historyContent: 20000, rulesContent: 20000 };
+  for (const [k, max] of Object.entries(limits)) {
+    if (b[k] === undefined) continue;
+    const v = k.endsWith('Content') || k === 'heroText' ? cleanMultiline(b[k], max) : clean(b[k], max);
+    if (k === 'siteName' && v.length < 2) return res.status(400).json({ error: 'Nom du site trop court' });
+    setSetting(k, v);
+  }
+  for (const k of ['colorViolet', 'colorRose', 'colorGold']) if (/^#[0-9a-f]{6}$/i.test(b[k] || '')) setSetting(k, b[k]);
+  if (b.maxAccounts !== undefined) setSetting('maxAccounts', Math.min(20, Math.max(0, parseInt(b.maxAccounts, 10) || 0)));
+  log(req.user, 'site', 'Contenu du site modifié');
+  io.emit('site_changed', { site: siteInfo() });
+  res.json({ site: siteInfo() });
+});
+
 admin.get('/logs', (req, res) => {
   res.json({ logs: db.prepare('SELECT * FROM logs ORDER BY id DESC LIMIT 200').all() });
 });
@@ -856,6 +1017,7 @@ app.use('/api/admin', admin);
 // Pages
 app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'page.html')));
 
 // ---------- Temps réel ----------
 // online : userId -> { user, sockets:Set, room }
@@ -946,6 +1108,27 @@ function leaveVoiceBySocket(socketId, reason) {
   for (const p of voiceList(slug)) io.to(p.socketId).emit('voice_peer_left', { socketId });
   if (reason) io.to(socketId).emit('voice_kicked', { reason });
   emitVoiceState(slug);
+}
+
+// ---------- Appels audio / vidéo en tête-à-tête ----------
+// calls : callId -> { callerId, callerSocket, calleeId, calleeSocket, video, timer, accepted }
+const calls = new Map();
+const callOfSocket = new Map(); // socketId -> callId
+const userInCall = id => [...calls.values()].some(c => c.callerId === id || c.calleeId === id);
+function endCall(callId, { by = null, reason = 'Appel terminé', missed = false } = {}) {
+  const c = calls.get(callId);
+  if (!c) return;
+  calls.delete(callId);
+  clearTimeout(c.timer);
+  callOfSocket.delete(c.callerSocket);
+  if (c.calleeSocket) callOfSocket.delete(c.calleeSocket);
+  if (by !== c.callerSocket) io.to(c.callerSocket).emit('call_ended', { callId, reason });
+  if (c.calleeSocket) { if (by !== c.calleeSocket) io.to(c.calleeSocket).emit('call_ended', { callId, reason }); }
+  else emitToUser(c.calleeId, 'call_cancelled', { callId });
+  if (missed) {
+    const caller = getUser(c.callerId);
+    if (caller) notify(c.calleeId, { type: 'call_missed', icon: '📵', title: `Appel ${c.video ? 'vidéo ' : ''}manqué de ${caller.username}`, text: 'Clique sur son pseudo pour le rappeler.' });
+  }
 }
 
 io.use((socket, next) => {
@@ -1043,6 +1226,60 @@ io.on('connection', socket => {
 
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
 
+  // ----- Appels -----
+  socket.on('call_invite', ({ to, video } = {}, ack) => {
+    const u = current();
+    const target = getUser(parseInt(to, 10));
+    if (!target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
+    if (!online.has(target.id)) return ack && ack({ error: `${target.username} n'est pas connecté` });
+    if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
+    if (isBlocked(target.id, uid) || isBlocked(uid, target.id)) return ack && ack({ error: 'Appel impossible avec cette personne' });
+    if (callOfSocket.has(socket.id) || userInCall(uid)) return ack && ack({ error: 'Tu es déjà en appel' });
+    if (userInCall(target.id)) return ack && ack({ error: `${target.username} est déjà en appel` });
+    if (tooMany('call:' + uid, 20, 10 * 60 * 1000)) return ack && ack({ error: 'Trop d\'appels, patiente un peu' });
+    const callId = crypto.randomBytes(8).toString('hex');
+    const c = { callerId: uid, callerSocket: socket.id, calleeId: target.id, calleeSocket: null, video: !!video, accepted: false };
+    c.timer = setTimeout(() => endCall(callId, { reason: `${target.username} ne répond pas`, missed: true }), 35000);
+    calls.set(callId, c);
+    callOfSocket.set(socket.id, callId);
+    emitToUser(target.id, 'call_incoming', { callId, from: publicUser(u), video: !!video });
+    ack && ack({ callId, to: publicUser(target) });
+  });
+  socket.on('call_accept', callId => {
+    const c = calls.get(String(callId));
+    if (!c || c.accepted || c.calleeId !== uid) return;
+    if (callOfSocket.has(socket.id)) return;
+    c.accepted = true;
+    c.calleeSocket = socket.id;
+    clearTimeout(c.timer);
+    callOfSocket.set(socket.id, String(callId));
+    const e = online.get(uid);
+    if (e) for (const sid of e.sockets) if (sid !== socket.id) io.to(sid).emit('call_cancelled', { callId });
+    io.to(c.callerSocket).emit('call_accepted', { callId });
+  });
+  socket.on('call_decline', callId => {
+    const c = calls.get(String(callId));
+    if (!c || c.accepted || c.calleeId !== uid) return;
+    endCall(String(callId), { reason: `${current().username} a refusé l'appel` });
+  });
+  socket.on('call_end', callId => {
+    const c = calls.get(String(callId));
+    if (!c || (c.callerSocket !== socket.id && c.calleeSocket !== socket.id)) return;
+    endCall(String(callId), { by: socket.id, reason: 'Appel terminé', missed: !c.accepted });
+  });
+  socket.on('call_signal', ({ callId, data } = {}) => {
+    const c = calls.get(String(callId));
+    if (!c || !c.accepted || !data) return;
+    const other = socket.id === c.callerSocket ? c.calleeSocket : socket.id === c.calleeSocket ? c.callerSocket : null;
+    if (other) io.to(other).emit('call_signal', { callId, data });
+  });
+  socket.on('call_media', ({ callId, video, muted } = {}) => {
+    const c = calls.get(String(callId));
+    if (!c || !c.accepted) return;
+    const other = socket.id === c.callerSocket ? c.calleeSocket : c.callerSocket;
+    io.to(other).emit('call_media', { callId, video: !!video, muted: !!muted });
+  });
+
   // ----- Vocal -----
   const myVoiceRoom = () => { for (const r of socket.rooms) if (r.startsWith('room:')) return r.slice(5); return null; };
   socket.on('voice_join', (_, ack) => {
@@ -1060,12 +1297,19 @@ io.on('connection', socket => {
     if (voiceList(slug).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum)` });
     const peers = voiceList(slug);
     if (!voice.has(slug)) voice.set(slug, new Map());
-    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: false });
+    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: false, video: false });
     voiceOf.set(socket.id, slug);
     ack && ack({ peers });
     emitVoiceState(slug);
   });
   socket.on('voice_leave', () => leaveVoiceBySocket(socket.id, null));
+  socket.on('voice_video', on => {
+    const slug = voiceOf.get(socket.id);
+    const p = slug && voice.get(slug)?.get(socket.id);
+    if (!p) return;
+    p.video = !!on;
+    emitVoiceState(slug);
+  });
   socket.on('voice_signal', ({ to, data } = {}) => {
     const slug = voiceOf.get(socket.id);
     if (!slug || voiceOf.get(String(to)) !== slug || !data) return;
@@ -1092,6 +1336,8 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     leaveVoiceBySocket(socket.id, null);
+    const cid = callOfSocket.get(socket.id);
+    if (cid) endCall(cid, { by: socket.id, reason: 'Ton correspondant s\'est déconnecté' });
     entry.sockets.delete(socket.id);
     if (entry.sockets.size === 0) {
       online.delete(uid);
@@ -1115,4 +1361,4 @@ setInterval(() => {
   db.prepare('DELETE FROM notifications WHERE created_at<?').run(now() - 30 * 24 * 3600 * 1000);
 }, 3600 * 1000).unref();
 
-server.listen(PORT, () => console.log(`✨ GajoxGaming en ligne sur http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✨ The Paradis en ligne sur http://localhost:${PORT}`));

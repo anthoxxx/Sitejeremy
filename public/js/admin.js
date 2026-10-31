@@ -1,8 +1,9 @@
-// GajoxGaming — panneau d'administration
+// The Paradis — panneau d'administration
 const { el, api } = LC;
 const page = document.getElementById('page');
 let me = null;
-const isAdmin = () => me && me.role === 'admin';
+const isAdmin = () => LC.isAdminRole(me);
+const isSuper = () => me && me.role === 'superadmin';
 
 function toast(text) {
   const t = el('div', { class: 'toast', onclick: () => t.remove() }, text);
@@ -13,13 +14,13 @@ async function run(fn, okMsg) {
   try { const r = await fn(); if (okMsg) toast('✅ ' + okMsg); return r; } catch (e) { toast('❌ ' + e.message); throw e; }
 }
 const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle' }, sub)];
-const roleLabel = r => ({ admin: 'Admin', moderator: 'Modérateur', user: 'Membre' }[r] || r);
+const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, messages, rooms, radios, settings, logs };
+const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && name === 'site')) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -35,7 +36,7 @@ async function dashboard() {
   const max = Math.max(1, ...s.rooms.map(r => r.count));
   const text = el('input', { class: 'input', maxlength: 300, placeholder: 'Message à envoyer à tous les connectés…' });
   page.replaceChildren(
-    ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de GajoxGaming.`),
+    ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de The Paradis.`),
     el('div', { class: 'kpis' },
       kpi('🟢 En ligne', s.online), kpi('👤 Membres', s.members), kpi('🎭 Invités', s.guests),
       kpi('✨ Nouveaux (24 h)', s.newToday), kpi('💬 Messages (24 h)', s.messagesToday), kpi('💌 Privés (24 h)', s.pmToday),
@@ -84,17 +85,22 @@ async function users() {
 
   function userRow(u) {
     const self = u.id === me.id;
-    const canAct = !self && (isAdmin() || u.role === 'user');
+    const canAct = !self && (isSuper() || LC.rank(me) > LC.rank(u));
     const muted = u.mutedUntil && u.mutedUntil > Date.now();
     const status = u.banned ? el('span', { class: 'status-ban', title: u.banReason }, '⛔ Banni')
       : u.online ? el('span', { class: 'status-on' }, '🟢 En ligne') : el('span', { style: 'color:var(--muted)' }, 'Hors ligne');
-    const role = isAdmin() && !self && !u.isGuest
-      ? el('select', { class: 'input', style: 'padding:6px 8px;width:auto', onchange: async e => { await run(() => api('/api/admin/users/' + u.id, { method: 'PATCH', body: { role: e.target.value } }), 'Rôle modifié').catch(load); } },
-        ...['user', 'moderator', 'admin'].map(r => el('option', { value: r, selected: u.role === r }, roleLabel(r))))
+    // Le super-admin peut donner tous les rôles ; un admin seulement membre / modérateur
+    const assignable = isSuper() ? LC.ROLES : LC.ROLES.filter(r => LC.ROLES.indexOf(r) < LC.rank(me));
+    const role = isAdmin() && canAct && !u.isGuest
+      ? el('select', { class: 'input', style: 'padding:6px 8px;width:auto', onchange: async e => {
+        if (e.target.value === 'superadmin' && !confirm(`Donner le rôle SUPER-ADMIN à ${u.username} ? Il pourra tout modifier sur le site, y compris toi.`)) { e.target.value = u.role; return; }
+        await run(() => api('/api/admin/users/' + u.id, { method: 'PATCH', body: { role: e.target.value } }), 'Rôle modifié (notifié)').catch(() => {}); load();
+      } }, ...assignable.map(r => el('option', { value: r, selected: u.role === r }, roleLabel(r))))
       : el('span', {}, u.isGuest ? 'Invité' : roleLabel(u.role));
     return el('tr', {},
       el('td', {}, el('div', { style: 'display:flex;gap:10px;align-items:center' }, LC.avatar(u), el('div', {}, el('b', {}, u.username), ' ', LC.badge(u),
-        el('div', { style: 'color:var(--muted);font-size:.78rem' }, 'Vu : ' + LC.date(u.lastSeen))))),
+        el('div', { style: 'color:var(--muted);font-size:.78rem' }, 'Vu : ' + LC.date(u.lastSeen)),
+        u.linkedAccounts ? el('div', { style: 'color:var(--gold);font-size:.78rem', title: 'Comptes créés depuis le même appareil ou la même connexion' }, `🔗 ${u.linkedAccounts} autre(s) compte(s) lié(s)`) : null))),
       el('td', {}, `${LC.genderIcon(u.gender)} ${u.age || '?'} ans${u.city ? ' · ' + u.city : ''}`),
       el('td', {}, role),
       el('td', {}, status, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
@@ -192,8 +198,20 @@ async function rooms() {
 
 // ---------- Radios ----------
 async function radios() {
-  const { stations } = await api('/api/admin/stations');
+  const { stations, checking } = await api('/api/admin/stations');
   const preview = new Audio();
+  const statusOf = st => st.status === 'ok' ? el('span', { class: 'status-on', title: st.check_note }, '✅ Marche')
+    : st.status === 'broken' ? el('span', { class: 'status-ban', title: st.check_note }, '❌ En panne (masquée)')
+    : el('span', { style: 'color:var(--muted)' }, '❔ Pas encore testée');
+  const checkBtn = el('button', { class: 'btn btn-primary', disabled: checking, onclick: async () => {
+    checkBtn.disabled = true;
+    checkBtn.textContent = '⏳ Vérification en cours (1 à 2 minutes)…';
+    try {
+      const { report } = await api('/api/admin/stations/check', { method: 'POST', body: { repair: true } });
+      toast(`📻 ${report.ok} radio(s) OK · ${report.repaired.length} réparée(s) · ${report.broken.length} en panne (masquée(s))`);
+    } catch (e) { toast('❌ ' + e.message); }
+    radios();
+  } }, checking ? '⏳ Vérification en cours…' : '🔍 Vérifier et réparer toutes les radios');
   let previewId = null;
   const form = (st, onSave) => {
     const icon = el('input', { class: 'input', maxlength: 4, value: st.icon || '📻', style: 'max-width:70px' });
@@ -214,16 +232,26 @@ async function radios() {
   page.replaceChildren(...header('Radios', 'Les radios que tout le monde peut écouter dans le lecteur et mettre dans les salons.'),
     el('div', { class: 'panel' }, el('h2', {}, '➕ Ajouter une radio'), form({}, async body => { await run(() => api('/api/admin/stations', { method: 'POST', body }), 'Radio ajoutée'); radios(); }),
       el('p', { style: 'color:var(--muted);font-size:.85rem;margin:6px 0 0' }, 'Astuce : le lien doit être un flux audio direct (mp3/aac) en https. Tu trouves les liens officiels sur le site de chaque radio ou sur radio-browser.info.')),
+    el('div', { class: 'panel' }, el('h2', {}, '🩺 État des radios'),
+      el('p', { class: 'help', style: 'margin:0 0 12px' }, 'Le site teste chaque radio au démarrage puis toutes les 6 heures. Une radio qui ne marche plus est réparée automatiquement si un nouveau lien officiel est trouvé, sinon elle est masquée pour les utilisateurs (tu peux corriger son lien à la main).'),
+      checkBtn,
+      el('p', { class: 'help', style: 'margin:10px 0 0' }, `✅ ${stations.filter(x => x.status === 'ok').length} qui marchent · ❌ ${stations.filter(x => x.status === 'broken').length} en panne · ❔ ${stations.filter(x => !x.status || x.status === 'unknown').length} pas encore testées`)),
     el('div', { class: 'panel' }, el('h2', {}, `📻 ${stations.length} radio(s)`),
       stations.length ? el('div', { class: 'table-wrap' }, el('table', {},
-        el('thead', {}, el('tr', {}, ...['', 'Nom', 'Style', 'Lien', 'Actions'].map(h => el('th', {}, h)))),
+        el('thead', {}, el('tr', {}, ...['', 'Nom', 'Style', 'État', 'Lien', 'Actions'].map(h => el('th', {}, h)))),
         el('tbody', {}, ...stations.map(st => {
           const testBtn = el('button', { class: 'btn btn-sm test-btn' }, '▶ Tester');
           testBtn.onclick = () => test(st, testBtn);
           return el('tr', {},
             el('td', { style: 'font-size:1.3rem' }, st.icon), el('td', {}, el('b', {}, st.name)), el('td', {}, st.genre),
-            el('td', { style: 'max-width:300px;overflow-wrap:anywhere;font-size:.8rem;color:var(--muted)' }, st.url),
+            el('td', {}, statusOf(st), st.checked_at ? el('div', { class: 'help' }, LC.date(st.checked_at)) : null, st.check_note && st.status === 'broken' ? el('div', { class: 'help' }, st.check_note) : null),
+            el('td', { style: 'max-width:280px;overflow-wrap:anywhere;font-size:.8rem;color:var(--muted)' }, st.url),
             el('td', {}, testBtn,
+              el('button', { class: 'btn btn-sm', title: 'Vérifier / réparer cette radio', onclick: async e => {
+                e.target.textContent = '⏳';
+                try { const { report } = await api('/api/admin/stations/check', { method: 'POST', body: { ids: [st.id] } }); toast(report.ok ? '✅ Elle marche' : report.repaired.length ? '🔧 Réparée !' : '❌ En panne, masquée'); } catch (err) { toast('❌ ' + err.message); }
+                radios();
+              } }, '🩺'),
               el('button', { class: 'btn btn-sm', onclick: () => {
                 const back = el('div', { class: 'modal-back', onclick: e => { if (e.target === back) back.remove(); } });
                 back.append(el('div', { class: 'card modal', style: 'max-width:820px' }, el('h3', {}, 'Modifier ' + st.name),
@@ -281,12 +309,59 @@ async function settings() {
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
 }
 
+// ---------- Site (super-admin) : tout le contenu modifiable ----------
+async function site() {
+  const { site: s } = await api('/api/site');
+  const input = (key, max, ph) => el('input', { class: 'input', maxlength: max, value: s[key] || '', placeholder: ph || '' });
+  const area = (key, rows) => el('textarea', { class: 'input', rows, style: 'font-family:inherit' }, s[key] || '');
+  const name = input('siteName', 40), domain = input('siteDomain', 60), title = input('heroTitle', 120), footer = input('footerText', 120);
+  const heroText = area('heroText', 3);
+  const colors = ['colorViolet', 'colorRose', 'colorGold'].map(k => el('input', { type: 'color', value: s[k] || '#8b6cff', class: 'color-input', style: 'width:56px;height:40px' }));
+  const maxAcc = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxAccounts, style: 'max-width:100px' });
+  const editor = (key, label) => {
+    const ta = area(key, 16);
+    const prev = el('div', { class: 'page-content rich-preview' });
+    const draw = () => prev.replaceChildren(LC.richText(ta.value));
+    ta.addEventListener('input', draw); draw();
+    return { ta, box: el('div', { class: 'panel' }, el('h2', {}, label),
+      el('p', { class: 'help', style: 'margin:0 0 10px' }, 'Mise en forme : « # Titre », « ## Sous-titre », « - élément de liste », « **gras** ». Les liens sont cliquables.'),
+      el('div', { class: 'rich-editor' }, ta, prev)) };
+  };
+  const hist = editor('historyContent', '📖 Page « Notre histoire »');
+  const rules = editor('rulesContent', '📜 Page « Règlement »');
+  const save = async () => {
+    const body = {
+      siteName: name.value, siteDomain: domain.value, heroTitle: title.value, heroText: heroText.value, footerText: footer.value,
+      colorViolet: colors[0].value, colorRose: colors[1].value, colorGold: colors[2].value, maxAccounts: maxAcc.value,
+      historyContent: hist.ta.value, rulesContent: rules.ta.value,
+    };
+    const { site: saved } = await run(() => api('/api/admin/site', { method: 'PUT', body }), 'Site mis à jour pour tout le monde');
+    LC.applySite(saved);
+    try { localStorage.setItem('lc_site', JSON.stringify(saved)); } catch (e) {}
+  };
+  colors.forEach((c, i) => c.addEventListener('input', () => document.documentElement.style.setProperty(['--violet', '--rose', '--gold'][i], c.value)));
+  page.replaceChildren(...header('🌐 Site', 'Réservé au super-admin : modifie le nom, les textes, les couleurs, l\'histoire et le règlement du site.'),
+    el('div', { class: 'panel' }, el('h2', {}, '🏷️ Identité'),
+      el('div', { class: 'row' }, el('div', { class: 'field' }, el('label', {}, 'Nom du site'), name), el('div', { class: 'field' }, el('label', {}, 'Nom de domaine'), domain)),
+      el('div', { class: 'field' }, el('label', {}, 'Grand titre de l\'accueil (mets un mot entre *étoiles* pour le colorer)'), title),
+      el('div', { class: 'field' }, el('label', {}, 'Texte de présentation de l\'accueil'), heroText),
+      el('div', { class: 'field' }, el('label', {}, 'Texte du bas de page'), footer)),
+    el('div', { class: 'panel' }, el('h2', {}, '🎨 Couleurs du site'),
+      el('div', { class: 'toolbar' }, ...['Couleur 1', 'Couleur 2', 'Couleur 3'].map((l, i) => el('label', { style: 'display:flex;gap:8px;align-items:center' }, colors[i], l)),
+        el('button', { class: 'btn btn-sm', onclick: () => { ['#8b6cff', '#ff5fa2', '#ffb547'].forEach((c, i) => { colors[i].value = c; colors[i].dispatchEvent(new Event('input')); }); } }, '↺ Couleurs d\'origine')),
+      el('div', { class: 'grad-preview' }, 'Aperçu du dégradé')),
+    el('div', { class: 'panel' }, el('h2', {}, '👥 Comptes'),
+      el('div', { class: 'switch' }, el('span', {}, 'Nombre maximum de comptes par personne (même appareil ou même connexion) — 0 = illimité'), maxAcc)),
+    hist.box, rules.box,
+    el('div', { class: 'save-bar' }, el('button', { class: 'btn btn-primary', onclick: save }, '💾 Enregistrer tout le site')));
+}
+
 // ---------- Journal ----------
 async function logs() {
   const { logs } = await api('/api/admin/logs');
   const labels = { ban: '⛔ Bannissement', unban: '✅ Débannissement', kick: '👢 Expulsion', mute: '🔇 Mutisme', unmute: '🔊 Parole rendue', role: '🎖️ Rôle',
     delete_user: '🗑 Suppression compte', room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_clear: '🧹 Salon vidé',
-    message_delete: '💬 Message supprimé', warn: '⚠️ Avertissement', profile_reset: '🧹 Profil réinitialisé', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', settings: '⚙️ Réglages', broadcast: '📢 Annonce', report_closed: '⚠️ Signalement traité', report_open: '⚠️ Signalement rouvert', admin_auto: '👑 Admin' };
+    message_delete: '💬 Message supprimé', site: '🌐 Site modifié', stations_check: '🩺 Vérification des radios', warn: '⚠️ Avertissement', profile_reset: '🧹 Profil réinitialisé', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', settings: '⚙️ Réglages', broadcast: '📢 Annonce', report_closed: '⚠️ Signalement traité', report_open: '⚠️ Signalement rouvert', admin_auto: '👑 Admin' };
   page.replaceChildren(...header('Journal de modération', 'Toutes les actions de l\'équipe, des plus récentes aux plus anciennes.'),
     el('div', { class: 'panel' }, logs.length ? el('div', { class: 'table-wrap' }, el('table', {},
       el('thead', {}, el('tr', {}, ...['Date', 'Par', 'Action', 'Détails'].map(h => el('th', {}, h)))),
@@ -307,5 +382,6 @@ async function logs() {
     return;
   }
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());
+  if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());
   go();
 })();

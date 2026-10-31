@@ -2,9 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GajoxGaming — Chat gratuit sans inscription</title>
-  <meta name="description" content="GajoxGaming : le chat gratuit en temps réel. Salons de discussion, messages privés, rencontres et amitié, avec ou sans inscription.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0a1a">
+  <title>The Paradis — Chat gratuit sans inscription</title>
+  <meta name="description" content="The Paradis : le chat gratuit en temps réel. Salons de discussion, messages privés, rencontres et amitié, avec ou sans inscription.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,18 +15,19 @@
 <body>
 <div class="landing">
   <header class="topnav">
-    <a href="/" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">Gajox<span>Gaming</span></span></a>
+    <a href="/" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradis</span></span></a>
     <nav>
+      <a class="btn btn-ghost btn-sm nav-link" href="/histoire">📖 <span>Histoire</span></a>
+      <a class="btn btn-ghost btn-sm nav-link" href="/reglement">📜 <span>Règlement</span></a>
       <button class="btn btn-icon" onclick="LC.toggleTheme()" title="Changer de thème" aria-label="Changer de thème">🌓</button>
-      <a class="btn btn-ghost btn-sm" href="#regles">Règles</a>
     </nav>
   </header>
 
   <section class="hero">
     <div>
       <div class="live"><span class="dot"></span><span id="onlineCount">…</span> personnes connectées</div>
-      <h1>Discute, rencontre,<br><em>brille</em> sur GajoxGaming.</h1>
-      <p class="lead">Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.</p>
+      <h1 data-site-rich="heroTitle">Discute, rencontre, <em>brille</em> sur The Paradis.</h1>
+      <p class="lead" data-site="heroText">Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.</p>
       <div class="stats">
         <div><b id="statMembers">–</b><span>membres</span></div>
         <div><b id="statRooms">–</b><span>salons</span></div>
@@ -51,7 +53,7 @@
         <div class="field"><label>Je suis</label><div class="gender-pick" data-name="gender"></div></div>
         <div class="error"></div>
         <button class="btn btn-primary" style="width:100%">Entrer dans le chat ✨</button>
-        <small class="note">Sans inscription. En entrant, tu confirmes avoir l'âge minimum et accepter les règles.</small>
+        <small class="note">Sans inscription. En entrant, tu confirmes avoir l'âge minimum et accepter <a href="/reglement" target="_blank">le règlement</a>.</small>
       </form>
 
       <form id="form-login" data-endpoint="/api/login" class="hidden">
@@ -71,7 +73,7 @@
         <div class="field"><label>Je suis</label><div class="gender-pick" data-name="gender"></div></div>
         <div class="error"></div>
         <button class="btn btn-primary" style="width:100%">Créer mon compte</button>
-        <small class="note">Ton pseudo est réservé et tu accèdes au salon VIP.</small>
+        <small class="note">Ton pseudo est réservé et tu accèdes au salon VIP. 2 comptes maximum par personne.</small>
       </form>
     </div>
     </div>
@@ -84,16 +86,16 @@
     <div class="feature"><div class="ico">🛡️</div><h3>Modéré</h3><p>Blocage, signalement et une équipe de modération active.</p></div>
   </section>
 
-  <section class="features" id="regles" style="grid-template-columns:1fr">
-    <div class="feature">
-      <div class="ico">📜</div><h3>Les règles du chat</h3>
-      <p>Respect de tous · Pas d'insultes, de harcèlement ni de contenu illégal · Pas de spam ni de publicité · Aucune donnée personnelle partagée sans accord · Les mineurs ne sont pas autorisés. Tout manquement peut entraîner une expulsion ou un bannissement.</p>
-    </div>
+  <section class="features" id="regles">
+    <a class="feature feature-link" href="/histoire"><div class="ico">📖</div><h3>Notre histoire</h3><p>Comment le site est né et ce qui nous anime.</p></a>
+    <a class="feature feature-link" href="/reglement"><div class="ico">📜</div><h3>Le règlement</h3><p>Les règles à respecter pour que tout le monde passe un bon moment.</p></a>
+    <div class="feature"><div class="ico">📹</div><h3>Appels vidéo</h3><p>Appelle tes amis en audio ou en visio, directement depuis le chat.</p></div>
+    <div class="feature"><div class="ico">📻</div><h3>Radio & musique</h3><p>Écoute tes radios préférées pendant que tu discutes.</p></div>
   </section>
 
   <footer class="site">
-    <span>© <span id="year"></span> GajoxGaming · gajoxgaming.fr — Tous droits réservés</span>
-    <span>Fait avec 💜 pour discuter librement</span>
+    <span>© <span id="year"></span> <span data-site="siteName">The Paradis</span> · <span data-site="siteDomain">theparadis.fr</span> — Tous droits réservés</span>
+    <span><a href="/histoire">Histoire</a> · <a href="/reglement">Règlement</a> · <span data-site="footerText">Fait avec 💜 pour discuter librement</span></span>
   </footer>
 </div>
 
@@ -101,7 +103,7 @@
   document.getElementById('year').textContent = new Date().getFullYear();
   // Choix du genre
   document.querySelectorAll('.gender-pick').forEach((box, i) => {
-    [['f', 'Femme'], ['h', 'Homme'], ['x', 'Autre']].forEach(([v, l], j) => {
+    LC.GENDERS.forEach(([v, l], j) => {
       const id = `g${i}${v}`;
       box.append(LC.el('input', { type: 'radio', name: 'gender', value: v, id, checked: j === 0 }), LC.el('label', { for: id }, l));
     });

@@ -1,4 +1,4 @@
-// GajoxGaming — profils personnalisables : carte de profil + éditeur avec aperçu en direct
+// The Paradis — profils personnalisables : carte de profil + éditeur avec aperçu en direct
 const SOCIAL_DEFS = {
   discord: { label: 'Discord', color: '#5865f2', ph: 'pseudo' },
   twitch: { label: 'Twitch', color: '#9146ff', ph: 'chaîne', url: h => 'https://www.twitch.tv/' + h },
@@ -56,12 +56,14 @@ async function openProfile(id) {
   try { data = await api('/api/users/' + id); } catch (e) { return toast(e.message); }
   const u = data.user;
   const blocked = state.blocked.has(u.id);
-  const staff = isStaff() && (state.me.role === 'admin' || u.role === 'user');
+  const staff = isStaff() && (state.me.role === 'superadmin' || LC.rank(state.me) > LC.rank(u));
   const close = profileModal(
     profileCard(u, { online: data.online }),
     el('div', { class: 'pactions' },
       el('div', { class: 'actions' },
         el('button', { class: 'btn btn-primary', onclick: () => { close(); openPm(u); } }, '💌 Message privé'),
+        el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, false); } }, '📞 Appeler'),
+        el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, true); } }, '📹 Visio'),
         el('button', { class: 'btn', onclick: () => { close(); mention(u.username); } }, '@ Mentionner'),
         el('button', { class: 'btn', onclick: async () => {
           try {
@@ -196,7 +198,7 @@ function openMyProfile() {
 
   // --- Onglet Infos ---
   const age = bind(el('input', { class: 'input', type: 'number', min: 13, max: 99, value: d.age || '' }), 'age', v => parseInt(v, 10) || '');
-  const gender = bind(el('select', { class: 'input' }, ...[['f', 'Femme'], ['h', 'Homme'], ['x', 'Autre']].map(([v, l]) => el('option', { value: v, selected: d.gender === v }, l))), 'gender');
+  const gender = bind(el('select', { class: 'input' }, ...LC.GENDERS.map(([v, l]) => el('option', { value: v, selected: d.gender === v }, l))), 'gender');
   const city = bind(el('input', { class: 'input', maxlength: 40, value: d.city || '' }), 'city');
   const bioCount = el('small', { class: 'help' }, `${(d.bio || '').length}/500`);
   const bio = bind(el('textarea', { class: 'input', rows: 4, maxlength: 500, placeholder: 'Parle un peu de toi…' }, d.bio || ''), 'bio', v => { bioCount.textContent = `${v.length}/500`; return v; });
@@ -204,7 +206,7 @@ function openMyProfile() {
   const tabInfo = el('div', {},
     f('💭 Statut', el('div', {}, choice(STATUS_EMOJIS.map(e => [e, e || '∅']), 'statusEmoji'), el('div', { style: 'margin-top:8px' }, statusText))),
     el('div', {}, f('📝 À propos de moi', bio), bioCount),
-    el('div', { class: 'row', style: 'margin-top:14px' }, f('Âge', age), f('Genre', gender)),
+    el('div', { class: 'row', style: 'margin-top:14px' }, f('Âge', age), f('Je suis', gender)),
     f('Ville', city),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher mon âge aux autres'), bind(el('input', { type: 'checkbox', checked: d.showAge !== false }), 'showAge')),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher ma ville aux autres'), bind(el('input', { type: 'checkbox', checked: d.showCity !== false }), 'showCity')),

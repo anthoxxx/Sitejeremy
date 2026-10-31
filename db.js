@@ -1,4 +1,4 @@
-// Base de données SQLite de GajoxGaming
+// Base de données SQLite de The Paradis
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
@@ -110,6 +110,16 @@ addColumn('users', 'games', "TEXT DEFAULT '[]'");
 addColumn('users', 'socials', "TEXT DEFAULT '{}'");
 addColumn('users', 'show_age', 'INTEGER NOT NULL DEFAULT 1');
 addColumn('users', 'show_city', 'INTEGER NOT NULL DEFAULT 1');
+// Limite de comptes par personne + fonds d'écran de salon + état des radios
+addColumn('users', 'device_id', "TEXT DEFAULT ''");
+addColumn('users', 'signup_ip', "TEXT DEFAULT ''");
+addColumn('rooms', 'background', "TEXT DEFAULT ''");
+
+// Rôle super-admin : s'il n'y en a pas encore, le plus ancien admin le devient
+if (!db.prepare("SELECT 1 FROM users WHERE role='superadmin'").get()) {
+  const oldest = db.prepare("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1").get();
+  if (oldest) db.prepare("UPDATE users SET role='superadmin' WHERE id=?").run(oldest.id);
+}
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS room_members (
@@ -146,6 +156,10 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, id);
 `);
+
+addColumn('stations', 'status', "TEXT DEFAULT 'unknown'");
+addColumn('stations', 'checked_at', 'INTEGER DEFAULT 0');
+addColumn('stations', 'check_note', "TEXT DEFAULT ''");
 
 // Radios par défaut (modifiables dans l'admin → Radios)
 if (db.prepare('SELECT COUNT(*) c FROM stations').get().c === 0) {
@@ -192,6 +206,60 @@ const defaults = {
   voiceMax: '8',
   userRoomsEnabled: '1',
   maxUserRooms: '2',
+  maxAccounts: '2',
+  siteName: 'The Paradis',
+  siteDomain: 'theparadis.fr',
+  heroTitle: 'Discute, rencontre, *brille* sur The Paradis.',
+  heroText: 'Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.',
+  footerText: 'Fait avec 💜 pour discuter librement',
+  colorViolet: '#8b6cff',
+  colorRose: '#ff5fa2',
+  colorGold: '#ffb547',
+  historyContent: `# Notre histoire
+
+The Paradis est né d'une idée simple : créer un endroit chaleureux où l'on peut discuter librement, rencontrer de nouvelles personnes et passer de bons moments ensemble.
+
+## Les débuts
+
+Au départ, ce n'était qu'un petit salon entre amis. Petit à petit, la communauté a grandi, avec de nouveaux salons, le chat vocal, la radio et la visio.
+
+## Notre mission
+
+- Offrir un chat **gratuit** et accessible à tous
+- Garder une ambiance **respectueuse** et bienveillante
+- Écouter la communauté pour améliorer le site chaque jour
+
+Merci à toutes celles et ceux qui font vivre The Paradis 💜`,
+  rulesContent: `# Règlement de The Paradis
+
+En utilisant le site, tu acceptes ce règlement. L'équipe de modération peut sanctionner tout manquement.
+
+## 1. Respect
+
+- Pas d'insultes, de moqueries, de racisme, d'homophobie ou de discrimination
+- Pas de harcèlement, en public comme en privé
+- Respecte les choix de chacun : si quelqu'un ne veut pas te parler, n'insiste pas
+
+## 2. Contenus interdits
+
+- Aucun contenu pornographique, violent ou illégal
+- Pas de spam, de flood ni de publicité
+- Pas de partage d'informations personnelles (adresse, téléphone…) sans accord
+
+## 3. Comptes
+
+- **2 comptes maximum** par personne
+- Les mineurs ne sont pas autorisés
+- Les pseudos insultants ou choquants sont interdits
+
+## 4. Vocal et visio
+
+- Pas d'enregistrement des appels sans l'accord de tout le monde
+- Caméra : tenue correcte exigée
+
+## 5. Sanctions
+
+Avertissement, mute temporaire, expulsion ou bannissement définitif selon la gravité. En cas de problème, utilise le bouton **Signaler**.`,
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);

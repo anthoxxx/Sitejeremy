@@ -32,8 +32,75 @@ window.LC = {
     document.documentElement.dataset.theme = cur;
     try { localStorage.setItem('lc_theme', cur); } catch (e) {}
   },
-  genderLabel: g => ({ h: 'Homme', f: 'Femme', x: 'Autre' }[g] || 'Autre'),
-  genderIcon: g => ({ h: '♂', f: '♀', x: '⚥' }[g] || '⚥'),
+  genderLabel: g => ({ h: 'Bleu', f: 'Rose', x: 'Autre' }[g] || 'Autre'),
+  genderIcon: g => ({ h: '💙', f: '🩷', x: '💜' }[g] || '💜'),
+  GENDERS: [['f', '🩷 Rose'], ['h', '💙 Bleu'], ['x', '💜 Autre']],
+  ROLES: ['user', 'moderator', 'admin', 'superadmin'],
+  rank(u) { return LC.ROLES.indexOf(u?.role); },
+  isAdminRole(u) { return LC.rank(u) >= 2; },
+  roleLabel: r => ({ superadmin: 'Super-admin', admin: 'Admin', moderator: 'Modérateur', user: 'Membre' }[r] || r),
+
+  // ----- Contenu du site (nom, couleurs, textes) modifiable par le super-admin -----
+  site: null,
+  async loadSite() {
+    try { const cached = JSON.parse(localStorage.getItem('lc_site') || 'null'); if (cached) LC.applySite(cached); } catch (e) {}
+    try {
+      const { site } = await LC.api('/api/site');
+      LC.applySite(site);
+      try { localStorage.setItem('lc_site', JSON.stringify(site)); } catch (e) {}
+      return site;
+    } catch (e) { return LC.site; }
+  },
+  applySite(site) {
+    if (!site) return;
+    LC.site = site;
+    const parts = site.siteName.trim().split(/\s+/);
+    const last = parts.length > 1 ? parts.pop() : null;
+    document.querySelectorAll('.logo .word').forEach(w => w.replaceChildren(last ? parts.join(' ') + ' ' : '', LC.el('span', {}, last || parts[0])));
+    if (document.title.includes(' — ')) document.title = document.title.replace(/^(\(\d+\) )?.*? — /, `$1${site.siteName} — `);
+    else document.title = site.siteName;
+    const root = document.documentElement.style;
+    if (site.colorViolet) root.setProperty('--violet', site.colorViolet);
+    if (site.colorRose) root.setProperty('--rose', site.colorRose);
+    if (site.colorGold) root.setProperty('--gold', site.colorGold);
+    document.querySelectorAll('[data-site]').forEach(e => { e.textContent = site[e.dataset.site] || ''; });
+    document.querySelectorAll('[data-site-rich]').forEach(e => e.replaceChildren(LC.emphasis(site[e.dataset.siteRich] || '')));
+    document.dispatchEvent(new CustomEvent('site', { detail: site }));
+  },
+  // *mot* → mot mis en valeur (dégradé)
+  emphasis(text) {
+    const f = document.createDocumentFragment();
+    String(text).split(/(\*[^*]+\*)/).forEach(p => f.append(/^\*[^*]+\*$/.test(p) ? LC.el('em', {}, p.slice(1, -1)) : p));
+    return f;
+  },
+  // Mise en forme simple : # Titre, ## Sous-titre, - liste, **gras**, liens
+  richText(text) {
+    const root = document.createDocumentFragment();
+    const inline = line => {
+      const f = document.createDocumentFragment();
+      String(line).split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/).forEach(p => {
+        if (/^\*\*[^*]+\*\*$/.test(p)) f.append(LC.el('strong', {}, p.slice(2, -2)));
+        else if (/^https?:\/\//.test(p)) f.append(LC.el('a', { href: p, target: '_blank', rel: 'noopener noreferrer' }, p));
+        else f.append(p);
+      });
+      return f;
+    };
+    let list = null, para = [];
+    const flush = () => {
+      if (para.length) { root.append(LC.el('p', {}, ...para.flatMap((l, i) => (i ? [LC.el('br'), inline(l)] : [inline(l)])))); para = []; }
+      if (list) { root.append(list); list = null; }
+    };
+    for (const raw of String(text).split('\n')) {
+      const line = raw.trimEnd();
+      if (/^#\s+/.test(line)) { flush(); root.append(LC.el('h1', {}, inline(line.replace(/^#\s+/, '')))); }
+      else if (/^##+\s+/.test(line)) { flush(); root.append(LC.el('h2', {}, inline(line.replace(/^##+\s+/, '')))); }
+      else if (/^[-•*]\s+/.test(line)) { if (para.length) { const l = list; list = null; flush(); list = l; } list = list || LC.el('ul'); list.append(LC.el('li', {}, inline(line.replace(/^[-•*]\s+/, '')))); }
+      else if (!line.trim()) flush();
+      else { if (list) { root.append(list); list = null; } para.push(line); }
+    }
+    flush();
+    return root;
+  },
   time(ts) { return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); },
   date(ts) { return ts ? new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
   avatar(u, big) {
@@ -110,9 +177,12 @@ window.LC = {
     document.body.append(back);
   },
   badge(u) {
+    if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');
     if (u.role === 'admin') return LC.el('span', { class: 'badge admin' }, 'Admin');
     if (u.role === 'moderator') return LC.el('span', { class: 'badge moderator' }, 'Modo');
     if (u.isGuest) return LC.el('span', { class: 'badge guest' }, 'Invité');
     return null;
   },
 };
+
+document.addEventListener('DOMContentLoaded', () => LC.loadSite());

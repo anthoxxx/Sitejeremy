@@ -1,4 +1,4 @@
-// GajoxGaming — client du chat
+// The Paradis — client du chat
 const { el, api } = LC;
 const $ = id => document.getElementById(id);
 
@@ -20,7 +20,7 @@ const state = {
 try { state.sound = localStorage.getItem('lc_sound') !== '0'; } catch (e) {}
 
 const EMOJIS = '😀 😂 🥰 😍 😘 😉 😎 🤩 🥳 😇 🤔 😏 😅 😢 😭 😡 👍 👎 👏 🙏 💪 🔥 ✨ 💯 ❤️ 💜 💕 💋 🌹 🎉 ☕ 🍷'.split(' ');
-const isStaff = () => state.me && ['admin', 'moderator'].includes(state.me.role);
+const isStaff = () => LC.rank(state.me) >= 1;
 
 // ---------- Son ----------
 let audioCtx;
@@ -38,8 +38,11 @@ function ding() {
     o.start(); o.stop(audioCtx.currentTime + .35);
   } catch (e) {}
 }
-function renderSoundBtn() { $('soundBtn').textContent = state.sound ? '🔊' : '🔇'; }
-$('soundBtn').onclick = () => {
+function renderSoundBtn() {
+  $('soundBtn').textContent = state.sound ? '🔊' : '🔇';
+  $('soundBtn2').textContent = state.sound ? '🔊 Son activé' : '🔇 Son coupé';
+}
+$('soundBtn').onclick = $('soundBtn2').onclick = () => {
   state.sound = !state.sound;
   try { localStorage.setItem('lc_sound', state.sound ? '1' : '0'); } catch (e) {}
   renderSoundBtn();
@@ -81,7 +84,7 @@ async function loadRooms() {
   renderRooms();
   renderRoomHead();
 }
-const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff()) : state.me.role === 'admin');
+const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff()) : LC.isAdminRole(state.me));
 
 function roomItem(r, counts) {
   const locked = r.membersOnly && state.me.isGuest;
@@ -115,7 +118,15 @@ function renderRoomHead() {
   $('headRadio').classList.toggle('hidden', !inRoom || !r.station);
   $('headVoice').classList.toggle('hidden', !inRoom || !state.voiceEnabled || !r.voiceEnabled);
   $('headSettings').classList.toggle('hidden', !inRoom || !canManage(r));
-  if (!inRoom) { $('voiceBar').classList.add('hidden'); return; }
+  const pmUser = state.view?.type === 'pm' ? state.convs.get(state.view.userId)?.user : null;
+  $('headCall').classList.toggle('hidden', !pmUser);
+  $('headVideo').classList.toggle('hidden', !pmUser);
+  if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); }
+  // Fond d'écran du salon
+  const main = document.querySelector('.main');
+  main.classList.toggle('has-bg', !!(inRoom && r.background));
+  main.style.setProperty('--room-bg', inRoom && r.background ? `url("${r.background}")` : 'none');
+  if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); return; }
   $('headIcon').textContent = r.icon;
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
   $('headSub').textContent = r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
@@ -210,7 +221,7 @@ function renderConvs() {
   const total = list.reduce((s, c) => s + (c.unread || 0), 0);
   $('pmTotal').textContent = total;
   $('pmTotal').classList.toggle('hot', total > 0);
-  document.title = (total ? `(${total}) ` : '') + 'GajoxGaming — Salons';
+  document.title = (total ? `(${total}) ` : '') + 'The Paradis — Salons';
   if (!list.length) return $('pmList').replaceChildren(el('div', { class: 'sub', style: 'padding:6px 10px;color:var(--muted);font-size:.85rem' }, 'Clique sur un pseudo pour lui écrire en privé.'));
   const onlineIds = new Set(state.online.map(u => u.id));
   $('pmList').replaceChildren(...list.map(c => {
@@ -262,7 +273,7 @@ function renderUsers() {
   if (state.filter === 'f' || state.filter === 'h') users = users.filter(u => u.gender === state.filter);
   if (state.filter === 'room') users = users.filter(u => state.view?.type === 'room' && u.room === state.view.slug);
   if (q) users = users.filter(u => u.username.toLowerCase().includes(q));
-  const rank = u => (u.role === 'admin' ? 0 : u.role === 'moderator' ? 1 : 2);
+  const rank = u => 3 - LC.rank(u);
   users.sort((a, b) => rank(a) - rank(b) || a.username.localeCompare(b.username));
   const roomName = slug => state.rooms.find(r => r.slug === slug)?.name || '';
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'));
@@ -456,6 +467,7 @@ socket.on('room_radio', ({ slug, station, by }) => {
 });
 socket.on('rooms_changed', async () => { await loadRooms(); if (!state.view) joinDefaultRoom(); });
 socket.on('announcement', ({ text }) => setAnnouncement(text));
+socket.on('site_changed', ({ site }) => { LC.applySite(site); try { localStorage.setItem('lc_site', JSON.stringify(site)); } catch (e) {} });
 socket.on('broadcast', ({ text, from }) => {
   ding();
   toast(`📢 ${from} : ${text}`);

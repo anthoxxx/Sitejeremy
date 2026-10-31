@@ -1,4 +1,4 @@
-// GajoxGaming — lecteur radio / musique
+// The Paradis — lecteur radio / musique
 const Media = {
   audio: new Audio(),
   stations: [],

@@ -1,7 +1,7 @@
 {
-  "name": "gajoxgaming",
+  "name": "theparadis",
   "version": "1.0.0",
-  "description": "GajoxGaming — chat gratuit en temps réel avec salons, messages privés et panneau d'administration",
+  "description": "The Paradis — chat gratuit en temps réel avec salons, messages privés et panneau d'administration",
   "main": "server.js",
   "private": true,
   "scripts": {

@@ -2,8 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GajoxGaming — Salons</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0d0a1a">
+  <title>The Paradis — Salons</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,15 +15,15 @@
 <div class="app">
   <header class="app-header">
     <button class="btn btn-icon mobile-only" id="toggleLeft" aria-label="Salons">☰</button>
-    <a href="/chat" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">Gajox<span>Gaming</span></span></a>
+    <a href="/chat" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradis</span></span></a>
     <div class="spacer"></div>
-    <a href="/admin" class="btn btn-sm btn-ghost hidden" id="adminLink">🛡️ Admin</a>
+    <a href="/admin" class="btn btn-sm btn-ghost hidden" id="adminLink" title="Administration">🛡️ <span class="lbl">Admin</span></a>
     <div class="notif-wrap">
       <button class="btn btn-icon" id="notifBtn" title="Notifications" aria-label="Notifications">🔔<span class="notif-count hidden" id="notifCount"></span></button>
       <div class="notif-panel hidden" id="notifPanel"></div>
     </div>
-    <button class="btn btn-icon" id="soundBtn" title="Son des notifications" aria-label="Son">🔊</button>
-    <button class="btn btn-icon" onclick="LC.toggleTheme()" title="Thème" aria-label="Thème">🌓</button>
+    <button class="btn btn-icon desk-only" id="soundBtn" title="Son des notifications" aria-label="Son">🔊</button>
+    <button class="btn btn-icon desk-only" onclick="LC.toggleTheme()" title="Thème" aria-label="Thème">🌓</button>
     <button class="btn btn-icon mobile-users" id="toggleRight" style="display:none" aria-label="Connectés">👥</button>
     <div class="me-chip" id="meChip"></div>
   </header>
@@ -35,6 +36,12 @@
       <div id="userRoomList"></div>
       <div class="side-title">Messages privés <span class="pill" id="pmTotal">0</span></div>
       <div id="pmList"></div>
+      <div class="side-links">
+        <a href="/histoire" target="_blank">📖 Histoire</a>
+        <a href="/reglement" target="_blank">📜 Règlement</a>
+        <button type="button" class="mobile-only-inline" onclick="LC.toggleTheme()">🌓 Thème</button>
+        <button type="button" class="mobile-only-inline" id="soundBtn2">🔊 Son</button>
+      </div>
     </div>
     <div class="player" id="player"></div>
   </aside>
@@ -49,8 +56,11 @@
       <button class="btn btn-sm btn-ghost hidden" id="headRadio" title="Écouter la radio du salon"></button>
       <button class="btn btn-sm hidden" id="headVoice" title="Chat vocal"></button>
       <button class="btn btn-icon hidden" id="headSettings" title="Gérer le salon" aria-label="Gérer le salon">⚙️</button>
-      <button class="btn btn-sm btn-ghost hidden" id="headProfile">Voir le profil</button>
+      <button class="btn btn-sm hidden" id="headCall" title="Appel audio">📞 <span class="lbl">Appeler</span></button>
+      <button class="btn btn-sm btn-primary hidden" id="headVideo" title="Appel vidéo">📹 <span class="lbl">Visio</span></button>
+      <button class="btn btn-sm btn-ghost hidden" id="headProfile">👤 <span class="lbl">Profil</span></button>
     </div>
+    <div class="video-grid hidden" id="videoGrid"></div>
     <div class="voice-bar hidden" id="voiceBar"></div>
     <div class="announce hidden" id="announce"></div>
     <div class="messages" id="messages"></div>
@@ -60,7 +70,7 @@
       <button type="button" class="btn btn-icon" id="emojiBtn" aria-label="Émojis">😊</button>
       <div class="emoji-panel hidden" id="emojiPanel"></div>
       <textarea class="input" id="input" rows="1" maxlength="1000" placeholder="Écris ton message…"></textarea>
-      <button class="btn btn-primary" aria-label="Envoyer">Envoyer</button>
+      <button class="btn btn-primary send-btn" aria-label="Envoyer"><span class="lbl">Envoyer</span><span class="send-ico">➤</span></button>
     </form>
   </section>
 
@@ -69,8 +79,8 @@
     <input class="input" id="userSearch" placeholder="Rechercher un pseudo…" style="margin-bottom:10px">
     <div class="filters" id="genderFilter">
       <button data-g="all" class="active">Tous</button>
-      <button data-g="f">♀</button>
-      <button data-g="h">♂</button>
+      <button data-g="f" title="Rose">🩷</button>
+      <button data-g="h" title="Bleu">💙</button>
       <button data-g="room">Ici</button>
     </div>
     <div id="userList"></div>
@@ -86,5 +96,6 @@
 <script src="/js/rooms.js"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/notifications.js"></script>
+<script src="/js/call.js"></script>
 </body>
 </html>
