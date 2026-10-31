@@ -59,7 +59,7 @@ const usersState = { q: '', filter: 'all', page: 0 };
 async function users() {
   const search = el('input', { class: 'input', placeholder: 'Rechercher un pseudo…', value: usersState.q });
   const filter = el('select', { class: 'input', style: 'max-width:190px' },
-    ...[['all', 'Tous'], ['online', 'En ligne'], ['members', 'Membres'], ['guests', 'Invités'], ['staff', 'Équipe'], ['banned', 'Bannis']]
+    ...[['all', 'Tous'], ['online', 'En ligne'], ['members', 'Membres'], ['guests', 'Invités'], ['staff', 'Équipe'], ['unverified', '🛂 À vérifier'], ['banned', 'Bannis']]
       .map(([v, l]) => el('option', { value: v, selected: usersState.filter === v }, l)));
   const tableBox = el('div', { class: 'table-wrap' });
   const pager = el('div', { class: 'pager' });
@@ -103,10 +103,11 @@ async function users() {
         u.linkedAccounts ? el('div', { style: 'color:var(--gold);font-size:.78rem', title: 'Comptes créés depuis le même appareil ou la même connexion' }, `🔗 ${u.linkedAccounts} autre(s) compte(s) lié(s)`) : null))),
       el('td', {}, `${LC.genderIcon(u.gender)} ${u.age || '?'} ans${u.city ? ' · ' + u.city : ''}`),
       el('td', {}, role),
-      el('td', {}, status, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
+      el('td', {}, status, !u.verified && u.role === 'user' ? el('div', { style: 'font-size:.78rem;color:#4fb3ff' }, '🛂 à vérifier') : null, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
       el('td', {}, LC.date(u.createdAt)),
       el('td', {},
         el('button', { class: 'btn btn-sm', onclick: () => showHistory(u) }, '📄'),
+        !u.verified && u.role === 'user' ? el('button', { class: 'btn btn-sm btn-primary', title: 'Valider : il passe la douane', onclick: async () => { await run(() => api('/api/customs/verify/' + u.id, { method: 'POST', body: { verified: true } }), `${u.username} a passé la douane`); load(); } }, '✅ Valider') : null,
         canAct ? [
           el('button', { class: 'btn btn-sm btn-danger', title: 'Sanctionner (avertir, muet, expulser, bannir)', onclick: () => LC.sanctionModal(u, { toast, onDone: load }) }, '🛡️ Sanctionner'),
           muted ? el('button', { class: 'btn btn-sm', title: 'Rendre la parole', onclick: async () => { await run(() => api(`/api/admin/users/${u.id}/mute`, { method: 'POST', body: { minutes: 0 } }), 'Parole rendue (notifié)'); load(); } }, '🔊') : null,
@@ -293,6 +294,7 @@ async function settings() {
   const userRooms = el('input', { type: 'checkbox', checked: s.userRoomsEnabled === '1' });
   const maxRooms = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxUserRooms, style: 'max-width:100px' });
   const tempOn = el('input', { type: 'checkbox', checked: s.tempRoomsEnabled !== '0' });
+  const customsOnBox = el('input', { type: 'checkbox', checked: s.customsEnabled === '1' });
   const tempMin = el('input', { class: 'input', type: 'number', min: 1, max: 1440, value: s.tempRoomMinutes || 5, style: 'max-width:100px' });
   page.replaceChildren(...header('Réglages', 'Configure le fonctionnement général du chat.'),
     el('div', { class: 'panel' },
@@ -305,12 +307,13 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '👥 Personnes maximum par vocal'), voiceMax),
       el('div', { class: 'switch' }, el('span', {}, '🏠 Les membres peuvent créer leur salon'), userRooms),
       el('div', { class: 'switch' }, el('span', {}, '🔢 Salons permanents maximum par membre'), maxRooms),
+      el('div', { class: 'switch' }, el('span', {}, '🛂 Douane : les nouveaux arrivants doivent être vérifiés par le staff avant d\'accéder au site'), customsOnBox),
       el('div', { class: 'switch' }, el('span', {}, '⏳ Tout le monde peut créer un salon temporaire (même les invités)'), tempOn),
       el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
         announcement: announcement.value, bannedWords: words.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
         voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
-        tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value,
+        tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
 }
 
@@ -452,7 +455,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;

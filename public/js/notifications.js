@@ -138,12 +138,15 @@ function muteLeft(until) {
 }
 function renderMuteBanner() {
   const muted = isMuted();
-  const locked = muted;
+  const customsClosed = state.customs?.enabled && !state.customs.open && typeof needsCustoms === 'function' && needsCustoms();
+  const locked = muted || customsClosed;
   const b = $('muteBanner');
   b.classList.toggle('hidden', !muted);
   $('input').disabled = locked;
   $('composer').querySelectorAll('.send-btn, #recBtn, #dictateBtn').forEach(x => { x.disabled = locked; });
   if ($('input').placeholder.startsWith('👻')) $('input').placeholder = 'Écris ton message…';
+  if (customsClosed) $('input').placeholder = '🛂 La douane est fermée, attends le staff…';
+  else if ($('input').placeholder.startsWith('🛂')) $('input').placeholder = 'Écris ton message…';
   if (muted) {
     b.replaceChildren(el('span', {}, '🔇'), el('div', {},
       el('b', {}, 'Tu es rendu muet par la modération'),

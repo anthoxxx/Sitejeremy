@@ -178,7 +178,7 @@ function quatreWin(b, r, c, p) {
   return null;
 }
 
-module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isMutedBy, visibleOnline, log, tooMany }) {
+module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isVerified, isMutedBy, visibleOnline, log, tooMany }) {
   const now = () => Date.now();
   const games = new Map();   // id -> partie en cours
   const invites = new Map(); // id -> invitation en attente
@@ -273,6 +273,7 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
         if (!target || target.id === uid) return ack && ack({ error: 'Adversaire invalide' });
         if (!visibleOnline(target.id, u)) return ack && ack({ error: `${target.username} n'est pas connecté` });
         if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: `${target.username} ne peut pas recevoir ton invitation` });
+        if (!isVerified(u) || !isVerified(target)) return ack && ack({ error: '🛂 Les défis sont possibles seulement après le passage à la douane' });
         if (gameOf(uid)) return ack && ack({ error: 'Termine d\'abord ta partie en cours' });
         if (gameOf(target.id)) return ack && ack({ error: `${target.username} est déjà en train de jouer` });
         if (tooMany('ginv:' + uid, 15, 5 * 60 * 1000)) return ack && ack({ error: 'Trop d\'invitations, patiente un peu' });

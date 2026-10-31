@@ -934,3 +934,7 @@ body.hub-open .modal-back { z-index: 260; }
 .um-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .side-links .logout-link { color: var(--red); border-color: rgba(255, 90, 110, .4); }
 @media (max-width: 760px) { .user-menu { position: fixed; right: 8px; top: calc(60px + env(safe-area-inset-top)); width: min(280px, calc(100vw - 16px)); } }
+
+/* ===== Douane ===== */
+.customs-banner { background: linear-gradient(90deg, rgba(79, 179, 255, .16), transparent); border-bottom-color: rgba(79, 179, 255, .35); }
+.verify-btn { flex: none; padding: 4px 8px; background: rgba(51, 214, 166, .18); }

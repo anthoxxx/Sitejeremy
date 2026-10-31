@@ -109,6 +109,7 @@ async function loadRooms() {
   state.rooms = d.rooms;
   state.canCreate = d.canCreate;
   state.canCreateTemp = d.canCreateTemp;
+  state.customs = d.customs || { enabled: false, open: true };
   state.tempMinutes = d.tempMinutes;
   state.maxUserRooms = d.maxUserRooms;
   state.voiceEnabled = d.voiceEnabled;
@@ -123,12 +124,13 @@ async function loadRooms() {
 const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff() || (r.managers || []).some(m => m.id === state.me.id)) : LC.isAdminRole(state.me));
 
 function roomItem(r, counts) {
-  const locked = r.membersOnly && state.me.isGuest;
+  const customsLock = needsCustoms() && r.slug !== 'douane';
+  const locked = (r.membersOnly && state.me.isGuest) || customsLock;
   const v = (state.voice.get(r.slug) || []).length;
   return el('div', {
     class: 'list-item' + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
-    onclick: () => locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug),
+    onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },
     el('div', { class: 'ico' }, r.icon),
     el('div', { class: 'meta' },
@@ -185,6 +187,7 @@ function renderRoomHead() {
     $('headRadio').onclick = () => playing ? Media.toggle() : Media.play(r.station, true);
   }
   $('headSettings').onclick = () => openRoomSettings(r);
+  renderCustoms();
   renderVoice();
 }
 
@@ -209,8 +212,11 @@ function joinRoom(slug) {
     $('input').focus();
   });
 }
+// La personne doit-elle passer par la douane ?
+const needsCustoms = () => !!(state.customs?.enabled && state.me && !state.me.verified && !isStaff());
 function joinDefaultRoom() {
-  const r = state.rooms.find(x => !x.ownerId && !(x.membersOnly && state.me.isGuest)) || state.rooms[0];
+  if (needsCustoms()) return joinRoom('douane');
+  const r = state.rooms.find(x => !x.ownerId && x.slug !== 'douane' && !(x.membersOnly && state.me.isGuest)) || state.rooms[0];
   if (r) joinRoom(r.slug);
 }
 
@@ -338,12 +344,14 @@ function renderUsers() {
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
     const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
+    const toCheck = state.customs?.enabled && !u.verified && isStaff();
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? '🛂 ' : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
-          : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))));
+          : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
+      toCheck ? el('button', { class: 'btn btn-sm verify-btn', title: 'Valider : il passe la douane', onclick: e => { e.stopPropagation(); verifyUser(u, true); } }, '✅') : null);
   }));
 }
 $('userSearch').oninput = renderUsers;
@@ -509,6 +517,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
   let slug = state.view?.slug;
   try { slug = slug || localStorage.getItem('lc_room'); } catch (e) {}
   Media.load();
+  if (needsCustoms() || slug === 'douane' && !state.customs?.enabled) return joinDefaultRoom();
   if (!state.rooms.find(r => r.slug === slug && !(r.membersOnly && user.isGuest))) return joinDefaultRoom();
   joinRoom(slug);
 });
@@ -517,6 +526,7 @@ socket.on('presence', ({ users }) => {
   const me = users.find(u => u.id === state.me?.id);
   if (me && (me.role !== state.me.role)) { state.me = { ...state.me, role: me.role }; renderMe(); }
   renderUsers(); renderRooms(); renderConvs();
+  if (state.currentRoom?.slug === 'douane') renderCustoms();
 });
 socket.on('message', m => {
   if (state.view?.type === 'room' && state.view.slug === m.room) {
@@ -591,7 +601,7 @@ socket.on('broadcast', ({ text, from }) => {
   toast(`📢 ${from} : ${text}`);
   if (state.view?.type === 'room') addSys(`📢 Annonce de ${from} : ${text}`, 'broadcast');
 });
-socket.on('staff_alert', ({ text }) => { ding(); toast('🛡️ ' + text, () => location.href = '/admin#reports'); });
+socket.on('staff_alert', ({ text, slug }) => { ding(); toast((slug ? '' : '🛡️ ') + text, () => (slug ? joinRoom(slug) : (location.href = '/admin#reports'))); });
 // Expulsion / bannissement : on garde le message pour l'afficher sur la page d'accueil
 function leaveWith(kind, reason) {
   try { sessionStorage.setItem('lc_exit', JSON.stringify({ kind, reason, at: Date.now() })); } catch (e) {}
@@ -645,3 +655,50 @@ function showSeasonBanner() {
 }
 document.addEventListener('site', () => showSeasonBanner());
 $('fxBtn').onclick = () => { const on = LC.toggleFx(); $('fxBtn').textContent = on ? '✨ Effets' : '✨ Effets coupés'; };
+
+// ---------- Douane ----------
+async function verifyUser(u, verified) {
+  try {
+    await api('/api/customs/verify/' + u.id, { method: 'POST', body: { verified } });
+    toast(verified ? `✅ ${u.username} a passé la douane` : `🛂 ${u.username} renvoyé à la douane`);
+  } catch (e) { toast(e.message); }
+}
+async function setCustomsOpen(open) {
+  try { await api('/api/customs/open', { method: 'POST', body: { open } }); } catch (e) { toast(e.message); }
+}
+function renderCustoms() {
+  const b = $('customsBanner');
+  const r = state.currentRoom;
+  const inDouane = state.view?.type === 'room' && r?.slug === 'douane';
+  const c = state.customs || {};
+  if (!c.enabled || !inDouane && !needsCustoms()) { b.classList.add('hidden'); return renderMuteBanner(); }
+  b.classList.remove('hidden');
+  if (isStaff()) {
+    const waiting = state.online.filter(u => !u.verified && u.room === 'douane').length;
+    b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
+      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, `Douane ${c.open ? 'ouverte' : 'fermée'}`),
+        el('div', { class: 'help' }, waiting ? `${waiting} personne(s) attendent d'être vérifiées : clique sur ✅ à côté de leur pseudo.` : 'Personne n\'attend pour le moment.')),
+      el('button', { class: 'btn btn-sm ' + (c.open ? 'btn-danger' : 'btn-primary'), onclick: () => setCustomsOpen(!c.open) }, c.open ? '🔒 Fermer la douane' : '🔓 Ouvrir la douane'));
+  } else {
+    b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
+      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, c.open ? 'Bienvenue à la douane !' : 'La douane est fermée pour le moment'),
+        el('div', { class: 'help' }, c.open
+          ? 'Présente-toi ici : un membre du staff va te vérifier. Ensuite tu auras accès à tous les salons, aux messages privés et à tout le site.'
+          : 'Un membre du staff va bientôt l\'ouvrir. Reste ici, tu pourras écrire dès qu\'elle sera ouverte.')));
+  }
+  renderMuteBanner();
+}
+socket.on('customs', c => {
+  state.customs = c;
+  loadRooms();
+  renderCustoms();
+  renderUsers();
+});
+socket.on('verified_state', ({ verified }) => {
+  state.me.verified = verified;
+  loadRooms().then(() => {
+    if (verified) { if (state.currentRoom?.slug === 'douane') joinDefaultRoom(); }
+    else if (state.view?.slug !== 'douane') joinRoom('douane');
+    renderCustoms();
+  });
+});

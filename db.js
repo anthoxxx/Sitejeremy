@@ -115,6 +115,12 @@ addColumn('users', 'device_id', "TEXT DEFAULT ''");
 addColumn('users', 'signup_ip', "TEXT DEFAULT ''");
 addColumn('users', 'ghost', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'ghost_anon', 'INTEGER NOT NULL DEFAULT 0');
+// Douane : les comptes déjà inscrits au moment où la douane arrive sont considérés comme vérifiés
+{
+  const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'verified');
+  addColumn('users', 'verified', 'INTEGER NOT NULL DEFAULT 0');
+  if (!had) db.prepare('UPDATE users SET verified=1 WHERE is_guest=0').run();
+}
 addColumn('users', 'birth_day', 'INTEGER DEFAULT 0');
 addColumn('users', 'birth_month', 'INTEGER DEFAULT 0');
 addColumn('users', 'show_birthday', 'INTEGER NOT NULL DEFAULT 1');
@@ -204,6 +210,12 @@ addColumn('stations', 'status', "TEXT DEFAULT 'unknown'");
 addColumn('stations', 'checked_at', 'INTEGER DEFAULT 0');
 addColumn('stations', 'check_note', "TEXT DEFAULT ''");
 
+// Salon « Douane » (contrôle des nouveaux arrivants)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='douane'").get()) {
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('douane', 'Douane', 'Les nouveaux arrivants passent ici pour être vérifiés par le staff', '🛂', 0, 0, Date.now());
+}
+
 // Radios par défaut (modifiables dans l'admin → Radios)
 if (db.prepare('SELECT COUNT(*) c FROM stations').get().c === 0) {
   const ins = db.prepare('INSERT INTO stations (name,url,genre,icon,sort) VALUES (?,?,?,?,?)');
@@ -222,7 +234,7 @@ if (db.prepare('SELECT COUNT(*) c FROM stations').get().c === 0) {
 }
 
 // Salons par défaut
-const roomCount = db.prepare('SELECT COUNT(*) c FROM rooms').get().c;
+const roomCount = db.prepare("SELECT COUNT(*) c FROM rooms WHERE slug<>'douane'").get().c;
 if (roomCount === 0) {
   const ins = db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)');
   const now = Date.now();
@@ -252,6 +264,8 @@ const defaults = {
   maxAccounts: '2',
   theme: 'auto',
   tempRoomsEnabled: '1',
+  customsEnabled: '0',
+  customsOpen: '1',
   tempRoomMinutes: '5',
   colorRoomPerm: '#4fb3ff',
   colorRoomTemp: '#ffb547',
@@ -329,17 +343,22 @@ if (!db.prepare("SELECT 1 FROM settings WHERE key='genderColors'").get()) {
   db.prepare("INSERT INTO settings (key,value) VALUES ('genderColors','1')").run();
 }
 
+// Réglages gardés en mémoire (relus après chaque modification)
+let settingsCache = null;
 function getSettings() {
-  const out = {};
-  for (const row of db.prepare('SELECT key,value FROM settings').all()) out[row.key] = row.value;
-  return out;
+  if (!settingsCache) {
+    settingsCache = {};
+    for (const row of db.prepare('SELECT key,value FROM settings').all()) settingsCache[row.key] = row.value;
+  }
+  return { ...settingsCache };
 }
 function setSetting(key, value) {
   db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, String(value));
+  settingsCache = null;
 }
 // ---------- Journal de tout ce qui se passe sur le site ----------
 const LOG_CATEGORIES = {
-  moderation: ['ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
+  moderation: ['verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
   messages: ['message_delete', 'room_clear'],
   accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],

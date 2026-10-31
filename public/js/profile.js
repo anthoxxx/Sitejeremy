@@ -81,6 +81,10 @@ async function openProfile(id) {
           ? el('button', { class: 'btn', onclick: () => { close(); unmuteUser(u); } }, '🔊 Fin de sourdine ', el('small', { 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)))
           : el('button', { class: 'btn', title: 'Ne plus voir ses messages pendant un moment', onclick: () => { close(); openMutePicker(u); } }, '🔇 Sourdine'),
         el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier')),
+      isStaff() && state.customs?.enabled && !['admin', 'superadmin', 'moderator'].includes(u.role) ? el('div', { class: 'staff-actions' }, el('h4', {}, '🛂 Douane'),
+        u.verified
+          ? el('button', { class: 'btn btn-sm', onclick: () => { close(); verifyUser(u, false); } }, '🛂 Renvoyer à la douane')
+          : el('button', { class: 'btn btn-primary', style: 'width:100%', onclick: () => { close(); verifyUser(u, true); } }, '✅ Valider : il passe la douane')) : null,
       roomActions(u, () => close()),
       staff ? el('div', { class: 'staff-actions' },
         el('h4', {}, 'Modération'),

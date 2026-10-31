@@ -82,6 +82,7 @@ function publicUser(u) {
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
+    verified: isVerified(u),
     isBirthday: isBirthday(u),
   };
 }
@@ -200,6 +201,7 @@ app.post('/api/register', (req, res) => {
     VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
     clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '');
+  if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
@@ -238,6 +240,7 @@ app.post('/api/guest', (req, res) => {
     VALUES (?,?,?,?,?,1,?,?)`).run(
     username, req.body.gender, parseInt(req.body.age, 10), clean(req.body.city, 40),
     genderColor(req.body.gender), now(), now());
+  if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
@@ -444,8 +447,15 @@ function roomOut(r) {
   };
 }
 // Peut-on entrer dans ce salon ?
+// ---------- Douane : les nouveaux arrivants doivent être vérifiés par le staff ----------
+const customsOn = () => getSettings().customsEnabled === '1';
+const customsOpen = () => getSettings().customsOpen === '1';
+const isVerified = u => !!u && (!customsOn() || !!u.verified || isStaff(u));
+const NOT_VERIFIED = '🛂 Tu dois d\'abord passer par la Douane : un membre du staff va te vérifier.';
 function roomAccess(user, room) {
   if (!room) return 'Salon introuvable';
+  if (room.slug === 'douane' && !customsOn() && !isStaff(user)) return 'La douane est désactivée';
+  if (!isVerified(user) && room.slug !== 'douane') return NOT_VERIFIED;
   if (isStaff(user) || room.owner_id === user.id || isRoomManager(room.id, user.id)) return null;
   if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
   if (isRoomBanned(room.id, user.id)) return 'Tu as été exclu de ce salon';
@@ -474,12 +484,13 @@ const roomsChanged = () => io.emit('rooms_changed');
 app.get('/api/rooms', auth, (req, res) => {
   const rooms = db.prepare('SELECT * FROM rooms ORDER BY owner_id IS NOT NULL, sort, id').all();
   // Les salons fermés ne sont visibles que par les personnes qui peuvent y entrer
-  const visible = rooms.filter(r => !r.is_private || !roomAccess(req.user, r));
+  const visible = rooms.filter(r => (r.slug === 'douane' ? customsOn() || isStaff(req.user) : !r.is_private || !roomAccess(req.user, r)));
   const s = getSettings();
   res.json({
     rooms: visible.map(roomOut),
-    canCreate: s.userRoomsEnabled === '1' && !req.user.is_guest,
-    canCreateTemp: s.tempRoomsEnabled === '1',
+    canCreate: s.userRoomsEnabled === '1' && !req.user.is_guest && isVerified(req.user),
+    canCreateTemp: s.tempRoomsEnabled === '1' && isVerified(req.user),
+    customs: { enabled: s.customsEnabled === '1', open: s.customsOpen === '1' },
     tempMinutes: parseInt(s.tempRoomMinutes, 10) || 5,
     maxUserRooms: parseInt(s.maxUserRooms, 10) || 0,
     voiceEnabled: s.voiceEnabled === '1',
@@ -490,6 +501,7 @@ app.post('/api/rooms', auth, (req, res) => {
   const s = getSettings();
   if (req.body.temporary) return createTempRoom(req, res);
   if (s.userRoomsEnabled !== '1') return res.status(403).json({ error: 'La création de salons est désactivée' });
+  if (!isVerified(req.user)) return res.status(403).json({ error: NOT_VERIFIED });
   if (req.user.is_guest) return res.status(403).json({ error: 'Inscris-toi pour créer ton propre salon' });
   const max = parseInt(s.maxUserRooms, 10) || 0;
   const mine = db.prepare('SELECT COUNT(*) c FROM rooms WHERE owner_id=? AND temporary=0').get(req.user.id).c;
@@ -511,6 +523,7 @@ app.post('/api/rooms', auth, (req, res) => {
 const tempRoomDelay = () => (parseInt(getSettings().tempRoomMinutes, 10) || 5) * 60 * 1000;
 function createTempRoom(req, res) {
   const s = getSettings();
+  if (!isVerified(req.user)) return res.status(403).json({ error: NOT_VERIFIED });
   if (s.tempRoomsEnabled !== '1') return res.status(403).json({ error: 'Les salons temporaires sont désactivés' });
   const existing = db.prepare('SELECT * FROM rooms WHERE owner_id=? AND temporary=1').get(req.user.id);
   if (existing && !isStaff(req.user)) return res.status(400).json({ error: `Tu as déjà un salon temporaire ouvert : « ${existing.name} »`, room: roomOut(existing) });
@@ -906,6 +919,44 @@ function checkAudio(a, uid) {
   return { url, duration: Math.min(120, Math.max(1, Math.round(Number(a.duration) || 1))) };
 }
 
+// ---------- Douane : vérifier quelqu'un, ouvrir / fermer ----------
+app.post('/api/customs/open', auth, (req, res) => {
+  if (!isStaff(req.user)) return res.status(403).json({ error: 'Réservé au staff' });
+  const open = !!req.body.open;
+  setSetting('customsOpen', open ? '1' : '0');
+  log(req.user, 'customs', open ? '🛂 Douane ouverte' : '🛂 Douane fermée');
+  io.emit('customs', { enabled: customsOn(), open });
+  io.to('room:douane').emit('system', { room: 'douane', text: open ? `🛂 La douane est ouverte par ${displayName(req.user)} : présente-toi !` : '🛂 La douane est fermée pour le moment.' });
+  res.json({ open });
+});
+app.post('/api/customs/verify/:id', auth, (req, res) => {
+  if (!isStaff(req.user)) return res.status(403).json({ error: 'Réservé au staff' });
+  const target = getUser(req.params.id);
+  if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
+  const verified = req.body.verified !== false;
+  if (!verified && rank(target) >= rank(req.user) && !isSuper(req.user)) return res.status(403).json({ error: 'Action non autorisée' });
+  db.prepare('UPDATE users SET verified=? WHERE id=?').run(verified ? 1 : 0, target.id);
+  log(req.user, verified ? 'verify' : 'unverify', `${target.username} ${verified ? 'a passé la douane ✅' : 'renvoyé à la douane'}`);
+  const updated = getUser(target.id);
+  refreshOnline(updated);
+  if (verified) {
+    notify(target.id, { type: 'verified', icon: '✅', title: 'Tu as passé la douane !', text: `Bienvenue sur ${getSettings().siteName} : tu as maintenant accès à tous les salons, aux messages privés et à tout le site.` });
+    io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a passé la douane, bienvenue !` });
+  } else {
+    notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Le staff doit à nouveau te vérifier avant que tu accèdes au reste du site.', important: true });
+    sendToCustoms(target.id);
+  }
+  emitToUser(target.id, 'verified_state', { verified: isVerified(updated) });
+  roomsChanged();
+  res.json({ verified });
+});
+// Fait sortir des salons une personne non vérifiée (elle retourne à la douane)
+function sendToCustoms(userId) {
+  const e = online.get(userId);
+  if (!e || !e.room || e.room === 'douane') return;
+  ejectFromRoom(userId, e.room, NOT_VERIFIED);
+}
+
 // ---------- Notifications ----------
 app.get('/api/notifications', auth, (req, res) => {
   const rows = db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 40').all(req.user.id);
@@ -976,6 +1027,7 @@ admin.get('/users', (req, res) => {
   if (filter === 'banned') where += ' AND banned=1';
   if (filter === 'staff') where += " AND role IN ('superadmin','admin','moderator')";
   if (filter === 'guests') where += ' AND is_guest=1';
+  if (filter === 'unverified') where += " AND verified=0 AND role='user'";
   if (filter === 'members') where += ' AND is_guest=0';
   const total = db.prepare(`SELECT COUNT(*) c FROM users WHERE ${where}`).get(q).c;
   const users = db.prepare(`SELECT * FROM users WHERE ${where} ORDER BY id DESC LIMIT 25 OFFSET ?`).all(q, page * 25);
@@ -1193,6 +1245,21 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(20, Math.max(2, parseInt(b.voiceMax, 10) || 8)));
   if (b.userRoomsEnabled !== undefined) setSetting('userRoomsEnabled', b.userRoomsEnabled ? '1' : '0');
   if (b.tempRoomsEnabled !== undefined) setSetting('tempRoomsEnabled', b.tempRoomsEnabled ? '1' : '0');
+  if (b.customsEnabled !== undefined) {
+    const was = customsOn();
+    setSetting('customsEnabled', b.customsEnabled ? '1' : '0');
+    if (customsOn() !== was) {
+      log(req.user, 'customs', customsOn() ? '🛂 Douane activée' : '🛂 Douane désactivée');
+      io.emit('customs', { enabled: customsOn(), open: customsOpen() });
+      for (const [id] of online) {
+        const ok = isVerified(getUser(id));
+        if (!ok) sendToCustoms(id);
+        emitToUser(id, 'verified_state', { verified: ok });
+      }
+      roomsChanged();
+      schedulePresence();
+    }
+  }
   if (b.tempRoomMinutes !== undefined) setSetting('tempRoomMinutes', Math.min(1440, Math.max(1, parseInt(b.tempRoomMinutes, 10) || 5)));
   if (b.maxUserRooms !== undefined) setSetting('maxUserRooms', Math.min(20, Math.max(0, parseInt(b.maxUserRooms, 10) || 0)));
   if (getSettings().voiceEnabled !== '1') for (const [slug] of voice) for (const p of voiceList(slug)) leaveVoiceBySocket(p.socketId, 'Le vocal a été désactivé');
@@ -1395,7 +1462,7 @@ admin.get('/logs', (req, res) => {
 app.use('/api/admin', admin);
 
 // Mini-jeux (scores, classements, parties à deux)
-const Games = require('./games')({ app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
+const Games = require('./games')({ app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isVerified: u => isVerified(u), isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
 app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 
 // Pages
@@ -1595,6 +1662,7 @@ io.on('connection', socket => {
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
+    if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
     if (prev !== room.slug && !entry.ghost) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
@@ -1615,6 +1683,7 @@ io.on('connection', socket => {
     const room = getRoomBySlug(entry.room);
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
+    if (room.slug === 'douane' && customsOn() && !customsOpen() && !isVerified(u)) return ack && ack({ error: '🛂 La douane est fermée pour le moment : attends qu\'un membre du staff l\'ouvre' });
     const kind = audio ? 'audio' : 'text', media = audio ? audio.url : '', duration = audio ? audio.duration : 0;
     const anon = entry.ghost && entry.ghostAnon ? 1 : 0;
     const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon) VALUES (?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon);
@@ -1633,6 +1702,8 @@ io.on('connection', socket => {
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid)) return ack && ack({ error: 'Cette personne ne reçoit pas tes messages' });
+    if (!isVerified(u) && !isStaff(target)) return ack && ack({ error: NOT_VERIFIED });
+    if (!isVerified(target) && !isStaff(u)) return ack && ack({ error: `${target.username} n'a pas encore passé la douane` });
     if (isMutedBy(target.id, uid)) return ack && ack({ error: `${target.username} t'a mis en sourdine pour le moment` });
     if (isBlocked(uid, target.id)) return ack && ack({ error: 'Tu as bloqué cette personne' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
@@ -1691,6 +1762,7 @@ io.on('connection', socket => {
     if (!visibleOnline(target.id, u)) return ack && ack({ error: `${target.username} n'est pas connecté` });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Appel impossible avec cette personne pour le moment' });
+    if ((!isVerified(u) && !isStaff(target)) || (!isVerified(target) && !isStaff(u))) return ack && ack({ error: '🛂 Appel impossible tant que la douane n\'est pas passée' });
     if (callOfSocket.has(socket.id) || userInCall(uid)) return ack && ack({ error: 'Tu es déjà en appel' });
     if (userInCall(target.id)) return ack && ack({ error: `${target.username} est déjà en appel` });
     if (tooMany('call:' + uid, 20, 10 * 60 * 1000)) return ack && ack({ error: 'Trop d\'appels, patiente un peu' });
