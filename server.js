@@ -202,11 +202,185 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+// ---------- Salons (officiels + salons créés par les membres) ----------
+const getRoom = id => db.prepare('SELECT * FROM rooms WHERE id=?').get(id);
+const getRoomBySlug = slug => db.prepare('SELECT * FROM rooms WHERE slug=?').get(String(slug));
+const getStation = id => (id ? db.prepare('SELECT * FROM stations WHERE id=?').get(id) : null);
+const stationOut = s => s && { id: s.id, name: s.name, url: s.url, genre: s.genre, icon: s.icon };
+const isRoomMember = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_members WHERE room_id=? AND user_id=?').get(roomId, userId);
+const isRoomBanned = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_bans WHERE room_id=? AND user_id=?').get(roomId, userId);
+
+function roomOut(r) {
+  const owner = r.owner_id ? getUser(r.owner_id) : null;
+  return {
+    id: r.id, slug: r.slug, name: r.name, description: r.description, icon: r.icon, membersOnly: !!r.members_only, sort: r.sort,
+    ownerId: r.owner_id || null, ownerName: owner ? owner.username : null, isPrivate: !!r.is_private,
+    voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
+    count: roomCount(r.slug), voice: voiceList(r.slug).length,
+  };
+}
+// Peut-on entrer dans ce salon ?
+function roomAccess(user, room) {
+  if (!room) return 'Salon introuvable';
+  if (isStaff(user) || room.owner_id === user.id) return null;
+  if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
+  if (isRoomBanned(room.id, user.id)) return 'Tu as été exclu de ce salon';
+  if (room.is_private && !isRoomMember(room.id, user.id)) return 'Ce salon est fermé : seules les personnes invitées peuvent entrer';
+  return null;
+}
+// Peut-on gérer ce salon ? (propriétaire, ou équipe ; seuls les admins gèrent les salons officiels)
+function canManageRoom(user, room) {
+  if (!room || !user) return false;
+  if (room.owner_id) return room.owner_id === user.id || isStaff(user);
+  return user.role === 'admin';
+}
+function slugify(s) {
+  return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+}
+const roomsChanged = () => io.emit('rooms_changed');
+
 app.get('/api/rooms', auth, (req, res) => {
-  const rooms = db.prepare('SELECT * FROM rooms ORDER BY sort, id').all();
-  res.json({ rooms: rooms.map(r => ({ ...roomOut(r), count: roomCount(r.slug) })) });
+  const rooms = db.prepare('SELECT * FROM rooms ORDER BY owner_id IS NOT NULL, sort, id').all();
+  // Les salons fermés ne sont visibles que par les personnes qui peuvent y entrer
+  const visible = rooms.filter(r => !r.is_private || !roomAccess(req.user, r));
+  const s = getSettings();
+  res.json({
+    rooms: visible.map(roomOut),
+    canCreate: s.userRoomsEnabled === '1' && !req.user.is_guest,
+    maxUserRooms: parseInt(s.maxUserRooms, 10) || 0,
+    voiceEnabled: s.voiceEnabled === '1',
+  });
 });
-const roomOut = r => ({ id: r.id, slug: r.slug, name: r.name, description: r.description, icon: r.icon, membersOnly: !!r.members_only, sort: r.sort });
+
+app.post('/api/rooms', auth, (req, res) => {
+  const s = getSettings();
+  if (s.userRoomsEnabled !== '1') return res.status(403).json({ error: 'La création de salons est désactivée' });
+  if (req.user.is_guest) return res.status(403).json({ error: 'Inscris-toi pour créer ton propre salon' });
+  const max = parseInt(s.maxUserRooms, 10) || 0;
+  const mine = db.prepare('SELECT COUNT(*) c FROM rooms WHERE owner_id=?').get(req.user.id).c;
+  if (!isStaff(req.user) && mine >= max) return res.status(400).json({ error: `Tu peux avoir ${max} salon(s) maximum` });
+  if (tooMany('room:' + req.user.id, 5, 3600 * 1000)) return res.status(429).json({ error: 'Trop de salons créés, réessaie plus tard' });
+  const name = clean(req.body.name, 30);
+  if (name.length < 3) return res.status(400).json({ error: 'Nom du salon : 3 caractères minimum' });
+  const slug = 'u-' + (slugify(name) || 'salon') + '-' + crypto.randomBytes(2).toString('hex');
+  const info = db.prepare(`INSERT INTO rooms (slug,name,description,icon,sort,members_only,owner_id,is_private,created_at)
+    VALUES (?,?,?,?,100,0,?,?,?)`).run(slug, name, clean(req.body.description, 120), clean(req.body.icon, 4) || '🏠', req.user.id, req.body.isPrivate ? 1 : 0, now());
+  log(req.user, 'room_create', name + ' (salon membre)');
+  roomsChanged();
+  res.json({ room: roomOut(getRoom(info.lastInsertRowid)) });
+});
+
+app.patch('/api/rooms/:id', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const b = req.body;
+  const name = b.name !== undefined ? clean(b.name, 30) : room.name;
+  if (name.length < 2) return res.status(400).json({ error: 'Nom trop court' });
+  let stationId = room.station_id;
+  if (b.stationId !== undefined) stationId = b.stationId ? (getStation(b.stationId) ? parseInt(b.stationId, 10) : room.station_id) : null;
+  db.prepare('UPDATE rooms SET name=?,description=?,icon=?,is_private=?,station_id=?,voice_enabled=? WHERE id=?').run(
+    name,
+    b.description !== undefined ? clean(b.description, 120) : room.description,
+    b.icon !== undefined ? (clean(b.icon, 4) || '🏠') : room.icon,
+    b.isPrivate !== undefined ? (b.isPrivate ? 1 : 0) : room.is_private,
+    stationId,
+    b.voiceEnabled !== undefined ? (b.voiceEnabled ? 1 : 0) : room.voice_enabled,
+    room.id);
+  const updated = getRoom(room.id);
+  // Salon passé en "fermé" : on fait sortir les personnes non invitées
+  if (updated.is_private && !room.is_private) {
+    for (const [uid2, e] of online) if (roomAccess(e.user, updated)) ejectFromRoom(uid2, updated.slug, 'Le salon a été fermé par son propriétaire');
+  }
+  if (!updated.voice_enabled) for (const p of voiceList(updated.slug)) leaveVoiceBySocket(p.socketId, 'Le vocal a été désactivé dans ce salon');
+  if (updated.station_id !== room.station_id) io.to('room:' + updated.slug).emit('room_radio', { slug: updated.slug, station: stationOut(getStation(updated.station_id)), by: req.user.username });
+  roomsChanged();
+  res.json({ room: roomOut(updated) });
+});
+
+app.delete('/api/rooms/:id', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!room || !room.owner_id) return res.status(400).json({ error: 'Seuls les salons de membres se suppriment ici' });
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  deleteRoom(room, req.user);
+  res.json({ ok: true });
+});
+
+app.get('/api/rooms/:id/members', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const members = db.prepare('SELECT u.* FROM room_members m JOIN users u ON u.id=m.user_id WHERE m.room_id=? ORDER BY u.username').all(room.id);
+  const bans = db.prepare('SELECT u.* FROM room_bans b JOIN users u ON u.id=b.user_id WHERE b.room_id=? ORDER BY u.username').all(room.id);
+  res.json({ members: members.map(publicUser), bans: bans.map(publicUser) });
+});
+
+app.post('/api/rooms/:id/members', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const target = req.body.userId ? getUser(req.body.userId) : getUserByName(clean(req.body.username, 20));
+  if (!target) return res.status(404).json({ error: 'Pseudo introuvable' });
+  if (target.id === room.owner_id) return res.status(400).json({ error: 'C\'est le propriétaire du salon' });
+  const count = db.prepare('SELECT COUNT(*) c FROM room_members WHERE room_id=?').get(room.id).c;
+  if (count >= 200) return res.status(400).json({ error: 'Liste d\'invités pleine (200 maximum)' });
+  db.prepare('INSERT OR IGNORE INTO room_members (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
+  db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, target.id);
+  emitToUser(target.id, 'room_invite', { room: roomOut(room), by: req.user.username });
+  roomsChanged();
+  res.json({ user: publicUser(target) });
+});
+
+app.delete('/api/rooms/:id/members/:userId', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const uid2 = parseInt(req.params.userId, 10);
+  db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, uid2);
+  const target = getUser(uid2);
+  if (room.is_private && target && roomAccess(target, room)) ejectFromRoom(uid2, room.slug, 'Tu as été retiré de ce salon fermé');
+  roomsChanged();
+  res.json({ ok: true });
+});
+
+// Exclure quelqu'un d'un salon (et l'empêcher de revenir)
+app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const target = getUser(req.params.userId);
+  if (!target || target.id === req.user.id || target.id === room.owner_id) return res.status(400).json({ error: 'Impossible d\'exclure cette personne' });
+  if (isStaff(target) && req.user.role !== 'admin') return res.status(403).json({ error: 'Impossible d\'exclure un membre de l\'équipe' });
+  db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
+  db.prepare('INSERT OR IGNORE INTO room_bans (room_id,user_id) VALUES (?,?)').run(room.id, target.id);
+  ejectFromRoom(target.id, room.slug, `Tu as été exclu du salon ${room.name}`);
+  io.to('room:' + room.slug).emit('system', { room: room.slug, text: `${target.username} a été exclu du salon par ${req.user.username}` });
+  roomsChanged();
+  res.json({ ok: true });
+});
+app.delete('/api/rooms/:id/bans/:userId', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, req.params.userId);
+  roomsChanged();
+  res.json({ ok: true });
+});
+
+function deleteRoom(room, actor) {
+  for (const p of voiceList(room.slug)) leaveVoiceBySocket(p.socketId, 'Le salon a été supprimé');
+  db.prepare('DELETE FROM rooms WHERE id=?').run(room.id);
+  for (const e of online.values()) if (e.room === room.slug) e.room = null;
+  log(actor, 'room_delete', room.name);
+  io.to('room:' + room.slug).emit('room_deleted', { slug: room.slug });
+  io.in('room:' + room.slug).socketsLeave('room:' + room.slug);
+  roomsChanged();
+  schedulePresence();
+}
+
+// ---------- Radios & vocal ----------
+app.get('/api/stations', auth, (req, res) => {
+  res.json({ stations: db.prepare('SELECT * FROM stations ORDER BY sort, id').all().map(stationOut) });
+});
+app.get('/api/ice', auth, (req, res) => {
+  const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  if (process.env.TURN_URL) iceServers.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER, credential: process.env.TURN_PASS });
+  res.json({ iceServers });
+});
 
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
@@ -367,7 +541,7 @@ admin.get('/users/:id/messages', (req, res) => {
 
 // Salons
 admin.get('/rooms', (req, res) => {
-  res.json({ rooms: db.prepare('SELECT * FROM rooms ORDER BY sort,id').all().map(r => ({ ...roomOut(r), count: roomCount(r.slug) })) });
+  res.json({ rooms: db.prepare('SELECT * FROM rooms ORDER BY owner_id IS NOT NULL, sort, id').all().map(roomOut) });
 });
 function roomInput(body) {
   const name = clean(body.name, 30);
@@ -398,10 +572,7 @@ admin.delete('/rooms/:id', requireRole('admin'), (req, res) => {
   const room = db.prepare('SELECT * FROM rooms WHERE id=?').get(req.params.id);
   if (!room) return res.status(404).json({ error: 'Salon introuvable' });
   if (db.prepare('SELECT COUNT(*) c FROM rooms').get().c <= 1) return res.status(400).json({ error: 'Il faut garder au moins un salon' });
-  db.prepare('DELETE FROM rooms WHERE id=?').run(room.id);
-  log(req.user, 'room_delete', room.name);
-  io.to('room:' + room.slug).emit('room_deleted', { slug: room.slug });
-  io.emit('rooms_changed');
+  deleteRoom(room, req.user);
   res.json({ ok: true });
 });
 admin.delete('/rooms/:id/messages', requireRole('admin'), (req, res) => {
@@ -452,9 +623,52 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.guestsAllowed !== undefined) setSetting('guestsAllowed', b.guestsAllowed ? '1' : '0');
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
+  if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
+  if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(20, Math.max(2, parseInt(b.voiceMax, 10) || 8)));
+  if (b.userRoomsEnabled !== undefined) setSetting('userRoomsEnabled', b.userRoomsEnabled ? '1' : '0');
+  if (b.maxUserRooms !== undefined) setSetting('maxUserRooms', Math.min(20, Math.max(0, parseInt(b.maxUserRooms, 10) || 0)));
+  if (getSettings().voiceEnabled !== '1') for (const [slug] of voice) for (const p of voiceList(slug)) leaveVoiceBySocket(p.socketId, 'Le vocal a été désactivé');
   log(req.user, 'settings', 'Réglages mis à jour');
   io.emit('announcement', { text: getSettings().announcement });
   res.json({ settings: getSettings() });
+});
+
+// Radios
+function stationInput(b) {
+  const url = clean(b.url, 500);
+  return { name: clean(b.name, 40), url, genre: clean(b.genre, 40), icon: clean(b.icon, 4) || '📻', sort: parseInt(b.sort, 10) || 0 };
+}
+const validStream = st => st.name && /^https?:\/\//i.test(st.url);
+admin.get('/stations', requireRole('admin'), (req, res) => {
+  res.json({ stations: db.prepare('SELECT * FROM stations ORDER BY sort, id').all() });
+});
+admin.post('/stations', requireRole('admin'), (req, res) => {
+  const st = stationInput(req.body);
+  if (!validStream(st)) return res.status(400).json({ error: 'Nom et lien du flux (http/https) obligatoires' });
+  db.prepare('INSERT INTO stations (name,url,genre,icon,sort) VALUES (?,?,?,?,?)').run(st.name, st.url, st.genre, st.icon, st.sort);
+  log(req.user, 'station_create', st.name);
+  io.emit('stations_changed');
+  res.json({ ok: true });
+});
+admin.patch('/stations/:id', requireRole('admin'), (req, res) => {
+  const cur = db.prepare('SELECT * FROM stations WHERE id=?').get(req.params.id);
+  if (!cur) return res.status(404).json({ error: 'Radio introuvable' });
+  const st = stationInput({ ...cur, ...req.body });
+  if (!validStream(st)) return res.status(400).json({ error: 'Nom et lien du flux (http/https) obligatoires' });
+  db.prepare('UPDATE stations SET name=?,url=?,genre=?,icon=?,sort=? WHERE id=?').run(st.name, st.url, st.genre, st.icon, st.sort, cur.id);
+  log(req.user, 'station_edit', st.name);
+  io.emit('stations_changed');
+  res.json({ ok: true });
+});
+admin.delete('/stations/:id', requireRole('admin'), (req, res) => {
+  const cur = db.prepare('SELECT * FROM stations WHERE id=?').get(req.params.id);
+  if (!cur) return res.status(404).json({ error: 'Radio introuvable' });
+  db.prepare('DELETE FROM stations WHERE id=?').run(cur.id);
+  db.prepare('UPDATE rooms SET station_id=NULL WHERE station_id=?').run(cur.id);
+  log(req.user, 'station_delete', cur.name);
+  io.emit('stations_changed');
+  roomsChanged();
+  res.json({ ok: true });
 });
 
 admin.post('/broadcast', (req, res) => {
@@ -515,6 +729,43 @@ function disconnectUser(id, ev, reason) {
   }
 }
 
+// Faire sortir quelqu'un d'un salon (tous ses onglets)
+function ejectFromRoom(userId, slug, reason) {
+  const e = online.get(userId);
+  if (!e) return;
+  for (const sid of e.sockets) {
+    const s = io.sockets.sockets.get(sid);
+    if (!s || !s.rooms.has('room:' + slug)) continue;
+    s.leave('room:' + slug);
+    leaveVoiceBySocket(sid, null);
+    s.emit('room_ejected', { slug, reason });
+  }
+  if (e.room === slug) e.room = null;
+  schedulePresence();
+}
+
+// ---------- Vocal (WebRTC : le serveur ne fait que relayer la signalisation) ----------
+// voice : slug -> Map(socketId -> { userId, username, color, muted })
+const voice = new Map();
+const voiceOf = new Map(); // socketId -> slug
+function voiceList(slug) {
+  const m = voice.get(slug);
+  return m ? [...m.entries()].map(([socketId, p]) => ({ socketId, ...p })) : [];
+}
+function emitVoiceState(slug) {
+  io.emit('voice_state', { slug, participants: voiceList(slug) });
+}
+function leaveVoiceBySocket(socketId, reason) {
+  const slug = voiceOf.get(socketId);
+  if (!slug) return;
+  voiceOf.delete(socketId);
+  const m = voice.get(slug);
+  if (m) { m.delete(socketId); if (!m.size) voice.delete(slug); }
+  for (const p of voiceList(slug)) io.to(p.socketId).emit('voice_peer_left', { socketId });
+  if (reason) io.to(socketId).emit('voice_kicked', { reason });
+  emitVoiceState(slug);
+}
+
 io.use((socket, next) => {
   const token = parseCookie(socket.handshake.headers.cookie)[COOKIE];
   const u = userFromToken(token);
@@ -547,17 +798,18 @@ io.on('connection', socket => {
   const current = () => getUser(uid);
 
   socket.on('join', (slug, ack) => {
-    const room = db.prepare('SELECT * FROM rooms WHERE slug=?').get(String(slug));
+    const room = getRoomBySlug(slug);
     const u = current();
-    if (!room) return ack && ack({ error: 'Salon introuvable' });
-    if (room.members_only && u.is_guest) return ack && ack({ error: 'Ce salon est réservé aux membres inscrits' });
+    const denied = roomAccess(u, room);
+    if (denied) return ack && ack({ error: denied });
+    if (voiceOf.get(socket.id) && voiceOf.get(socket.id) !== room.slug) leaveVoiceBySocket(socket.id, null);
     for (const r of socket.rooms) if (r.startsWith('room:')) socket.leave(r);
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
-    ack && ack({ room: roomOut(room), history: history.map(msgOut) });
+    ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (prev !== room.slug) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
@@ -573,8 +825,9 @@ io.on('connection', socket => {
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
     const content = filterWords(clean(text, 500));
     if (!content) return;
-    const room = db.prepare('SELECT * FROM rooms WHERE slug=?').get(entry.room);
-    if (!room) return;
+    const room = getRoomBySlug(entry.room);
+    if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
+    if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at) VALUES (?,?,?,?)').run(room.id, uid, content, now());
     const msg = msgOut({ id: info.lastInsertRowid, user_id: uid, username: u.username, color: u.color, gender: u.gender, role: u.role, content, created_at: now() });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
@@ -608,7 +861,53 @@ io.on('connection', socket => {
 
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
 
+  // ----- Vocal -----
+  const myVoiceRoom = () => { for (const r of socket.rooms) if (r.startsWith('room:')) return r.slice(5); return null; };
+  socket.on('voice_join', (_, ack) => {
+    const u = current();
+    const slug = myVoiceRoom();
+    const room = slug && getRoomBySlug(slug);
+    const s = getSettings();
+    if (!room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
+    if (s.voiceEnabled !== '1' || !room.voice_enabled) return ack && ack({ error: 'Le vocal est désactivé dans ce salon' });
+    if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
+    if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
+    if (voiceOf.get(socket.id) === slug) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id) });
+    leaveVoiceBySocket(socket.id, null);
+    const max = parseInt(s.voiceMax, 10) || 8;
+    if (voiceList(slug).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum)` });
+    const peers = voiceList(slug);
+    if (!voice.has(slug)) voice.set(slug, new Map());
+    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, muted: false });
+    voiceOf.set(socket.id, slug);
+    ack && ack({ peers });
+    emitVoiceState(slug);
+  });
+  socket.on('voice_leave', () => leaveVoiceBySocket(socket.id, null));
+  socket.on('voice_signal', ({ to, data } = {}) => {
+    const slug = voiceOf.get(socket.id);
+    if (!slug || voiceOf.get(String(to)) !== slug || !data) return;
+    io.to(String(to)).emit('voice_signal', { from: socket.id, data });
+  });
+  socket.on('voice_mute', muted => {
+    const slug = voiceOf.get(socket.id);
+    const p = slug && voice.get(slug)?.get(socket.id);
+    if (!p) return;
+    p.muted = !!muted;
+    emitVoiceState(slug);
+  });
+  socket.on('voice_kick', (targetSocketId, ack) => {
+    const slug = voiceOf.get(String(targetSocketId));
+    const room = slug && getRoomBySlug(slug);
+    if (!room || !canManageRoom(current(), room)) return ack && ack({ error: 'Action non autorisée' });
+    const target = voice.get(slug)?.get(String(targetSocketId));
+    if (target && target.userId === room.owner_id) return ack && ack({ error: 'Impossible de retirer le propriétaire' });
+    leaveVoiceBySocket(String(targetSocketId), 'Tu as été retiré du vocal');
+    ack && ack({ ok: true });
+  });
+
   socket.on('disconnect', () => {
+    leaveVoiceBySocket(socket.id, null);
     entry.sockets.delete(socket.id);
     if (entry.sockets.size === 0) {
       online.delete(uid);

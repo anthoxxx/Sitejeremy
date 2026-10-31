@@ -255,3 +255,55 @@ td .btn { margin: 2px; }
   .stats { gap: 22px; }
   .card { padding: 20px; }
 }
+
+/* ===== Salons des membres ===== */
+.sidebar.left { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.side-scroll { flex: 1; overflow-y: auto; padding: 16px 12px; }
+.side-title .btn-sm { padding: 3px 10px; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.side-empty { padding: 6px 10px; color: var(--muted); font-size: .84rem; }
+.voice-pill { background: rgba(51, 214, 166, .15); color: var(--green); margin-right: 4px; }
+.icon-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.icon-pick button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); font-size: 1.2rem; cursor: pointer; }
+.icon-pick button.active { border-color: transparent; background: var(--grad); }
+.switch small.help { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+.switch { cursor: pointer; }
+.people-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+.person { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--bg-2); }
+.person .avatar { width: 28px; height: 28px; font-size: .8rem; }
+
+/* ===== Vocal ===== */
+.voice-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(51, 214, 166, .08), transparent); flex-wrap: wrap; }
+.voice-label { font-weight: 700; font-size: .85rem; color: var(--green); }
+.voice-people { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.voice-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--panel); border: 2px solid transparent; font-size: .85rem; font-weight: 600; transition: border-color .1s, box-shadow .1s; }
+.voice-chip .avatar { width: 26px; height: 26px; font-size: .75rem; }
+.voice-chip.speaking { border-color: var(--green); box-shadow: 0 0 0 3px rgba(51, 214, 166, .25); }
+.voice-chip.muted { opacity: .7; }
+.voice-x { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 0 2px; }
+.voice-x:hover { color: var(--red); }
+.voice-ctrl { display: flex; gap: 6px; }
+
+/* ===== Lecteur radio ===== */
+.player { border-top: 1px solid var(--line); padding: 12px; background: var(--panel); }
+.player-top { display: flex; align-items: center; gap: 8px; }
+.player-top .meta { flex: 1; min-width: 0; }
+.player-top .name { font-weight: 700; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-top .sub { font-size: .75rem; color: var(--muted); }
+.player-top .btn-icon { width: 34px; height: 34px; }
+.player-art { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; background: var(--panel-2); flex: none; }
+.player-art.on { background: var(--grad); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(255, 95, 162, .18); } }
+.volume { width: 100%; margin-top: 8px; accent-color: var(--rose); }
+.stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.station { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); cursor: pointer; text-align: center; }
+.station:hover { border-color: var(--violet); }
+.station.active { background: var(--grad); color: #fff; border-color: transparent; }
+.station-ico { font-size: 1.6rem; }
+.station small { color: var(--muted); font-size: .72rem; }
+.station.active small { color: rgba(255, 255, 255, .85); }
+.room-radio-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg-2); margin-bottom: 12px; font-size: .9rem; }
+.modal { max-width: 480px; }
+@media (max-width: 760px) {
+  .room-head { flex-wrap: wrap; padding: 10px 14px; }
+  .voice-bar { padding: 8px 14px; }
+}

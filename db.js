@@ -87,6 +87,54 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 `);
 
+// ---------- Migrations (ajout de colonnes sur une base existante) ----------
+function addColumn(table, col, def) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+}
+addColumn('rooms', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+addColumn('rooms', 'is_private', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('rooms', 'station_id', 'INTEGER');
+addColumn('rooms', 'voice_enabled', 'INTEGER NOT NULL DEFAULT 1');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS room_members (
+  room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (room_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS room_bans (
+  room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (room_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS stations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  genre TEXT DEFAULT '',
+  icon TEXT DEFAULT '📻',
+  sort INTEGER DEFAULT 0
+);
+`);
+
+// Radios par défaut (modifiables dans l'admin → Radios)
+if (db.prepare('SELECT COUNT(*) c FROM stations').get().c === 0) {
+  const ins = db.prepare('INSERT INTO stations (name,url,genre,icon,sort) VALUES (?,?,?,?,?)');
+  [
+    ['NRJ', 'https://scdn.nrjaudio.fm/adwz2/fr/30001/mp3_128.mp3?origine=fluxradios', 'Hits', '⚡', 1],
+    ['Chérie FM', 'https://scdn.nrjaudio.fm/adwz2/fr/30201/mp3_128.mp3?origine=fluxradios', 'Love songs', '💖', 2],
+    ['Nostalgie', 'https://scdn.nrjaudio.fm/adwz2/fr/30601/mp3_128.mp3?origine=fluxradios', 'Années 70-80', '📼', 3],
+    ['Rire & Chansons', 'https://scdn.nrjaudio.fm/adwz2/fr/30401/mp3_128.mp3?origine=fluxradios', 'Humour', '😂', 4],
+    ['Skyrock', 'https://icecast.skyrock.net/s/natio_mp3_128k', 'Rap / RnB', '🎤', 5],
+    ['Fun Radio', 'https://streamer-02.rtl.fr/fun-1-44-128', 'Dance / Électro', '🪩', 6],
+    ['RTL2', 'https://streamer-02.rtl.fr/rtl2-1-44-128', 'Pop-rock', '🎸', 7],
+    ["Mouv'", 'https://icecast.radiofrance.fr/mouv-midfi.mp3', 'Hip-hop', '🎧', 8],
+    ['FIP', 'https://icecast.radiofrance.fr/fip-midfi.mp3', 'Éclectique', '🎷', 9],
+    ['France Inter', 'https://icecast.radiofrance.fr/franceinter-midfi.mp3', 'Généraliste', '📰', 10],
+  ].forEach(r => ins.run(...r));
+}
+
 // Salons par défaut
 const roomCount = db.prepare('SELECT COUNT(*) c FROM rooms').get().c;
 if (roomCount === 0) {
@@ -111,6 +159,10 @@ const defaults = {
   guestsAllowed: '1',
   registrationOpen: '1',
   minAge: '18',
+  voiceEnabled: '1',
+  voiceMax: '8',
+  userRoomsEnabled: '1',
+  maxUserRooms: '2',
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);

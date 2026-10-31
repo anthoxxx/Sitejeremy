@@ -16,10 +16,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = r => ({ admin: 'Admin', moderator: 'Modérateur', user: 'Membre' }[r] || r);
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, messages, rooms, settings, logs };
+const pages = { dashboard, users, reports, messages, rooms, radios, settings, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'settings'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -182,14 +182,62 @@ async function rooms() {
   page.replaceChildren(...header('Salons', 'Crée, modifie, réordonne ou supprime les salons.'),
     el('div', { class: 'panel' }, el('h2', {}, '➕ Nouveau salon'), form),
     el('div', { class: 'panel' }, el('h2', {}, 'Salons existants'), el('div', { class: 'table-wrap' }, el('table', {},
-      el('thead', {}, el('tr', {}, ...['', 'Nom', 'Description', 'Ordre', 'Accès', 'Connectés', 'Actions'].map(h => el('th', {}, h)))),
+      el('thead', {}, el('tr', {}, ...['', 'Nom', 'Description', 'Ordre', 'Accès', 'Connectés', 'Vocal', 'Actions'].map(h => el('th', {}, h)))),
       el('tbody', {}, ...rooms.map(r => el('tr', {},
         el('td', { style: 'font-size:1.3rem' }, r.icon), el('td', {}, el('b', {}, r.name), el('div', { style: 'font-size:.75rem;color:var(--muted)' }, '#' + r.slug)),
-        el('td', {}, r.description), el('td', {}, r.sort), el('td', {}, r.membersOnly ? '💎 Membres' : 'Tous'), el('td', {}, r.count),
+        el('td', {}, r.description, r.station ? el('div', { style: 'font-size:.75rem;color:var(--muted)' }, '📻 ' + r.station.name) : null),
+        el('td', {}, r.ownerId ? '—' : r.sort),
+        el('td', {}, r.ownerId ? `👑 ${r.ownerName}${r.isPrivate ? ' · 🔒 fermé' : ''}` : r.membersOnly ? '💎 Membres' : 'Tous'),
+        el('td', {}, r.count), el('td', {}, r.voiceEnabled ? `🎙️ ${r.voice}` : 'off'),
         el('td', {},
-          el('button', { class: 'btn btn-sm', onclick: () => editRoom(r) }, '✏️'),
+          r.ownerId ? null : el('button', { class: 'btn btn-sm', onclick: () => editRoom(r) }, '✏️'),
           el('button', { class: 'btn btn-sm', title: 'Vider les messages', onclick: async () => { if (confirm(`Vider tous les messages de ${r.name} ?`)) await run(() => api(`/api/admin/rooms/${r.id}/messages`, { method: 'DELETE' }), 'Salon vidé'); } }, '🧹'),
           el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { if (confirm(`Supprimer le salon ${r.name} ?`)) { await run(() => api('/api/admin/rooms/' + r.id, { method: 'DELETE' }), 'Salon supprimé'); rooms_(); } } }, '🗑')))))))));
+}
+
+// ---------- Radios ----------
+async function radios() {
+  const { stations } = await api('/api/admin/stations');
+  const preview = new Audio();
+  let previewId = null;
+  const form = (st, onSave) => {
+    const icon = el('input', { class: 'input', maxlength: 4, value: st.icon || '📻', style: 'max-width:70px' });
+    const name = el('input', { class: 'input', maxlength: 40, placeholder: 'Nom (ex : NRJ)', value: st.name || '' });
+    const url = el('input', { class: 'input', placeholder: 'Lien du flux https://…', value: st.url || '', style: 'min-width:260px;flex:2' });
+    const genre = el('input', { class: 'input', maxlength: 40, placeholder: 'Style', value: st.genre || '' });
+    const sort = el('input', { class: 'input', type: 'number', value: st.sort ?? 20, style: 'max-width:80px', title: 'Ordre' });
+    return el('div', { class: 'toolbar' }, icon, name, url, genre, sort,
+      el('button', { class: 'btn btn-primary', onclick: () => onSave({ icon: icon.value, name: name.value, url: url.value, genre: genre.value, sort: sort.value }) }, st.id ? 'Enregistrer' : 'Ajouter'));
+  };
+  const test = (st, btn) => {
+    if (previewId === st.id) { preview.pause(); previewId = null; btn.textContent = '▶ Tester'; return; }
+    previewId = st.id; preview.src = st.url;
+    document.querySelectorAll('.test-btn').forEach(b => { b.textContent = '▶ Tester'; });
+    btn.textContent = '⏳';
+    preview.play().then(() => { btn.textContent = '⏸ Stop'; }).catch(() => { btn.textContent = '❌ Ne marche pas'; previewId = null; });
+  };
+  page.replaceChildren(...header('Radios', 'Les radios que tout le monde peut écouter dans le lecteur et mettre dans les salons.'),
+    el('div', { class: 'panel' }, el('h2', {}, '➕ Ajouter une radio'), form({}, async body => { await run(() => api('/api/admin/stations', { method: 'POST', body }), 'Radio ajoutée'); radios(); }),
+      el('p', { style: 'color:var(--muted);font-size:.85rem;margin:6px 0 0' }, 'Astuce : le lien doit être un flux audio direct (mp3/aac) en https. Tu trouves les liens officiels sur le site de chaque radio ou sur radio-browser.info.')),
+    el('div', { class: 'panel' }, el('h2', {}, `📻 ${stations.length} radio(s)`),
+      stations.length ? el('div', { class: 'table-wrap' }, el('table', {},
+        el('thead', {}, el('tr', {}, ...['', 'Nom', 'Style', 'Lien', 'Actions'].map(h => el('th', {}, h)))),
+        el('tbody', {}, ...stations.map(st => {
+          const testBtn = el('button', { class: 'btn btn-sm test-btn' }, '▶ Tester');
+          testBtn.onclick = () => test(st, testBtn);
+          return el('tr', {},
+            el('td', { style: 'font-size:1.3rem' }, st.icon), el('td', {}, el('b', {}, st.name)), el('td', {}, st.genre),
+            el('td', { style: 'max-width:300px;overflow-wrap:anywhere;font-size:.8rem;color:var(--muted)' }, st.url),
+            el('td', {}, testBtn,
+              el('button', { class: 'btn btn-sm', onclick: () => {
+                const back = el('div', { class: 'modal-back', onclick: e => { if (e.target === back) back.remove(); } });
+                back.append(el('div', { class: 'card modal', style: 'max-width:820px' }, el('h3', {}, 'Modifier ' + st.name),
+                  form(st, async body => { await run(() => api('/api/admin/stations/' + st.id, { method: 'PATCH', body }), 'Radio modifiée'); back.remove(); radios(); })));
+                document.body.append(back);
+              } }, '✏️'),
+              el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { if (confirm(`Supprimer ${st.name} ?`)) { await run(() => api('/api/admin/stations/' + st.id, { method: 'DELETE' }), 'Radio supprimée'); radios(); } } }, '🗑')));
+        })))) : el('p', { class: 'empty' }, 'Aucune radio')));
+  window.addEventListener('hashchange', () => preview.pause(), { once: true });
 }
 const rooms_ = () => rooms().catch(() => {});
 function roomForm(r, onSave) {
@@ -217,6 +265,10 @@ async function settings() {
   const guests = el('input', { type: 'checkbox', checked: s.guestsAllowed === '1' });
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
+  const voiceOn = el('input', { type: 'checkbox', checked: s.voiceEnabled === '1' });
+  const voiceMax = el('input', { class: 'input', type: 'number', min: 2, max: 20, value: s.voiceMax, style: 'max-width:100px' });
+  const userRooms = el('input', { type: 'checkbox', checked: s.userRoomsEnabled === '1' });
+  const maxRooms = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxUserRooms, style: 'max-width:100px' });
   page.replaceChildren(...header('Réglages', 'Configure le fonctionnement général du chat.'),
     el('div', { class: 'panel' },
       el('div', { class: 'field' }, el('label', {}, '📢 Annonce permanente'), announcement),
@@ -224,8 +276,13 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '🎭 Autoriser la connexion en invité (sans inscription)'), guests),
       el('div', { class: 'switch' }, el('span', {}, '✍️ Inscriptions ouvertes'), reg),
       el('div', { class: 'switch' }, el('span', {}, '🔞 Âge minimum'), minAge),
+      el('div', { class: 'switch' }, el('span', {}, '🎙️ Chat vocal activé'), voiceOn),
+      el('div', { class: 'switch' }, el('span', {}, '👥 Personnes maximum par vocal'), voiceMax),
+      el('div', { class: 'switch' }, el('span', {}, '🏠 Les membres peuvent créer leur salon'), userRooms),
+      el('div', { class: 'switch' }, el('span', {}, '🔢 Salons maximum par membre'), maxRooms),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
         announcement: announcement.value, bannedWords: words.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
+        voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
 }
 
@@ -234,7 +291,7 @@ async function logs() {
   const { logs } = await api('/api/admin/logs');
   const labels = { ban: '⛔ Bannissement', unban: '✅ Débannissement', kick: '👢 Expulsion', mute: '🔇 Mutisme', unmute: '🔊 Parole rendue', role: '🎖️ Rôle',
     delete_user: '🗑 Suppression compte', room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_clear: '🧹 Salon vidé',
-    message_delete: '💬 Message supprimé', settings: '⚙️ Réglages', broadcast: '📢 Annonce', report_closed: '⚠️ Signalement traité', report_open: '⚠️ Signalement rouvert', admin_auto: '👑 Admin' };
+    message_delete: '💬 Message supprimé', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', settings: '⚙️ Réglages', broadcast: '📢 Annonce', report_closed: '⚠️ Signalement traité', report_open: '⚠️ Signalement rouvert', admin_auto: '👑 Admin' };
   page.replaceChildren(...header('Journal de modération', 'Toutes les actions de l\'équipe, des plus récentes aux plus anciennes.'),
     el('div', { class: 'panel' }, logs.length ? el('div', { class: 'table-wrap' }, el('table', {},
       el('thead', {}, el('tr', {}, ...['Date', 'Par', 'Action', 'Détails'].map(h => el('th', {}, h)))),

@@ -10,6 +10,10 @@ const state = {
   convs: new Map(),      // userId -> { user, unread, last }
   pmCache: new Map(),    // userId -> [messages]
   blocked: new Set(),
+  voice: new Map(),      // slug -> participants du vocal
+  currentRoom: null,
+  canCreate: false,
+  voiceEnabled: true,
   filter: 'all',
   sound: true,
 };
@@ -57,51 +61,96 @@ $('drawerBack').onclick = closeDrawers;
 // ---------- Rendu : en-tête utilisateur ----------
 function renderMe() {
   const chip = $('meChip');
-  chip.replaceChildren(LC.avatar(state.me), el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me));
+  chip.replaceChildren(...[LC.avatar(state.me), el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me)].filter(Boolean));
   chip.onclick = openMyProfile;
   $('adminLink').classList.toggle('hidden', !isStaff());
 }
 
 // ---------- Salons ----------
 async function loadRooms() {
-  const { rooms } = await api('/api/rooms');
-  state.rooms = rooms;
+  const d = await api('/api/rooms');
+  state.rooms = d.rooms;
+  state.canCreate = d.canCreate;
+  state.maxUserRooms = d.maxUserRooms;
+  state.voiceEnabled = d.voiceEnabled;
+  d.rooms.forEach(r => { if (!state.voice.has(r.slug)) state.voice.set(r.slug, []); });
+  if (state.view?.type === 'room') {
+    const cur = d.rooms.find(r => r.slug === state.view.slug);
+    if (cur) state.currentRoom = cur;
+  }
   renderRooms();
+  renderRoomHead();
+}
+const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff()) : state.me.role === 'admin');
+
+function roomItem(r, counts) {
+  const locked = r.membersOnly && state.me.isGuest;
+  const v = (state.voice.get(r.slug) || []).length;
+  return el('div', {
+    class: 'list-item' + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
+    title: r.description, style: locked ? 'opacity:.5' : '',
+    onclick: () => locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug),
+  },
+    el('div', { class: 'ico' }, r.icon),
+    el('div', { class: 'meta' },
+      el('div', { class: 'name' }, r.name, r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id ? ' 👑' : ''),
+      el('div', { class: 'sub' }, r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
+    v ? el('span', { class: 'pill voice-pill', title: 'En vocal' }, '🎙️' + v) : null,
+    el('span', { class: 'pill' + (counts[r.slug] ? ' hot' : '') }, counts[r.slug] || 0));
 }
 function renderRooms() {
   const counts = {};
   state.online.forEach(u => { if (u.room) counts[u.room] = (counts[u.room] || 0) + 1; });
-  $('roomList').replaceChildren(...state.rooms.map(r => {
-    const locked = r.membersOnly && state.me.isGuest;
-    return el('div', {
-      class: 'list-item' + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
-      title: r.description, style: locked ? 'opacity:.5' : '',
-      onclick: () => locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug),
-    },
-      el('div', { class: 'ico' }, r.icon),
-      el('div', { class: 'meta' }, el('div', { class: 'name' }, r.name, locked ? ' 🔒' : ''), el('div', { class: 'sub' }, r.description)),
-      el('span', { class: 'pill' + (counts[r.slug] ? ' hot' : '') }, counts[r.slug] || 0));
-  }));
+  const official = state.rooms.filter(r => !r.ownerId);
+  const members = state.rooms.filter(r => r.ownerId).sort((a, b) => (counts[b.slug] || 0) - (counts[a.slug] || 0));
+  $('roomList').replaceChildren(...official.map(r => roomItem(r, counts)));
+  $('userRoomList').replaceChildren(...(members.length ? members.map(r => roomItem(r, counts))
+    : [el('div', { class: 'side-empty' }, state.canCreate ? 'Aucun salon pour l\'instant. Crée le tien !' : 'Inscris-toi pour créer ton propre salon.')]));
+  $('createRoomBtn').classList.toggle('hidden', !state.canCreate);
+}
+
+function renderRoomHead() {
+  const r = state.currentRoom;
+  const inRoom = state.view?.type === 'room' && r;
+  $('headRadio').classList.toggle('hidden', !inRoom || !r.station);
+  $('headVoice').classList.toggle('hidden', !inRoom || !state.voiceEnabled || !r.voiceEnabled);
+  $('headSettings').classList.toggle('hidden', !inRoom || !canManage(r));
+  if (!inRoom) { $('voiceBar').classList.add('hidden'); return; }
+  $('headIcon').textContent = r.icon;
+  $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
+  $('headSub').textContent = r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
+  if (r.station) {
+    const playing = Media.isPlaying(r.station);
+    $('headRadio').textContent = `${r.station.icon} ${r.station.name} ${playing ? '⏸' : '▶'}`;
+    $('headRadio').onclick = () => playing ? Media.toggle() : Media.play(r.station, true);
+  }
+  $('headSettings').onclick = () => openRoomSettings(r);
+  renderVoice();
 }
 
 function joinRoom(slug) {
   socket.emit('join', slug, res => {
     if (res.error) return toast(res.error);
+    if (Voice.slug && Voice.slug !== slug) Voice.leave(false);
     state.view = { type: 'room', slug };
+    state.currentRoom = res.room;
+    state.voice.set(slug, res.voice || []);
     try { localStorage.setItem('lc_room', slug); } catch (e) {}
-    $('headIcon').textContent = res.room.icon;
-    $('headTitle').textContent = res.room.name;
-    $('headSub').textContent = res.room.description;
     $('headProfile').classList.add('hidden');
     $('input').placeholder = `Message dans ${res.room.name}…`;
     $('messages').replaceChildren();
     res.history.forEach(m => addRoomMessage(m, false));
     addSys('Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
+    if (res.room.station && !Media.isPlaying(res.room.station)) addSys(`📻 Ce salon écoute ${res.room.station.name} — clique sur ${res.room.station.name} ▶ en haut pour l'écouter.`);
     scrollDown(true);
-    renderRooms(); renderConvs(); renderUsers();
+    renderRoomHead(); renderRooms(); renderConvs(); renderUsers();
     closeDrawers();
     $('input').focus();
   });
+}
+function joinDefaultRoom() {
+  const r = state.rooms.find(x => !x.ownerId && !(x.membersOnly && state.me.isGuest)) || state.rooms[0];
+  if (r) joinRoom(r.slug);
 }
 
 // ---------- Messages ----------
@@ -185,6 +234,7 @@ async function openPm(user) {
   $('headSub').textContent = `${LC.genderLabel(user.gender)}${user.age ? ' · ' + user.age + ' ans' : ''}${user.city ? ' · ' + user.city : ''} · ${isOn ? '🟢 en ligne' : 'hors ligne'}`;
   $('headProfile').classList.remove('hidden');
   $('headProfile').onclick = () => openProfile(user.id);
+  renderRoomHead();
   $('input').placeholder = `Message privé à ${user.username}…`;
   $('messages').replaceChildren(el('div', { class: 'sys' }, 'Conversation privée avec ' + user.username));
   renderConvs(); renderRooms(); closeDrawers();
@@ -269,6 +319,7 @@ async function openProfile(id) {
         } catch (e) { toast(e.message); }
       } }, blocked ? '✅ Débloquer' : '🚫 Bloquer'),
       el('button', { class: 'btn', onclick: () => { close(); openReport(u); } }, '⚠️ Signaler')),
+    roomActions(u, () => close()),
     staff ? el('div', { class: 'staff-actions' },
       el('h4', {}, 'Modération'),
       el('div', { class: 'actions' },
@@ -392,8 +443,9 @@ socket.on('hello', async ({ user, announcement }) => {
   if (state.view?.type === 'pm') return;
   let slug = state.view?.slug;
   try { slug = slug || localStorage.getItem('lc_room'); } catch (e) {}
-  if (!state.rooms.find(r => r.slug === slug && !(r.membersOnly && user.isGuest))) slug = state.rooms[0]?.slug;
-  if (slug) joinRoom(slug);
+  Media.load();
+  if (!state.rooms.find(r => r.slug === slug && !(r.membersOnly && user.isGuest))) return joinDefaultRoom();
+  joinRoom(slug);
 });
 socket.on('presence', ({ users }) => {
   state.online = users;
@@ -444,8 +496,29 @@ socket.on('pm', m => {
 });
 socket.on('message_deleted', ({ id }) => document.querySelector(`.msg[data-id="${id}"]`)?.remove());
 socket.on('room_cleared', ({ slug }) => { if (state.view?.slug === slug) { $('messages').replaceChildren(); addSys('Le salon a été vidé par un administrateur.'); } });
-socket.on('room_deleted', ({ slug }) => { if (state.view?.slug === slug) { toast('Ce salon a été supprimé'); state.view = null; } });
-socket.on('rooms_changed', async () => { await loadRooms(); if (!state.view && state.rooms[0]) joinRoom(state.rooms[0].slug); });
+socket.on('room_deleted', ({ slug }) => {
+  if (Voice.slug === slug) Voice.leave(false);
+  if (state.view?.slug === slug) { toast('Ce salon a été supprimé'); state.view = null; state.currentRoom = null; joinDefaultRoom(); }
+});
+socket.on('room_ejected', ({ slug, reason }) => {
+  if (Voice.slug === slug) Voice.leave(false);
+  toast('🚪 ' + reason);
+  if (state.view?.slug === slug) { state.view = null; state.currentRoom = null; joinDefaultRoom(); }
+});
+socket.on('room_invite', ({ room, by }) => {
+  ding();
+  toast(`🎟️ ${by} t'a invité dans « ${room.name} » — clique pour entrer`, () => joinRoom(room.slug));
+});
+socket.on('room_radio', ({ slug, station, by }) => {
+  const wasPlayingOld = state.currentRoom?.station && Media.isPlaying(state.currentRoom.station);
+  if (state.currentRoom?.slug === slug) state.currentRoom.station = station;
+  if (state.view?.slug === slug) {
+    addSys(station ? `📻 ${by} a mis ${station.name} dans le salon` : `📻 ${by} a coupé la radio du salon`);
+    if (wasPlayingOld) station ? Media.play(station, true) : Media.stop();
+  }
+  renderRoomHead();
+});
+socket.on('rooms_changed', async () => { await loadRooms(); if (!state.view) joinDefaultRoom(); });
 socket.on('announcement', ({ text }) => setAnnouncement(text));
 socket.on('broadcast', ({ text, from }) => {
   ding();
@@ -455,7 +528,7 @@ socket.on('broadcast', ({ text, from }) => {
 socket.on('staff_alert', ({ text }) => { ding(); toast('🛡️ ' + text, () => location.href = '/admin#reports'); });
 socket.on('kicked', ({ reason }) => { alert('Tu as été déconnecté : ' + reason); location.href = '/'; });
 socket.on('banned', ({ reason }) => { alert('Tu as été banni : ' + reason); location.href = '/'; });
-socket.on('disconnect', reason => { if (reason !== 'io server disconnect') addSys('Connexion perdue, reconnexion…'); });
+socket.on('disconnect', reason => { Voice.leave(false); if (reason !== 'io server disconnect') addSys('Connexion perdue, reconnexion…'); });
 
 function setAnnouncement(text) {
   $('announce').textContent = text ? '📢 ' + text : '';

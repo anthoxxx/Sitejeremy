@@ -24,10 +24,15 @@
   </header>
 
   <aside class="sidebar left" id="left">
-    <div class="side-title">Salons</div>
-    <div id="roomList"></div>
-    <div class="side-title">Messages privés <span class="pill" id="pmTotal">0</span></div>
-    <div id="pmList"></div>
+    <div class="side-scroll">
+      <div class="side-title">Salons officiels</div>
+      <div id="roomList"></div>
+      <div class="side-title">Salons des membres <button class="btn btn-sm btn-primary hidden" id="createRoomBtn" title="Créer mon salon">＋ Créer</button></div>
+      <div id="userRoomList"></div>
+      <div class="side-title">Messages privés <span class="pill" id="pmTotal">0</span></div>
+      <div id="pmList"></div>
+    </div>
+    <div class="player" id="player"></div>
   </aside>
 
   <section class="main">
@@ -37,8 +42,12 @@
         <h2 id="headTitle">Chargement…</h2>
         <p id="headSub"></p>
       </div>
+      <button class="btn btn-sm btn-ghost hidden" id="headRadio" title="Écouter la radio du salon"></button>
+      <button class="btn btn-sm hidden" id="headVoice" title="Chat vocal"></button>
+      <button class="btn btn-icon hidden" id="headSettings" title="Gérer le salon" aria-label="Gérer le salon">⚙️</button>
       <button class="btn btn-sm btn-ghost hidden" id="headProfile">Voir le profil</button>
     </div>
+    <div class="voice-bar hidden" id="voiceBar"></div>
     <div class="announce hidden" id="announce"></div>
     <div class="messages" id="messages"></div>
     <div class="typing" id="typing"></div>
@@ -67,5 +76,8 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/js/chat.js"></script>
+<script src="/js/voice.js"></script>
+<script src="/js/media.js"></script>
+<script src="/js/rooms.js"></script>
 </body>
 </html>
