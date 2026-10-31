@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS game_scores (
 );
 `);
 addColumn('rooms', 'background', "TEXT DEFAULT ''");
+addColumn('rooms', 'temporary', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('rooms', 'empty_since', 'INTEGER');
 
 // Rôle super-admin : s'il n'y en a pas encore, le plus ancien admin le devient
 if (!db.prepare("SELECT 1 FROM users WHERE role='superadmin'").get()) {
@@ -249,6 +251,10 @@ const defaults = {
   maxUserRooms: '2',
   maxAccounts: '2',
   theme: 'auto',
+  tempRoomsEnabled: '1',
+  tempRoomMinutes: '5',
+  colorRoomPerm: '#4fb3ff',
+  colorRoomTemp: '#ffb547',
   siteName: 'The Paradise',
   siteDomain: 'theparadise.fr',
   heroTitle: 'Discute, rencontre, *brille* sur The Paradise.',

@@ -900,3 +900,23 @@ body.hub-open .modal-back { z-index: 260; }
 .toasts { z-index: 280; }
 .main > .room-bg[class*="preset-"]::after { background: rgba(13, 10, 26, .32); }
 :root[data-theme="light"] .main > .room-bg[class*="preset-"]::after { background: rgba(246, 243, 255, .55); }
+
+/* ===== Salons permanents / temporaires ===== */
+:root { --room-perm: #4fb3ff; --room-temp: #ffb547; }
+.room-perm { color: var(--room-perm); }
+.room-temp { color: var(--room-temp); }
+#headTitle.room-perm, #headTitle.room-temp { font-weight: 800; }
+.room-legend { display: flex; gap: 14px; padding: 8px 10px 0; font-size: .75rem; color: var(--muted); }
+.room-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dot-perm { background: var(--room-perm); }
+.dot-temp { background: var(--room-temp); }
+.room-type { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.room-type-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--bg-2); color: var(--text); cursor: pointer; }
+.room-type-card small { color: var(--muted); font-size: .75rem; }
+.room-type-card.perm b { color: var(--room-perm); }
+.room-type-card.temp b { color: var(--room-temp); }
+.room-type-card.active.perm { border-color: var(--room-perm); }
+.room-type-card.active.temp { border-color: var(--room-temp); }
+.room-type-card:disabled { opacity: .5; cursor: not-allowed; }
+.room-color-preview { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-weight: 700; }
+.side-title .btn-sm:not(.btn-primary) { padding: 3px 10px; font-size: .72rem; letter-spacing: 0; text-transform: none; }

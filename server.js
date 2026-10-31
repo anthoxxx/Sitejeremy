@@ -377,7 +377,7 @@ function activeTheme() {
   return THEMES.includes(mode) ? mode : '';
 }
 
-const SITE_KEYS = ['siteName', 'siteDomain', 'heroTitle', 'heroText', 'footerText', 'colorViolet', 'colorRose', 'colorGold', 'historyContent', 'rulesContent'];
+const SITE_KEYS = ['siteName', 'siteDomain', 'heroTitle', 'heroText', 'footerText', 'colorViolet', 'colorRose', 'colorGold', 'historyContent', 'rulesContent', 'colorRoomPerm', 'colorRoomTemp'];
 function siteInfo() {
   const s = getSettings();
   const out = {};
@@ -434,6 +434,8 @@ function roomOut(r) {
     voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
     count: roomCount(r.slug), voice: voiceList(r.slug).length, background: r.background || '',
     managers: r.owner_id ? roomManagers(r.id) : [],
+    temporary: !!r.temporary,
+    closesAt: r.temporary && r.empty_since ? r.empty_since + tempRoomDelay() : null,
   };
 }
 // Peut-on entrer dans ce salon ?
@@ -472,6 +474,8 @@ app.get('/api/rooms', auth, (req, res) => {
   res.json({
     rooms: visible.map(roomOut),
     canCreate: s.userRoomsEnabled === '1' && !req.user.is_guest,
+    canCreateTemp: s.tempRoomsEnabled === '1',
+    tempMinutes: parseInt(s.tempRoomMinutes, 10) || 5,
     maxUserRooms: parseInt(s.maxUserRooms, 10) || 0,
     voiceEnabled: s.voiceEnabled === '1',
   });
@@ -479,10 +483,11 @@ app.get('/api/rooms', auth, (req, res) => {
 
 app.post('/api/rooms', auth, (req, res) => {
   const s = getSettings();
+  if (req.body.temporary) return createTempRoom(req, res);
   if (s.userRoomsEnabled !== '1') return res.status(403).json({ error: 'La création de salons est désactivée' });
   if (req.user.is_guest) return res.status(403).json({ error: 'Inscris-toi pour créer ton propre salon' });
   const max = parseInt(s.maxUserRooms, 10) || 0;
-  const mine = db.prepare('SELECT COUNT(*) c FROM rooms WHERE owner_id=?').get(req.user.id).c;
+  const mine = db.prepare('SELECT COUNT(*) c FROM rooms WHERE owner_id=? AND temporary=0').get(req.user.id).c;
   if (!isStaff(req.user) && mine >= max) return res.status(400).json({ error: `Tu peux avoir ${max} salon(s) maximum` });
   if (tooMany('room:' + req.user.id, 5, 3600 * 1000)) return res.status(429).json({ error: 'Trop de salons créés, réessaie plus tard' });
   const name = clean(req.body.name, 30);
@@ -494,6 +499,45 @@ app.post('/api/rooms', auth, (req, res) => {
   roomsChanged();
   res.json({ room: roomOut(getRoom(info.lastInsertRowid)) });
 });
+
+// ---------- Salons temporaires ----------
+// Créés par n'importe qui (même un invité), à son pseudo ou avec un nom au choix,
+// ils se ferment tout seuls quand ils restent vides quelques minutes.
+const tempRoomDelay = () => (parseInt(getSettings().tempRoomMinutes, 10) || 5) * 60 * 1000;
+function createTempRoom(req, res) {
+  const s = getSettings();
+  if (s.tempRoomsEnabled !== '1') return res.status(403).json({ error: 'Les salons temporaires sont désactivés' });
+  const existing = db.prepare('SELECT * FROM rooms WHERE owner_id=? AND temporary=1').get(req.user.id);
+  if (existing && !isStaff(req.user)) return res.status(400).json({ error: `Tu as déjà un salon temporaire ouvert : « ${existing.name} »`, room: roomOut(existing) });
+  if (tooMany('troom:' + req.user.id, 8, 3600 * 1000)) return res.status(429).json({ error: 'Trop de salons créés, réessaie plus tard' });
+  const name = req.body.usePseudo ? `Salon de ${req.user.username}` : filterWords(clean(req.body.name, 30));
+  if (name.length < 3) return res.status(400).json({ error: 'Nom du salon : 3 caractères minimum' });
+  const slug = 't-' + (slugify(name) || 'salon') + '-' + crypto.randomBytes(2).toString('hex');
+  const info = db.prepare(`INSERT INTO rooms (slug,name,description,icon,sort,members_only,owner_id,is_private,created_at,temporary,empty_since)
+    VALUES (?,?,?,?,200,0,?,?,?,1,?)`).run(slug, name, clean(req.body.description, 120), clean(req.body.icon, 4) || '⏳', req.user.id, req.body.isPrivate ? 1 : 0, now(), now());
+  log(req.user, 'room_create', `${name} (salon temporaire)`);
+  roomsChanged();
+  res.json({ room: roomOut(getRoom(info.lastInsertRowid)) });
+}
+// Surveille les salons temporaires : vides trop longtemps → fermés
+setInterval(() => {
+  const delay = tempRoomDelay();
+  let changed = false;
+  for (const r of db.prepare('SELECT * FROM rooms WHERE temporary=1').all()) {
+    const inside = io.sockets.adapter.rooms.get('room:' + r.slug)?.size || 0;
+    if (inside > 0) {
+      if (r.empty_since) { db.prepare('UPDATE rooms SET empty_since=NULL WHERE id=?').run(r.id); changed = true; }
+    } else if (!r.empty_since) {
+      db.prepare('UPDATE rooms SET empty_since=? WHERE id=?').run(now(), r.id); changed = true;
+    } else if (now() - r.empty_since >= delay) {
+      deleteRoom(r, null);
+      changed = false;
+    }
+  }
+  if (changed) roomsChanged();
+}, 15000).unref();
+// Au démarrage, les salons temporaires repartent avec un délai neuf
+db.prepare('UPDATE rooms SET empty_since=? WHERE temporary=1').run(now());
 
 app.patch('/api/rooms/:id', auth, (req, res) => {
   const room = getRoom(req.params.id);
@@ -1143,6 +1187,8 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
   if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(20, Math.max(2, parseInt(b.voiceMax, 10) || 8)));
   if (b.userRoomsEnabled !== undefined) setSetting('userRoomsEnabled', b.userRoomsEnabled ? '1' : '0');
+  if (b.tempRoomsEnabled !== undefined) setSetting('tempRoomsEnabled', b.tempRoomsEnabled ? '1' : '0');
+  if (b.tempRoomMinutes !== undefined) setSetting('tempRoomMinutes', Math.min(1440, Math.max(1, parseInt(b.tempRoomMinutes, 10) || 5)));
   if (b.maxUserRooms !== undefined) setSetting('maxUserRooms', Math.min(20, Math.max(0, parseInt(b.maxUserRooms, 10) || 0)));
   if (getSettings().voiceEnabled !== '1') for (const [slug] of voice) for (const p of voiceList(slug)) leaveVoiceBySocket(p.socketId, 'Le vocal a été désactivé');
   log(req.user, 'settings', 'Réglages mis à jour');
@@ -1211,7 +1257,7 @@ admin.put('/site', requireRole('superadmin'), (req, res) => {
     if (k === 'siteName' && v.length < 2) return res.status(400).json({ error: 'Nom du site trop court' });
     setSetting(k, v);
   }
-  for (const k of ['colorViolet', 'colorRose', 'colorGold']) if (/^#[0-9a-f]{6}$/i.test(b[k] || '')) setSetting(k, b[k]);
+  for (const k of ['colorViolet', 'colorRose', 'colorGold', 'colorRoomPerm', 'colorRoomTemp']) if (/^#[0-9a-f]{6}$/i.test(b[k] || '')) setSetting(k, b[k]);
   if (b.theme !== undefined && (b.theme === 'auto' || b.theme === 'none' || THEMES.includes(b.theme))) setSetting('theme', b.theme);
   if (b.maxAccounts !== undefined) setSetting('maxAccounts', Math.min(20, Math.max(0, parseInt(b.maxAccounts, 10) || 0)));
   log(req.user, 'site', 'Contenu du site modifié');

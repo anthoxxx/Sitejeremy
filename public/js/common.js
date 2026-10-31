@@ -63,6 +63,8 @@ window.LC = {
     const season = LC.SEASONS[site.theme];
     const colors = season ? season.colors : [site.colorViolet, site.colorRose, site.colorGold];
     ['--violet', '--rose', '--gold'].forEach((v, i) => { if (colors[i]) root.setProperty(v, colors[i]); });
+    if (site.colorRoomPerm) root.setProperty('--room-perm', site.colorRoomPerm);
+    if (site.colorRoomTemp) root.setProperty('--room-temp', site.colorRoomTemp);
     LC.applySeason(site.theme);
     document.querySelectorAll('[data-site]').forEach(e => { e.textContent = site[e.dataset.site] || ''; });
     document.querySelectorAll('[data-site-rich]').forEach(e => e.replaceChildren(LC.emphasis(site[e.dataset.siteRich] || '')));

@@ -188,7 +188,7 @@ async function rooms() {
         el('td', { style: 'font-size:1.3rem' }, r.icon), el('td', {}, el('b', {}, r.name), el('div', { style: 'font-size:.75rem;color:var(--muted)' }, '#' + r.slug)),
         el('td', {}, r.description, r.station ? el('div', { style: 'font-size:.75rem;color:var(--muted)' }, '📻 ' + r.station.name) : null),
         el('td', {}, r.ownerId ? '—' : r.sort),
-        el('td', {}, r.ownerId ? `👑 ${r.ownerName}${r.isPrivate ? ' · 🔒 fermé' : ''}` : r.membersOnly ? '💎 Membres' : 'Tous'),
+        el('td', {}, r.ownerId ? `${r.temporary ? '⏳ temporaire' : '📌 permanent'} · 👑 ${r.ownerName}${r.isPrivate ? ' · 🔒 fermé' : ''}` : r.membersOnly ? '💎 Membres' : 'Tous'),
         el('td', {}, r.count), el('td', {}, r.voiceEnabled ? `🎙️ ${r.voice}` : 'off'),
         el('td', {},
           el('button', { class: 'btn btn-sm', title: 'Modifier', onclick: () => editRoom(r) }, '✏️'),
@@ -292,6 +292,8 @@ async function settings() {
   const voiceMax = el('input', { class: 'input', type: 'number', min: 2, max: 20, value: s.voiceMax, style: 'max-width:100px' });
   const userRooms = el('input', { type: 'checkbox', checked: s.userRoomsEnabled === '1' });
   const maxRooms = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxUserRooms, style: 'max-width:100px' });
+  const tempOn = el('input', { type: 'checkbox', checked: s.tempRoomsEnabled !== '0' });
+  const tempMin = el('input', { class: 'input', type: 'number', min: 1, max: 1440, value: s.tempRoomMinutes || 5, style: 'max-width:100px' });
   page.replaceChildren(...header('Réglages', 'Configure le fonctionnement général du chat.'),
     el('div', { class: 'panel' },
       el('div', { class: 'field' }, el('label', {}, '📢 Annonce permanente'), announcement),
@@ -302,10 +304,13 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '🎙️ Chat vocal activé'), voiceOn),
       el('div', { class: 'switch' }, el('span', {}, '👥 Personnes maximum par vocal'), voiceMax),
       el('div', { class: 'switch' }, el('span', {}, '🏠 Les membres peuvent créer leur salon'), userRooms),
-      el('div', { class: 'switch' }, el('span', {}, '🔢 Salons maximum par membre'), maxRooms),
+      el('div', { class: 'switch' }, el('span', {}, '🔢 Salons permanents maximum par membre'), maxRooms),
+      el('div', { class: 'switch' }, el('span', {}, '⏳ Tout le monde peut créer un salon temporaire (même les invités)'), tempOn),
+      el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
         announcement: announcement.value, bannedWords: words.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
         voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
+        tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
 }
 
@@ -318,6 +323,13 @@ async function site() {
   const heroText = area('heroText', 3);
   const colors = ['colorViolet', 'colorRose', 'colorGold'].map(k => el('input', { type: 'color', value: s[k] || '#8b6cff', class: 'color-input', style: 'width:56px;height:40px' }));
   const maxAcc = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxAccounts, style: 'max-width:100px' });
+  const permColor = el('input', { type: 'color', value: s.colorRoomPerm || '#4fb3ff', class: 'color-input', style: 'width:56px;height:40px' });
+  const tempColor = el('input', { type: 'color', value: s.colorRoomTemp || '#ffb547', class: 'color-input', style: 'width:56px;height:40px' });
+  const roomPreview = el('div', { class: 'room-color-preview' });
+  const drawRoomPreview = () => roomPreview.replaceChildren(
+    el('span', { style: `color:${permColor.value}` }, '📌 Général (permanent)'), el('span', { style: `color:${tempColor.value}` }, '⏳ Salon de Lina (temporaire)'));
+  [permColor, tempColor].forEach(c => c.addEventListener('input', drawRoomPreview));
+  drawRoomPreview();
   // Thème de fête
   let themeMode = s.themeMode || 'auto';
   const themeBox = el('div', { class: 'theme-grid' });
@@ -345,6 +357,7 @@ async function site() {
     const body = {
       siteName: name.value, siteDomain: domain.value, heroTitle: title.value, heroText: heroText.value, footerText: footer.value,
       colorViolet: colors[0].value, colorRose: colors[1].value, colorGold: colors[2].value, maxAccounts: maxAcc.value, theme: themeMode,
+      colorRoomPerm: permColor.value, colorRoomTemp: tempColor.value,
       historyContent: hist.ta.value, rulesContent: rules.ta.value,
     };
     const { site: saved } = await run(() => api('/api/admin/site', { method: 'PUT', body }), 'Site mis à jour pour tout le monde');
@@ -365,6 +378,11 @@ async function site() {
       el('div', { class: 'toolbar' }, ...['Couleur 1', 'Couleur 2', 'Couleur 3'].map((l, i) => el('label', { style: 'display:flex;gap:8px;align-items:center' }, colors[i], l)),
         el('button', { class: 'btn btn-sm', onclick: () => { ['#8b6cff', '#ff5fa2', '#ffb547'].forEach((c, i) => { colors[i].value = c; colors[i].dispatchEvent(new Event('input')); }); } }, '↺ Couleurs d\'origine')),
       el('div', { class: 'grad-preview' }, 'Aperçu du dégradé')),
+    el('div', { class: 'panel' }, el('h2', {}, '🏠 Couleur des noms de salons'),
+      el('div', { class: 'toolbar' },
+        el('label', { style: 'display:flex;gap:8px;align-items:center' }, permColor, '📌 Salons permanents'),
+        el('label', { style: 'display:flex;gap:8px;align-items:center' }, tempColor, '⏳ Salons temporaires')),
+      roomPreview),
     el('div', { class: 'panel' }, el('h2', {}, '👥 Comptes'),
       el('div', { class: 'switch' }, el('span', {}, 'Nombre maximum de comptes par personne (même appareil ou même connexion) — 0 = illimité'), maxAcc)),
     hist.box, rules.box,

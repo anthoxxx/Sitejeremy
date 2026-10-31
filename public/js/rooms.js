@@ -12,32 +12,59 @@ function iconPicker(current) {
 const field = (label, input) => el('div', { class: 'field' }, el('label', {}, label), input);
 const toggleRow = (label, help, input) => el('label', { class: 'switch' }, el('span', {}, label, help ? el('small', { class: 'help' }, help) : null), input);
 
-$('createRoomBtn').onclick = openCreateRoom;
+$('createRoomBtn').onclick = () => openCreateRoom(state.canCreate ? 'perm' : 'temp');
+$('createTempBtn').onclick = () => openCreateRoom('temp');
 
-function openCreateRoom() {
+// Création d'un salon : permanent (membres) ou temporaire (tout le monde), à son pseudo ou avec un nom au choix
+function openCreateRoom(kind = 'temp') {
+  let type = kind === 'perm' && state.canCreate ? 'perm' : 'temp';
+  let naming = 'pseudo';
   const icon = iconPicker('🎮');
   const name = el('input', { class: 'input', maxlength: 30, placeholder: 'Ex : La team Paradise' });
   const desc = el('input', { class: 'input', maxlength: 120, placeholder: 'De quoi on parle ici ?' });
   const priv = el('input', { type: 'checkbox' });
   const err = el('div', { class: 'error' });
+  const typeRow = el('div', { class: 'room-type' });
+  const nameRow = el('div', {});
+  const draw = () => {
+    typeRow.replaceChildren(
+      el('button', { type: 'button', class: 'room-type-card perm' + (type === 'perm' ? ' active' : ''), disabled: !state.canCreate,
+        title: state.canCreate ? '' : 'Inscris-toi pour créer un salon permanent', onclick: () => { type = 'perm'; draw(); } },
+        el('b', {}, '📌 Permanent'), el('small', {}, state.canCreate ? `Reste ouvert tout le temps (${state.maxUserRooms} max par membre)` : 'Réservé aux membres inscrits')),
+      el('button', { type: 'button', class: 'room-type-card temp' + (type === 'temp' ? ' active' : ''), onclick: () => { type = 'temp'; draw(); } },
+        el('b', {}, '⏳ Temporaire'), el('small', {}, `Se ferme tout seul ${state.tempMinutes || 5} min après le départ du dernier`)));
+    const pseudoName = `Salon de ${state.me.username}`;
+    nameRow.replaceChildren(type === 'temp'
+      ? field('Nom du salon', el('div', {},
+        el('div', { class: 'choice-row', style: 'margin-bottom:8px' },
+          el('button', { type: 'button', class: 'choice' + (naming === 'pseudo' ? ' active' : ''), onclick: () => { naming = 'pseudo'; draw(); } }, `👤 À mon pseudo : « ${pseudoName} »`),
+          el('button', { type: 'button', class: 'choice' + (naming === 'custom' ? ' active' : ''), onclick: () => { naming = 'custom'; draw(); name.focus(); } }, '✏️ Nom au choix')),
+        naming === 'custom' ? name : null))
+      : field('Nom du salon', name));
+  };
+  draw();
   const close = modal(
-    el('h3', {}, '✨ Créer mon salon'),
-    field('Icône', icon.box), field('Nom du salon', name), field('Description', desc),
+    el('h3', {}, '✨ Créer un salon'),
+    field('Type de salon', typeRow),
+    nameRow,
+    field('Icône', icon.box), field('Description (facultatif)', desc),
     toggleRow('🔒 Salon fermé', 'Seules les personnes que tu invites pourront entrer', priv),
     err,
     el('div', { class: 'actions', style: 'margin-top:14px' },
       el('button', { class: 'btn btn-ghost', onclick: () => close() }, 'Annuler'),
       el('button', { class: 'btn btn-primary', onclick: async () => {
+        err.textContent = '';
         try {
-          const { room } = await api('/api/rooms', { method: 'POST', body: { name: name.value, description: desc.value, icon: icon.get(), isPrivate: priv.checked } });
+          const body = { name: name.value, description: desc.value, icon: icon.get(), isPrivate: priv.checked };
+          if (type === 'temp') Object.assign(body, { temporary: true, usePseudo: naming === 'pseudo' });
+          const { room } = await api('/api/rooms', { method: 'POST', body });
           close();
           await loadRooms();
           joinRoom(room.slug);
-          toast(room.isPrivate ? '🔒 Salon fermé créé ! Ouvre ⚙️ pour inviter du monde.' : '🎉 Ton salon est ouvert !');
+          toast(room.temporary ? `⏳ Salon temporaire « ${room.name} » ouvert !` : room.isPrivate ? '🔒 Salon fermé créé ! Ouvre ⚙️ pour inviter du monde.' : '🎉 Ton salon est ouvert !');
           if (room.isPrivate) setTimeout(() => openRoomSettings(room), 400);
         } catch (e) { err.textContent = e.message; }
       } }, 'Créer le salon')));
-  name.focus();
 }
 
 async function openRoomSettings(room) {

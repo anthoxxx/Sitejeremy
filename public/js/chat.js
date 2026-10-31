@@ -108,6 +108,8 @@ async function loadRooms() {
   const d = await api('/api/rooms');
   state.rooms = d.rooms;
   state.canCreate = d.canCreate;
+  state.canCreateTemp = d.canCreateTemp;
+  state.tempMinutes = d.tempMinutes;
   state.maxUserRooms = d.maxUserRooms;
   state.voiceEnabled = d.voiceEnabled;
   d.rooms.forEach(r => { if (!state.voice.has(r.slug)) state.voice.set(r.slug, []); });
@@ -130,20 +132,34 @@ function roomItem(r, counts) {
   },
     el('div', { class: 'ico' }, r.icon),
     el('div', { class: 'meta' },
-      el('div', { class: 'name' }, r.name, r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
-      el('div', { class: 'sub' }, r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
+      el('div', { class: 'name' }, el('span', { class: r.temporary ? 'room-temp' : 'room-perm' }, r.name), r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
+      el('div', { class: 'sub' }, r.temporary ? tempLabel(r) : r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
     v ? el('span', { class: 'pill voice-pill', title: 'En vocal' }, '🎙️' + v) : null,
     el('span', { class: 'pill' + (counts[r.slug] ? ' hot' : '') }, counts[r.slug] || 0));
 }
+// « ⏳ temporaire · par Lina » ou « ⏳ se ferme dans 3 min » quand il est vide
+function tempLabel(r) {
+  if (r.closesAt) {
+    const m = Math.max(0, Math.ceil((r.closesAt - Date.now()) / 60000));
+    return `⏳ vide · se ferme dans ${m} min`;
+  }
+  return `⏳ temporaire · par ${r.ownerName}`;
+}
+setInterval(() => { if (state.rooms?.some(r => r.temporary)) renderRooms(); }, 30000);
 function renderRooms() {
   const counts = {};
   state.online.forEach(u => { if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1; });
   const official = state.rooms.filter(r => !r.ownerId);
-  const members = state.rooms.filter(r => r.ownerId).sort((a, b) => (counts[b.slug] || 0) - (counts[a.slug] || 0));
+  const byCount = (a, b) => (counts[b.slug] || 0) - (counts[a.slug] || 0);
+  const members = state.rooms.filter(r => r.ownerId && !r.temporary).sort(byCount);
+  const temps = state.rooms.filter(r => r.temporary).sort(byCount);
+  $('tempRoomList').replaceChildren(...(temps.length ? temps.map(r => roomItem(r, counts))
+    : [el('div', { class: 'side-empty' }, 'Aucun salon temporaire. Crée le tien en un clic avec ＋ !')]));
   $('roomList').replaceChildren(...official.map(r => roomItem(r, counts)));
   $('userRoomList').replaceChildren(...(members.length ? members.map(r => roomItem(r, counts))
     : [el('div', { class: 'side-empty' }, state.canCreate ? 'Aucun salon pour l\'instant. Crée le tien !' : 'Inscris-toi pour créer ton propre salon.')]));
-  $('createRoomBtn').classList.toggle('hidden', !state.canCreate);
+  $('createRoomBtn').classList.toggle('hidden', !state.canCreate && !state.canCreateTemp);
+  $('createTempBtn').classList.toggle('hidden', !state.canCreateTemp);
 }
 
 function renderRoomHead() {
@@ -161,7 +177,8 @@ function renderRoomHead() {
   if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); return; }
   $('headIcon').textContent = r.icon;
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
-  $('headSub').textContent = r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
+  $('headTitle').className = r.temporary ? 'room-temp' : 'room-perm';
+  $('headSub').textContent = r.temporary ? `⏳ Salon temporaire de ${r.ownerName} · se ferme ${state.tempMinutes || 5} min après le départ du dernier` : r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
   if (r.station) {
     const playing = Media.isPlaying(r.station);
     $('headRadio').textContent = `${r.station.icon} ${r.station.name} ${playing ? '⏸' : '▶'}`;
