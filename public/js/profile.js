@@ -1,4 +1,4 @@
-// The Paradis — profils personnalisables : carte de profil + éditeur avec aperçu en direct
+// The Paradise — profils personnalisables : carte de profil + éditeur avec aperçu en direct
 const SOCIAL_DEFS = {
   discord: { label: 'Discord', color: '#5865f2', ph: 'pseudo' },
   twitch: { label: 'Twitch', color: '#9146ff', ph: 'chaîne', url: h => 'https://www.twitch.tv/' + h },

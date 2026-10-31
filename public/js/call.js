@@ -1,4 +1,4 @@
-// The Paradis — appels audio / vidéo en tête-à-tête (WebRTC)
+// The Paradise — appels audio / vidéo en tête-à-tête (WebRTC)
 const Call = {
   id: null,           // identifiant de l'appel en cours
   peer: null,         // l'autre personne

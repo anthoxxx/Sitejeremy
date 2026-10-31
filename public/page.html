@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d0a1a">
-  <title>The Paradis — Page</title>
+  <title>The Paradise — Page</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
 <body>
 <div class="landing">
   <header class="topnav">
-    <a href="/" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradis</span></span></a>
+    <a href="/" class="logo"><img src="/img/logo-mark.svg" alt=""><span class="word">The <span>Paradise</span></span></a>
     <nav>
       <a class="btn btn-ghost btn-sm nav-link" id="navHistoire" href="/histoire">📖 <span>Histoire</span></a>
       <a class="btn btn-ghost btn-sm nav-link" id="navReglement" href="/reglement">📜 <span>Règlement</span></a>
@@ -29,7 +29,7 @@
 <script>
   const isRules = location.pathname.startsWith('/reglement');
   document.getElementById(isRules ? 'navReglement' : 'navHistoire').classList.add('active');
-  document.title = `The Paradis — ${isRules ? 'Règlement' : 'Notre histoire'}`;
+  document.title = `The Paradise — ${isRules ? 'Règlement' : 'Notre histoire'}`;
   document.addEventListener('site', e => {
     const text = e.detail[isRules ? 'rulesContent' : 'historyContent'];
     document.getElementById('content').replaceChildren(text ? LC.richText(text) : LC.el('p', { class: 'empty' }, 'Cette page est vide pour le moment.'));

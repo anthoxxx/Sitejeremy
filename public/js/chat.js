@@ -1,4 +1,4 @@
-// The Paradis — client du chat
+// The Paradise — client du chat
 const { el, api } = LC;
 const $ = id => document.getElementById(id);
 
@@ -261,7 +261,7 @@ function renderConvs() {
   const total = list.reduce((s, c) => s + (c.unread || 0), 0);
   $('pmTotal').textContent = total;
   $('pmTotal').classList.toggle('hot', total > 0);
-  document.title = (total ? `(${total}) ` : '') + 'The Paradis — Salons';
+  document.title = (total ? `(${total}) ` : '') + 'The Paradise — Salons';
   if (!list.length) return $('pmList').replaceChildren(el('div', { class: 'sub', style: 'padding:6px 10px;color:var(--muted);font-size:.85rem' }, 'Clique sur un pseudo pour lui écrire en privé.'));
   const onlineIds = new Set(state.online.map(u => u.id));
   $('pmList').replaceChildren(...list.map(c => {

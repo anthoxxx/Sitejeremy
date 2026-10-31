@@ -1,4 +1,4 @@
-// The Paradis — mini-jeux : scores solo, classements et parties à deux en temps réel
+// The Paradise — mini-jeux : scores solo, classements et parties à deux en temps réel
 // Le serveur arbitre chaque partie à deux (impossible de tricher en envoyant de faux coups).
 const crypto = require('crypto');
 

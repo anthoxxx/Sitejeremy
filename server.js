@@ -1,4 +1,4 @@
-// The Paradis — serveur principal (Express + Socket.io)
+// The Paradise — serveur principal (Express + Socket.io)
 const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
@@ -401,7 +401,7 @@ function celebrateBirthday(u) {
   const year = parisToday().y;
   if (u.bday_year === year) return;
   db.prepare('UPDATE users SET bday_year=? WHERE id=?').run(year, u.id);
-  const site = getSettings().siteName || 'The Paradis';
+  const site = getSettings().siteName || 'The Paradise';
   notify(u.id, { type: 'birthday', icon: '🎂', title: `Joyeux anniversaire ${u.username} ! 🎉`, text: `Toute l'équipe de ${site} te souhaite une journée magique. Profite bien de ta journée ! 🥳`, important: true });
   io.emit('birthday', { user: publicUser(u) });
   log(u, 'birthday', `🎂 Anniversaire de ${u.username} fêté sur le site`);
@@ -1680,4 +1680,4 @@ setInterval(() => {
   for (const e of online.values()) celebrateBirthday(getUser(e.user.id));
 }, 10 * 60 * 1000).unref();
 
-server.listen(PORT, () => console.log(`✨ The Paradis en ligne sur http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`✨ The Paradise en ligne sur http://localhost:${PORT}`));

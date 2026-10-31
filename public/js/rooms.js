@@ -1,4 +1,4 @@
-// The Paradis — salons créés par les membres : création, gestion, invitations, exclusions
+// The Paradise — salons créés par les membres : création, gestion, invitations, exclusions
 const ROOM_ICONS = ['🏠', '🎮', '🎧', '🔥', '💜', '🌙', '🍕', '⚽', '🎬', '🎤', '🕹️', '👾', '🏆', '💬', '🌴', '🍻'];
 
 function iconPicker(current) {
@@ -16,7 +16,7 @@ $('createRoomBtn').onclick = openCreateRoom;
 
 function openCreateRoom() {
   const icon = iconPicker('🎮');
-  const name = el('input', { class: 'input', maxlength: 30, placeholder: 'Ex : La team Paradis' });
+  const name = el('input', { class: 'input', maxlength: 30, placeholder: 'Ex : La team Paradise' });
   const desc = el('input', { class: 'input', maxlength: 120, placeholder: 'De quoi on parle ici ?' });
   const priv = el('input', { type: 'checkbox' });
   const err = el('div', { class: 'error' });

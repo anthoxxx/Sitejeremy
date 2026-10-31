@@ -1,4 +1,4 @@
-// The Paradis — lecteur radio / musique
+// The Paradise — lecteur radio / musique
 const Media = {
   audio: new Audio(),
   stations: [],

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Paradis — mettre le site à jour avec la dernière version (en root)
+# The Paradise — mettre le site à jour avec la dernière version (en root)
 set -euo pipefail
 APP_DIR="/opt/theparadis"
 BRANCH="${BRANCH:-ccr-bcda11d0-qn8psc}"

@@ -1,4 +1,4 @@
-// The Paradis — dictée vocale (parler pour écrire) + messages vocaux
+// The Paradise — dictée vocale (parler pour écrire) + messages vocaux
 const fmtSec = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 // ---------- Lecteur de message vocal ----------

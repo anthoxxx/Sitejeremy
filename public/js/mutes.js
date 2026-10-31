@@ -1,4 +1,4 @@
-// The Paradis — mettre quelqu'un en sourdine pour soi seul, pendant un temps choisi (en secondes)
+// The Paradise — mettre quelqu'un en sourdine pour soi seul, pendant un temps choisi (en secondes)
 state.mutes = new Map(); // userId -> fin (timestamp)
 const isUserMuted = id => (state.mutes.get(id) || 0) > Date.now();
 const muteLeftText = id => {

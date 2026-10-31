@@ -1,4 +1,4 @@
-# ✨ The Paradis — theparadis.fr
+# ✨ The Paradise — theparadise.fr
 
 Chat gratuit en temps réel : salons, messages privés, vocal et visio, radio, profils personnalisables et panneau d'administration complet. Le site est adapté aux téléphones, aux tablettes et aux ordinateurs.
 

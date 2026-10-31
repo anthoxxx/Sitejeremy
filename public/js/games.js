@@ -1,4 +1,4 @@
-// The Paradis — section mini-jeux (solo, à deux en direct, contre l'ordinateur)
+// The Paradise — section mini-jeux (solo, à deux en direct, contre l'ordinateur)
 const GAME_LIST = {
   solo: [
     { id: 'serpent', icon: '🐍', name: 'Serpent', desc: 'Mange les fruits sans te mordre la queue', unit: 'pts', order: 'higher' },

@@ -1,4 +1,4 @@
-// Base de données SQLite de The Paradis
+// Base de données SQLite de The Paradise
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
@@ -249,9 +249,9 @@ const defaults = {
   maxUserRooms: '2',
   maxAccounts: '2',
   theme: 'auto',
-  siteName: 'The Paradis',
-  siteDomain: 'theparadis.fr',
-  heroTitle: 'Discute, rencontre, *brille* sur The Paradis.',
+  siteName: 'The Paradise',
+  siteDomain: 'theparadise.fr',
+  heroTitle: 'Discute, rencontre, *brille* sur The Paradise.',
   heroText: 'Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.',
   footerText: 'Fait avec 💜 pour discuter librement',
   colorViolet: '#8b6cff',
@@ -259,7 +259,7 @@ const defaults = {
   colorGold: '#ffb547',
   historyContent: `# Notre histoire
 
-The Paradis est né d'une idée simple : créer un endroit chaleureux où l'on peut discuter librement, rencontrer de nouvelles personnes et passer de bons moments ensemble.
+The Paradise est né d'une idée simple : créer un endroit chaleureux où l'on peut discuter librement, rencontrer de nouvelles personnes et passer de bons moments ensemble.
 
 ## Les débuts
 
@@ -271,8 +271,8 @@ Au départ, ce n'était qu'un petit salon entre amis. Petit à petit, la communa
 - Garder une ambiance **respectueuse** et bienveillante
 - Écouter la communauté pour améliorer le site chaque jour
 
-Merci à toutes celles et ceux qui font vivre The Paradis 💜`,
-  rulesContent: `# Règlement de The Paradis
+Merci à toutes celles et ceux qui font vivre The Paradise 💜`,
+  rulesContent: `# Règlement de The Paradise
 
 En utilisant le site, tu acceptes ce règlement. L'équipe de modération peut sanctionner tout manquement.
 
@@ -305,6 +305,16 @@ Avertissement, mute temporaire, expulsion ou bannissement définitif selon la gr
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
+
+// Changement de nom : « The Paradis » devient « The Paradise » (theparadise.fr) sur une base déjà existante
+{
+  const rows = db.prepare("SELECT key, value FROM settings WHERE value LIKE '%Paradis%' OR value LIKE '%theparadis.fr%'").all();
+  const upd = db.prepare('UPDATE settings SET value=? WHERE key=?');
+  for (const r of rows) {
+    const v = r.value.replace(/The Paradis(?!e)/g, 'The Paradise').replace(/theparadis\.fr/g, 'theparadise.fr');
+    if (v !== r.value) upd.run(v, r.key);
+  }
+}
 
 function getSettings() {
   const out = {};

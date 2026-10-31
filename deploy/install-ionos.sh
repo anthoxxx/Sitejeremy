@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  The Paradis — installation automatique sur un VPS (IONOS ou autre)
+#  The Paradise — installation automatique sur un VPS (IONOS ou autre)
 #  Système : Ubuntu 22.04 ou 24.04, à lancer en root :
-#     bash install-ionos.sh theparadis.fr ton-email@exemple.fr
+#     bash install-ionos.sh theparadise.fr ton-email@exemple.fr
 #  Le script peut être relancé sans risque (il met à jour sans rien effacer).
 # =====================================================================
 set -euo pipefail
@@ -17,7 +17,7 @@ APP_USER="theparadis"
 PORT=3000
 
 if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
-  echo "Utilisation : bash install-ionos.sh theparadis.fr ton-email@exemple.fr"
+  echo "Utilisation : bash install-ionos.sh theparadise.fr ton-email@exemple.fr"
   exit 1
 fi
 if [ "$(id -u)" -ne 0 ]; then echo "Lance ce script en root (ou avec sudo)."; exit 1; fi
@@ -90,7 +90,7 @@ systemctl restart coturn
 step "Service qui fait tourner le site en permanence"
 cat > /etc/systemd/system/theparadis.service <<EOF
 [Unit]
-Description=The Paradis (chat)
+Description=The Paradise (chat)
 After=network.target
 
 [Service]

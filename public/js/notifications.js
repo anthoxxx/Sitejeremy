@@ -1,4 +1,4 @@
-// The Paradis — notifications (sanctions, invitations, rôle…) + bandeau "muet"
+// The Paradise — notifications (sanctions, invitations, rôle…) + bandeau "muet"
 const Notifs = { list: [], unread: 0, open: false };
 
 async function loadNotifications() {

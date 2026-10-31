@@ -1,4 +1,4 @@
-// The Paradis — chat vocal dans les salons (WebRTC, connexions directes entre participants)
+// The Paradise — chat vocal dans les salons (WebRTC, connexions directes entre participants)
 const Voice = {
   slug: null,          // salon dont on est dans le vocal
   stream: null,        // notre micro

@@ -1,4 +1,4 @@
-# Mettre The Paradis en ligne sur IONOS (avec ton nom de domaine)
+# Mettre The Paradise en ligne sur IONOS (avec ton nom de domaine)
 
 > ⚠️ L'**« Hébergement Web »** classique d'IONOS ne fait pas tourner Node.js, donc pas le chat.
 > Il faut un **VPS** (un petit serveur à toi). Le plus petit suffit pour commencer.
@@ -22,9 +22,9 @@ Dans **Serveurs & Cloud → Réseau → Stratégies de pare-feu** (ou l'onglet *
 | 49160-49200 | UDP | appels / vocal (serveur TURN) |
 
 ## 3. Brancher ton nom de domaine sur le VPS
-Dans **Domaines & SSL → theparadis.fr → DNS** :
+Dans **Domaines & SSL → theparadise.fr → DNS** :
 1. Modifie l'enregistrement **A** de `@` → mets l'**IP du VPS**.
-2. Modifie (ou crée) l'enregistrement **A** de `www` → même IP (ou un CNAME `www` → `theparadis.fr`).
+2. Modifie (ou crée) l'enregistrement **A** de `www` → même IP (ou un CNAME `www` → `theparadise.fr`).
 3. S'il existe des enregistrements **AAAA** pour `@` ou `www`, **supprime-les** (ils pointent vers la page d'attente IONOS).
 4. Attends 5 à 30 minutes que ça se propage.
 
@@ -38,11 +38,11 @@ Dans **Domaines & SSL → theparadis.fr → DNS** :
 ## 5. Installer le site (une seule commande)
 Copie-colle ceci en remplaçant l'email par le tien :
 ```
-curl -fsSL https://raw.githubusercontent.com/anthoxxx/Sitejeremy/ccr-bcda11d0-qn8psc/deploy/install-ionos.sh -o install.sh && bash install.sh theparadis.fr ton-email@exemple.fr
+curl -fsSL https://raw.githubusercontent.com/anthoxxx/Sitejeremy/ccr-bcda11d0-qn8psc/deploy/install-ionos.sh -o install.sh && bash install.sh theparadise.fr ton-email@exemple.fr
 ```
 Le script installe tout tout seul (Node.js, le site, le serveur web, le HTTPS gratuit, le serveur d'appels, le pare-feu) en 3 à 5 minutes.
 
-À la fin il affiche **✅ C'est en ligne : https://theparadis.fr**.
+À la fin il affiche **✅ C'est en ligne : https://theparadise.fr**.
 👉 Va sur le site et **inscris-toi tout de suite** : le premier compte devient **super-admin**.
 
 ## Ensuite
@@ -57,6 +57,6 @@ Le script installe tout tout seul (Node.js, le site, le serveur web, le HTTPS gr
 - **Où sont les données** (comptes, messages, photos, vocaux) : `/var/lib/theparadis` — pense à le sauvegarder de temps en temps.
 
 ## En cas de problème
-- **« Le certificat HTTPS n'a pas pu être créé »** → le domaine ne pointe pas encore vers le VPS (étape 3). Attends un peu et relance : `bash install.sh theparadis.fr ton-email@exemple.fr`
+- **« Le certificat HTTPS n'a pas pu être créé »** → le domaine ne pointe pas encore vers le VPS (étape 3). Attends un peu et relance : `bash install.sh theparadise.fr ton-email@exemple.fr`
 - **La page ne s'affiche pas** → vérifie les ports 80/443 (étape 2).
 - **Les appels ne se connectent pas en 4G** → vérifie les ports 3478 et 49160-49200 (étape 2).
