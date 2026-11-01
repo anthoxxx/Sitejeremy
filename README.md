@@ -48,6 +48,7 @@ Variables d'environnement facultatives :
 - 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde
 - 🗣️ **Dictée vocale** : on parle, le texte s'écrit (dire « point », « virgule », « point d'interrogation »…), plus correcteur orthographique du navigateur
 - 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
+- 🎧 **Écouter le vocal sans y aller** : dans un salon où des gens parlent, le bouton « 🎧 Écouter » permet de les entendre (et de voir leurs caméras) sans micro. Ceux qui parlent voient combien de personnes écoutent. « 🎙️ Parler » pour prendre la parole, « 🔁 Auto » pour écouter tout seul en arrivant dans un salon
 - 🔊 **Volume réglable de 0 à 200 %** pendant les appels et dans le vocal des salons (volume général + volume de chaque personne)
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
 - 🎤 **Salon Karaoké** avec le **KaraoBot** : on choisit sa chanson (recherche de versions karaoké sur YouTube, idées de chansons par thème, ou lien YouTube collé), le bot gère la **file d'attente**, annonce à chacun quand c'est son tour, et tout le salon peut regarder la vidéo avec les paroles pendant que le chanteur chante dans le vocal. Commandes : `!chanson <titre>`, `!liste`, `!suivant`, `!retirer`, `!aide`

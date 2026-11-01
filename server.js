@@ -476,7 +476,7 @@ function roomOut(r) {
     id: r.id, slug: r.slug, name: r.name, description: r.description, icon: r.icon, membersOnly: !!r.members_only, sort: r.sort,
     ownerId: r.owner_id || null, ownerName: owner ? owner.username : null, isPrivate: !!r.is_private,
     voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
-    count: roomCount(r.slug), voice: voiceList(r.slug).length, background: r.background || '',
+    count: roomCount(r.slug), voice: voiceList(r.slug).filter(p => !p.listener).length, background: r.background || '',
     managers: r.owner_id ? roomManagers(r.id) : [],
     temporary: !!r.temporary,
     closesAt: r.temporary && r.empty_since ? r.empty_since + tempRoomDelay() : null,
@@ -2079,7 +2079,9 @@ io.on('connection', socket => {
 
   // ----- Vocal -----
   const myVoiceRoom = () => { for (const r of socket.rooms) if (r.startsWith('room:')) return r.slice(5); return null; };
-  socket.on('voice_join', (_, ack) => {
+  // opts.listen = true : on écoute le vocal sans micro (on entend ceux qui parlent, sans parler)
+  socket.on('voice_join', (opts, ack) => {
+    const listen = !!(opts && opts.listen);
     const u = current();
     const slug = myVoiceRoom();
     const room = slug && getRoomBySlug(slug);
@@ -2087,16 +2089,20 @@ io.on('connection', socket => {
     if (!room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (s.voiceEnabled !== '1' || !room.voice_enabled) return ack && ack({ error: 'Le vocal est désactivé dans ce salon' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
-    if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
+    if (!listen && u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée' });
-    if (voiceOf.get(socket.id) === slug) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id) });
+    const mine = voice.get(slug)?.get(socket.id);
+    if (mine && !!mine.listener === listen) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id && (!listen || !p.listener)) });
     leaveVoiceBySocket(socket.id, null);
     const max = parseInt(s.voiceMax, 10) || 8;
-    if (voiceList(slug).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum)` });
-    const peers = voiceList(slug);
+    const all = voiceList(slug);
+    if (!listen && all.filter(p => !p.listener).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum) : tu peux écouter 🎧 en attendant` });
+    if (listen && all.filter(p => p.listener).length >= 25) return ack && ack({ error: 'Trop de monde écoute déjà ce vocal' });
+    // Un auditeur ne se connecte qu'à ceux qui parlent ; quelqu'un qui parle se connecte à tout le monde
+    const peers = listen ? all.filter(p => !p.listener) : all;
     if (!voice.has(slug)) voice.set(slug, new Map());
-    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: false, video: false });
-    log(u, 'voice_join', `A rejoint le vocal du salon ${room.name}`);
+    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen });
+    log(u, 'voice_join', listen ? `Écoute le vocal du salon ${room.name} 🎧` : `A rejoint le vocal du salon ${room.name}`);
     voiceOf.set(socket.id, slug);
     ack && ack({ peers });
     emitVoiceState(slug);
@@ -2105,7 +2111,7 @@ io.on('connection', socket => {
   socket.on('voice_video', on => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
-    if (!p) return;
+    if (!p || p.listener) return;
     const was = p.video;
     p.video = !!on;
     emitVoiceState(slug);
@@ -2118,12 +2124,14 @@ io.on('connection', socket => {
   socket.on('voice_signal', ({ to, data } = {}) => {
     const slug = voiceOf.get(socket.id);
     if (!slug || voiceOf.get(String(to)) !== slug || !data) return;
+    const m = voice.get(slug);
+    if (m?.get(socket.id)?.listener && m?.get(String(to))?.listener) return;
     io.to(String(to)).emit('voice_signal', { from: socket.id, data });
   });
   socket.on('voice_mute', muted => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
-    if (!p) return;
+    if (!p || p.listener) return;
     p.muted = !!muted;
     emitVoiceState(slug);
   });

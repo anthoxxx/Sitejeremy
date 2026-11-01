@@ -34,31 +34,38 @@ const Voice = {
   ctx: null,
   joining: false,
   cam: null,           // piste vidéo de notre caméra (null = caméra coupée)
+  listening: false,    // on écoute seulement (sans micro)
+  autoListen: (() => { try { return localStorage.getItem('lc_autolisten') === '1'; } catch (e) { return false; } })(),
   facing: 'user',      // caméra avant / arrière (téléphone)
 
-  async join() {
+  // listen = true : écouter le vocal sans micro
+  async join(listen = false) {
     if (this.joining || state.view?.type !== 'room') return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.RTCPeerConnection)
+    if (!window.RTCPeerConnection || (!listen && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)))
       return toast('🎤 Le vocal nécessite un navigateur récent et un site en https');
+    if (this.slug) this.leave();
     this.joining = true;
     renderVoice();
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    } catch (e) {
-      this.joining = false; renderVoice();
-      return toast('🎤 Accès au micro refusé : autorise le micro dans ton navigateur');
+    if (!listen) {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (e) {
+        this.joining = false; renderVoice();
+        return toast('🎤 Accès au micro refusé : autorise le micro dans ton navigateur');
+      }
     }
     if (!this.ice) {
       try { this.ice = (await api('/api/ice')).iceServers; } catch (e) { this.ice = [{ urls: 'stun:stun.l.google.com:19302' }]; }
     }
     const slug = state.view?.slug;
-    socket.emit('voice_join', null, res => {
+    socket.emit('voice_join', listen ? { listen: true } : null, res => {
       this.joining = false;
       if (!res || res.error) { this.stopLocal(); renderVoice(); return toast(res ? res.error : 'Erreur vocal'); }
       this.slug = slug;
-      this.muted = false;
+      this.listening = listen;
+      this.muted = listen;
       this.audioCtx();
-      this.meter('me', this.stream);
+      if (this.stream) this.meter('me', this.stream);
       res.peers.forEach(p => this.createPeer(p.socketId, true));
       renderVoice();
     });
@@ -70,7 +77,13 @@ const Voice = {
     for (const id of [...this.peers.keys()]) this.closePeer(id);
     this.stopLocal();
     this.slug = null;
+    this.listening = false;
     this.joining = false;
+    renderVoice();
+  },
+  setAutoListen(on) {
+    this.autoListen = on;
+    try { localStorage.setItem('lc_autolisten', on ? '1' : '0'); } catch (e) {}
     renderVoice();
   },
 
@@ -88,8 +101,9 @@ const Voice = {
     const p = { pc, audio, chain: Promise.resolve(), pending: [], videoSender: null, videoStream: null };
     this.peers.set(id, p);
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
+    else if (initiator) pc.addTransceiver('audio', { direction: 'recvonly' }); // auditeur : on reçoit seulement
     // Un canal vidéo est toujours prévu : allumer la caméra n'a pas besoin de renégocier
-    if (initiator) p.videoSender = pc.addTransceiver(this.cam || 'video', { direction: 'sendrecv' }).sender;
+    if (initiator) p.videoSender = pc.addTransceiver(this.cam || 'video', { direction: this.stream ? 'sendrecv' : 'recvonly' }).sender;
     pc.onicecandidate = e => { if (e.candidate) socket.emit('voice_signal', { to: id, data: { candidate: e.candidate } }); };
     pc.ontrack = e => {
       if (e.track.kind === 'video') {
@@ -128,7 +142,7 @@ const Voice = {
   },
 
   signal(from, data) {
-    if (!this.slug || !this.stream) return;
+    if (!this.slug || (!this.stream && !this.listening)) return;
     const p = this.peers.get(from) || this.createPeer(from, false);
     p.chain = p.chain.then(async () => {
       if (data.sdp) {
@@ -137,7 +151,7 @@ const Voice = {
         p.pending = [];
         if (data.sdp.type === 'offer') {
           const t = p.pc.getTransceivers().find(x => x.receiver.track && x.receiver.track.kind === 'video');
-          if (t) { t.direction = 'sendrecv'; p.videoSender = t.sender; if (this.cam) await t.sender.replaceTrack(this.cam).catch(() => {}); }
+          if (t && this.stream) { t.direction = 'sendrecv'; p.videoSender = t.sender; if (this.cam) await t.sender.replaceTrack(this.cam).catch(() => {}); }
           await p.pc.setLocalDescription(await p.pc.createAnswer());
           socket.emit('voice_signal', { to: from, data: { sdp: p.pc.localDescription } });
         }
@@ -254,33 +268,59 @@ function renderVoice() {
   const btn = $('headVoice');
   if (!r || state.view?.type !== 'room') { bar.classList.add('hidden'); return; }
   const parts = state.voice.get(r.slug) || [];
+  const speakers = parts.filter(p => !p.listener), listeners = parts.filter(p => p.listener);
   const inThis = Voice.slug === r.slug;
+  const speaking = inThis && !Voice.listening;
+  const listening = inThis && Voice.listening;
 
-  btn.className = 'btn btn-sm ' + (inThis ? 'btn-danger' : 'btn-primary') + (!state.voiceEnabled || !r.voiceEnabled ? ' hidden' : '');
-  btn.textContent = Voice.joining ? '🎙️ Connexion…' : inThis ? '📞 Quitter le vocal' : `🎙️ Vocal${parts.length ? ' (' + parts.length + ')' : ''}`;
-  btn.onclick = () => (inThis ? Voice.leave() : Voice.join());
+  btn.className = 'btn btn-sm ' + (speaking ? 'btn-danger' : 'btn-primary') + (!state.voiceEnabled || !r.voiceEnabled ? ' hidden' : '');
+  btn.textContent = Voice.joining ? '🎙️ Connexion…' : speaking ? '📞 Quitter le vocal' : `🎙️ Vocal${speakers.length ? ' (' + speakers.length + ')' : ''}`;
+  btn.onclick = () => (speaking ? Voice.leave() : Voice.join());
 
-  if (!parts.length && !inThis) { bar.classList.add('hidden'); return; }
+  if (!speakers.length && !inThis) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
   const manage = canManage(r);
-  bar.replaceChildren(
-    el('span', { class: 'voice-label' }, '🎙️ Vocal'),
-    el('div', { class: 'voice-people' }, ...parts.map(p => {
-      const mine = p.socketId === socket.id;
-      return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
-        LC.avatar(p),
-        el('span', { class: 'vname' }, p.username), p.video ? el('span', {}, '📷') : null, p.muted ? el('span', {}, '🔇') : null,
-        manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
-    })),
-    inThis ? el('div', { class: 'voice-ctrl' },
+  const listenInfo = listeners.length ? el('span', { class: 'voice-listeners', title: 'En écoute : ' + listeners.map(p => p.username).join(', ') }, `🎧 ${listeners.length} écoute${listeners.length > 1 ? 'nt' : ''}`) : null;
+  let ctrl;
+  if (speaking) {
+    ctrl = el('div', { class: 'voice-ctrl' },
       el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: Voice.muted ? 'Rallumer le micro' : 'Couper le micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇' : '🎤', el('span', { class: 'lbl' }, Voice.muted ? ' Micro coupé' : ' Micro')),
       el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
       Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
-      el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'))
-      : el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
+      el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'));
+  } else if (listening) {
+    ctrl = el('div', { class: 'voice-ctrl' },
+      el('span', { class: 'voice-listening' }, '🎧 Tu écoutes'),
+      el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
+      el('button', { class: 'btn btn-sm btn-primary', title: 'Prendre la parole (avec ton micro)', onclick: () => Voice.join() }, '🎙️', el('span', { class: 'lbl' }, ' Parler')),
+      el('button', { class: 'btn btn-sm' + (Voice.autoListen ? ' btn-ok' : ''), title: 'Écouter tout seul le vocal quand j\'arrive dans un salon', onclick: () => Voice.setAutoListen(!Voice.autoListen) }, Voice.autoListen ? '🔁 Auto ✓' : '🔁 Auto'),
+      el('button', { class: 'btn btn-sm btn-danger', title: 'Arrêter d\'écouter', onclick: () => Voice.leave() }, '⏹'));
+  } else {
+    ctrl = el('div', { class: 'voice-ctrl' },
+      el('button', { class: 'btn btn-sm', title: 'Entendre le vocal sans y aller (sans micro)', onclick: () => Voice.join(true) }, '🎧 Écouter'),
+      el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
+  }
+  bar.replaceChildren(
+    el('span', { class: 'voice-label' }, '🎙️ Vocal'),
+    el('div', { class: 'voice-people' }, ...speakers.map(p => {
+      const mine = p.socketId === socket.id;
+      return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
+        LC.avatar(p),
+        el('span', { class: 'vname' }, p.username), p.video ? el('span', {}, '📷') : null, p.muted ? el('span', {}, '🔇') : null,
+        manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
+    }), listenInfo),
+    ctrl);
 }
+// Écoute automatique : en arrivant dans un salon où ça parle, on écoute tout seul
+function maybeAutoListen() {
+  const r = state.currentRoom;
+  if (!Voice.autoListen || Voice.slug || Voice.joining || !r || state.view?.type !== 'room' || state.view.slug !== r.slug) return;
+  if (!state.voiceEnabled || !r.voiceEnabled) return;
+  if ((state.voice.get(r.slug) || []).some(p => !p.listener)) Voice.join(true);
+}
+document.addEventListener('viewchange', () => setTimeout(maybeAutoListen, 300));
 
 // ----- Événements serveur -----
 socket.on('voice_state', ({ slug, participants }) => {
@@ -294,6 +334,9 @@ socket.on('voice_state', ({ slug, participants }) => {
   renderVideoGrid();
   renderRooms();
   if (Voice.slug === slug) Voice.applyVolumes();
+  maybeAutoListen();
+  // Plus personne ne parle : l'auditeur arrête d'écouter
+  if (Voice.slug === slug && Voice.listening && !participants.some(p => !p.listener)) Voice.leave();
   if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
@@ -345,7 +388,7 @@ function volumeSlider(value, onChange) {
 }
 // Fenêtre : volume général du vocal + volume de chaque personne
 function openVoiceVolume() {
-  const parts = (state.voice.get(Voice.slug) || []).filter(p => p.socketId !== socket.id);
+  const parts = (state.voice.get(Voice.slug) || []).filter(p => p.socketId !== socket.id && !p.listener);
   const close = modal(
     el('h3', {}, '🔊 Volume du vocal'),
     el('div', { class: 'field' }, el('label', {}, 'Volume général'), volumeSlider(Voice.master, v => { Voice.setMaster(v); renderVoice(); })),

@@ -1198,3 +1198,6 @@ body.hub-open .modal-back { z-index: 260; }
 #userList .verify-btn { padding: 4px 6px; min-width: 0; font-size: .8rem; flex: none; }
 /* Alertes pendant un appel (capture d'écran, caméra allumée) */
 .call-notice { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 5; padding: 10px 16px; border-radius: 999px; background: rgba(0, 0, 0, .75); color: #fff; font-weight: 700; font-size: .9rem; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; animation: sheet .2s ease; }
+/* Écoute du vocal sans micro */
+.voice-listeners { font-size: .78rem; color: var(--muted); align-self: center; white-space: nowrap; }
+.voice-listening { font-size: .82rem; font-weight: 700; color: var(--green); align-self: center; margin-right: 4px; }

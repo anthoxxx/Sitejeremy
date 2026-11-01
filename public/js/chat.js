@@ -135,7 +135,7 @@ const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff
 function roomItem(r, counts) {
   const customsLock = needsCustoms() && r.slug !== 'douane';
   const locked = (r.membersOnly && state.me.isGuest) || customsLock;
-  const v = (state.voice.get(r.slug) || []).length;
+  const v = (state.voice.get(r.slug) || []).filter(p => !p.listener).length;
   return el('div', {
     class: 'list-item' + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
