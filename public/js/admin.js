@@ -382,7 +382,7 @@ async function site() {
       el('div', { class: 'field' }, el('label', {}, 'Texte de présentation de l\'accueil'), heroText),
       el('div', { class: 'field' }, el('label', {}, 'Texte du bas de page'), footer)),
     el('div', { class: 'panel' }, el('h2', {}, '🎉 Thème de fête'),
-      el('p', { class: 'help', style: 'margin:0 0 12px' }, `En automatique : 🎃 Halloween du 24 oct. au 1er nov., ❄️ Hiver du 2 au 30 nov. puis du 4 janv. au 20 mars (hors Saint-Valentin), 🎄 Noël du 1er au 26 déc., 🎆 Nouvel An du 27 déc. au 3 janv., 💘 Saint-Valentin du 10 au 15 févr., 🐣 Pâques (3 jours avant à 1 jour après). Thème actif aujourd'hui : ${s.theme ? LC.SEASONS[s.theme].icon + ' ' + LC.SEASONS[s.theme].label : 'aucun'}. Les couleurs du thème remplacent les couleurs du site pendant la fête.`),
+      el('p', { class: 'help', style: 'margin:0 0 12px' }, `En automatique : 🍂 Automne-Hiver (feuilles et flocons) du 22 sept. au 30 nov., ❄️ Hiver du 4 janv. au 20 mars (hors Saint-Valentin), 🎄 Noël du 1er au 26 déc., 🎆 Nouvel An du 27 déc. au 3 janv., 💘 Saint-Valentin du 10 au 15 févr., 🐣 Pâques (3 jours avant à 1 jour après). Thème actif aujourd'hui : ${s.theme ? LC.SEASONS[s.theme].icon + ' ' + LC.SEASONS[s.theme].label : 'aucun'}. Les couleurs du thème remplacent les couleurs du site pendant la fête.`),
       themeBox),
     el('div', { class: 'panel' }, el('h2', {}, '🎨 Couleurs du site'),
       el('div', { class: 'toolbar' }, ...['Couleur 1', 'Couleur 2', 'Couleur 3'].map((l, i) => el('label', { style: 'display:flex;gap:8px;align-items:center' }, colors[i], l)),

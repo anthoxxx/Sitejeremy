@@ -73,7 +73,7 @@ window.LC = {
   },
   // ----- Thèmes de fête -----
   SEASONS: {
-    halloween: { label: 'Halloween', icon: '🎃', colors: ['#8b3dff', '#ff7a18', '#ffd23f'], fx: ['🎃', '🦇', '👻', '🕸️', '🍬'], anim: 'float', greeting: '🎃 Joyeux Halloween ! Des bonbons ou un sort ?' },
+    'automne-hiver': { label: 'Automne-Hiver', icon: '🍂', colors: ['#c2562f', '#f29a3a', '#5aa7e0'], fx: ['🍂', '🍁', '🍂', '❄️', '🍁'], anim: 'snow', flakes: true, flakesFew: true, greeting: '🍂 L\'automne s\'installe et l\'hiver approche : viens te réchauffer sur le chat ! ❄️' },
     hiver: { label: 'Hiver', icon: '❄️', colors: ['#5b8cff', '#8fd3ff', '#e6f4ff'], fx: ['❄️', '❅', '❆'], anim: 'snow', flakes: true, greeting: '❄️ L\'hiver est là : couvre-toi bien et viens te réchauffer sur le chat !' },
     noel: { label: 'Noël', icon: '🎄', colors: ['#1fa055', '#e63946', '#ffd166'], fx: ['❄️', '❄', '❅', '✨', '❆'], anim: 'snow', flakes: true, greeting: '🎄 Joyeux Noël à toutes et à tous !' },
     'nouvel-an': { label: 'Nouvel An', icon: '🎆', colors: ['#6d5dfc', '#ff4fd8', '#ffd700'], fx: ['✨', '🎉', '🎊', '🥂', '⭐'], anim: 'snow', greeting: '' },
@@ -107,7 +107,7 @@ window.LC = {
     }
     // Vraie neige : de petits flocons blancs qui tombent doucement, en plus des emojis
     if (s.flakes) {
-      const m = innerWidth < 760 ? 35 : 70;
+      const m = (innerWidth < 760 ? 35 : 70) / (s.flakesFew ? 2 : 1);
       for (let i = 0; i < m; i++) {
         const dur = 7 + Math.random() * 12, size = 2 + Math.random() * 5;
         box.append(LC.el('i', { class: 'flake', style: `left:${Math.random() * 100}%;width:${size}px;height:${size}px;opacity:${(0.35 + Math.random() * 0.6).toFixed(2)};animation-duration:${dur}s;animation-delay:-${Math.random() * dur}s;--drift:${(Math.random() * 60 - 30).toFixed(0)}px;filter:blur(${size > 5 ? 1 : 0}px)` }));

@@ -659,7 +659,7 @@ body { -webkit-tap-highlight-color: transparent; }
 .season-greet { display: inline-block; margin: 0 0 14px; padding: 8px 16px; border-radius: 999px; background: var(--grad); color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(0, 0, 0, .25); }
 .season-banner { display: flex; align-items: center; gap: 8px; margin: 10px 16px 0; padding: 8px 8px 8px 16px; border-radius: 14px; background: var(--grad); color: #fff; font-weight: 700; flex: none; }
 .season-banner .btn-icon { color: #fff; width: 32px; height: 32px; }
-:root[data-season="halloween"] { --bg: #0b0710; --bg-2: #120b1a; --panel: #1a1024; --panel-2: #25152f; }
+:root[data-season="automne-hiver"] { --bg: #0f0b0a; --bg-2: #18110e; --panel: #221813; --panel-2: #2e2019; }
 :root[data-season="noel"] { --bg: #08130f; --bg-2: #0c1b15; --panel: #11241c; --panel-2: #183026; }
 :root[data-season="nouvel-an"] { --bg: #07071a; --bg-2: #0c0c26; --panel: #131337; --panel-2: #1c1c48; }
 :root[data-season="saint-valentin"] { --bg: #170812; --bg-2: #1f0b18; --panel: #2a1022; --panel-2: #36152c; }

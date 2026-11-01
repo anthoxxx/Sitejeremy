@@ -355,6 +355,8 @@ Avertissement, mute temporaire, expulsion ou bannissement définitif selon la gr
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
+// Le thème Halloween n'existe plus : retour au thème automatique
+db.prepare("UPDATE settings SET value='auto' WHERE key='theme' AND value='halloween'").run();
 
 // Douane obligatoire pour les nouveaux inscrits (activée une fois ; les comptes déjà là restent validés)
 if (!db.prepare("SELECT 1 FROM settings WHERE key='customsAutoOn'").get()) {

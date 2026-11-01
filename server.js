@@ -380,7 +380,7 @@ app.put('/api/me/password', auth, (req, res) => {
 // ---------- Données publiques ----------
 // Contenu du site (nom, textes, couleurs, histoire, règlement) — modifiable par le super-admin
 // Thèmes de fête : 'auto' = selon la date (heure de Paris)
-const THEMES = ['halloween', 'hiver', 'noel', 'nouvel-an', 'saint-valentin', 'paques', 'ete'];
+const THEMES = ['automne-hiver', 'hiver', 'noel', 'nouvel-an', 'saint-valentin', 'paques', 'ete'];
 function easter(y) {
   const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
   const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
@@ -390,14 +390,15 @@ function easter(y) {
 function autoTheme() {
   const { d, m, y } = parisToday();
   const md = m * 100 + d;
-  if (md >= 1024 && md <= 1101) return 'halloween';
   if (md >= 1201 && md <= 1226) return 'noel';
   if (md >= 1227 || md <= 103) return 'nouvel-an';
   if (md >= 210 && md <= 215) return 'saint-valentin';
   const diff = (Date.UTC(y, m - 1, d) - easter(y).getTime()) / 86400000;
   if (diff >= -3 && diff <= 1) return 'paques';
-  // ❄️ Hiver : après Halloween jusqu'à Noël, et de janvier à la fin de l'hiver (20 mars)
-  if ((md >= 1102 && md <= 1130) || (md >= 104 && md <= 320)) return 'hiver';
+  // 🍂 Automne-Hiver : feuilles et premiers flocons, du 22 septembre jusqu'à Noël
+  if (md >= 922 && md <= 1130) return 'automne-hiver';
+  // ❄️ Hiver : de janvier à la fin de l'hiver (20 mars)
+  if (md >= 104 && md <= 320) return 'hiver';
   return '';
 }
 function activeTheme() {
