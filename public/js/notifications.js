@@ -119,7 +119,7 @@ socket.on('notification', n => {
 function desktopNotify(n) {
   if (!document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return;
   try {
-    const dn = new Notification(n.title, { body: n.text || '', icon: '/favicon.svg', tag: 'lc-' + n.id });
+    const dn = new Notification(n.title, { body: n.text || '', icon: '/img/icon-512.png', tag: 'lc-' + n.id });
     dn.onclick = () => { window.focus(); dn.close(); };
   } catch (e) {}
 }
