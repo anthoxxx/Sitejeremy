@@ -57,6 +57,13 @@ Variables d'environnement facultatives :
 - 📖 Pages **Notre histoire** et 📜 **Règlement**
 - Thème sombre / clair, interface **pensée pour le téléphone** (menus en tiroir, fenêtres qui montent du bas, pas de zoom gênant sur iPhone)
 
+**🛡️ ModoBot** (dans tous les salons)
+- Masque automatiquement les **gros mots, insultes et propos haineux** (« c****** »), même écrits avec des astuces : majuscules, accents, lettres répétées (« connnnard »), chiffres (« c0nn4rd »), lettres séparées (« p.u.t.e ») ou expressions (« ta g***** »)
+- Avertit la personne dans le salon (« Avertissement 1/3 ») ; une insulte grave compte double
+- Au bout de 3 avertissements : **muet 5 minutes**, puis 10, 20… en cas de récidive dans la journée ; le staff est prévenu
+- Le staff n'est jamais sanctionné (ses mots sont juste masqués). Tout est noté dans les Logs
+- Réglable dans Admin → Réglages : activer / couper, nombre d'avertissements, durée du muet, mots interdits en plus
+
 **Panneau d'administration** (`/admin`)
 - Tableau de bord, utilisateurs (avec les **comptes liés** à une même personne), sanctions, signalements, messages, salons
 - 📜 **Logs** (tout le staff) : connexions, inscriptions, invités, **messages supprimés avec leur contenu** (et les vocaux), salons, vocal, appels, signalements, sanctions, réglages… Filtres par catégorie, recherche, mise à jour **en direct**, gardés 90 jours. Les adresses IP ne sont visibles que par le super-admin.

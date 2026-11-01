@@ -131,15 +131,21 @@ function parseCookie(header = '') {
   return out;
 }
 
-function filterWords(text) {
-  const words = (getSettings().bannedWords || '').split(',').map(w => w.trim()).filter(Boolean);
-  let out = text;
-  for (const w of words) {
-    const re = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    out = out.replace(re, m => '*'.repeat(m.length));
+// ---------- ModoBot : grossièretés et insultes ----------
+const ModBot = require('./modbot');
+let modIndex = null, modIndexKey = null;
+function modScan(text) {
+  const st = getSettings();
+  const key = (st.bannedWords || '') + '|' + st.modBotEnabled;
+  if (key !== modIndexKey) {
+    const extra = (st.bannedWords || '').split(',').map(w => w.trim()).filter(Boolean);
+    // ModoBot coupé : seuls les mots interdits choisis par l'admin sont masqués
+    modIndex = st.modBotEnabled === '0' ? { map: new Map(extra.map(w => [ModBot.norm(w), 1])), phrases: [] } : ModBot.buildIndex(extra);
+    modIndexKey = key;
   }
-  return out;
+  return ModBot.scan(modIndex, text);
 }
+function filterWords(text) { return modScan(text).text; }
 
 // Anti-brute-force très simple
 const attempts = new Map();
@@ -1378,6 +1384,9 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   const b = req.body;
   if (b.announcement !== undefined) setSetting('announcement', clean(b.announcement, 300));
   if (b.bannedWords !== undefined) setSetting('bannedWords', clean(b.bannedWords, 2000));
+  if (b.modBotEnabled !== undefined) setSetting('modBotEnabled', b.modBotEnabled ? '1' : '0');
+  if (b.modBotWarnings !== undefined) setSetting('modBotWarnings', Math.min(10, Math.max(1, parseInt(b.modBotWarnings, 10) || 3)));
+  if (b.modBotMuteMinutes !== undefined) setSetting('modBotMuteMinutes', Math.min(1440, Math.max(1, parseInt(b.modBotMuteMinutes, 10) || 5)));
   if (b.guestsAllowed !== undefined) setSetting('guestsAllowed', b.guestsAllowed ? '1' : '0');
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
@@ -1822,7 +1831,8 @@ io.on('connection', socket => {
     if (typeof payload === 'object' && payload?.audio && !audio) return ack && ack({ error: 'Message vocal invalide' });
     const image = typeof payload === 'object' && payload ? checkImage(payload.image, uid) : null;
     if (typeof payload === 'object' && payload?.image && !image) return ack && ack({ error: 'Photo invalide' });
-    const caption = filterWords(clean(typeof payload === 'string' ? payload : payload?.text, 500));
+    const scanned = modScan(clean(typeof payload === 'string' ? payload : payload?.text, 500));
+    const caption = scanned.text;
     const content = audio ? '🎤 Message vocal' : image ? caption || '🖼️ Photo' : caption;
     if (!content) return;
     const room = getRoomBySlug(entry.room);
@@ -1835,6 +1845,7 @@ io.on('connection', socket => {
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
     ack && ack({ ok: true });
+    if (scanned.level) modBotStrike(u, room, scanned);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
   });
 
@@ -2029,6 +2040,45 @@ io.on('connection', socket => {
     }
   });
 });
+
+// ModoBot : avertit dans le salon, puis rend muet en cas de récidive
+const modStrikes = new Map(); // userId -> { points, at, mutes, muteAt }
+function modBotSay(slug, content) {
+  io.to('room:' + slug).emit('message', { room: slug, id: 'mod' + now() + Math.random().toString(36).slice(2, 6), userId: 0, username: 'ModoBot', color: '#ff5a6e', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: '🛡️', content, createdAt: now(), kind: 'text' });
+}
+function modBotStrike(u, room, scanned) {
+  const st = getSettings();
+  if (st.modBotEnabled === '0') return;
+  log(null, 'modbot', `🛡️ ModoBot : message de ${u.username} masqué dans « ${room.name} » (${scanned.found.join(', ')})`);
+  if (isStaff(u)) return; // l'équipe n'est pas sanctionnée, le mot est juste masqué
+  const max = Math.min(10, Math.max(1, parseInt(st.modBotWarnings, 10) || 3));
+  const base = Math.min(1440, Math.max(1, parseInt(st.modBotMuteMinutes, 10) || 5));
+  const t = now();
+  const s = modStrikes.get(u.id) || { points: 0, at: t, mutes: 0, muteAt: 0 };
+  if (t - s.at > 30 * 60 * 1000) s.points = 0;          // les avertissements s'effacent après 30 min
+  if (t - s.muteAt > 24 * 3600 * 1000) s.mutes = 0;     // la récidive s'efface après 24 h
+  s.points += scanned.level; s.at = t;
+  modStrikes.set(u.id, s);
+  if (s.points < max) {
+    const grave = scanned.level >= 2;
+    modBotSay(room.slug, `${grave ? '⛔' : '⚠️'} @${u.username}, ${grave ? 'les insultes ne sont pas tolérées ici' : 'surveille ton langage'} ! Avertissement ${s.points}/${max}${grave ? ' (compte double)' : ''}.`);
+    return;
+  }
+  // Sanction : muet, de plus en plus long en cas de récidive (5, 10, 20 min…)
+  const minutes = Math.min(1440, base * 2 ** s.mutes);
+  s.mutes++; s.muteAt = t; s.points = 0;
+  const until = t + minutes * 60000;
+  db.prepare('UPDATE users SET muted_until=? WHERE id=?').run(until, u.id);
+  log(null, 'mute', `🛡️ ModoBot : ${u.username} rendu muet ${fmtDuration(minutes)} (langage grossier)`);
+  notify(u.id, { type: 'mute', icon: '🔇', title: `Tu es rendu muet pendant ${fmtDuration(minutes)}`, text: 'Le ModoBot t\'a averti plusieurs fois pour langage grossier ou insultes.', data: { until }, important: true });
+  const e = online.get(u.id);
+  if (e) for (const sid of e.sockets) {
+    leaveVoiceBySocket(sid, null);
+    if (callOfSocket.has(sid)) endCall(callOfSocket.get(sid), { by: sid, reason: 'Appel interrompu' });
+  }
+  modBotSay(room.slug, `🔇 ${u.username} est rendu muet pendant ${fmtDuration(minutes)} pour langage grossier. Restons respectueux 💜`);
+  emitToStaff('staff_alert', { text: `🛡️ ModoBot a rendu ${u.username} muet ${fmtDuration(minutes)} (dans ${room.name})` });
+}
 
 function msgOut(m) {
   // Message signé « Modération » (super-admin en mode fantôme anonyme) : l'identité reste visible dans l'admin

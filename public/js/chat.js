@@ -283,7 +283,7 @@ function addBotMessage(m, live = true) {
       el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, 'Bot'), el('span', { class: 'time' }, LC.time(m.createdAt))),
       el('div', { class: 'text' }, m.content))));
   trimMessages();
-  if (live) { scrollDown(); if (mention) { ding(); toast('🎤 ' + m.content.slice(0, 90)); } }
+  if (live) { scrollDown(); if (mention) { ding(); toast((m.botIcon || '🤖') + ' ' + m.content.slice(0, 90)); } }
 }
 function addSys(text, cls = '') {
   $('messages').append(el('div', { class: 'sys ' + cls }, text));

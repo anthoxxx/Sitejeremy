@@ -286,6 +286,9 @@ async function settings() {
   const { settings: s } = await api('/api/admin/settings');
   const announcement = el('textarea', { class: 'input', rows: 2, maxlength: 300, placeholder: 'Affichée en haut de chaque salon (laisser vide pour aucune)' }, s.announcement);
   const words = el('textarea', { class: 'input', rows: 3, placeholder: 'mot1, mot2, mot3…' }, s.bannedWords);
+  const modOn = el('input', { type: 'checkbox', checked: s.modBotEnabled !== '0' });
+  const modWarn = el('input', { class: 'input', type: 'number', min: 1, max: 10, value: s.modBotWarnings || 3, style: 'max-width:100px' });
+  const modMute = el('input', { class: 'input', type: 'number', min: 1, max: 1440, value: s.modBotMuteMinutes || 5, style: 'max-width:100px' });
   const guests = el('input', { type: 'checkbox', checked: s.guestsAllowed === '1' });
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
@@ -299,7 +302,10 @@ async function settings() {
   page.replaceChildren(...header('Réglages', 'Configure le fonctionnement général du chat.'),
     el('div', { class: 'panel' },
       el('div', { class: 'field' }, el('label', {}, '📢 Annonce permanente'), announcement),
-      el('div', { class: 'field' }, el('label', {}, '🚫 Mots interdits (remplacés par des ***), séparés par des virgules'), words),
+      el('div', { class: 'switch' }, el('span', {}, '🛡️ ModoBot : masque les gros mots et insultes dans tous les salons, avertit puis rend muet'), modOn),
+      el('div', { class: 'switch' }, el('span', {}, '⚠️ Avertissements avant le muet (une insulte grave compte double)'), modWarn),
+      el('div', { class: 'switch' }, el('span', {}, '🔇 Durée du premier muet en minutes (doublée à chaque récidive)'), modMute),
+      el('div', { class: 'field' }, el('label', {}, '🚫 Mots interdits en plus (remplacés par des ***), séparés par des virgules'), words),
       el('div', { class: 'switch' }, el('span', {}, '🎭 Autoriser la connexion en invité (sans inscription)'), guests),
       el('div', { class: 'switch' }, el('span', {}, '✍️ Inscriptions ouvertes'), reg),
       el('div', { class: 'switch' }, el('span', {}, '🔞 Âge minimum'), minAge),
@@ -311,7 +317,7 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '⏳ Tout le monde peut créer un salon temporaire (même les invités)'), tempOn),
       el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
-        announcement: announcement.value, bannedWords: words.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
+        announcement: announcement.value, bannedWords: words.value, modBotEnabled: modOn.checked, modBotWarnings: modWarn.value, modBotMuteMinutes: modMute.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
         voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
         tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
@@ -455,7 +461,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', modbot: '🛡️ ModoBot', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;
