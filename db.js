@@ -252,7 +252,7 @@ if (roomCount === 0) {
     ['general', 'Général', 'Le salon principal, pour discuter de tout', '✨', 1, 0],
     ['rencontres', 'Rencontres', 'Faire de nouvelles rencontres', '💞', 2, 0],
     ['18-25', '18 – 25 ans', 'Le salon des jeunes adultes', '🎧', 3, 0],
-    ['25-40', '25 – 40 ans', 'Pour les trentenaires et plus', '🍷', 4, 0],
+    ['25-40', '26 – 40 ans', 'Pour les trentenaires et plus', '🍷', 4, 0],
     ['40-plus', '40 ans et +', 'Entre personnes de plus de 40 ans', '🌙', 5, 0],
     ['amitie', 'Amitié', 'Se faire des amis, sans prise de tête', '🤝', 6, 0],
     ['gaming', 'Jeux vidéo', 'Gamers de tous horizons', '🎮', 7, 0],
@@ -260,6 +260,8 @@ if (roomCount === 0) {
     ['membres', 'Salon VIP', 'Réservé aux membres inscrits', '💎', 9, 1],
   ].forEach(r => ins.run(...r, now));
 }
+// Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
+db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 
 const defaults = {
   announcement: '',
