@@ -20,6 +20,7 @@ Variables d'environnement facultatives :
 | `ADMIN_LOGIN` | Nom d'utilisateur de l'espace admin `/admin` (`admin` par défaut) |
 | `ADMIN_PASSWORD` | Mot de passe de l'espace admin. Sans lui, la connexion à `/admin` par identifiant est désactivée. **Ne l'écris jamais dans le code** (le dépôt est public) |
 | `RADIO_CHECK` | Mettre `0` pour désactiver la vérification automatique des radios |
+| `TV_CHECK` | Mettre `0` pour désactiver le chargement et la vérification des chaînes TV |
 
 👑 **Le tout premier compte inscrit devient super-admin.** Inscris-toi en premier avec ton pseudo.
 
@@ -50,6 +51,7 @@ Variables d'environnement facultatives :
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
 - 🎤 **Salon Karaoké** avec le **KaraoBot** : on choisit sa chanson (recherche de versions karaoké sur YouTube, idées de chansons par thème, ou lien YouTube collé), le bot gère la **file d'attente**, annonce à chacun quand c'est son tour, et tout le salon peut regarder la vidéo avec les paroles pendant que le chanteur chante dans le vocal. Commandes : `!chanson <titre>`, `!liste`, `!suivant`, `!retirer`, `!aide`
 - 🎧 **DJ Bot dans le salon Musique** : chacun met **la musique qu'il veut** (recherche YouTube, idées par style ou lien collé), elle passe **pour tout le salon en même temps**, à son tour dans la file. On peut réduire la vidéo pour n'avoir que le son. Pour passer une musique : celui qui l'a mise, le staff, ou un **vote de la moitié du salon**. Commandes : `!play <titre>`, `!liste`, `!skip`, `!retirer`, `!aide`
+- 📺 **Salon « TV du monde »** avec le **TV Bot** : les chaînes de télé gratuites du monde entier (annuaire public iptv-org, uniquement des flux diffusés librement), triées par pays et cherchables. Le serveur vérifie chaque chaîne au démarrage puis chaque jour et ne garde que celles qui marchent dans un navigateur. Tout le salon regarde la même chaîne ; plein écran, lecteur réduit. Commandes : `!tv <nom>`, `!chaine`, `!aide`. Une chaîne signalée en panne par 2 spectateurs est retirée
 - 📻 **Radio** : lecteur intégré, radio du salon, lien audio perso
 - 🎮 **Mini-jeux** (bouton 🎮) : solo — Serpent, Démineur, Memory, Pendu, Taquin, Réflexes, Quiz ; à deux en direct — Morpion, 4 alignés, Chifoumi, Course de frappe, Quiz duel (invitation, revanche, arbitrage par le serveur) ; contre l'ordinateur pour Morpion, 4 alignés et Chifoumi ; records personnels et classements
 - 🎨 **Profils personnalisables** : photo, bannière, effets de pseudo, cadres, statut, bio, jeux, réseaux

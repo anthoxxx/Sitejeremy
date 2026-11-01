@@ -1166,3 +1166,17 @@ body.hub-open .modal-back { z-index: 260; }
 .avatar .v-tick { position: absolute; top: -3px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #1d9bf0; color: #fff; font-size: 9px; font-weight: 900; line-height: 1; display: grid; place-items: center; border: 2px solid var(--bg-2); box-sizing: content-box; z-index: 1; }
 .avatar.lg .v-tick { width: 24px; height: 24px; font-size: 14px; top: 0; right: 0; border-width: 3px; }
 .verify-btn.refuse { margin-left: 2px; }
+
+/* ===== Salon TV ===== */
+.karaoke-bar.tv-bar { background: linear-gradient(135deg, rgba(51, 214, 166, .14), rgba(79, 179, 255, .14)); border-color: rgba(51, 214, 166, .4); }
+.tv-bar .k-label { color: var(--green); }
+.tv-logo { object-fit: contain !important; background: rgba(255, 255, 255, .9) !important; padding: 4px; box-sizing: border-box; }
+.tv-noimg { display: grid; place-items: center; font-size: 1.4rem; background: var(--panel) !important; width: 88px; aspect-ratio: 16 / 9; border-radius: 8px; flex: none; }
+.tv-video video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
+.tv-filters { display: flex; gap: 8px; margin-bottom: 10px; }
+.tv-filters > * { flex: 1; min-width: 0; }
+.tv-list { max-height: 50vh; }
+.tv-item { border: 1px solid var(--line); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+.tv-item:hover { border-color: var(--green); }
+.tv-item img { object-fit: contain; background: rgba(255, 255, 255, .9); padding: 3px; box-sizing: border-box; }
+@media (max-width: 760px) { .tv-filters { flex-direction: column; } }

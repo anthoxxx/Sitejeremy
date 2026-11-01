@@ -42,6 +42,8 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+// Lecteur vidéo HLS pour le salon TV (servi depuis le paquet npm, pas de CDN)
+app.get('/vendor/hls.min.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules', 'hls.js', 'dist', 'hls.min.js'), { maxAge: '7d' }));
 
 // ---------- Utilitaires ----------
 const now = () => Date.now();
@@ -1633,6 +1635,7 @@ app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirn
 // online : userId -> { user, sockets:Set, room }
 const online = new Map();
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
+const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -1857,6 +1860,7 @@ io.on('connection', socket => {
     ack && ack({ ok: true });
     if (scanned.level) modBotStrike(u, room, scanned);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
+    if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});
   });
 
   socket.on('typing', () => {
@@ -1897,6 +1901,7 @@ io.on('connection', socket => {
 
   Games.onConnection(socket, uid, current);
   Jukebox.onConnection(socket, uid, current);
+  TvBot.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

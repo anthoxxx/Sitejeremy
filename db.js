@@ -267,6 +267,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='karaoke'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('karaoke', 'Karaoké', 'Choisis ta chanson avec le KaraoBot et prends le micro ! 🎶', '🎤', 9, 0, Date.now());
 }
+// Salon TV (avec le TV Bot)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='tv'").get()) {
+  const vip = db.prepare("SELECT sort FROM rooms WHERE slug='membres'").get();
+  const sort = vip ? vip.sort : 10;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug<>'douane'").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('tv', 'TV du monde', 'Regardez ensemble les chaînes de télé du monde entier avec le TV Bot 📺', '📺', sort, 0, Date.now());
+}
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 
