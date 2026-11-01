@@ -42,6 +42,8 @@ const Voice = {
   joining: false,
   cam: null,           // piste vidéo de notre caméra (null = caméra coupée)
   listening: false,    // on écoute seulement (sans micro)
+  relayTo: new Set(),  // personnes à qui on envoie notre voix par le site (connexion directe impossible)
+  relayProc: null,
   autoListen: (() => { try { return localStorage.getItem('lc_autolisten') === '1'; } catch (e) { return false; } })(),
   facing: 'user',      // caméra avant / arrière (téléphone)
 
@@ -83,6 +85,8 @@ const Voice = {
     if (notify && this.slug) socket.emit('voice_leave');
     if (this.cam) { this.cam.stop(); this.cam = null; }
     for (const id of [...this.peers.keys()]) this.closePeer(id);
+    this.relayTo.clear();
+    this.stopRelayCapture();
     this.stopLocal();
     this.slug = null;
     this.listening = false;
@@ -127,8 +131,11 @@ const Voice = {
       this.applyVolumes();
       this.meter(id, stream);
     };
+    // Pas connecté au bout de 7 s : le son passera par le site
+    p.relayTimer = setTimeout(() => { if (this.peers.get(id) === p && pc.connectionState !== 'connected') this.useRelay(id); }, 7000);
     pc.onconnectionstatechange = () => {
       p.state = pc.connectionState;
+      if (pc.connectionState === 'connected') clearTimeout(p.relayTimer);
       renderVoice();
       if (pc.connectionState !== 'failed') return;
       // Nouvel essai de connexion (une fois), puis message clair
@@ -141,8 +148,7 @@ const Voice = {
         }).catch(() => {});
         return;
       }
-      const who = (state.voice.get(this.slug) || []).find(x => x.socketId === id);
-      toast(`⚠️ Impossible de te connecter en vocal${who ? ' avec ' + who.username : ''} : vos réseaux bloquent la connexion directe (4G, box, entreprise). Le site a besoin d'un serveur relais (TURN).`);
+      this.useRelay(id);
     };
     if (initiator) {
       p.chain = p.chain.then(async () => {
@@ -157,6 +163,9 @@ const Voice = {
     const p = this.peers.get(id);
     if (!p) return;
     try { p.pc.close(); } catch (e) {}
+    clearTimeout(p.relayTimer);
+    try { p.relayGain?.disconnect(); } catch (e) {}
+    this.relayTo.delete(id);
     p.vol?.close();
     p.audio.srcObject = null;
     this.peers.delete(id);
@@ -234,6 +243,7 @@ const Voice = {
       const silenced = this.deaf || (who && typeof isUserMuted === 'function' && isUserMuted(who.userId));
       const v = silenced ? 0 : this.master * (who ? this.userVols[who.userId] ?? 1 : 1);
       if (p.vol) p.vol.set(v); else p.audio.muted = v === 0;
+      if (p.relayGain) p.relayGain.gain.value = v;
     }
   },
   setMaster(v) {
@@ -245,6 +255,86 @@ const Voice = {
     this.userVols[userId] = v;
     try { localStorage.setItem('lc_user_vol', JSON.stringify(this.userVols)); } catch (e) {}
     this.applyVolumes();
+  },
+
+  // ----- Son relayé par le site -----
+  // Quand deux personnes n'arrivent pas à se connecter directement (4G, box…), la voix passe par
+  // le serveur du site, par la même connexion que les messages du chat. Qualité téléphone, mais ça marche partout.
+  useRelay(id) {
+    const p = this.peers.get(id);
+    if (!p || p.relay) return;
+    p.relay = true;
+    socket.emit('voice_relay_need', id);
+    renderVoice();
+  },
+  onRelayPeer(peer) {
+    let p = this.peers.get(peer);
+    if (!p && this.slug) p = this.createPeer(peer, false);
+    if (!p) return;
+    p.relay = true;
+    clearTimeout(p.relayTimer);
+    if (this.stream) { this.relayTo.add(peer); this.startRelayCapture(); }
+    renderVoice();
+  },
+  startRelayCapture() {
+    if (this.relayProc || !this.stream) return;
+    const ctx = this.audioCtx();
+    if (!ctx) return;
+    const src = ctx.createMediaStreamSource(this.stream);
+    const proc = ctx.createScriptProcessor(2048, 1, 1);
+    const ratio = ctx.sampleRate / 16000;
+    let loudAt = 0;
+    proc.onaudioprocess = e => {
+      e.outputBuffer.getChannelData(0).fill(0);
+      if (this.muted || !this.relayTo.size) return;
+      const input = e.inputBuffer.getChannelData(0);
+      let sum = 0;
+      for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+      if (Math.sqrt(sum / input.length) > 0.008) loudAt = Date.now();
+      if (Date.now() - loudAt > 600) return; // silence : on n'envoie rien
+      const n = Math.floor(input.length / ratio);
+      const out = new Uint8Array(n);
+      for (let i = 0; i < n; i++) out[i] = muEncode(input[Math.floor(i * ratio)]);
+      // Seulement vers ceux qu'on n'arrive pas à joindre directement
+      const to = [...this.relayTo].filter(id => this.peers.get(id)?.state !== 'connected');
+      if (to.length) socket.emit('voice_relay_audio', { to, data: out.buffer });
+    };
+    src.connect(proc);
+    proc.connect(ctx.destination);
+    this.relayProc = { src, proc };
+  },
+  stopRelayCapture() {
+    if (!this.relayProc) return;
+    try { this.relayProc.src.disconnect(); this.relayProc.proc.disconnect(); } catch (e) {}
+    this.relayProc = null;
+  },
+  playRelay(from, data) {
+    const p = this.peers.get(from);
+    const ctx = this.audioCtx();
+    if (!p || !ctx || !this.slug) return;
+    if (!p.relay) { p.relay = true; renderVoice(); }
+    if (!p.relayGain) {
+      p.relayGain = ctx.createGain();
+      p.relayGain.connect(ctx.destination);
+      const an = ctx.createAnalyser(); an.fftSize = 256; p.relayGain.connect(an);
+      this.meters.set(from, { src: { disconnect: () => an.disconnect() }, an, data: new Uint8Array(an.frequencyBinCount) });
+      p.relayAt = 0;
+      this.applyVolumes();
+    }
+    if (p.state === 'connected') return; // la connexion directe marche : pas de double son
+    if (ctx.state !== 'running') return this.needUnlock();
+    const bytes = new Uint8Array(data);
+    const buf = ctx.createBuffer(1, bytes.length, 16000);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < bytes.length; i++) ch[i] = muDecode(bytes[i]);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(p.relayGain);
+    // Petite réserve de 150 ms pour absorber les à-coups du réseau
+    const t = ctx.currentTime;
+    if (p.relayAt < t + 0.03 || p.relayAt > t + 1) p.relayAt = t + 0.15;
+    src.start(p.relayAt);
+    p.relayAt += buf.duration;
   },
 
   // ----- Détection de la parole -----
@@ -355,6 +445,7 @@ function renderVoice() {
 // Petit indicateur de connexion avec chaque personne du vocal
 function connBadge(peer) {
   const st = peer?.state;
+  if (peer?.relay && st !== 'connected') return el('span', { class: 'conn-relay', title: 'Son relayé par le site (connexion directe impossible) : la caméra ne passe pas' }, '📡');
   if (!peer || st === 'connected') return null;
   if (st === 'failed') return el('span', { class: 'conn-bad', title: 'Connexion impossible avec cette personne (réseau)' }, '⚠️');
   return el('span', { class: 'conn-wait', title: 'Connexion en cours…' }, '⏳');
@@ -367,6 +458,21 @@ function maybeAutoListen() {
   if ((state.voice.get(r.slug) || []).some(p => !p.listener)) Voice.join(true);
 }
 document.addEventListener('viewchange', () => setTimeout(maybeAutoListen, 300));
+
+// Compression « µ-law » : 8 bits par échantillon, comme le téléphone
+function muEncode(x) {
+  const s = Math.max(-1, Math.min(1, x)) * 32767;
+  const sign = s < 0 ? 0x80 : 0;
+  let v = Math.min(Math.abs(s) + 132, 32635), exp = 7;
+  for (let m = 0x4000; (v & m) === 0 && exp > 0; m >>= 1) exp--;
+  return ~(sign | (exp << 4) | ((v >> (exp + 3)) & 0x0f)) & 0xff;
+}
+function muDecode(b) {
+  b = ~b & 0xff;
+  const sign = b & 0x80, exp = (b >> 4) & 7, mant = b & 0x0f;
+  const v = (((mant << 3) + 132) << exp) - 132;
+  return (sign ? -v : v) / 32768;
+}
 
 // ----- Événements serveur -----
 socket.on('voice_state', ({ slug, participants }) => {
@@ -386,6 +492,8 @@ socket.on('voice_state', ({ slug, participants }) => {
   if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
+socket.on('voice_relay_peer', ({ peer }) => Voice.onRelayPeer(peer));
+socket.on('voice_relay_audio', ({ from, data }) => Voice.playRelay(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
 socket.on('voice_kicked', ({ reason }) => {
   Voice.leave(false);

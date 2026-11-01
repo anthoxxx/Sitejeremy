@@ -94,7 +94,7 @@ Pour héberger le site, il faut un hébergeur qui fait tourner Node.js (Render, 
 
 ## Vocal : serveur relais (TURN)
 
-Le vocal et les appels relient les gens directement. Entre certains réseaux (4G, box, Wi-Fi d'entreprise), la connexion directe est bloquée : **sans relais, les gens ne s'entendent pas**. Sur un VPS IONOS, le relais est installé automatiquement. Sur **Render**, ajoute un relais gratuit :
+Le vocal et les appels relient les gens directement. Entre certains réseaux (4G, box, Wi-Fi d'entreprise), la connexion directe est bloquée. Dans le **vocal des salons**, le site fait alors passer la voix **par son propre serveur** (📡, qualité téléphone, sans la caméra) : tout le monde s'entend quand même. Un relais TURN reste conseillé pour une meilleure qualité, la caméra et les appels en tête-à-tête. Sur un VPS IONOS, le relais est installé automatiquement. Sur **Render**, ajoute un relais gratuit :
 
 **Cloudflare (conseillé)**
 1. Crée un compte gratuit sur dash.cloudflare.com.

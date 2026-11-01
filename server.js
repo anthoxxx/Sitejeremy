@@ -2137,6 +2137,26 @@ io.on('connection', socket => {
     emitVoiceState(slug);
   });
   socket.on('voice_leave', () => leaveVoiceBySocket(socket.id, null));
+  // ----- Son relayé par le site (quand la connexion directe entre deux personnes est impossible) -----
+  socket.on('voice_relay_need', peerId => {
+    const slug = voiceOf.get(socket.id);
+    peerId = String(peerId || '');
+    if (!slug || voiceOf.get(peerId) !== slug) return;
+    io.to(peerId).emit('voice_relay_peer', { peer: socket.id });
+    socket.emit('voice_relay_peer', { peer: peerId });
+  });
+  socket.on('voice_relay_audio', (msg = {}) => {
+    const slug = voiceOf.get(socket.id);
+    const p = slug && voice.get(slug)?.get(socket.id);
+    if (!p || p.listener || p.muted) return;
+    const data = msg.data;
+    const size = data?.byteLength ?? data?.length ?? 0;
+    if (!size || size > 6000 || !Array.isArray(msg.to)) return;
+    for (const to of msg.to.slice(0, 40)) {
+      const id = String(to);
+      if (id !== socket.id && voiceOf.get(id) === slug) io.to(id).emit('voice_relay_audio', { from: socket.id, data });
+    }
+  });
   socket.on('voice_video', on => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
