@@ -1201,3 +1201,6 @@ body.hub-open .modal-back { z-index: 260; }
 /* Écoute du vocal sans micro */
 .voice-listeners { font-size: .78rem; color: var(--muted); align-self: center; white-space: nowrap; }
 .voice-listening { font-size: .82rem; font-weight: 700; color: var(--green); align-self: center; margin-right: 4px; }
+.voice-unlock { width: 100%; animation: blink 1.2s infinite; }
+.conn-bad, .conn-wait { font-size: .8rem; }
+.turn-warn { border-color: rgba(255, 181, 71, .6); background: rgba(255, 181, 71, .1); }

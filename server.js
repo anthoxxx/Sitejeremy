@@ -453,6 +453,7 @@ function celebrateBirthday(u) {
 
 app.get('/api/stats', (req, res) => {
   res.json({
+    turn: turnConfigured(),
     online: [...online.values()].filter(e => !e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
@@ -867,10 +868,38 @@ if (process.env.RADIO_CHECK !== '0') {
   setTimeout(() => checkStations().catch(() => {}), 15000).unref();
   setInterval(() => checkStations().catch(() => {}), 6 * 3600 * 1000).unref();
 }
-app.get('/api/ice', auth, (req, res) => {
-  const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+// Serveurs pour la connexion du vocal et des appels.
+// STUN suffit quand les deux réseaux sont « ouverts » ; sinon (4G, box, entreprise) il faut un relais TURN :
+//  - TURN_URL / TURN_USER / TURN_PASS : ton propre serveur (installé automatiquement sur un VPS IONOS)
+//  - CF_TURN_KEY_ID / CF_TURN_API_TOKEN : TURN de Cloudflare (gratuit jusqu'à un gros volume)
+//  - METERED_DOMAIN / METERED_API_KEY : TURN de Metered (offre gratuite)
+let turnCache = { at: 0, servers: [] };
+async function remoteTurn() {
+  if (now() - turnCache.at < 3600 * 1000) return turnCache.servers;
+  let servers = [];
+  try {
+    if (process.env.CF_TURN_KEY_ID && process.env.CF_TURN_API_TOKEN) {
+      const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.CF_TURN_KEY_ID}/credentials/generate-ice-servers`, {
+        method: 'POST', headers: { Authorization: 'Bearer ' + process.env.CF_TURN_API_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ttl: 86400 }), signal: AbortSignal.timeout(6000) });
+      const d = await r.json();
+      servers = Array.isArray(d.iceServers) ? d.iceServers : d.iceServers ? [d.iceServers] : [];
+    } else if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) {
+      const r = await fetch(`https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${encodeURIComponent(process.env.METERED_API_KEY)}`, { signal: AbortSignal.timeout(6000) });
+      const d = await r.json();
+      servers = Array.isArray(d) ? d : [];
+    }
+  } catch (e) { console.log('TURN : impossible d\'obtenir les accès —', e.message); }
+  if (servers.length) turnCache = { at: now(), servers };
+  return servers;
+}
+const turnConfigured = () => !!(process.env.TURN_URL || (process.env.CF_TURN_KEY_ID && process.env.CF_TURN_API_TOKEN) || (process.env.METERED_DOMAIN && process.env.METERED_API_KEY));
+if (!turnConfigured()) console.log('⚠️  Aucun serveur relais TURN : le vocal et les appels risquent de ne pas marcher entre certains réseaux (4G, box). Voir le README.');
+app.get('/api/ice', auth, async (req, res) => {
+  const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
   if (process.env.TURN_URL) iceServers.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER, credential: process.env.TURN_PASS });
-  res.json({ iceServers });
+  iceServers.push(...await remoteTurn());
+  res.json({ iceServers, relay: iceServers.length > 1 });
 });
 
 app.get('/api/users/:id', auth, (req, res) => {

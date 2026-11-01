@@ -19,6 +19,8 @@ Variables d'environnement facultatives :
 | `TURN_URL`, `TURN_USER`, `TURN_PASS` | Serveur TURN facultatif pour que le vocal et la visio passent les réseaux très fermés (4G, entreprise) |
 | `ADMIN_LOGIN` | Nom d'utilisateur de l'espace admin `/admin` (`admin` par défaut) |
 | `ADMIN_PASSWORD` | Mot de passe de l'espace admin. Sans lui, la connexion à `/admin` par identifiant est désactivée. **Ne l'écris jamais dans le code** (le dépôt est public) |
+| `CF_TURN_KEY_ID`, `CF_TURN_API_TOKEN` | Relais TURN gratuit de Cloudflare pour le vocal et les appels (voir plus bas) |
+| `METERED_DOMAIN`, `METERED_API_KEY` | Ou relais TURN de Metered (offre gratuite) |
 | `RADIO_CHECK` | Mettre `0` pour désactiver la vérification automatique des radios |
 | `TV_CHECK` | Mettre `0` pour désactiver le chargement et la vérification des chaînes TV |
 
@@ -89,6 +91,22 @@ Variables d'environnement facultatives :
 Node.js, Express, Socket.io, SQLite (better-sqlite3), bcrypt, WebRTC. Aucun framework front : HTML, CSS et JS natifs dans `public/`.
 
 Pour héberger le site, il faut un hébergeur qui fait tourner Node.js (Render, Railway, Fly.io, un VPS…). Garde le dossier `data/` sur un disque persistant : il contient la base de données et les images (photos, bannières, fonds d'écran).
+
+## Vocal : serveur relais (TURN)
+
+Le vocal et les appels relient les gens directement. Entre certains réseaux (4G, box, Wi-Fi d'entreprise), la connexion directe est bloquée : **sans relais, les gens ne s'entendent pas**. Sur un VPS IONOS, le relais est installé automatiquement. Sur **Render**, ajoute un relais gratuit :
+
+**Cloudflare (conseillé)**
+1. Crée un compte gratuit sur dash.cloudflare.com.
+2. Va dans **Realtime** (ou « Calls ») → **TURN Server** → **Create** : Cloudflare te donne un **Turn Token ID** et un **API Token**.
+3. Sur Render → ton service → **Environment** : ajoute `CF_TURN_KEY_ID` = le Token ID et `CF_TURN_API_TOKEN` = l'API Token → **Save Changes**.
+
+**Ou Metered**
+1. Crée un compte gratuit sur metered.ca → **TURN Server**.
+2. Note ton domaine (ex. `theparadise.metered.live`) et ta **clé API**.
+3. Sur Render → **Environment** : `METERED_DOMAIN` et `METERED_API_KEY` → **Save Changes**.
+
+Le tableau de bord de l'admin affiche un avertissement tant qu'aucun relais n'est réglé.
 
 ## Notes
 

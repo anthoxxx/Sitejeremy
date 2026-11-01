@@ -37,6 +37,8 @@ async function dashboard() {
   const text = el('input', { class: 'input', maxlength: 300, placeholder: 'Message à envoyer à tous les connectés…' });
   page.replaceChildren(
     ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de The Paradise.`),
+    s.turn ? '' : el('div', { class: 'panel turn-warn' }, el('b', {}, '⚠️ Vocal et appels : aucun serveur relais (TURN)'),
+      el('p', { class: 'help', style: 'margin:6px 0 0' }, 'Sans relais, les gens sur des réseaux différents (4G, box, entreprise) ne s\'entendent souvent pas. Ajoute un relais gratuit (Cloudflare ou Metered) dans les réglages de ton hébergeur : voir le README, partie « Vocal : serveur relais ».')),
     el('div', { class: 'kpis' },
       kpi('🟢 En ligne', s.online), kpi('👤 Membres', s.members), kpi('🎭 Invités', s.guests),
       kpi('✨ Nouveaux (24 h)', s.newToday), kpi('💬 Messages (24 h)', s.messagesToday), kpi('💌 Privés (24 h)', s.pmToday),

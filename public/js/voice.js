@@ -1,19 +1,26 @@
 // The Paradise — chat vocal dans les salons (WebRTC, connexions directes entre participants)
 // ---------- Volume réglable de 0 à 200 % (au-delà de 100 % le son est amplifié) ----------
+// Si le navigateur bloque l'amplificateur (iPhone, onglet pas encore touché…), le son passe
+// directement par l'élément audio : on n'a jamais de silence, seulement pas d'amplification.
 function volumeChain(audioEl, stream) {
-  const chain = { gain: null, src: null };
+  const chain = { gain: null, src: null, v: 1 };
   const ctx = Voice.audioCtx();
   if (ctx) {
     try {
       chain.src = ctx.createMediaStreamSource(stream);
       chain.gain = ctx.createGain();
       chain.src.connect(chain.gain).connect(ctx.destination);
-      audioEl.muted = true; // le son passe par l'amplificateur, pas directement par l'élément
     } catch (e) { chain.gain = null; }
   }
   chain.set = v => {
-    if (chain.gain) chain.gain.gain.value = v;
-    else { audioEl.muted = v === 0; audioEl.volume = Math.max(0, Math.min(1, v)); }
+    chain.v = v;
+    const amp = chain.gain && ctx && ctx.state === 'running';
+    if (amp) { chain.gain.gain.value = v; audioEl.muted = true; }
+    else {
+      if (chain.gain) chain.gain.gain.value = 0;
+      audioEl.muted = v === 0; audioEl.volume = Math.max(0, Math.min(1, v));
+      audioEl.play().catch(() => Voice.needUnlock());
+    }
   };
   chain.close = () => { try { chain.src?.disconnect(); chain.gain?.disconnect(); } catch (e) {} };
   return chain;
@@ -41,6 +48,7 @@ const Voice = {
   // listen = true : écouter le vocal sans micro
   async join(listen = false) {
     if (this.joining || state.view?.type !== 'room') return;
+    this.unlock(); // tout de suite, pendant le clic : sinon le navigateur bloque le son
     if (!window.RTCPeerConnection || (!listen && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)))
       return toast('🎤 Le vocal nécessite un navigateur récent et un site en https');
     if (this.slug) this.leave();
@@ -113,14 +121,28 @@ const Voice = {
       }
       const stream = e.streams[0] || new MediaStream([e.track]);
       audio.srcObject = stream;
-      audio.play().catch(() => {});
+      audio.play().catch(() => this.needUnlock());
       p.vol?.close();
       p.vol = volumeChain(audio, stream);
       this.applyVolumes();
       this.meter(id, stream);
     };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed') toast('⚠️ Connexion vocale impossible avec un participant (réseau trop restrictif)');
+      p.state = pc.connectionState;
+      renderVoice();
+      if (pc.connectionState !== 'failed') return;
+      // Nouvel essai de connexion (une fois), puis message clair
+      if (initiator && !p.restarted) {
+        p.restarted = true;
+        p.chain = p.chain.then(async () => {
+          pc.restartIce?.();
+          await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+          socket.emit('voice_signal', { to: id, data: { sdp: pc.localDescription } });
+        }).catch(() => {});
+        return;
+      }
+      const who = (state.voice.get(this.slug) || []).find(x => x.socketId === id);
+      toast(`⚠️ Impossible de te connecter en vocal${who ? ' avec ' + who.username : ''} : vos réseaux bloquent la connexion directe (4G, box, entreprise). Le site a besoin d'un serveur relais (TURN).`);
     };
     if (initiator) {
       p.chain = p.chain.then(async () => {
@@ -228,10 +250,24 @@ const Voice = {
   // ----- Détection de la parole -----
   audioCtx() {
     try {
-      this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)();
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.ctx.onstatechange = () => this.applyVolumes();
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     } catch (e) {}
     return this.ctx;
+  },
+  // Débloque le son : à appeler pendant un clic ou un toucher de l'utilisateur
+  unlock() {
+    this.audioCtx();
+    for (const [, p] of this.peers) if (p.audio.srcObject) p.audio.play().catch(() => {});
+    if (this.locked) { this.locked = false; renderVoice(); }
+  },
+  needUnlock() {
+    if (this.locked || !this.slug) return;
+    this.locked = true;
+    renderVoice();
   },
   meter(key, stream) {
     const ctx = this.audioCtx();
@@ -302,16 +338,26 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm', title: 'Entendre le vocal sans y aller (sans micro)', onclick: () => Voice.join(true) }, '🎧 Écouter'),
       el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
   }
+  const unlockBtn = inThis && Voice.locked ? el('button', { class: 'btn btn-sm btn-primary voice-unlock', onclick: () => Voice.unlock() }, '🔊 Touche ici pour activer le son') : null;
   bar.replaceChildren(
+    unlockBtn,
     el('span', { class: 'voice-label' }, '🎙️ Vocal'),
     el('div', { class: 'voice-people' }, ...speakers.map(p => {
       const mine = p.socketId === socket.id;
       return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
         LC.avatar(p),
         el('span', { class: 'vname' }, p.username), p.video ? el('span', {}, '📷') : null, p.muted ? el('span', {}, '🔇') : null,
+        !mine && inThis ? connBadge(Voice.peers.get(p.socketId)) : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     }), listenInfo),
     ctrl);
+}
+// Petit indicateur de connexion avec chaque personne du vocal
+function connBadge(peer) {
+  const st = peer?.state;
+  if (!peer || st === 'connected') return null;
+  if (st === 'failed') return el('span', { class: 'conn-bad', title: 'Connexion impossible avec cette personne (réseau)' }, '⚠️');
+  return el('span', { class: 'conn-wait', title: 'Connexion en cours…' }, '⏳');
 }
 // Écoute automatique : en arrivant dans un salon où ça parle, on écoute tout seul
 function maybeAutoListen() {
@@ -346,6 +392,8 @@ socket.on('voice_kicked', ({ reason }) => {
   if (reason !== 'Tu as été retiré du vocal') toast('🎙️ ' + reason); // le retrait par le propriétaire arrive en notification
 });
 window.addEventListener('beforeunload', () => Voice.leave());
+// Le moindre toucher ou clic débloque le son s'il était bloqué
+['pointerdown', 'keydown', 'touchend'].forEach(ev => document.addEventListener(ev, () => { if (Voice.slug && (Voice.locked || Voice.ctx?.state === 'suspended')) Voice.unlock(); }, { passive: true }));
 
 // ----- Mosaïque vidéo du salon -----
 const videoEls = new Map(); // clé -> élément <div class="vtile">
