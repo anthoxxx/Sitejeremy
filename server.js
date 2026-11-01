@@ -86,6 +86,8 @@ function publicUser(u) {
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
     verified: isVerified(u),
     validated: customsOn() && isVerified(u), // badge ✓ « Validé » à côté de la photo
+    voiceOk: !!u.voice_ok || isStaff(u), camOk: !!u.cam_ok || isStaff(u), // badges de la douane 🎙️ 📷
+    photoOk: !!u.avatar && !!u.avatar_ok, // badge V : photo de profil vérifiée par le staff
     refused: !!u.refused && !isVerified(u),
     isBirthday: isBirthday(u),
   };
@@ -93,7 +95,7 @@ function publicUser(u) {
 // Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
-    birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0 };
+    birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '' };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -110,6 +112,7 @@ function removeUpload(url) {
 function deleteUserRecord(u) {
   if (!u) return;
   removeUpload(u.avatar);
+  removeUpload(u.avatar_pending);
   removeUpload(u.banner);
   db.prepare('DELETE FROM users WHERE id=?').run(u.id);
 }
@@ -351,8 +354,18 @@ app.post('/api/me/image/:kind', auth, (req, res) => {
   if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
   const saved = saveImage(req.body.data, `${kind}-${req.user.id}`);
   if (saved.error) return res.status(400).json({ error: saved.error });
+  if (kind === 'avatar' && !isStaff(req.user)) {
+    // Nouvelle photo : elle attend la vérification du staff, l'ancienne reste affichée en attendant
+    removeUpload(req.user.avatar_pending);
+    db.prepare('UPDATE users SET avatar_pending=? WHERE id=?').run(saved.url, req.user.id);
+    log(req.user, 'profile_update', 'Nouvelle photo de profil (en attente de vérification)', { data: { image: saved.url } });
+    emitToStaff('staff_alert', { text: `📸 ${req.user.username} a envoyé une nouvelle photo de profil à vérifier`, url: '/admin#photos' });
+    emitToStaff('photos_pending', { count: pendingPhotos() });
+    const upd = getUser(req.user.id);
+    return res.json({ user: selfUser(upd), pending: true });
+  }
   removeUpload(req.user[kind]);
-  db.prepare(`UPDATE users SET ${kind}=? WHERE id=?`).run(saved.url, req.user.id);
+  db.prepare(`UPDATE users SET ${kind}=?${kind === 'avatar' ? ', avatar_ok=1' : ''} WHERE id=?`).run(saved.url, req.user.id);
   log(req.user, 'profile_update', kind === 'avatar' ? 'Nouvelle photo de profil' : 'Nouvelle bannière de profil', { data: { image: saved.url } });
   const updated = getUser(req.user.id);
   refreshOnline(updated);
@@ -362,7 +375,8 @@ app.delete('/api/me/image/:kind', auth, (req, res) => {
   const kind = req.params.kind;
   if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
   removeUpload(req.user[kind]);
-  db.prepare(`UPDATE users SET ${kind}='' WHERE id=?`).run(req.user.id);
+  if (kind === 'avatar') { removeUpload(req.user.avatar_pending); db.prepare("UPDATE users SET avatar='', avatar_pending='', avatar_ok=0 WHERE id=?").run(req.user.id); }
+  else db.prepare(`UPDATE users SET ${kind}='' WHERE id=?`).run(req.user.id);
   const updated = getUser(req.user.id);
   refreshOnline(updated);
   res.json({ user: selfUser(updated) });
@@ -473,7 +487,7 @@ function roomOut(r) {
 const customsOn = () => getSettings().customsEnabled === '1';
 const customsOpen = () => getSettings().customsOpen === '1';
 const isVerified = u => !!u && (!customsOn() || !!u.verified || isStaff(u));
-const NOT_VERIFIED = '🛂 Tu dois d\'abord passer par la Douane : un membre du staff va te vérifier.';
+const NOT_VERIFIED = '🛂 Passe d\'abord par la Douane : un super-admin doit valider ta voix 🎙️ et ta caméra 📷.';
 function roomAccess(user, room) {
   if (!room) return 'Salon introuvable';
   if (room.slug === 'douane' && !customsOn() && !isStaff(user)) return 'La douane est désactivée';
@@ -1043,31 +1057,44 @@ app.post('/api/customs/open', auth, (req, res) => {
   io.to('room:douane').emit('system', { room: 'douane', text: open ? `🛂 La douane est ouverte par ${displayName(req.user)} : présente-toi !` : '🛂 La douane est fermée pour le moment.' });
   res.json({ open });
 });
+// Validation en deux badges : 🎙️ voix et 📷 caméra. Les deux sont nécessaires pour être accepté.
 app.post('/api/customs/verify/:id', auth, (req, res) => {
   if (!isSuper(req.user)) return res.status(403).json({ error: 'Seul un super-admin peut valider ou refuser à la douane' });
   const target = getUser(req.params.id);
   if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
   if (isStaff(target)) return res.status(400).json({ error: 'Les membres du staff n\'ont pas besoin de passer la douane' });
-  const refuse = req.body.refuse === true;
-  const verified = !refuse && req.body.verified !== false;
-  db.prepare('UPDATE users SET verified=?, refused=? WHERE id=?').run(verified ? 1 : 0, refuse ? 1 : 0, target.id);
-  log(req.user, verified ? 'verify' : 'unverify', `${target.username} ${verified ? 'a passé la douane ✅ (badge Validé)' : refuse ? 'refusé à la douane ❌' : 'renvoyé à la douane'}`);
+  const b = req.body || {};
+  const wasVerified = !!target.verified;
+  let voice = !!target.voice_ok, cam = !!target.cam_ok, refused = 0, what;
+  if (b.refuse === true) { voice = false; cam = false; refused = 1; what = 'refuse'; }
+  else if (b.verified === false) { voice = false; cam = false; what = 'reset'; }
+  else if (b.verified === true) { voice = true; cam = true; what = 'both'; }
+  else if (typeof b.voice === 'boolean') { voice = b.voice; what = 'voice'; }
+  else if (typeof b.cam === 'boolean') { cam = b.cam; what = 'cam'; }
+  else return res.status(400).json({ error: 'Que faut-il valider ?' });
+  const verified = voice && cam;
+  db.prepare('UPDATE users SET voice_ok=?, cam_ok=?, verified=?, refused=? WHERE id=?').run(voice ? 1 : 0, cam ? 1 : 0, verified ? 1 : 0, refused, target.id);
+  const label = `🎙️ voix ${voice ? '✅' : '—'} · 📷 caméra ${cam ? '✅' : '—'}`;
+  log(req.user, verified ? 'verify' : 'unverify', `${target.username} : ${what === 'refuse' ? 'refusé à la douane ❌' : what === 'reset' ? 'badges retirés, renvoyé à la douane' : label}${verified && !wasVerified ? ' → accepté' : ''}`);
   const updated = getUser(target.id);
   refreshOnline(updated);
-  if (verified) {
-    notify(target.id, { type: 'verified', icon: '✅', title: 'Tu es validé !', text: `Bienvenue sur ${getSettings().siteName} : tu as le badge ✓ Validé et accès à tous les salons, aux messages privés et à tout le site.` });
-    io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a été validé, bienvenue !` });
-  } else if (refuse) {
+  if (verified && !wasVerified) {
+    notify(target.id, { type: 'verified', icon: '✅', title: 'Tu es accepté !', text: `Tu as les deux badges 🎙️ voix et 📷 caméra. Bienvenue sur ${getSettings().siteName} : tu as accès à tous les salons, aux messages privés et à tout le site.` });
+    io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a les deux badges 🎙️📷 : accepté, bienvenue !` });
+  } else if (what === 'refuse') {
     notify(target.id, { type: 'unverified', icon: '❌', title: 'Ta demande a été refusée', text: 'Un super-admin a refusé ton accès au site. Tu n\'as aucun rôle pour le moment.', important: true });
     io.to('room:douane').emit('system', { room: 'douane', text: `❌ ${target.username} a été refusé à la douane.` });
     sendToCustoms(target.id);
-  } else {
-    notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Un super-admin doit à nouveau te valider avant que tu accèdes au reste du site.', important: true });
+  } else if (!verified && wasVerified) {
+    notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Il te manque un badge (🎙️ voix ou 📷 caméra) : un super-admin doit à nouveau te valider.', important: true });
     sendToCustoms(target.id);
+  } else if ((what === 'voice' && voice) || (what === 'cam' && cam)) {
+    const missing = !voice ? '🎙️ la voix' : !cam ? '📷 la caméra' : '';
+    notify(target.id, { type: 'verified', icon: what === 'voice' ? '🎙️' : '📷', title: what === 'voice' ? 'Badge voix validé 🎙️' : 'Badge caméra validé 📷', text: missing ? `Plus qu'une étape : il te reste ${missing} à faire valider à la douane.` : '' });
   }
-  emitToUser(target.id, 'verified_state', { verified: isVerified(updated), refused: !!updated.refused });
+  emitToUser(target.id, 'verified_state', { verified: isVerified(updated), refused: !!updated.refused, voiceOk: voice, camOk: cam });
   roomsChanged();
-  res.json({ verified, refused: refuse });
+  res.json({ verified, voice, cam, refused: !!refused });
 });
 // Fait sortir des salons une personne non vérifiée (elle retourne à la douane)
 function sendToCustoms(userId) {
@@ -1292,7 +1319,8 @@ admin.post('/users/:id/reset-profile', (req, res) => {
   if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
   removeUpload(target.avatar);
   removeUpload(target.banner);
-  db.prepare(`UPDATE users SET avatar='', banner='', bio='', status_text='', status_emoji='', interests='[]', games='[]', socials='{}',
+  removeUpload(target.avatar_pending);
+  db.prepare(`UPDATE users SET avatar='', avatar_pending='', avatar_ok=0, banner='', bio='', status_text='', status_emoji='', interests='[]', games='[]', socials='{}',
     name_effect='none', avatar_frame='none' WHERE id=?`).run(target.id);
   log(req.user, 'profile_reset', target.username);
   refreshOnline(getUser(target.id));
@@ -1387,6 +1415,33 @@ admin.patch('/reports/:id', (req, res) => {
   log(req.user, 'report_' + status, `#${rep.id}`);
   if (status === 'closed' && rep.status === 'open' && rep.reporter_id)
     notify(rep.reporter_id, { type: 'report_done', icon: '🛡️', title: 'Ton signalement a été traité', text: `Merci ! La modération a examiné ton signalement${rep.target ? ' concernant ' + rep.target : ''}.` });
+  res.json({ ok: true });
+});
+
+// Photos de profil à vérifier (tout le staff)
+function pendingPhotos() { return db.prepare("SELECT COUNT(*) c FROM users WHERE avatar_pending<>''").get().c; }
+admin.get('/photos', (req, res) => {
+  const rows = db.prepare("SELECT * FROM users WHERE avatar_pending<>'' ORDER BY last_seen DESC LIMIT 100").all();
+  res.json({ photos: rows.map(u => ({ id: u.id, username: u.username, color: u.color, role: u.role, isGuest: !!u.is_guest, current: u.avatar || '', pending: u.avatar_pending })) });
+});
+admin.post('/photos/:id', (req, res) => {
+  const target = getUser(req.params.id);
+  if (!target || !target.avatar_pending) return res.status(404).json({ error: 'Plus de photo à vérifier pour ce compte' });
+  const approve = req.body.approve !== false;
+  if (approve) {
+    removeUpload(target.avatar);
+    db.prepare("UPDATE users SET avatar=?, avatar_pending='', avatar_ok=1 WHERE id=?").run(target.avatar_pending, target.id);
+    notify(target.id, { type: 'photo', icon: '✅', title: 'Ta photo de profil est vérifiée ✓', text: 'Elle est maintenant visible par tout le monde, avec le badge V.' });
+  } else {
+    removeUpload(target.avatar_pending);
+    db.prepare("UPDATE users SET avatar_pending='' WHERE id=?").run(target.id);
+    notify(target.id, { type: 'photo', icon: '❌', title: 'Ta nouvelle photo de profil a été refusée', text: `Choisis une autre photo, respectueuse du règlement.${req.body.reason ? ' Raison : ' + clean(req.body.reason, 200) : ''}`, important: true });
+  }
+  log(req.user, approve ? 'photo_ok' : 'photo_refused', `Photo de profil de ${target.username} ${approve ? 'vérifiée ✓' : 'refusée ❌'}`, { data: { image: target.avatar_pending } });
+  const updated = getUser(target.id);
+  refreshOnline(updated);
+  emitToUser(target.id, 'me_updated', selfUser(updated));
+  emitToStaff('photos_pending', { count: pendingPhotos() });
   res.json({ ok: true });
 });
 
@@ -1998,6 +2053,7 @@ io.on('connection', socket => {
     if (s.voiceEnabled !== '1' || !room.voice_enabled) return ack && ack({ error: 'Le vocal est désactivé dans ce salon' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
+    if (u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée' });
     if (voiceOf.get(socket.id) === slug) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id) });
     leaveVoiceBySocket(socket.id, null);
     const max = parseInt(s.voiceMax, 10) || 8;

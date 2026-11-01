@@ -1181,3 +1181,18 @@ body.hub-open .modal-back { z-index: 260; }
 .tv-item img { object-fit: contain; background: rgba(255, 255, 255, .9); padding: 3px; box-sizing: border-box; }
 @media (max-width: 760px) { .tv-filters { flex-direction: column; } }
 .tv-fail { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 181, 71, .12); border: 1px dashed rgba(255, 181, 71, .5); font-size: .84rem; line-height: 1.5; }
+
+/* ===== Badges de la douane : 🎙️ voix et 📷 caméra ===== */
+.dbadges { display: inline-flex; gap: 3px; margin-left: 4px; vertical-align: middle; }
+.dbadge { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-size: .72rem; background: var(--panel-2); border: 1px solid var(--line); filter: grayscale(1); opacity: .55; }
+.dbadge.ok { filter: none; opacity: 1; background: rgba(51, 214, 166, .18); border-color: var(--green); }
+.verify-btn.on, .btn-ok { background: rgba(51, 214, 166, .18) !important; border-color: var(--green) !important; color: var(--text); }
+/* Badge V (photo vérifiée) et vérification des photos */
+.dbadge.vphoto { font-weight: 900; font-size: .7rem; color: var(--muted); font-family: inherit; }
+.dbadge.vphoto.ok { color: #fff; background: #1d9bf0; border-color: #1d9bf0; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.photo-card { margin: 0; }
+.photo-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.photo-compare img, .photo-none { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; display: grid; place-items: center; background: var(--bg-2); color: var(--muted); }
+.photo-new { outline: 3px solid var(--gold); cursor: zoom-in; }
+#userList .verify-btn { padding: 4px 6px; min-width: 0; font-size: .8rem; flex: none; }

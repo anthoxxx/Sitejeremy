@@ -372,10 +372,11 @@ function renderUsers() {
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), state.customs?.enabled && !u.verified && !u.refused ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
-      toCheck ? el('button', { class: 'btn btn-sm verify-btn', title: 'Valider : badge ✓ et accès au site', onclick: e => { e.stopPropagation(); verifyUser(u, true); } }, '✅') : null,
+      toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,
+      toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.camOk ? ' on' : ''), title: u.camOk ? 'Caméra validée (cliquer pour retirer)' : 'Valider la caméra', onclick: e => { e.stopPropagation(); setBadge(u, 'cam', !u.camOk); } }, '📷') : null,
       toCheck && !u.refused ? el('button', { class: 'btn btn-sm verify-btn refuse', title: 'Refuser : aucun rôle, pas d\'accès', onclick: e => { e.stopPropagation(); verifyUser(u, false, true); } }, '❌') : null);
   }));
 }
@@ -626,7 +627,9 @@ socket.on('broadcast', ({ text, from }) => {
   toast(`📢 ${from} : ${text}`);
   if (state.view?.type === 'room') addSys(`📢 Annonce de ${from} : ${text}`, 'broadcast');
 });
-socket.on('staff_alert', ({ text, slug }) => { ding(); toast((slug ? '' : '🛡️ ') + text, () => (slug ? joinRoom(slug) : (location.href = '/admin#reports'))); });
+socket.on('staff_alert', ({ text, slug, url }) => { ding(); toast((slug ? '' : '🛡️ ') + text, () => (slug ? joinRoom(slug) : (location.href = url || '/admin#reports'))); });
+// Mon compte a changé côté serveur (ex. photo vérifiée par le staff)
+socket.on('me_updated', u => { if (u && state.me && u.id === state.me.id) { Object.assign(state.me, u); renderMe(); } });
 // Expulsion / bannissement : on garde le message pour l'afficher sur la page d'accueil
 function leaveWith(kind, reason) {
   try { sessionStorage.setItem('lc_exit', JSON.stringify({ kind, reason, at: Date.now() })); } catch (e) {}
@@ -683,6 +686,14 @@ $('fxBtn').onclick = () => { const on = LC.toggleFx(); $('fxBtn').textContent = 
 
 // ---------- Douane ----------
 const isSuperMe = () => state.me?.role === 'superadmin';
+// Donner ou retirer un badge de la douane (🎙️ voix ou 📷 caméra)
+async function setBadge(u, kind, on) {
+  try {
+    const r = await api('/api/customs/verify/' + u.id, { method: 'POST', body: { [kind]: on } });
+    const what = kind === 'voice' ? '🎙️ Voix' : '📷 Caméra';
+    toast(r.verified ? `✅ ${u.username} a les deux badges : accepté !` : `${what} de ${u.username} ${on ? 'validée' : 'retirée'}${on ? ' (' + (r.voice ? '' : 'reste la voix') + (r.cam ? '' : 'reste la caméra') + ')' : ''}`);
+  } catch (e) { toast(e.message); }
+}
 async function verifyUser(u, verified, refuse = false) {
   if (refuse && !confirm(`Refuser ${u.username} ? Il n'aura aucun rôle et ne pourra pas accéder au site.`)) return;
   try {
@@ -704,7 +715,7 @@ function renderCustoms() {
     const waiting = state.online.filter(u => !u.verified && u.room === 'douane').length;
     b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
       el('div', { style: 'flex:1;min-width:0' }, el('b', {}, `Douane ${c.open ? 'ouverte' : 'fermée'}`),
-        el('div', { class: 'help' }, waiting ? `${waiting} personne(s) attendent. ${isSuperMe() ? 'Clique sur ✅ pour valider ou ❌ pour refuser, à côté de leur pseudo.' : 'Seul un super-admin peut les valider.'}` : 'Personne n\'attend pour le moment.')),
+        el('div', { class: 'help' }, waiting ? `${waiting} personne(s) attendent. ${isSuperMe() ? 'Fais-les venir au vocal avec la caméra, puis valide 🎙️ la voix et 📷 la caméra à côté de leur pseudo (les deux sont nécessaires), ou ❌ pour refuser.' : 'Seul un super-admin peut les valider.'}` : 'Personne n\'attend pour le moment.')),
       el('button', { class: 'btn btn-sm ' + (c.open ? 'btn-danger' : 'btn-primary'), onclick: () => setCustomsOpen(!c.open) }, c.open ? '🔒 Fermer la douane' : '🔓 Ouvrir la douane'));
   } else {
     b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
@@ -712,7 +723,7 @@ function renderCustoms() {
         el('div', { class: 'help' }, state.me.refused
           ? 'Un super-admin a refusé ton accès : tu n\'as aucun rôle et tu ne peux pas écrire pour le moment.'
           : c.open
-            ? 'Présente-toi ici : un super-admin va te valider. Tu recevras le badge ✓ Validé et l\'accès à tous les salons, aux messages privés et à tout le site.'
+            ? `Rejoins le vocal 🎙️ de la douane avec ta caméra 📷 allumée : un super-admin valide ta voix puis ta caméra. Il faut les deux badges pour accéder au site. Tes badges : 🎙️ ${state.me.voiceOk ? '✅' : '⏳'} · 📷 ${state.me.camOk ? '✅' : '⏳'}`
             : 'Un membre du staff va bientôt l\'ouvrir. Reste ici, tu pourras écrire dès qu\'elle sera ouverte.')));
   }
   renderMuteBanner();
@@ -723,8 +734,9 @@ socket.on('customs', c => {
   renderCustoms();
   renderUsers();
 });
-socket.on('verified_state', ({ verified, refused }) => {
+socket.on('verified_state', ({ verified, refused, voiceOk, camOk }) => {
   state.me.verified = verified;
+  if (voiceOk !== undefined) { state.me.voiceOk = voiceOk; state.me.camOk = camOk; }
   state.me.refused = !!refused;
   state.me.validated = !!(verified && state.customs?.enabled);
   if (typeof renderMe === 'function') renderMe();

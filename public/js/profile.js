@@ -22,7 +22,7 @@ function profileCard(u, opts = {}) {
     el('div', { class: 'pbanner', style: `background:${LC.bannerCss(u)}` }),
     el('div', { class: 'pbody' },
       el('div', { class: 'pavatar' }, LC.avatar(u, true)),
-      el('div', { class: 'pname' }, LC.name(u), ' ', LC.badge(u)),
+      el('div', { class: 'pname' }, LC.name(u), ' ', LC.badge(u), (typeof state !== 'undefined' && state.customs?.enabled && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u) : u.avatar ? LC.photoBadge(u) : null),
       u.isBirthday ? el('div', { class: 'pbday' }, '🎉 C\'est son anniversaire aujourd\'hui ! 🎂') : null,
       u.statusEmoji || u.statusText ? el('div', { class: 'pstatus' }, `${u.statusEmoji || ''} ${u.statusText || ''}`.trim()) : null,
       el('div', { class: 'pinfo' }, info, opts.online !== undefined ? el('span', {}, opts.online ? ' · 🟢 En ligne' : ' · ⚪ Hors ligne') : null),
@@ -81,12 +81,11 @@ async function openProfile(id) {
           ? el('button', { class: 'btn', onclick: () => { close(); unmuteUser(u); } }, '🔊 Fin de sourdine ', el('small', { 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)))
           : el('button', { class: 'btn', title: 'Ne plus voir ses messages pendant un moment', onclick: () => { close(); openMutePicker(u); } }, '🔇 Sourdine'),
         el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier')),
-      isSuperMe() && state.customs?.enabled && !['admin', 'superadmin', 'moderator'].includes(u.role) ? el('div', { class: 'staff-actions' }, el('h4', {}, '🛂 Douane'),
-        u.verified
-          ? el('button', { class: 'btn btn-sm', onclick: () => { close(); verifyUser(u, false); } }, '🛂 Retirer le badge et renvoyer à la douane')
-          : el('div', { class: 'actions' },
-            el('button', { class: 'btn btn-primary', onclick: () => { close(); verifyUser(u, true); } }, '✅ Valider (badge ✓)'),
-            el('button', { class: 'btn btn-danger', disabled: !!u.refused, onclick: () => { close(); verifyUser(u, false, true); } }, u.refused ? '❌ Déjà refusé' : '❌ Refuser'))) : null,
+      isSuperMe() && state.customs?.enabled && !['admin', 'superadmin', 'moderator'].includes(u.role) ? el('div', { class: 'staff-actions' }, el('h4', {}, '🛂 Douane : il faut les deux badges'),
+        el('div', { class: 'actions' },
+          el('button', { class: 'btn ' + (u.voiceOk ? 'btn-ok' : 'btn-primary'), onclick: () => { close(); setBadge(u, 'voice', !u.voiceOk); } }, u.voiceOk ? '🎙️ Voix validée ✓ (retirer)' : '🎙️ Valider la voix'),
+          el('button', { class: 'btn ' + (u.camOk ? 'btn-ok' : 'btn-primary'), onclick: () => { close(); setBadge(u, 'cam', !u.camOk); } }, u.camOk ? '📷 Caméra validée ✓ (retirer)' : '📷 Valider la caméra'),
+          u.verified ? null : el('button', { class: 'btn btn-danger', disabled: !!u.refused, onclick: () => { close(); verifyUser(u, false, true); } }, u.refused ? '❌ Déjà refusé' : '❌ Refuser'))) : null,
       roomActions(u, () => close()),
       staff ? el('div', { class: 'staff-actions' },
         el('h4', {}, 'Modération'),
@@ -183,9 +182,10 @@ function openMyProfile() {
       status.textContent = '⏳ Envoi…';
       try {
         const data = await readImage(file.files[0], w, h);
-        const { user } = await api('/api/me/image/' + kind, { method: 'POST', body: { data } });
+        const { user, pending } = await api('/api/me/image/' + kind, { method: 'POST', body: { data } });
         d[kind] = user[kind]; state.me[kind] = user[kind];
-        renderMe(); refresh(); status.textContent = '✅ Enregistré';
+        renderMe(); refresh();
+        status.textContent = pending ? '⏳ Photo envoyée : elle sera visible dès que le staff l\'aura vérifiée (badge V)' : '✅ Enregistré';
       } catch (e) { status.textContent = '❌ ' + e.message; }
       file.value = '';
     };
@@ -201,7 +201,7 @@ function openMyProfile() {
   const namePick = colorPick('color');
   // --- Onglet Apparence ---
   const tabLook = el('div', {},
-    f('📷 Photo de profil', imageButtons('avatar', 256, 256), 'JPG, PNG, WEBP ou GIF animé (1,5 Mo max pour les GIF).'),
+    f('📷 Photo de profil', imageButtons('avatar', 256, 256), (state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, WEBP ou GIF animé (1,5 Mo max pour les GIF).'),
     f('🖼️ Bannière', el('div', {}, imageButtons('banner', 1200, 400),
       el('small', { class: 'help', style: 'display:block;margin:10px 0 6px' }, 'Ou un dégradé (utilisé quand il n\'y a pas d\'image) :'),
       choice(Object.keys(LC.BANNERS).map(k => [k, k]), 'bannerStyle', v => el('span', { class: 'banner-swatch', style: `background:${LC.BANNERS[v]}` })))),

@@ -121,6 +121,16 @@ addColumn('users', 'ghost_anon', 'INTEGER NOT NULL DEFAULT 0');
   addColumn('users', 'verified', 'INTEGER NOT NULL DEFAULT 0');
   if (!had) db.prepare('UPDATE users SET verified=1 WHERE is_guest=0').run();
   addColumn('users', 'refused', 'INTEGER NOT NULL DEFAULT 0'); // refusé à la douane
+  // Deux validations à la douane : la voix et la caméra (il faut les deux pour être accepté)
+  const hadVoice = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'voice_ok');
+  addColumn('users', 'voice_ok', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn('users', 'cam_ok', 'INTEGER NOT NULL DEFAULT 0');
+  if (!hadVoice) db.prepare('UPDATE users SET voice_ok=1, cam_ok=1 WHERE verified=1').run(); // les comptes déjà acceptés gardent leur accès
+  // Photo de profil vérifiée par le staff (badge V) ; une nouvelle photo attend la vérification
+  const hadPhoto = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'avatar_ok');
+  addColumn('users', 'avatar_ok', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn('users', 'avatar_pending', "TEXT NOT NULL DEFAULT ''");
+  if (!hadPhoto) db.prepare("UPDATE users SET avatar_ok=1 WHERE avatar<>''").run(); // les photos déjà en ligne sont considérées vérifiées
 }
 addColumn('users', 'birth_day', 'INTEGER DEFAULT 0');
 addColumn('users', 'birth_month', 'INTEGER DEFAULT 0');
@@ -396,7 +406,7 @@ function setSetting(key, value) {
 }
 // ---------- Journal de tout ce qui se passe sur le site ----------
 const LOG_CATEGORIES = {
-  moderation: ['staff_code', 'admin_login', 'modbot', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
+  moderation: ['staff_code', 'admin_login', 'modbot', 'photo_ok', 'photo_refused', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
   messages: ['message_delete', 'room_clear'],
   accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],

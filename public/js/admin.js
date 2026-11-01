@@ -17,7 +17,7 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, messages, rooms, radios, settings, site, backups, logs };
+const pages = { dashboard, users, reports, photos, messages, rooms, radios, settings, site, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
   if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
@@ -103,11 +103,14 @@ async function users() {
         u.linkedAccounts ? el('div', { style: 'color:var(--gold);font-size:.78rem', title: 'Comptes créés depuis le même appareil ou la même connexion' }, `🔗 ${u.linkedAccounts} autre(s) compte(s) lié(s)`) : null))),
       el('td', {}, `${LC.genderIcon(u.gender)} ${u.age || '?'} ans${u.city ? ' · ' + u.city : ''}`),
       el('td', {}, role),
-      el('td', {}, status, !u.verified && u.role === 'user' ? el('div', { style: 'font-size:.78rem;color:' + (u.refused ? 'var(--red)' : '#4fb3ff') }, u.refused ? '❌ refusé' : '🛂 à vérifier') : null, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
+      el('td', {}, status, !u.verified && u.role === 'user' ? el('div', { style: 'font-size:.78rem;color:' + (u.refused ? 'var(--red)' : '#4fb3ff') }, u.refused ? '❌ refusé' : `🛂 à vérifier · 🎙️ ${u.voiceOk ? '✅' : '⏳'} 📷 ${u.camOk ? '✅' : '⏳'}`) : null, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
       el('td', {}, LC.date(u.createdAt)),
       el('td', {},
         el('button', { class: 'btn btn-sm', onclick: () => showHistory(u) }, '📄'),
-        isSuper() && !u.verified && u.role === 'user' ? el('button', { class: 'btn btn-sm btn-primary', title: 'Valider : badge ✓ et accès au site', onclick: async () => { await run(() => api('/api/customs/verify/' + u.id, { method: 'POST', body: { verified: true } }), `${u.username} est validé`); load(); } }, '✅ Valider') : null,
+        isSuper() && !u.verified && u.role === 'user' ? ['voice', 'cam'].map(k => {
+          const on = k === 'voice' ? u.voiceOk : u.camOk;
+          return el('button', { class: 'btn btn-sm ' + (on ? 'btn-ok' : 'btn-primary'), title: (k === 'voice' ? 'Voix' : 'Caméra') + (on ? ' validée (retirer)' : ' : valider'), onclick: async () => { await run(() => api('/api/customs/verify/' + u.id, { method: 'POST', body: { [k]: !on } }), `${k === 'voice' ? '🎙️ Voix' : '📷 Caméra'} ${on ? 'retirée' : 'validée'}`); load(); } }, (k === 'voice' ? '🎙️' : '📷') + (on ? ' ✓' : ''));
+        }) : null,
         isSuper() && !u.verified && u.role === 'user' && !u.refused ? el('button', { class: 'btn btn-sm btn-danger', title: 'Refuser : aucun rôle, pas d\'accès', onclick: async () => { if (!confirm(`Refuser ${u.username} ?`)) return; await run(() => api('/api/customs/verify/' + u.id, { method: 'POST', body: { refuse: true } }), `${u.username} est refusé`); load(); } }, '❌ Refuser') : null,
         canAct ? [
           el('button', { class: 'btn btn-sm btn-danger', title: 'Sanctionner (avertir, muet, expulser, bannir)', onclick: () => LC.sanctionModal(u, { toast, onDone: load }) }, '🛡️ Sanctionner'),
@@ -131,6 +134,29 @@ async function showHistory(u) {
       el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:14px', onclick: () => back.remove() }, 'Fermer')));
   document.body.append(back);
 }
+
+// ---------- Photos de profil à vérifier ----------
+async function photos() {
+  const d = await api('/api/admin/photos');
+  setPhotoBadge(d.photos.length);
+  const decide = async (p, approve) => {
+    let reason = '';
+    if (!approve) { reason = prompt(`Refuser la photo de ${p.username} ? Raison (facultatif) :`, ''); if (reason === null) return; }
+    await run(() => api('/api/admin/photos/' + p.id, { method: 'POST', body: { approve, reason } }), approve ? `Photo de ${p.username} vérifiée ✓` : `Photo de ${p.username} refusée`);
+    photos();
+  };
+  page.replaceChildren(...header('📸 Photos à vérifier', 'Chaque nouvelle photo de profil attend ta vérification avant d\'être visible. Une fois acceptée, la personne a le badge V.'),
+    d.photos.length ? el('div', { class: 'photo-grid' }, ...d.photos.map(p => el('div', { class: 'panel photo-card' },
+      el('div', { class: 'photo-compare' },
+        el('div', {}, el('small', { class: 'help' }, 'Actuelle'), p.current ? el('img', { src: p.current, alt: '' }) : el('div', { class: 'photo-none' }, 'Aucune')),
+        el('div', {}, el('small', { class: 'help' }, 'Nouvelle'), el('img', { class: 'photo-new', src: p.pending, alt: '', onclick: () => window.open(p.pending, '_blank') }))),
+      el('b', { style: 'color:' + (p.color || 'inherit') }, p.username), p.isGuest ? el('span', { class: 'badge guest' }, 'Invité') : null,
+      el('div', { class: 'actions', style: 'margin-top:10px' },
+        el('button', { class: 'btn btn-sm btn-primary', onclick: () => decide(p, true) }, '✓ Accepter'),
+        el('button', { class: 'btn btn-sm btn-danger', onclick: () => decide(p, false) }, '✕ Refuser')))))
+      : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo à vérifier pour le moment.')));
+}
+function setPhotoBadge(n) { const b = document.getElementById('navPhotos'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
 
 // ---------- Signalements ----------
 async function reports() {
@@ -462,7 +488,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', modbot: '🛡️ ModoBot', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', photo_ok: '📸 Photo vérifiée', photo_refused: '📸 Photo refusée', modbot: '🛡️ ModoBot', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;
@@ -571,6 +597,7 @@ function showAdminLogin() {
     showAdminLogin();
     return;
   }
+  api('/api/admin/photos').then(d => setPhotoBadge(d.photos.length)).catch(() => {});
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());
   if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());
   go();

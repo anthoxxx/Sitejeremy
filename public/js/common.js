@@ -174,9 +174,17 @@ window.LC = {
     const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
     if (u.avatar) a.append(LC.el('img', { src: u.avatar, alt: '', loading: 'lazy' }));
     else a.append((u.username || '?')[0].toUpperCase());
-    if (u.validated) a.append(LC.el('span', { class: 'v-tick', title: 'Validé' }, '✓'));
+    if (u.validated) a.append(LC.el('span', { class: 'v-tick', title: 'Accepté : voix et caméra validées' }, '✓'));
     return a;
   },
+  // Badges de la douane : 🎙️ voix et 📷 caméra (vert = validé)
+  douaneBadges(u, withPhoto = true) {
+    return LC.el('span', { class: 'dbadges', title: `Voix ${u.voiceOk ? 'validée' : 'pas encore validée'} · Caméra ${u.camOk ? 'validée' : 'pas encore validée'}${withPhoto ? ' · Photo ' + (u.photoOk ? 'vérifiée' : 'pas vérifiée') : ''}` },
+      LC.el('span', { class: 'dbadge' + (u.voiceOk ? ' ok' : '') }, '🎙️'), LC.el('span', { class: 'dbadge' + (u.camOk ? ' ok' : '') }, '📷'),
+      withPhoto ? LC.photoBadge(u) : null);
+  },
+  // Badge V : photo de profil vérifiée par le staff
+  photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, 'V'); },
   // Pseudo avec sa couleur et son effet
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
