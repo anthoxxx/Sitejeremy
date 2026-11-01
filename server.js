@@ -83,6 +83,8 @@ function publicUser(u) {
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
     verified: isVerified(u),
+    validated: customsOn() && isVerified(u), // badge ✓ « Validé » à côté de la photo
+    refused: !!u.refused && !isVerified(u),
     isBirthday: isBirthday(u),
   };
 }
@@ -96,7 +98,7 @@ function adminUser(u) {
   return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u) });
+const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -501,7 +503,9 @@ const roomsChanged = () => io.emit('rooms_changed');
 app.get('/api/rooms', auth, (req, res) => {
   const rooms = db.prepare('SELECT * FROM rooms ORDER BY owner_id IS NOT NULL, sort, id').all();
   // Les salons fermés ne sont visibles que par les personnes qui peuvent y entrer
-  const visible = rooms.filter(r => (r.slug === 'douane' ? customsOn() || isStaff(req.user) : !r.is_private || !roomAccess(req.user, r)));
+  // Pas encore validé : on ne voit que la douane
+  const pending = !isVerified(req.user);
+  const visible = rooms.filter(r => (r.slug === 'douane' ? customsOn() || isStaff(req.user) : !pending && (!r.is_private || !roomAccess(req.user, r))));
   const s = getSettings();
   res.json({
     rooms: visible.map(roomOut),
@@ -1037,25 +1041,30 @@ app.post('/api/customs/open', auth, (req, res) => {
   res.json({ open });
 });
 app.post('/api/customs/verify/:id', auth, (req, res) => {
-  if (!isStaff(req.user)) return res.status(403).json({ error: 'Réservé au staff' });
+  if (!isSuper(req.user)) return res.status(403).json({ error: 'Seul un super-admin peut valider ou refuser à la douane' });
   const target = getUser(req.params.id);
   if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  const verified = req.body.verified !== false;
-  if (!verified && rank(target) >= rank(req.user) && !isSuper(req.user)) return res.status(403).json({ error: 'Action non autorisée' });
-  db.prepare('UPDATE users SET verified=? WHERE id=?').run(verified ? 1 : 0, target.id);
-  log(req.user, verified ? 'verify' : 'unverify', `${target.username} ${verified ? 'a passé la douane ✅' : 'renvoyé à la douane'}`);
+  if (isStaff(target)) return res.status(400).json({ error: 'Les membres du staff n\'ont pas besoin de passer la douane' });
+  const refuse = req.body.refuse === true;
+  const verified = !refuse && req.body.verified !== false;
+  db.prepare('UPDATE users SET verified=?, refused=? WHERE id=?').run(verified ? 1 : 0, refuse ? 1 : 0, target.id);
+  log(req.user, verified ? 'verify' : 'unverify', `${target.username} ${verified ? 'a passé la douane ✅ (badge Validé)' : refuse ? 'refusé à la douane ❌' : 'renvoyé à la douane'}`);
   const updated = getUser(target.id);
   refreshOnline(updated);
   if (verified) {
-    notify(target.id, { type: 'verified', icon: '✅', title: 'Tu as passé la douane !', text: `Bienvenue sur ${getSettings().siteName} : tu as maintenant accès à tous les salons, aux messages privés et à tout le site.` });
-    io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a passé la douane, bienvenue !` });
+    notify(target.id, { type: 'verified', icon: '✅', title: 'Tu es validé !', text: `Bienvenue sur ${getSettings().siteName} : tu as le badge ✓ Validé et accès à tous les salons, aux messages privés et à tout le site.` });
+    io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a été validé, bienvenue !` });
+  } else if (refuse) {
+    notify(target.id, { type: 'unverified', icon: '❌', title: 'Ta demande a été refusée', text: 'Un super-admin a refusé ton accès au site. Tu n\'as aucun rôle pour le moment.', important: true });
+    io.to('room:douane').emit('system', { room: 'douane', text: `❌ ${target.username} a été refusé à la douane.` });
+    sendToCustoms(target.id);
   } else {
-    notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Le staff doit à nouveau te vérifier avant que tu accèdes au reste du site.', important: true });
+    notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Un super-admin doit à nouveau te valider avant que tu accèdes au reste du site.', important: true });
     sendToCustoms(target.id);
   }
-  emitToUser(target.id, 'verified_state', { verified: isVerified(updated) });
+  emitToUser(target.id, 'verified_state', { verified: isVerified(updated), refused: !!updated.refused });
   roomsChanged();
-  res.json({ verified });
+  res.json({ verified, refused: refuse });
 });
 // Fait sortir des salons une personne non vérifiée (elle retourne à la douane)
 function sendToCustoms(userId) {
@@ -1810,7 +1819,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
@@ -1839,6 +1848,7 @@ io.on('connection', socket => {
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (room.slug === 'douane' && customsOn() && !customsOpen() && !isVerified(u)) return ack && ack({ error: '🛂 La douane est fermée pour le moment : attends qu\'un membre du staff l\'ouvre' });
+    if (room.slug === 'douane' && u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée : tu ne peux pas écrire pour le moment' });
     const kind = audio ? 'audio' : image ? 'image' : 'text', media = audio ? audio.url : image ? image.url : '', duration = audio ? audio.duration : 0;
     const anon = entry.ghost && entry.ghostAnon ? 1 : 0;
     const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon) VALUES (?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon);

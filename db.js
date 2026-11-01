@@ -120,6 +120,7 @@ addColumn('users', 'ghost_anon', 'INTEGER NOT NULL DEFAULT 0');
   const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'verified');
   addColumn('users', 'verified', 'INTEGER NOT NULL DEFAULT 0');
   if (!had) db.prepare('UPDATE users SET verified=1 WHERE is_guest=0').run();
+  addColumn('users', 'refused', 'INTEGER NOT NULL DEFAULT 0'); // refusé à la douane
 }
 addColumn('users', 'birth_day', 'INTEGER DEFAULT 0');
 addColumn('users', 'birth_month', 'INTEGER DEFAULT 0');
@@ -346,6 +347,12 @@ Avertissement, mute temporaire, expulsion ou bannissement définitif selon la gr
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
+
+// Douane obligatoire pour les nouveaux inscrits (activée une fois ; les comptes déjà là restent validés)
+if (!db.prepare("SELECT 1 FROM settings WHERE key='customsAutoOn'").get()) {
+  db.prepare("UPDATE settings SET value='1' WHERE key='customsEnabled'").run();
+  db.prepare("INSERT INTO settings (key, value) VALUES ('customsAutoOn', '1')").run();
+}
 
 // Changement de nom : « The Paradis » devient « The Paradise » (theparadise.fr) sur une base déjà existante
 {

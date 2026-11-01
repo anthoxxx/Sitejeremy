@@ -260,7 +260,7 @@ function addRoomMessage(m, live = true) {
   }
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday };
+  const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
@@ -368,14 +368,15 @@ function renderUsers() {
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
     const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
-    const toCheck = state.customs?.enabled && !u.verified && isStaff();
+    const toCheck = state.customs?.enabled && !u.verified && isSuperMe() && !['admin', 'superadmin', 'moderator'].includes(u.role);
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? '🛂 ' : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u)),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
-      toCheck ? el('button', { class: 'btn btn-sm verify-btn', title: 'Valider : il passe la douane', onclick: e => { e.stopPropagation(); verifyUser(u, true); } }, '✅') : null);
+      toCheck ? el('button', { class: 'btn btn-sm verify-btn', title: 'Valider : badge ✓ et accès au site', onclick: e => { e.stopPropagation(); verifyUser(u, true); } }, '✅') : null,
+      toCheck && !u.refused ? el('button', { class: 'btn btn-sm verify-btn refuse', title: 'Refuser : aucun rôle, pas d\'accès', onclick: e => { e.stopPropagation(); verifyUser(u, false, true); } }, '❌') : null);
   }));
 }
 $('userSearch').oninput = renderUsers;
@@ -446,7 +447,7 @@ function toggleUserMenu() {
   if (!m.classList.contains('hidden')) return closeUserMenu();
   const item = (icon, label, fn, cls = '') => el('button', { class: 'um-item ' + cls, onclick: () => { closeUserMenu(); fn(); } }, el('span', {}, icon), label);
   m.replaceChildren(...[
-    el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
+    el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     item('🎮', 'Mini-jeux', () => Hub.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
@@ -681,10 +682,12 @@ document.addEventListener('site', () => showSeasonBanner());
 $('fxBtn').onclick = () => { const on = LC.toggleFx(); $('fxBtn').textContent = on ? '✨ Effets' : '✨ Effets coupés'; };
 
 // ---------- Douane ----------
-async function verifyUser(u, verified) {
+const isSuperMe = () => state.me?.role === 'superadmin';
+async function verifyUser(u, verified, refuse = false) {
+  if (refuse && !confirm(`Refuser ${u.username} ? Il n'aura aucun rôle et ne pourra pas accéder au site.`)) return;
   try {
-    await api('/api/customs/verify/' + u.id, { method: 'POST', body: { verified } });
-    toast(verified ? `✅ ${u.username} a passé la douane` : `🛂 ${u.username} renvoyé à la douane`);
+    await api('/api/customs/verify/' + u.id, { method: 'POST', body: { verified, refuse } });
+    toast(verified ? `✅ ${u.username} est validé` : refuse ? `❌ ${u.username} est refusé` : `🛂 ${u.username} renvoyé à la douane`);
   } catch (e) { toast(e.message); }
 }
 async function setCustomsOpen(open) {
@@ -701,14 +704,16 @@ function renderCustoms() {
     const waiting = state.online.filter(u => !u.verified && u.room === 'douane').length;
     b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
       el('div', { style: 'flex:1;min-width:0' }, el('b', {}, `Douane ${c.open ? 'ouverte' : 'fermée'}`),
-        el('div', { class: 'help' }, waiting ? `${waiting} personne(s) attendent d'être vérifiées : clique sur ✅ à côté de leur pseudo.` : 'Personne n\'attend pour le moment.')),
+        el('div', { class: 'help' }, waiting ? `${waiting} personne(s) attendent. ${isSuperMe() ? 'Clique sur ✅ pour valider ou ❌ pour refuser, à côté de leur pseudo.' : 'Seul un super-admin peut les valider.'}` : 'Personne n\'attend pour le moment.')),
       el('button', { class: 'btn btn-sm ' + (c.open ? 'btn-danger' : 'btn-primary'), onclick: () => setCustomsOpen(!c.open) }, c.open ? '🔒 Fermer la douane' : '🔓 Ouvrir la douane'));
   } else {
     b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
-      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, c.open ? 'Bienvenue à la douane !' : 'La douane est fermée pour le moment'),
-        el('div', { class: 'help' }, c.open
-          ? 'Présente-toi ici : un membre du staff va te vérifier. Ensuite tu auras accès à tous les salons, aux messages privés et à tout le site.'
-          : 'Un membre du staff va bientôt l\'ouvrir. Reste ici, tu pourras écrire dès qu\'elle sera ouverte.')));
+      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, state.me.refused ? '❌ Ta demande a été refusée' : c.open ? 'Bienvenue à la douane !' : 'La douane est fermée pour le moment'),
+        el('div', { class: 'help' }, state.me.refused
+          ? 'Un super-admin a refusé ton accès : tu n\'as aucun rôle et tu ne peux pas écrire pour le moment.'
+          : c.open
+            ? 'Présente-toi ici : un super-admin va te valider. Tu recevras le badge ✓ Validé et l\'accès à tous les salons, aux messages privés et à tout le site.'
+            : 'Un membre du staff va bientôt l\'ouvrir. Reste ici, tu pourras écrire dès qu\'elle sera ouverte.')));
   }
   renderMuteBanner();
 }
@@ -718,8 +723,11 @@ socket.on('customs', c => {
   renderCustoms();
   renderUsers();
 });
-socket.on('verified_state', ({ verified }) => {
+socket.on('verified_state', ({ verified, refused }) => {
   state.me.verified = verified;
+  state.me.refused = !!refused;
+  state.me.validated = !!(verified && state.customs?.enabled);
+  if (typeof renderMe === 'function') renderMe();
   loadRooms().then(() => {
     if (verified) { if (state.currentRoom?.slug === 'douane') joinDefaultRoom(); }
     else if (state.view?.slug !== 'douane') joinRoom('douane');

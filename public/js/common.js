@@ -174,6 +174,7 @@ window.LC = {
     const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
     if (u.avatar) a.append(LC.el('img', { src: u.avatar, alt: '', loading: 'lazy' }));
     else a.append((u.username || '?')[0].toUpperCase());
+    if (u.validated) a.append(LC.el('span', { class: 'v-tick', title: 'Validé' }, '✓'));
     return a;
   },
   // Pseudo avec sa couleur et son effet

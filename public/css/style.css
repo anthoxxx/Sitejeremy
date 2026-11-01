@@ -1161,3 +1161,8 @@ body.hub-open .modal-back { z-index: 260; }
   .hero-logo { width: min(260px, 72vw); margin: 0 auto 14px; }
 }
 @media (max-width: 760px) { .app-header .logo img { width: 44px; height: 44px; } }
+
+/* ===== Badge « Validé » à côté de la photo ===== */
+.avatar .v-tick { position: absolute; top: -3px; right: -4px; width: 15px; height: 15px; border-radius: 50%; background: #1d9bf0; color: #fff; font-size: 9px; font-weight: 900; line-height: 1; display: grid; place-items: center; border: 2px solid var(--bg-2); box-sizing: content-box; z-index: 1; }
+.avatar.lg .v-tick { width: 24px; height: 24px; font-size: 14px; top: 0; right: 0; border-width: 3px; }
+.verify-btn.refuse { margin-left: 2px; }
