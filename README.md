@@ -48,6 +48,7 @@ Variables d'environnement facultatives :
 - 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
 - 🔊 **Volume réglable de 0 à 200 %** pendant les appels et dans le vocal des salons (volume général + volume de chaque personne)
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
+- 🎤 **Salon Karaoké** avec le **KaraoBot** : on choisit sa chanson (recherche de versions karaoké sur YouTube, idées de chansons par thème, ou lien YouTube collé), le bot gère la **file d'attente**, annonce à chacun quand c'est son tour, et tout le salon peut regarder la vidéo avec les paroles pendant que le chanteur chante dans le vocal. Commandes : `!chanson <titre>`, `!liste`, `!suivant`, `!retirer`, `!aide`
 - 📻 **Radio** : lecteur intégré, radio du salon, lien audio perso
 - 🎮 **Mini-jeux** (bouton 🎮) : solo — Serpent, Démineur, Memory, Pendu, Taquin, Réflexes, Quiz ; à deux en direct — Morpion, 4 alignés, Chifoumi, Course de frappe, Quiz duel (invitation, revanche, arbitrage par le serveur) ; contre l'ordinateur pour Morpion, 4 alignés et Chifoumi ; records personnels et classements
 - 🎨 **Profils personnalisables** : photo, bannière, effets de pseudo, cadres, statut, bio, jeux, réseaux

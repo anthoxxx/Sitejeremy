@@ -220,6 +220,7 @@ function joinRoom(slug) {
     renderRoomHead(); renderRooms(); renderConvs(); renderUsers();
     closeDrawers();
     $('input').focus();
+    document.dispatchEvent(new CustomEvent('viewchange'));
   });
 }
 // La personne doit-elle passer par la douane ?
@@ -257,6 +258,7 @@ function addRoomMessage(m, live = true) {
     $('messages').append(ph);
     return;
   }
+  if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
   const user = { id: m.userId, username: m.username, color: m.color, role: m.role, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
@@ -271,6 +273,17 @@ function addRoomMessage(m, live = true) {
   $('messages').append(row);
   trimMessages();
   if (live) { scrollDown(m.userId === state.me.id); if (mention) { ding(); toast(`${m.username} t'a mentionné`); } }
+}
+// Message d'un bot (ex. KaraoBot dans le salon Karaoké)
+function addBotMessage(m, live = true) {
+  const mention = new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
+  $('messages').append(el('div', { class: 'msg bot-msg' + (mention ? ' mention' : '') },
+    el('div', { class: 'avatar bot-av' }, '🤖'),
+    el('div', { class: 'body' },
+      el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, 'Bot'), el('span', { class: 'time' }, LC.time(m.createdAt))),
+      el('div', { class: 'text' }, m.content))));
+  trimMessages();
+  if (live) { scrollDown(); if (mention) { ding(); toast('🎤 ' + m.content.slice(0, 90)); } }
 }
 function addSys(text, cls = '') {
   $('messages').append(el('div', { class: 'sys ' + cls }, text));
@@ -323,6 +336,7 @@ async function openPm(user) {
   setPlaceholder(`Message privé à ${user.username}…`, `À ${user.username}…`);
   $('messages').replaceChildren(el('div', { class: 'sys' }, 'Conversation privée avec ' + user.username));
   renderConvs(); renderRooms(); closeDrawers();
+  document.dispatchEvent(new CustomEvent('viewchange'));
   try {
     const { messages } = await api('/api/pm/' + user.id);
     state.pmCache.set(user.id, messages);

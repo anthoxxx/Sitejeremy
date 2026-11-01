@@ -260,6 +260,12 @@ if (roomCount === 0) {
     ['membres', 'Salon VIP', 'Réservé aux membres inscrits', '💎', 9, 1],
   ].forEach(r => ins.run(...r, now));
 }
+// Salon Karaoké (avec le KaraoBot)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='karaoke'").get()) {
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=9 AND slug<>'douane'").run();
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('karaoke', 'Karaoké', 'Choisis ta chanson avec le KaraoBot et prends le micro ! 🎶', '🎤', 9, 0, Date.now());
+}
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 
