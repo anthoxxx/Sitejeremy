@@ -34,15 +34,46 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
     if (!r.ok) throw new Error(`${file} : ${r.status}`);
     return r.json();
   }
-  // Un flux est gardé s'il répond, ressemble à une playlist HLS et autorise la lecture depuis un autre site (CORS)
+  // Vérification complète d'un flux, comme le ferait le navigateur du spectateur :
+  // playlist principale → playlist de qualité → premier morceau de vidéo, avec l'autorisation CORS à chaque étape.
+  const HEAD = { Origin: 'https://theparadise.fr', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36' };
+  const secure = u => u.startsWith('https://') || process.env.TV_ALLOW_HTTP === '1';
+  async function get(url, extra = {}) {
+    const r = await fetch(url, { headers: { ...HEAD, ...extra }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
+    if (!(r.ok || r.status === 206) || !r.headers.get('access-control-allow-origin') || !secure(r.url)) { r.body?.cancel().catch(() => {}); return null; }
+    return r;
+  }
+  const lines = t => t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   async function checkStream(url) {
     try {
-      const r = await fetch(url, { headers: { Origin: 'https://theparadise.fr', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36' }, redirect: 'follow', signal: AbortSignal.timeout(8000) });
-      if (!r.ok) return false;
-      const cors = r.headers.get('access-control-allow-origin');
-      if (!cors) return false;
-      const text = (await r.text()).slice(0, 2000);
-      return text.includes('#EXTM3U') && (r.url.startsWith('https://') || process.env.TV_ALLOW_HTTP === '1');
+      let r = await get(url);
+      if (!r) return false;
+      let text = (await r.text()).slice(0, 200000), base = r.url;
+      if (!text.includes('#EXTM3U') || /METHOD=SAMPLE-AES|KEYFORMAT="com\.apple|widevine/i.test(text)) return false; // DRM : illisible
+      if (text.includes('#EXT-X-STREAM-INF')) {
+        // Choix d'une qualité lisible (pas de HEVC, que la plupart des navigateurs ne lisent pas)
+        const ls = lines(text); let variant = null;
+        for (let i = 0; i < ls.length; i++) {
+          if (!ls[i].startsWith('#EXT-X-STREAM-INF')) continue;
+          if (/hvc1|hev1|dvh1/i.test(ls[i])) continue;
+          const uri = ls.slice(i + 1).find(l => !l.startsWith('#'));
+          if (uri) { variant = new URL(uri, base).href; break; }
+        }
+        if (!variant || !secure(variant)) return false;
+        r = await get(variant);
+        if (!r) return false;
+        text = (await r.text()).slice(0, 200000); base = r.url;
+        if (/METHOD=SAMPLE-AES/i.test(text)) return false;
+      }
+      if (!text.includes('#EXTINF')) return false;
+      const seg = lines(text).find(l => !l.startsWith('#'));
+      if (!seg) return false;
+      const segUrl = new URL(seg, base).href;
+      if (!secure(segUrl)) return false;
+      const sr = await get(segUrl, { Range: 'bytes=0-2047' });
+      if (!sr) return false;
+      sr.body?.cancel().catch(() => {});
+      return true;
     } catch (e) { return false; }
   }
   async function load() {
@@ -58,12 +89,14 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
         if (c.is_nsfw || (c.categories || []).some(x => BLOCKED_CATS.has(x)) || c.closed) continue;
         info.set(c.id, c);
       }
-      // Un seul flux par chaîne : https, sans en-têtes spéciaux (impossibles à envoyer depuis un navigateur)
+      // Jusqu'à 4 flux par chaîne : https, sans en-têtes spéciaux (impossibles à envoyer depuis un navigateur)
       const candidates = new Map();
       for (const s of streams) {
-        if (!s.channel || !info.has(s.channel) || candidates.has(s.channel)) continue;
+        if (!s.channel || !info.has(s.channel)) continue;
         if (!(/^https:\/\//.test(s.url || '') || (process.env.TV_ALLOW_HTTP === '1' && /^http:\/\//.test(s.url || ''))) || s.http_referrer || s.user_agent || s.referrer) continue;
-        candidates.set(s.channel, s.url);
+        const arr = candidates.get(s.channel) || [];
+        if (arr.length < 4 && !arr.includes(s.url)) arr.push(s.url);
+        candidates.set(s.channel, arr);
       }
       const list = [...candidates.entries()];
       status = { ...status, total: list.length, checked: 0 };
@@ -73,11 +106,14 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
       let i = 0;
       const worker = async () => {
         while (i < list.length) {
-          const [id, url] = list[i++];
+          const [id, urls] = list[i++];
           const c = info.get(id);
           const ctry = countries.get(c.country) || { name: c.country || '', flag: '' };
-          const ok = await checkStream(url);
-          next.set(id, { id, name: c.name, country: c.country || '', flag: ctry.flag, countryName: ctry.name, logo: logoOf.get(id) || c.logo || '', categories: c.categories || [], url, ok });
+          // On essaie les flux un par un ; les autres servent de secours si le premier tombe en panne
+          const good = [];
+          for (const u of urls) { if (await checkStream(u)) good.push(u); if (good.length >= 2) break; }
+          const ok = good.length > 0;
+          next.set(id, { id, name: c.name, country: c.country || '', flag: ctry.flag, countryName: ctry.name, logo: logoOf.get(id) || c.logo || '', categories: c.categories || [], url: good[0] || urls[0], alts: good.slice(1), ok });
           status.checked++;
           if (status.checked % 200 === 0) { channels = next; save(); }
         }
@@ -115,7 +151,7 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
     const wait = 20000 - (now() - lastChange);
     if (wait > 0 && !isStaff(user) && current?.by !== user.username) return { error: `Attends ${Math.ceil(wait / 1000)} s avant de changer de chaîne` };
     lastChange = now();
-    current = { id: c.id, name: c.name, flag: c.flag, countryName: c.countryName, logo: c.logo, url: c.url, by: user.username, at: now() };
+    current = { id: c.id, name: c.name, flag: c.flag, countryName: c.countryName, logo: c.logo, url: c.url, alts: c.alts || [], by: user.username, at: now() };
     reports.delete(c.id);
     say(`📺 ${user.username} a mis ${c.flag} ${c.name}${c.countryName ? ' (' + c.countryName + ')' : ''}. Clique sur « ▶ Regarder » en haut du salon !`);
     log(user, 'tv', `📺 TV : ${c.name}`);
@@ -163,10 +199,11 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
       if (!current || current.id !== id || !inTv()) return;
       const set = reports.get(id) || new Set();
       set.add(uid); reports.set(id, set);
-      if (set.size >= 2) {
+      const viewers = [...getOnline().values()].filter(e => e.room === SLUG && !e.ghost).length;
+      if (set.size >= Math.min(2, Math.max(1, viewers))) {
         const c = channels.get(id);
         if (c) c.ok = false;
-        say(`⚠️ ${current.name} ne marche plus pour plusieurs personnes : je la retire. Choisis une autre chaîne avec « 📺 Changer de chaîne ».`);
+        say(`⚠️ ${current.name} ne marche plus : je la retire de la liste. Choisis une autre chaîne avec « 📺 Changer de chaîne ».`);
         current = null; reports.delete(id); save(); broadcast();
       }
     });

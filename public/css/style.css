@@ -1180,3 +1180,4 @@ body.hub-open .modal-back { z-index: 260; }
 .tv-item:hover { border-color: var(--green); }
 .tv-item img { object-fit: contain; background: rgba(255, 255, 255, .9); padding: 3px; box-sizing: border-box; }
 @media (max-width: 760px) { .tv-filters { flex-direction: column; } }
+.tv-fail { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 181, 71, .12); border: 1px dashed rgba(255, 181, 71, .5); font-size: .84rem; line-height: 1.5; }

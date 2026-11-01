@@ -30,36 +30,59 @@ const Tv = {
     return window.Hls;
   },
   async play(video, ch) {
-    if (this.loadedId === ch.id && video.src) return;
+    if (this.loadedId === ch.id && this.tries) return;
     this.stop(video);
     this.loadedId = ch.id;
+    this.tries = 1;
+    const urls = [ch.url, ...(ch.alts || [])];
+    let n = 0, timer = null;
+    const attempt = async () => {
+      clearTimeout(timer);
+      if (this.loadedId !== ch.id) return;
+      const url = urls[n];
+      if (this.hls) { try { this.hls.destroy(); } catch (e) {} this.hls = null; }
+      // Rien après 20 s : on considère que le flux ne marche pas
+      timer = setTimeout(() => { if (this.loadedId === ch.id && video.readyState < 2) fail(); }, 20000);
+      video.onplaying = () => clearTimeout(timer);
+      try {
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url;
+          video.onerror = fail;
+        } else {
+          const Hls = await this.loadHls();
+          if (!Hls || !Hls.isSupported()) { clearTimeout(timer); toast('Ton navigateur ne peut pas lire la télé'); return; }
+          const hls = new Hls({ enableWorker: true, manifestLoadingMaxRetry: 2, levelLoadingMaxRetry: 2, fragLoadingMaxRetry: 3 });
+          this.hls = hls;
+          hls.on(Hls.Events.ERROR, (e, data) => {
+            if (!data.fatal) return;
+            // Erreur de lecture vidéo : hls.js sait souvent la réparer tout seul
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !hls._fixed) { hls._fixed = true; hls.recoverMediaError(); return; }
+            fail();
+          });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+        }
+        if (window.Media?.stop) Media.stop();
+        await video.play().catch(() => {});
+      } catch (e) { fail(); }
+    };
+    // Le flux ne marche pas : on essaie le flux de secours, sinon on prévient
     const fail = () => {
+      clearTimeout(timer);
       if (this.loadedId !== ch.id || this.failed) return;
+      if (++n < urls.length) { this.tries++; return attempt(); }
+      if (this.hls) { try { this.hls.destroy(); } catch (e) {} this.hls = null; }
       this.failed = true; this.render();
       socket.emit('tv_report', ch.id);
     };
-    try {
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = ch.url;
-        video.onerror = fail;
-      } else {
-        const Hls = await this.loadHls();
-        if (!Hls || !Hls.isSupported()) { toast('Ton navigateur ne peut pas lire la télé'); return; }
-        const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
-        this.hls = hls;
-        hls.on(Hls.Events.ERROR, (e, data) => { if (data.fatal) { hls.destroy(); if (this.hls === hls) this.hls = null; fail(); } });
-        hls.loadSource(ch.url);
-        hls.attachMedia(video);
-      }
-      if (window.Media?.stop) Media.stop();
-      await video.play().catch(() => {});
-    } catch (e) { fail(); }
+    attempt();
   },
   stop(video) {
     if (this.hls) { try { this.hls.destroy(); } catch (e) {} this.hls = null; }
     const v = video || $('tvBar').querySelector('video');
     if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
     this.loadedId = null;
+    this.tries = 0;
   },
 
   render() {
@@ -87,11 +110,15 @@ const Tv = {
       : el('div', { class: 'k-stage empty' }, el('div', { class: 'k-now' },
         el('div', { class: 'k-label' }, '📺 Écran noir'),
         el('div', { class: 'k-title' }, d.ready ? `Choisis une chaîne parmi ${d.ready} du monde entier !` : d.status?.loading ? `TV Bot vérifie les chaînes… (${d.status.checked}/${d.status.total})` : 'TV Bot prépare la liste des chaînes, reviens dans quelques minutes.')));
-    bar.querySelector('.k-stage-box').replaceChildren(stage);
+    bar.querySelector('.k-stage-box').replaceChildren(...[stage, c && this.failed ? el('div', { class: 'tv-fail' },
+      '⚠️ Cette chaîne ne s\'affiche pas chez toi : elle est peut-être coupée en ce moment, réservée à son pays, ou dans un format que ton navigateur ne lit pas. ',
+      el('button', { class: 'btn btn-sm', onclick: () => { this.failed = false; this.stop(); this.render(); } }, '🔄 Réessayer'), ' ',
+      el('button', { class: 'btn btn-sm btn-primary', onclick: () => this.openPicker() }, '📺 Autre chaîne')) : null].filter(Boolean));
     const show = !!(c && this.watching);
     vbox.classList.toggle('hidden', !show);
     vbox.querySelector('.tv-video').classList.toggle('mini', show && this.mini);
-    if (show) this.play(video, c); else if (this.loadedId) this.stop(video);
+    if (show && !this.failed) this.play(video, c); else if (this.loadedId) this.stop(video);
+    vbox.classList.toggle('hidden', !show || this.failed);
     bar.querySelector('.k-bottom').replaceChildren(
       el('span', { class: 'k-qlabel' }, d.ready ? `🌍 ${d.ready} chaînes` : ''),
       el('span', { style: 'flex:1' }),
