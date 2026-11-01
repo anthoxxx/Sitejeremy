@@ -495,6 +495,17 @@ document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #e
 
 // ---------- Socket ----------
 const socket = io();
+// Nouvelle version du site en ligne : on recharge la page tout seul (après un court message)
+let myBuild = null;
+socket.on('build', b => {
+  if (!myBuild) { myBuild = b; return; }
+  if (b === myBuild) return;
+  const busy = (typeof Call !== 'undefined' && Call.id);
+  toast('✨ Le site vient d\'être mis à jour : rechargement…');
+  const go = () => location.reload();
+  if (busy) { toast('✨ Mise à jour du site : recharge la page après ton appel'); return; }
+  setTimeout(go, 2500);
+});
 const typers = new Map();
 function renderTyping() {
   const now = Date.now();

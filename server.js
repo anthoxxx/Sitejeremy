@@ -41,7 +41,14 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+// Le navigateur redemande toujours si les pages, scripts et styles ont changé : une mise à jour est vue tout de suite
+app.use(express.static(path.join(__dirname, 'public'), {
+  extensions: ['html'],
+  setHeaders: (res, file) => { if (/\.(html|js|css)$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); },
+}));
+// Version du site : change à chaque mise en ligne (Render donne le numéro du commit)
+const BUILD = process.env.RENDER_GIT_COMMIT || String(Date.now());
+app.get('/api/version', (req, res) => res.json({ build: BUILD }));
 // Lecteur vidéo HLS pour le salon TV (servi depuis le paquet npm, pas de CDN)
 app.get('/vendor/hls.min.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules', 'hls.js', 'dist', 'hls.min.js'), { maxAge: '7d' }));
 
@@ -1873,6 +1880,7 @@ io.use((socket, next) => {
 });
 
 io.on('connection', socket => {
+  socket.emit('build', BUILD);
   const uid = socket.data.userId;
   let entry = online.get(uid);
   if (!entry) {
