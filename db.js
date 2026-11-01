@@ -406,7 +406,7 @@ function setSetting(key, value) {
 }
 // ---------- Journal de tout ce qui se passe sur le site ----------
 const LOG_CATEGORIES = {
-  moderation: ['staff_code', 'admin_login', 'modbot', 'photo_ok', 'photo_refused', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
+  moderation: ['staff_code', 'admin_login', 'modbot', 'photo_ok', 'photo_refused', 'screenshot', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
   messages: ['message_delete', 'room_clear'],
   accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],

@@ -2040,6 +2040,41 @@ io.on('connection', socket => {
     if (!c || !c.accepted) return;
     const other = socket.id === c.callerSocket ? c.calleeSocket : c.callerSocket;
     io.to(other).emit('call_media', { callId, video: !!video, muted: !!muted });
+    c.cam = c.cam || {};
+    if (video && c.cam[socket.id] === false) io.to(other).emit('call_notice', { callId, text: `📷 ${entry.user.username} a allumé sa caméra` });
+    c.cam[socket.id] = !!video;
+  });
+
+  // ----- Capture d'écran : on prévient les personnes concernées (comme sur Snapchat) -----
+  socket.on('screenshot', (ctx = {}) => {
+    const u = current();
+    if (!u || entry.ghost) return; // le super-admin en mode fantôme reste invisible
+    if (tooMany('shot:' + uid, 4, 30 * 1000)) return;
+    const name = u.username;
+    const cid = callOfSocket.get(socket.id);
+    const call = cid && calls.get(cid);
+    if (call && call.accepted) {
+      // Pendant un appel : l'autre personne est prévenue tout de suite
+      const other = socket.id === call.callerSocket ? call.calleeSocket : call.callerSocket;
+      io.to(other).emit('call_notice', { callId: cid, text: `📸 ${name} a fait une capture d'écran de l'appel` });
+      const otherId = other === call.callerSocket ? call.callerId : call.calleeId;
+      log(u, 'screenshot', `📸 Capture d'écran pendant un appel`);
+      if (otherId) notify(otherId, { type: 'screenshot', icon: '📸', title: `${name} a fait une capture d'écran`, text: 'Pendant votre appel.' });
+      return;
+    }
+    if (ctx.pm) {
+      const target = getUser(parseInt(ctx.pm, 10));
+      if (!target || target.id === uid) return;
+      notify(target.id, { type: 'screenshot', icon: '📸', title: `${name} a fait une capture d'écran`, text: 'De votre conversation privée.', data: { from: uid } });
+      emitToUser(target.id, 'screenshot_alert', { from: uid, username: name });
+      log(u, 'screenshot', `📸 Capture d'écran de la conversation privée avec ${target.username}`);
+      return;
+    }
+    if (entry.room) {
+      const room = getRoomBySlug(entry.room);
+      io.to('room:' + entry.room).emit('system', { room: entry.room, text: `📸 ${name} a fait une capture d'écran du salon` });
+      log(u, 'screenshot', `📸 Capture d'écran du salon « ${room?.name || entry.room} »`);
+    }
   });
 
   // ----- Vocal -----
@@ -2071,8 +2106,14 @@ io.on('connection', socket => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
     if (!p) return;
+    const was = p.video;
     p.video = !!on;
     emitVoiceState(slug);
+    // Prévenir le salon quand quelqu'un allume sa caméra
+    if (p.video && !was && !entry.ghost) {
+      io.to('room:' + slug).emit('system', { room: slug, text: `📷 ${entry.user.username} a allumé sa caméra` });
+      io.to('room:' + slug).emit('cam_alert', { room: slug, userId: uid, username: entry.user.username });
+    }
   });
   socket.on('voice_signal', ({ to, data } = {}) => {
     const slug = voiceOf.get(socket.id);

@@ -1196,3 +1196,5 @@ body.hub-open .modal-back { z-index: 260; }
 .photo-compare img, .photo-none { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; display: grid; place-items: center; background: var(--bg-2); color: var(--muted); }
 .photo-new { outline: 3px solid var(--gold); cursor: zoom-in; }
 #userList .verify-btn { padding: 4px 6px; min-width: 0; font-size: .8rem; flex: none; }
+/* Alertes pendant un appel (capture d'écran, caméra allumée) */
+.call-notice { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 5; padding: 10px 16px; border-radius: 999px; background: rgba(0, 0, 0, .75); color: #fff; font-weight: 700; font-size: .9rem; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; animation: sheet .2s ease; }
