@@ -278,7 +278,7 @@ function addRoomMessage(m, live = true) {
 function addBotMessage(m, live = true) {
   const mention = new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
   $('messages').append(el('div', { class: 'msg bot-msg' + (mention ? ' mention' : '') },
-    el('div', { class: 'avatar bot-av' }, '🤖'),
+    el('div', { class: 'avatar bot-av' }, m.botIcon || '🤖'),
     el('div', { class: 'body' },
       el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, 'Bot'), el('span', { class: 'time' }, LC.time(m.createdAt))),
       el('div', { class: 'text' }, m.content))));

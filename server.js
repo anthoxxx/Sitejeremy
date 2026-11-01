@@ -1614,7 +1614,7 @@ app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirn
 // ---------- Temps réel ----------
 // online : userId -> { user, sockets:Set, room }
 const online = new Map();
-const Karaoke = require('./karaoke')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
+const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -1835,7 +1835,7 @@ io.on('connection', socket => {
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon });
     io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
     ack && ack({ ok: true });
-    if (room.slug === Karaoke.SLUG && kind === 'text' && content.startsWith('!')) Karaoke.command(u, content).catch(() => {});
+    if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
   });
 
   socket.on('typing', () => {
@@ -1875,7 +1875,7 @@ io.on('connection', socket => {
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
 
   Games.onConnection(socket, uid, current);
-  Karaoke.onConnection(socket, uid, current);
+  Jukebox.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

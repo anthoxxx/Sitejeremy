@@ -1139,3 +1139,16 @@ body.hub-open .modal-back { z-index: 260; }
   .k-pick { padding: 6px 10px; font-size: .78rem; }
   .k-video { max-height: 32vh; }
 }
+/* DJ Bot (salon Musique) */
+.karaoke-bar.music { background: linear-gradient(135deg, rgba(79, 179, 255, .16), rgba(139, 108, 255, .16)); border-color: rgba(79, 179, 255, .4); }
+.karaoke-bar.music .k-label { color: #4fb3ff; }
+.k-title-main { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-video.mini { height: 1px; max-height: 1px; aspect-ratio: auto; opacity: .01; margin: 0; }
+.k-stage-box, .k-video-box { min-width: 0; }
+.k-video-box:empty { display: none; }
+@media (max-width: 760px) {
+  .k-stage { flex-wrap: wrap; row-gap: 6px; }
+  .k-now { flex: 1 1 0; }
+  .k-actions { width: 100%; }
+  .k-actions .btn { flex: 1; }
+}
