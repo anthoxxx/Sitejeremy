@@ -40,6 +40,34 @@ window.LC = {
   rank(u) { return LC.ROLES.indexOf(u?.role); },
   isAdminRole(u) { return LC.rank(u) >= 2; },
   roleLabel: r => ({ superadmin: 'Super-admin', admin: 'Admin', moderator: 'Modérateur', user: 'Membre' }[r] || r),
+  // Niveaux de modérateur : durées en minutes (0 pour l'expulsion = la personne peut revenir)
+  MOD_LEVELS: {
+    1: { label: 'Modérateur 1', color: '#7cc8ff', kick: 0, exclusion: 1440, ban: 10080 },
+    2: { label: 'Modérateur 2', color: '#2457c5', kick: 60, exclusion: 2880, ban: 43200 },
+    3: { label: 'Modérateur 3', color: '#ff8a1f', kick: 10080, exclusion: 4320, ban: 525600 },
+  },
+  STAFF_RED: '#e5384d',
+  // Nom complet du rôle, avec le niveau pour les modérateurs
+  roleName(u) {
+    if (!u) return '';
+    if (u.role === 'moderator') return LC.MOD_LEVELS[u.modLevel || 1].label;
+    return LC.roleLabel(u.role);
+  },
+  // Couleur du rôle : bleu clair / bleu foncé / orange pour les modérateurs, rouge pour les admins
+  roleColor(u) {
+    if (u?.role === 'moderator') return LC.MOD_LEVELS[u.modLevel || 1].color;
+    if (u?.role === 'admin' || u?.role === 'superadmin') return LC.STAFF_RED;
+    return '';
+  },
+  dur(min) {
+    if (!min) return '';
+    if (min % 525600 === 0) return `${min / 525600} an${min > 525600 ? 's' : ''}`;
+    if (min % 43200 === 0) return `${min / 43200} mois`;
+    if (min % 10080 === 0) return `${min / 10080} semaine${min > 10080 ? 's' : ''}`;
+    if (min % 1440 === 0) return `${min / 1440} jour${min > 1440 ? 's' : ''}`;
+    if (min % 60 === 0) return `${min / 60} h`;
+    return `${min} min`;
+  },
 
   // ----- Contenu du site (nom, couleurs, textes) modifiable par le super-admin -----
   site: null,
@@ -206,26 +234,41 @@ window.LC = {
     return u.banner ? `url("${u.banner}") center/cover no-repeat` : (LC.BANNERS[u.bannerStyle] || LC.BANNERS.aurora);
   },
   // Fenêtre de sanction (chat + admin) : la personne reçoit une notification avec la raison
+  // Fenêtre de sanction. Un modérateur a les durées fixes de son niveau ; un admin choisit.
   sanctionModal(u, { toast, onDone } = {}) {
     const el = LC.el;
     const say = toast || (t => alert(t));
-    const TYPES = [['warn', '⚠️ Avertir'], ['mute', '🔇 Rendre muet'], ['kick', '👢 Expulser'], ['ban', '⛔ Bannir']];
+    const me = (typeof state !== 'undefined' && state.me) || (typeof window.me !== 'undefined' && window.me) || LC.me || {};
+    const isMod = me.role === 'moderator';
+    const L = LC.MOD_LEVELS[me.modLevel || 1];
+    const label = (t, min) => ({ kick: '👢 Expulser', exclusion: '🚪 Exclure', ban: '⛔ Bannir' }[t]) + (t === 'kick' && !min ? ' (peut revenir)' : ' ' + LC.dur(min));
+    const TYPES = [['warn', '⚠️ Avertir'], ['mute', '🔇 Rendre muet'],
+      ...(isMod ? ['kick', 'exclusion', 'ban'].map(t => [t, label(t, L[t])]) : [['kick', '👢 Expulser'], ['exclusion', '🚪 Exclure'], ['ban', '⛔ Bannir']])];
     const QUICK = ['Insultes', 'Spam / flood', 'Harcèlement', 'Contenu inapproprié', 'Pseudo inapproprié', 'Publicité', 'Non-respect des règles'];
+    const CHOICES = {
+      mute: [[5, '5 minutes'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 heure'], [180, '3 heures'], [1440, '24 heures'], [10080, '7 jours']],
+      kick: [[0, 'Peut revenir tout de suite'], [60, '1 heure'], [1440, '24 heures'], [10080, '1 semaine']],
+      exclusion: [[1440, '24 heures'], [2880, '48 heures'], [4320, '72 heures'], [10080, '1 semaine']],
+      ban: [[10080, '1 semaine'], [43200, '1 mois'], [525600, '1 an'], [0, 'Définitif']],
+    };
     let type = 'warn';
-    const duration = el('select', { class: 'input' }, ...[[5, '5 minutes'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 heure'], [180, '3 heures'], [1440, '24 heures'], [10080, '7 jours']]
-      .map(([v, l]) => el('option', { value: v, selected: v === 15 }, l)));
+    const duration = el('select', { class: 'input' });
     const durField = el('div', { class: 'field hidden' }, el('label', {}, 'Durée'), duration);
     const reason = el('textarea', { class: 'input', rows: 3, maxlength: 200, placeholder: 'Explique pourquoi (la personne le verra)' });
     const err = el('div', { class: 'error' });
     const typeRow = el('div', { class: 'choice-row' });
     const drawTypes = () => {
       typeRow.replaceChildren(...TYPES.map(([v, l]) => el('button', { type: 'button', class: 'choice' + (type === v ? ' active' : ''), onclick: () => { type = v; drawTypes(); } }, l)));
-      durField.classList.toggle('hidden', type !== 'mute');
+      // Les modérateurs n'ont pas le choix de la durée (sauf pour le muet)
+      const show = type === 'mute' || (!isMod && CHOICES[type]);
+      durField.classList.toggle('hidden', !show);
+      if (show) duration.replaceChildren(...CHOICES[type].map(([v, l], i) => el('option', { value: v, selected: type === 'mute' ? v === 15 : i === 0 }, l)));
     };
     drawTypes();
     const back = el('div', { class: 'modal-back', onclick: e => { if (e.target === back) back.remove(); } });
     back.append(el('div', { class: 'card modal' },
       el('h3', {}, '🛡️ Sanctionner ' + u.username),
+      isMod ? el('p', { class: 'help', style: 'margin:-4px 0 10px' }, `Tu es ${L.label} : les durées de ton niveau s'appliquent.`) : null,
       el('div', { class: 'field' }, el('label', {}, 'Type de sanction'), typeRow),
       durField,
       el('div', { class: 'field' }, el('label', {}, 'Raison'),
@@ -241,11 +284,11 @@ window.LC = {
           if (type === 'warn' && !r) { err.textContent = 'Indique la raison de l\'avertissement'; return; }
           try {
             if (type === 'warn') await LC.api(`/api/admin/users/${u.id}/warn`, { method: 'POST', body: { reason: r } });
-            if (type === 'mute') await LC.api(`/api/admin/users/${u.id}/mute`, { method: 'POST', body: { minutes: parseInt(duration.value, 10), reason: r } });
-            if (type === 'kick') await LC.api(`/api/admin/users/${u.id}/kick`, { method: 'POST', body: { reason: r } });
-            if (type === 'ban') {
-              if (!confirm(`Bannir ${u.username} ? Il ne pourra plus se connecter.`)) return;
-              await LC.api(`/api/admin/users/${u.id}`, { method: 'PATCH', body: { banned: true, banReason: r } });
+            else if (type === 'mute') await LC.api(`/api/admin/users/${u.id}/mute`, { method: 'POST', body: { minutes: parseInt(duration.value, 10), reason: r } });
+            else {
+              const min = isMod ? L[type] : parseInt(duration.value, 10);
+              if (type === 'ban' && !confirm(`Bannir ${u.username} ${min ? 'pendant ' + LC.dur(min) : 'définitivement'} ?`)) return;
+              await LC.api(`/api/admin/users/${u.id}/sanction`, { method: 'POST', body: { type, minutes: min, reason: r } });
             }
             back.remove();
             say(`✅ Sanction appliquée à ${u.username} (notifié)`);
@@ -258,7 +301,7 @@ window.LC = {
     if (u.role === 'moderation') return LC.el('span', { class: 'badge moderator' }, 'Équipe');
     if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');
     if (u.role === 'admin') return LC.el('span', { class: 'badge admin' }, 'Admin');
-    if (u.role === 'moderator') return LC.el('span', { class: 'badge moderator' }, 'Modo');
+    if (u.role === 'moderator') { const l = u.modLevel || 1; return LC.el('span', { class: 'badge moderator mod' + l, title: LC.MOD_LEVELS[l].label }, 'Modo ' + l); }
     if (u.isGuest) return LC.el('span', { class: 'badge guest' }, 'Invité');
     return null;
   },

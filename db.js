@@ -131,6 +131,10 @@ addColumn('users', 'ghost_anon', 'INTEGER NOT NULL DEFAULT 0');
   addColumn('users', 'avatar_ok', 'INTEGER NOT NULL DEFAULT 0');
   addColumn('users', 'avatar_pending', "TEXT NOT NULL DEFAULT ''");
   if (!hadPhoto) db.prepare("UPDATE users SET avatar_ok=1 WHERE avatar<>''").run(); // les photos déjà en ligne sont considérées vérifiées
+  // Niveaux de modérateur (1, 2, 3) et sanctions à durée limitée
+  addColumn('users', 'mod_level', 'INTEGER NOT NULL DEFAULT 1');
+  addColumn('users', 'ban_until', 'INTEGER NOT NULL DEFAULT 0');   // 0 = jusqu'à ce qu'on le lève
+  addColumn('users', 'ban_kind', "TEXT NOT NULL DEFAULT 'ban'");   // kick (expulsion), exclusion ou ban
 }
 addColumn('users', 'birth_day', 'INTEGER DEFAULT 0');
 addColumn('users', 'birth_month', 'INTEGER DEFAULT 0');
@@ -148,6 +152,18 @@ addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 db.exec(`
+CREATE TABLE IF NOT EXISTS mod_applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  motivation TEXT NOT NULL DEFAULT '',
+  availability TEXT NOT NULL DEFAULT '',
+  experience TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  decided_by TEXT NOT NULL DEFAULT '',
+  decided_at INTEGER NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS staff_codes (
   code TEXT PRIMARY KEY,
   role TEXT NOT NULL,
@@ -406,7 +422,7 @@ function setSetting(key, value) {
 }
 // ---------- Journal de tout ce qui se passe sur le site ----------
 const LOG_CATEGORIES = {
-  moderation: ['staff_code', 'admin_login', 'modbot', 'photo_ok', 'photo_refused', 'screenshot', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
+  moderation: ['application', 'staff_code', 'admin_login', 'modbot', 'photo_ok', 'photo_refused', 'screenshot', 'verify', 'unverify', 'customs', 'ban', 'unban', 'mute', 'unmute', 'warn', 'kick', 'delete_user', 'profile_reset', 'role', 'broadcast', 'report_open', 'report_closed'],
   messages: ['message_delete', 'room_clear'],
   accounts: ['register', 'login', 'logout', 'guest', 'admin_auto', 'profile_update', 'account_limit', 'birthday'],
   rooms: ['room_create', 'room_edit', 'room_delete', 'room_kick', 'room_invite', 'room_private', 'room_background'],

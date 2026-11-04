@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, photos, messages, rooms, radios, settings, site, backups, logs };
+const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, settings, site, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -89,16 +89,20 @@ async function users() {
     const self = u.id === me.id;
     const canAct = !self && (isSuper() || LC.rank(me) > LC.rank(u));
     const muted = u.mutedUntil && u.mutedUntil > Date.now();
-    const status = u.banned ? el('span', { class: 'status-ban', title: u.banReason }, '⛔ Banni')
+    const status = u.banned ? el('span', { class: 'status-ban', title: u.banReason }, ({ kick: '👢 Expulsé', exclusion: '🚪 Exclu', ban: '⛔ Banni' }[u.banKind] || '⛔ Banni') + (u.banUntil ? ' jusqu\'au ' + LC.date(u.banUntil) : ''))
       : u.online ? el('span', { class: 'status-on' }, '🟢 En ligne') : el('span', { style: 'color:var(--muted)' }, 'Hors ligne');
     // Le super-admin peut donner tous les rôles ; un admin seulement membre / modérateur
     const assignable = isSuper() ? LC.ROLES : LC.ROLES.filter(r => LC.ROLES.indexOf(r) < LC.rank(me));
+    // Les modérateurs ont 3 niveaux : « moderator:1 », « moderator:2 », « moderator:3 »
+    const opts = assignable.flatMap(r => (r === 'moderator' ? [1, 2, 3].map(l => ['moderator:' + l, LC.MOD_LEVELS[l].label]) : [[r, roleLabel(r)]]));
+    const cur = u.role === 'moderator' ? 'moderator:' + (u.modLevel || 1) : u.role;
     const role = isAdmin() && canAct && !u.isGuest
-      ? el('select', { class: 'input', style: 'padding:6px 8px;width:auto', onchange: async e => {
-        if (e.target.value === 'superadmin' && !confirm(`Donner le rôle SUPER-ADMIN à ${u.username} ? Il pourra tout modifier sur le site, y compris toi.`)) { e.target.value = u.role; return; }
-        await run(() => api('/api/admin/users/' + u.id, { method: 'PATCH', body: { role: e.target.value } }), 'Rôle modifié (notifié)').catch(() => {}); load();
-      } }, ...assignable.map(r => el('option', { value: r, selected: u.role === r }, roleLabel(r))))
-      : el('span', {}, u.isGuest ? 'Invité' : roleLabel(u.role));
+      ? el('select', { class: 'input', style: 'padding:6px 8px;width:auto;border-left:4px solid ' + (LC.roleColor(u) || 'var(--line)'), onchange: async e => {
+        if (e.target.value === 'superadmin' && !confirm(`Donner le rôle SUPER-ADMIN à ${u.username} ? Il pourra tout modifier sur le site, y compris toi.`)) { e.target.value = cur; return; }
+        const [r, l] = e.target.value.split(':');
+        await run(() => api('/api/admin/users/' + u.id, { method: 'PATCH', body: { role: r, modLevel: l ? parseInt(l, 10) : undefined } }), 'Rôle modifié (notifié)').catch(() => {}); load();
+      } }, ...opts.map(([v, l]) => el('option', { value: v, selected: v === cur }, l)))
+      : el('span', { style: 'color:' + (LC.roleColor(u) || 'inherit') }, u.isGuest ? 'Invité' : LC.roleName(u));
     return el('tr', {},
       el('td', {}, el('div', { style: 'display:flex;gap:10px;align-items:center' }, LC.avatar(u), el('div', {}, el('b', {}, u.username), ' ', LC.badge(u),
         el('div', { style: 'color:var(--muted);font-size:.78rem' }, 'Vu : ' + LC.date(u.lastSeen)),
@@ -159,6 +163,36 @@ async function photos() {
       : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo à vérifier pour le moment.')));
 }
 function setPhotoBadge(n) { const b = document.getElementById('navPhotos'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
+
+// ---------- Candidatures de modérateur (admins) ----------
+async function applications() {
+  const d = await api('/api/admin/applications');
+  setAppsBadge(d.applications.filter(a => a.status === 'pending').length);
+  const STATUS = { pending: '⏳ En attente', accepted: '✅ Acceptée', refused: '❌ Refusée' };
+  const card = a => {
+    const level = el('select', { class: 'input', style: 'width:auto;padding:6px 8px' }, ...[1, 2, 3].map(l => el('option', { value: l }, LC.MOD_LEVELS[l].label)));
+    const note = el('input', { class: 'input', maxlength: 300, placeholder: 'Message pour la personne (facultatif)' });
+    const decide = async accept => {
+      await run(() => api('/api/admin/applications/' + a.id, { method: 'POST', body: { accept, level: parseInt(level.value, 10), note: note.value } }), accept ? `${a.username} est maintenant ${LC.MOD_LEVELS[level.value].label}` : 'Candidature refusée');
+      applications();
+    };
+    return el('div', { class: 'panel app-card' + (a.status === 'pending' ? ' pending' : '') },
+      el('div', { class: 'app-head' }, el('b', { style: 'color:' + (a.color || 'inherit') }, a.username),
+        el('span', { class: 'help' }, ` · ${a.age || '?'} ans · membre depuis le ${LC.date(a.memberSince)} · demande du ${LC.date(a.createdAt)}`),
+        el('span', { class: 'app-status' }, STATUS[a.status])),
+      el('div', { class: 'app-field' }, el('small', {}, 'Motivation'), el('p', {}, a.motivation)),
+      a.availability ? el('div', { class: 'app-field' }, el('small', {}, 'Disponibilités'), el('p', {}, a.availability)) : null,
+      a.experience ? el('div', { class: 'app-field' }, el('small', {}, 'Expérience'), el('p', {}, a.experience)) : null,
+      a.status === 'pending'
+        ? el('div', { class: 'actions', style: 'margin-top:10px;align-items:center' }, level, note,
+          el('button', { class: 'btn btn-sm btn-primary', onclick: () => decide(true) }, '✅ Accepter'),
+          el('button', { class: 'btn btn-sm btn-danger', onclick: () => decide(false) }, '❌ Refuser'))
+        : el('p', { class: 'help' }, `Traitée par ${a.decidedBy} le ${LC.date(a.decidedAt)}${a.note ? ' : « ' + a.note + ' »' : ''}`));
+  };
+  page.replaceChildren(...header('🙋 Candidatures de modérateur', 'Les membres peuvent proposer leur candidature 2 fois par an. Choisis le niveau (Modérateur 1, 2 ou 3) avant d\'accepter.'),
+    d.applications.length ? el('div', {}, ...d.applications.map(card)) : el('div', { class: 'panel' }, el('p', { class: 'empty' }, 'Aucune candidature pour le moment.')));
+}
+function setAppsBadge(n) { const b = document.getElementById('navApps'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
 
 // ---------- Signalements ----------
 async function reports() {
@@ -490,7 +524,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', screenshot: '📸 Capture d\'écran', photo_ok: '📸 Photo vérifiée', photo_refused: '📸 Photo refusée', modbot: '🛡️ ModoBot', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', application: '🙋 Candidature', screenshot: '📸 Capture d\'écran', photo_ok: '📸 Photo vérifiée', photo_refused: '📸 Photo refusée', modbot: '🛡️ ModoBot', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;
@@ -592,7 +626,7 @@ function showAdminLogin() {
 (async () => {
   try {
     const d = await api('/api/admin/stats');
-    me = d.me;
+    me = d.me; LC.me = me;
   } catch (e) {
     document.getElementById('nav').classList.add('hidden');
     document.querySelector('.admin-layout').classList.add('locked');
@@ -600,6 +634,7 @@ function showAdminLogin() {
     return;
   }
   api('/api/admin/photos').then(d => setPhotoBadge(d.photos.length)).catch(() => {});
+  if (isAdmin()) api('/api/admin/applications').then(d => setAppsBadge(d.applications.filter(a => a.status === 'pending').length)).catch(() => {});
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());
   if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());
   go();

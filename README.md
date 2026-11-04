@@ -32,8 +32,14 @@ Variables d'environnement facultatives :
 |------|-----------|
 | **Super-admin** | **Tout** (+ mode fantôme 👻 et adresses IP dans les logs) : nom du site, textes de l'accueil, couleurs, pages Histoire et Règlement, limite de comptes, nommer / retirer des admins et d'autres super-admins, sanctionner n'importe qui, plus tout ce que font les admins |
 | **Admin** | Salons officiels, radios, réglages, nommer des modérateurs, sanctionner les modérateurs et les membres |
-| **Modérateur** | Sanctionner les membres, signalements, messages, journal |
+| **Modérateur 3** 🟠 | Avertir, rendre muet, **expulser 1 semaine**, **exclure 72 h**, **bannir 1 an** |
+| **Modérateur 2** 🔵 (bleu foncé) | Avertir, rendre muet, **expulser 1 h**, **exclure 48 h**, **bannir 1 mois** |
+| **Modérateur 1** 🔹 (bleu clair) | Avertir, rendre muet, **expulser (peut revenir tout de suite)**, **exclure 24 h**, **bannir 1 semaine** |
 | **Membre** | Utiliser le chat, créer ses salons |
+
+Les admins et super-admins sont en **rouge** et choisissent librement la durée des sanctions (jusqu'au bannissement définitif). Le niveau d'un modérateur se choisit dans Admin → Utilisateurs. Les sanctions avec une durée se lèvent toutes seules à la fin.
+
+**Équipe visible par tous** : un bandeau en haut du chat montre la modération en ligne avec la couleur de chacun ; il ouvre la liste complète de l'équipe et le pouvoir de chaque niveau. Les membres peuvent y proposer leur **candidature pour devenir modérateur (2 demandes par an)** ; les admins les acceptent (en choisissant le niveau) ou les refusent dans Admin → Candidatures.
 
 ## Fonctionnalités
 

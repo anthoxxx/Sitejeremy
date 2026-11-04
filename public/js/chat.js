@@ -355,6 +355,7 @@ function addBubble(m) {
 
 // ---------- Utilisateurs connectés ----------
 function renderUsers() {
+  if (typeof Team !== 'undefined') Team.renderBar();
   const q = $('userSearch').value.trim().toLowerCase();
   let users = state.online.filter(u => !state.blocked.has(u.id));
   $('onlineCount').textContent = state.online.filter(u => !u.ghost).length;
@@ -451,6 +452,7 @@ function toggleUserMenu() {
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     item('🎮', 'Mini-jeux', () => Hub.open()),
+    item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     el('div', { class: 'um-sep' }),

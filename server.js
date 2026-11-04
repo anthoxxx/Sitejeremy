@@ -93,6 +93,7 @@ function publicUser(u) {
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
     verified: isVerified(u),
     validated: customsOn() && isVerified(u), // badge ✓ « Validé » à côté de la photo
+    modLevel: u.role === 'moderator' ? modLevel(u) : 0,
     voiceOk: !!u.voice_ok || isStaff(u), camOk: !!u.cam_ok || isStaff(u), // badges de la douane 🎙️ 📷
     photoOk: !!u.avatar && !!u.avatar_ok, // badge V : photo de profil vérifiée par le staff
     refused: !!u.refused && !isVerified(u),
@@ -106,10 +107,10 @@ function selfUser(u) {
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
-  return { ...selfUser(u), banned: !!u.banned, banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
+  return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+const miniUser = u => ({ modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -172,10 +173,33 @@ function tooMany(key, limit = 10, windowMs = 10 * 60 * 1000) {
 }
 
 // ---------- Middlewares ----------
+// ---------- Niveaux de modérateur ----------
+// Chaque niveau a ses durées fixes (en minutes) ; 0 pour l'expulsion = la personne peut revenir tout de suite
+const MOD_LEVELS = {
+  1: { label: 'Modérateur 1', color: '#7cc8ff', kick: 0, exclusion: 24 * 60, ban: 7 * 24 * 60 },
+  2: { label: 'Modérateur 2', color: '#2457c5', kick: 60, exclusion: 48 * 60, ban: 30 * 24 * 60 },
+  3: { label: 'Modérateur 3', color: '#ff8a1f', kick: 7 * 24 * 60, exclusion: 72 * 60, ban: 365 * 24 * 60 },
+};
+const modLevel = u => Math.min(3, Math.max(1, parseInt(u?.mod_level, 10) || 1));
+const SANCTION_FR = { kick: 'expulsé', exclusion: 'exclu', ban: 'banni' };
+// Sanction en cours (expulsion avec délai, exclusion ou bannissement) ; levée toute seule quand le délai est passé
+function banBlock(u) {
+  if (!u || !u.banned) return null;
+  if (u.ban_until && u.ban_until <= Date.now()) {
+    db.prepare("UPDATE users SET banned=0, ban_until=0, ban_reason='' WHERE id=?").run(u.id);
+    u.banned = 0;
+    return null;
+  }
+  const word = SANCTION_FR[u.ban_kind] || 'banni';
+  const until = u.ban_until ? ` jusqu'au ${new Date(u.ban_until).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' })}` : ' définitivement';
+  return `Tu es ${word}${until}${u.ban_reason ? ' : ' + u.ban_reason : ''}`;
+}
+
 function auth(req, res, next) {
   const u = userFromToken(req.cookies[COOKIE]);
   if (!u) return res.status(401).json({ error: 'Non connecté' });
-  if (u.banned) return res.status(403).json({ error: 'Compte banni : ' + (u.ban_reason || 'aucune raison donnée') });
+  const block = banBlock(u);
+  if (block) return res.status(403).json({ error: block });
   req.user = u;
   next();
 }
@@ -207,7 +231,7 @@ app.post('/api/register', (req, res) => {
   const err = validateProfile(req.body);
   if (err) return res.status(400).json({ error: err });
   const existing = getUserByName(username);
-  if (existing && (existing.banned || !(existing.is_guest && !online.has(existing.id)))) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
+  if (existing && (banBlock(existing) || !(existing.is_guest && !online.has(existing.id)))) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
   if (existing) deleteUserRecord(existing);
 
   const maxAccounts = parseInt(getSettings().maxAccounts, 10) || 0;
@@ -238,7 +262,8 @@ app.post('/api/login', (req, res) => {
     if (u && !u.is_guest) log(u, 'login', 'Échec de connexion (mauvais mot de passe)', { ip: req.ip });
     return res.status(401).json({ error: 'Pseudo ou mot de passe incorrect' });
   }
-  if (u.banned) return res.status(403).json({ error: 'Compte banni : ' + (u.ban_reason || 'aucune raison donnée') });
+  const block = banBlock(u);
+  if (block) return res.status(403).json({ error: block });
   // Le pseudo indiqué dans ADMIN_USER (réglage du serveur) redevient super-admin à la connexion
   if (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === u.username.toLowerCase() && u.role !== 'superadmin') {
     db.prepare("UPDATE users SET role='superadmin', verified=1 WHERE id=?").run(u.id);
@@ -262,7 +287,7 @@ app.post('/api/guest', (req, res) => {
   if (existing) {
     if (!existing.is_guest) return res.status(409).json({ error: 'Ce pseudo appartient à un membre inscrit' });
     if (online.has(existing.id)) return res.status(409).json({ error: 'Ce pseudo est déjà utilisé en ce moment' });
-    if (existing.banned) return res.status(403).json({ error: 'Ce pseudo est banni' });
+    if (banBlock(existing)) return res.status(403).json({ error: 'Ce pseudo est sanctionné : ' + banBlock(existing).replace(/^Tu es /, '') });
     deleteUserRecord(existing);
   }
   const info = db.prepare(`INSERT INTO users (username,gender,age,city,color,is_guest,created_at,last_seen)
@@ -1178,6 +1203,47 @@ function panelLogin(req, res) {
   res.json({ user: publicUser(u), panel: true });
 }
 
+// ---------- Équipe de modération (visible par tous) et candidatures ----------
+app.get('/api/team', auth, (req, res) => {
+  const rows = db.prepare("SELECT * FROM users WHERE role IN ('moderator','admin','superadmin') AND banned=0 AND panel=0").all();
+  const order = u => (u.role === 'superadmin' ? 0 : u.role === 'admin' ? 1 : 5 - modLevel(u));
+  const team = rows.sort((a, b) => order(a) - order(b) || a.username.localeCompare(b.username))
+    .map(u => ({ ...publicUser(u), online: visibleOnline(u.id, req.user) }));
+  const lastYear = now() - 365 * 24 * 3600 * 1000;
+  const mine = db.prepare('SELECT status, created_at FROM mod_applications WHERE user_id=? AND created_at>? ORDER BY created_at').all(req.user.id, lastYear);
+  res.json({
+    team,
+    levels: MOD_LEVELS,
+    apply: {
+      used: mine.length, max: 2,
+      pending: mine.some(a => a.status === 'pending'),
+      nextAt: mine.length >= 2 ? mine[0].created_at + 365 * 24 * 3600 * 1000 : 0,
+      allowed: !req.user.is_guest && isVerified(req.user) && !isStaff(req.user),
+    },
+  });
+});
+// Candidature pour devenir modérateur : 2 demandes maximum par an
+app.post('/api/team/apply', auth, (req, res) => {
+  const u = req.user;
+  if (u.is_guest) return res.status(403).json({ error: 'Inscris-toi pour proposer ta candidature' });
+  if (!isVerified(u)) return res.status(403).json({ error: NOT_VERIFIED });
+  if (isStaff(u)) return res.status(400).json({ error: 'Tu fais déjà partie de l\'équipe' });
+  const lastYear = now() - 365 * 24 * 3600 * 1000;
+  const mine = db.prepare('SELECT status, created_at FROM mod_applications WHERE user_id=? AND created_at>? ORDER BY created_at').all(u.id, lastYear);
+  if (mine.some(a => a.status === 'pending')) return res.status(400).json({ error: 'Ta demande est déjà en cours d\'examen' });
+  if (mine.length >= 2) {
+    const next = new Date(mine[0].created_at + 365 * 24 * 3600 * 1000).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+    return res.status(400).json({ error: `Tu as déjà fait 2 demandes cette année. Prochaine demande possible le ${next}.` });
+  }
+  const motivation = cleanMultiline(req.body.motivation, 1000);
+  if (motivation.length < 30) return res.status(400).json({ error: 'Explique ta motivation (30 caractères minimum)' });
+  db.prepare('INSERT INTO mod_applications (user_id, motivation, availability, experience, created_at) VALUES (?,?,?,?,?)')
+    .run(u.id, motivation, clean(req.body.availability, 200), cleanMultiline(req.body.experience, 600), now());
+  log(u, 'application', `🙋 Candidature pour devenir modérateur (${mine.length + 1}/2 cette année)`);
+  for (const [id, e] of online) if (isAdminRole(e.user)) emitToUser(id, 'staff_alert', { text: `🙋 ${u.username} propose sa candidature pour devenir modérateur`, url: '/admin#applications' });
+  res.json({ ok: true, used: mine.length + 1 });
+});
+
 // ---------- Notifications ----------
 app.get('/api/notifications', auth, (req, res) => {
   const rows = db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 40').all(req.user.id);
@@ -1270,12 +1336,16 @@ admin.patch('/users/:id', (req, res) => {
     if (!ROLES.includes(req.body.role)) return res.status(400).json({ error: 'Rôle invalide' });
     if (!isSuper(req.user) && ROLES.indexOf(req.body.role) >= rank(req.user)) return res.status(403).json({ error: 'Seul le super-admin peut nommer des administrateurs' });
     if (target.is_guest && req.body.role !== 'user') return res.status(400).json({ error: 'Un invité ne peut pas être promu' });
-    db.prepare('UPDATE users SET role=? WHERE id=?').run(req.body.role, target.id);
-    const ROLE_FR = { superadmin: 'super-admin', admin: 'admin', moderator: 'modérateur', user: 'membre' };
-    log(req.user, 'role', `${target.username} : ${ROLE_FR[target.role] || target.role} → ${ROLE_FR[req.body.role]}`);
+    const lvl = Math.min(3, Math.max(1, parseInt(req.body.modLevel, 10) || modLevel(target)));
+    db.prepare('UPDATE users SET role=?, mod_level=? WHERE id=?').run(req.body.role, lvl, target.id);
+    const ROLE_FR = { superadmin: 'super-admin', admin: 'admin', moderator: 'modérateur ' + lvl, user: 'membre' };
+    log(req.user, 'role', `${target.username} : ${target.role === 'moderator' ? 'modérateur ' + modLevel(target) : { superadmin: 'super-admin', admin: 'admin', user: 'membre' }[target.role] || target.role} → ${ROLE_FR[req.body.role]}`);
+    if (req.body.role === 'moderator' && target.role === 'moderator' && lvl !== modLevel(target)) {
+      notify(target.id, { type: 'role', icon: '🎖️', title: `Tu es maintenant ${MOD_LEVELS[lvl].label}`, text: modPowers(lvl) });
+    }
     if (req.body.role !== target.role) {
       const up = ROLES.indexOf(req.body.role) > ROLES.indexOf(target.role);
-      const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: 'modérateur', user: 'membre' }[req.body.role];
+      const label = { superadmin: 'super-administrateur', admin: 'administrateur', moderator: MOD_LEVELS[lvl].label.toLowerCase(), user: 'membre' }[req.body.role];
       notify(target.id, up
         ? { type: 'role', icon: '🎖️', title: `Tu es maintenant ${label} !`, text: 'Merci de t\'impliquer dans la communauté. Le panneau 🛡️ Admin est accessible en haut du chat.' }
         : { type: 'role', icon: '🎖️', title: `Ton rôle a changé : ${label}`, text: 'Ton rôle dans l\'équipe a été modifié par un administrateur.' });
@@ -1283,8 +1353,9 @@ admin.patch('/users/:id', (req, res) => {
   }
   if (req.body.banned !== undefined) {
     const banned = req.body.banned ? 1 : 0;
+    if (banned && !isAdminRole(req.user)) return res.status(403).json({ error: 'Les modérateurs sanctionnent avec les durées de leur niveau' });
     const reason = clean(req.body.banReason, 200);
-    db.prepare('UPDATE users SET banned=?, ban_reason=? WHERE id=?').run(banned, banned ? reason : '', target.id);
+    db.prepare("UPDATE users SET banned=?, ban_reason=?, ban_until=0, ban_kind='ban' WHERE id=?").run(banned, banned ? reason : '', target.id);
     log(req.user, banned ? 'ban' : 'unban', `${target.username}${reason ? ' : ' + reason : ''}`);
     if (banned) {
       notify(target.id, { type: 'ban', icon: '⛔', title: 'Tu as été banni du chat', text: reasonText(reason), important: true });
@@ -1328,6 +1399,47 @@ admin.post('/users/:id/warn', (req, res) => {
   log(req.user, 'warn', `${target.username} : ${reason}`);
   notify(target.id, { type: 'warn', icon: '⚠️', title: 'Avertissement de la modération', text: `${reasonText(reason)} En cas de récidive, une sanction pourra être appliquée.`, important: true });
   res.json({ ok: true });
+});
+
+// Ce que peut faire un modérateur de ce niveau (texte pour les notifications et l'aide)
+function modPowers(lvl) {
+  const L = MOD_LEVELS[lvl];
+  return `Tes sanctions : expulsion ${L.kick ? '(' + fmtDuration(L.kick) + ' sans revenir)' : '(la personne peut revenir)'}, exclusion ${fmtDuration(L.exclusion)}, bannissement ${fmtDuration(L.ban)}. Le panneau 🛡️ Admin est accessible en haut du chat.`;
+}
+// Expulsion, exclusion ou bannissement. Un modérateur applique les durées de son niveau ;
+// un admin choisit la durée (0 = bannissement définitif).
+admin.post('/users/:id/sanction', (req, res) => {
+  const target = getUser(req.params.id);
+  if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
+  const type = String(req.body.type || '');
+  if (!['kick', 'exclusion', 'ban'].includes(type)) return res.status(400).json({ error: 'Sanction inconnue' });
+  let minutes;
+  if (req.user.role === 'moderator') minutes = MOD_LEVELS[modLevel(req.user)][type];
+  else {
+    minutes = Math.max(0, parseInt(req.body.minutes, 10) || 0);
+    if (minutes > 525600 * 5) minutes = 525600 * 5;
+    if (!minutes && type === 'exclusion') minutes = 24 * 60;
+  }
+  const reason = clean(req.body.reason, 200);
+  const word = SANCTION_FR[type];
+  if (type === 'kick' && !minutes) {
+    // Expulsion simple : la personne peut revenir tout de suite
+    log(req.user, 'kick', `${target.username}${reason ? ' : ' + reason : ''}`);
+    notify(target.id, { type: 'kick', icon: '👢', title: 'Tu as été expulsé du chat', text: `${reasonText(reason)} Tu peux te reconnecter, mais respecte les règles.` });
+    db.prepare('DELETE FROM sessions WHERE user_id=?').run(target.id);
+    disconnectUser(target.id, 'kicked', reason || 'Tu as été expulsé du chat par la modération');
+    return res.json({ ok: true, minutes: 0 });
+  }
+  const until = minutes ? now() + minutes * 60000 : 0;
+  db.prepare('UPDATE users SET banned=1, ban_until=?, ban_kind=?, ban_reason=? WHERE id=?').run(until, type, reason, target.id);
+  const dur = minutes ? fmtDuration(minutes) : 'définitivement';
+  log(req.user, type === 'ban' ? 'ban' : 'kick', `${target.username} ${word} ${dur}${reason ? ' : ' + reason : ''}`);
+  const icon = { kick: '👢', exclusion: '🚪', ban: '⛔' }[type];
+  notify(target.id, { type: type === 'ban' ? 'ban' : 'kick', icon, title: `Tu as été ${word} ${minutes ? 'pour ' + dur : dur}`, text: `${reasonText(reason)}${until ? ' Tu pourras revenir le ' + new Date(until).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) + '.' : ''}`, important: true });
+  db.prepare('DELETE FROM sessions WHERE user_id=?').run(target.id);
+  disconnectUser(target.id, type === 'ban' ? 'banned' : 'kicked', banBlock(getUser(target.id)) || `Tu as été ${word}`);
+  emitToStaff('staff_alert', { text: `${icon} ${target.username} ${word} ${dur} par ${displayName(req.user)}` });
+  res.json({ ok: true, minutes });
 });
 
 admin.post('/users/:id/kick', (req, res) => {
@@ -1451,6 +1563,33 @@ admin.patch('/reports/:id', (req, res) => {
   log(req.user, 'report_' + status, `#${rep.id}`);
   if (status === 'closed' && rep.status === 'open' && rep.reporter_id)
     notify(rep.reporter_id, { type: 'report_done', icon: '🛡️', title: 'Ton signalement a été traité', text: `Merci ! La modération a examiné ton signalement${rep.target ? ' concernant ' + rep.target : ''}.` });
+  res.json({ ok: true });
+});
+
+// Candidatures de modérateur (admins)
+admin.get('/applications', requireRole('admin'), (req, res) => {
+  const rows = db.prepare(`SELECT a.*, u.username, u.color, u.age, u.gender, u.created_at user_created, u.role FROM mod_applications a JOIN users u ON u.id=a.user_id
+    ORDER BY a.status='pending' DESC, a.created_at DESC LIMIT 100`).all();
+  res.json({ applications: rows.map(a => ({ id: a.id, userId: a.user_id, username: a.username, color: a.color, age: a.age, gender: a.gender, memberSince: a.user_created, role: a.role,
+    motivation: a.motivation, availability: a.availability, experience: a.experience, status: a.status, decidedBy: a.decided_by, decidedAt: a.decided_at, note: a.note, createdAt: a.created_at })) });
+});
+admin.post('/applications/:id', requireRole('admin'), (req, res) => {
+  const a = db.prepare('SELECT * FROM mod_applications WHERE id=?').get(req.params.id);
+  if (!a || a.status !== 'pending') return res.status(404).json({ error: 'Candidature déjà traitée ou introuvable' });
+  const target = getUser(a.user_id);
+  if (!target) return res.status(404).json({ error: 'Compte introuvable' });
+  const accept = req.body.accept === true;
+  const note = clean(req.body.note, 300);
+  db.prepare('UPDATE mod_applications SET status=?, decided_by=?, decided_at=?, note=? WHERE id=?').run(accept ? 'accepted' : 'refused', req.user.username, now(), note, a.id);
+  if (accept) {
+    const lvl = Math.min(3, Math.max(1, parseInt(req.body.level, 10) || 1));
+    if (!isStaff(target)) db.prepare("UPDATE users SET role='moderator', mod_level=? WHERE id=?").run(lvl, target.id);
+    notify(target.id, { type: 'role', icon: '🎖️', title: `Candidature acceptée : tu es ${MOD_LEVELS[lvl].label} !`, text: modPowers(lvl) });
+    refreshOnline(getUser(target.id));
+  } else {
+    notify(target.id, { type: 'role', icon: '🙋', title: 'Ta candidature de modérateur n\'a pas été retenue', text: (note ? 'Message de l\'équipe : ' + note + ' ' : '') + 'Tu peux faire 2 demandes par an.' });
+  }
+  log(req.user, 'application', `Candidature de ${target.username} ${accept ? 'acceptée ✅' : 'refusée ❌'}${note ? ' : ' + note : ''}`);
   res.json({ ok: true });
 });
 
@@ -1597,7 +1736,7 @@ const BACKUP_DIR = path.join(dataDir, 'backups');
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const USER_FIELDS = ['username', 'password_hash', 'gender', 'age', 'city', 'bio', 'color', 'role', 'created_at', 'last_seen', 'banned', 'ban_reason',
   'banner_style', 'accent', 'name_effect', 'avatar_frame', 'status_emoji', 'status_text', 'interests', 'games', 'socials', 'show_age', 'show_city',
-  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner'];
+  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner', 'mod_level', 'ban_until', 'ban_kind'];
 function exportData() {
   const users = db.prepare('SELECT * FROM users WHERE is_guest=0 ORDER BY id').all().map(u => {
     const o = {};
@@ -1647,7 +1786,7 @@ admin.post('/backup/import', requireRole('superadmin'), (req, res) => {
       const role = ROLES.includes(raw.role) ? raw.role : 'user';
       // Les images ne sont pas dans le fichier : on garde le lien seulement si l'image existe encore sur ce serveur
       const img = v => (v && String(v).startsWith('/uploads/') && fs.existsSync(path.join(uploadDir, path.basename(v))) ? v : '');
-      const DEF = { gender: 'x', color: '#8b6cff', banned: 0, show_age: 1, show_city: 1, show_birthday: 1, birth_day: 0, birth_month: 0, interests: '[]', games: '[]', socials: '{}',
+      const DEF = { mod_level: 1, ban_until: 0, ban_kind: 'ban', gender: 'x', color: '#8b6cff', banned: 0, show_age: 1, show_city: 1, show_birthday: 1, birth_day: 0, birth_month: 0, interests: '[]', games: '[]', socials: '{}',
         banner_style: 'aurora', accent: '#ff5fa2', name_effect: 'none', avatar_frame: 'none', bio: '', city: '', ban_reason: '', status_emoji: '', status_text: '', device_id: '', signup_ip: '' };
       const vals = () => USER_FIELDS.map(k => {
         if (k === 'username') return name;
@@ -1788,6 +1927,9 @@ function notify(userId, { type, icon = '🔔', title, text = '', data = {}, impo
 }
 const reasonText = r => (r ? `Raison : ${r}` : 'Aucune raison précisée.');
 function fmtDuration(min) {
+  if (min > 0 && min % 525600 === 0) return `${min / 525600} an${min > 525600 ? 's' : ''}`;
+  if (min > 0 && min % 43200 === 0) return `${min / 43200} mois`;
+  if (min > 0 && min % 10080 === 0) return `${min / 10080} semaine${min > 10080 ? 's' : ''}`;
   if (min >= 1440 && min % 1440 === 0) return `${min / 1440} jour${min > 1440 ? 's' : ''}`;
   if (min >= 60 && min % 60 === 0) return `${min / 60} heure${min > 60 ? 's' : ''}`;
   return `${min} minute${min > 1 ? 's' : ''}`;
@@ -1874,7 +2016,7 @@ io.use((socket, next) => {
   const token = parseCookie(socket.handshake.headers.cookie)[COOKIE];
   const u = userFromToken(token);
   if (!u) return next(new Error('unauthorized'));
-  if (u.banned) return next(new Error('banned'));
+  if (banBlock(u)) return next(new Error('banned'));
   socket.data.userId = u.id;
   next();
 });
@@ -1915,7 +2057,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });

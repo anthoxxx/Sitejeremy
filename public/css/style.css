@@ -1205,3 +1205,33 @@ body.hub-open .modal-back { z-index: 260; }
 .conn-bad, .conn-wait { font-size: .8rem; }
 .turn-warn { border-color: rgba(255, 181, 71, .6); background: rgba(255, 181, 71, .1); }
 .conn-relay { font-size: .8rem; }
+
+/* ===== Couleurs de l'équipe : Modo 1 bleu clair, Modo 2 bleu foncé, Modo 3 orange, admins en rouge ===== */
+.badge.moderator.mod1 { background: #7cc8ff; color: #06263d; }
+.badge.moderator.mod2 { background: #2457c5; color: #fff; }
+.badge.moderator.mod3 { background: #ff8a1f; color: #2a1200; }
+.badge.admin { background: #e5384d; color: #fff; }
+.badge.superadmin { background: linear-gradient(135deg, #ff4d5e, #c5162d); color: #fff; box-shadow: 0 0 10px rgba(229, 56, 77, .5); }
+
+/* Bandeau « Modération en ligne » en haut du chat */
+.team-bar { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--line); background: var(--bg-2); font-size: .82rem; flex: none; overflow-x: auto; scrollbar-width: none; white-space: nowrap; cursor: pointer; }
+.team-bar::-webkit-scrollbar { display: none; }
+.team-bar .tb-title { font-weight: 800; color: var(--muted); }
+.team-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 3px; border-radius: 999px; background: var(--panel); border: 1px solid var(--tc, var(--line)); font-weight: 700; }
+.team-chip .avatar { width: 20px; height: 20px; font-size: .6rem; }
+.team-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tc); }
+.team-bar .tb-more { margin-left: auto; color: var(--rose); font-weight: 700; }
+/* Fenêtre « Équipe de modération » */
+.team-group h4 { margin: 14px 0 6px; display: flex; align-items: center; gap: 8px; }
+.team-group h4 .sw { width: 12px; height: 12px; border-radius: 4px; background: var(--tc); }
+.team-group .powers { font-size: .78rem; color: var(--muted); margin: -2px 0 6px; }
+.team-person { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 12px; background: var(--bg-2); margin-bottom: 4px; cursor: pointer; }
+.team-person .st { margin-left: auto; font-size: .76rem; color: var(--muted); }
+.team-person .st.on { color: var(--green); }
+.apply-box { margin-top: 16px; padding: 12px; border-radius: 14px; border: 1px dashed var(--line); background: var(--bg-2); }
+@media (max-width: 760px) { .team-bar { padding: 5px 10px; font-size: .78rem; } .team-bar .tb-title .lbl2 { display: none; } }
+.app-card.pending { border-color: rgba(255, 181, 71, .6); }
+.app-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.app-status { margin-left: auto; font-weight: 700; font-size: .85rem; }
+.app-field small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; font-weight: 700; }
+.app-field p { margin: 2px 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
