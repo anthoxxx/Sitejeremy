@@ -1235,3 +1235,7 @@ body.hub-open .modal-back { z-index: 260; }
 .app-status { margin-left: auto; font-weight: 700; font-size: .85rem; }
 .app-field small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; font-weight: 700; }
 .app-field p { margin: 2px 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.diag summary { cursor: pointer; font-weight: 800; }
+.diag-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+.diag-row:first-of-type { margin-top: 10px; }
+.diag-ico { flex: none; }

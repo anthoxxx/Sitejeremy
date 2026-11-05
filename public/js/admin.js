@@ -28,6 +28,25 @@ function go() {
 document.querySelectorAll('#nav [data-page]').forEach(x => x.onclick = () => { location.hash = x.dataset.page; });
 window.addEventListener('hashchange', go);
 
+// ---------- Diagnostic : ce que le site voit vraiment sur le serveur (admins) ----------
+function diagPanel(d) {
+  const t = d.turn;
+  const row = (ok, label, detail) => el('div', { class: 'diag-row' }, el('span', { class: 'diag-ico' }, ok === true ? '✅' : ok === false ? '❌' : '⏳'), el('div', {}, el('b', {}, label), detail ? el('div', { class: 'help' }, detail) : null));
+  const persistent = /^\/var\/|^\/data|^\/mnt\//.test(d.dataDir);
+  const turnOk = t.configured && t.ok !== false;
+  const rows = [
+    row(d.adminPassword, 'Mot de passe de l\'espace admin (ADMIN_PASSWORD)', d.adminPassword ? 'Bien reçu.' : 'Pas reçu : la connexion « admin » est désactivée.'),
+    row(persistent, 'Dossier des données (DATA_DIR)', persistent ? `${d.dataDir} : les données sont gardées.` : `${d.dataDir} : ⚠️ dossier du site, les données peuvent s'effacer à chaque mise à jour. Règle DATA_DIR = /var/data avec un disque.`),
+    row(t.cfKeyId, 'Relais vocal : CF_TURN_KEY_ID', t.cfKeyId ? 'Bien reçu.' : 'Pas reçu : vérifie le nom exact dans Environment.'),
+    row(t.cfToken, 'Relais vocal : CF_TURN_API_TOKEN', t.cfToken ? 'Bien reçu.' : 'Pas reçu : vérifie le nom exact dans Environment.'),
+    t.configured ? row(t.ok, 'Test du relais auprès de ' + (t.provider || 'Cloudflare'), t.ok === true ? 'Cloudflare accepte les codes : le vocal et la caméra passent partout.' : t.ok === false ? t.error : 'Pas encore testé (ça se fait au démarrage et au premier vocal).') : null,
+    d.oddNames.length ? row(false, 'Noms de réglages mal écrits', 'Corrige-les dans Environment : ' + d.oddNames.join(', ')) : null,
+  ];
+  return el('details', { class: 'panel diag' + (turnOk && persistent && d.adminPassword ? '' : ' turn-warn'), open: !(turnOk && persistent && d.adminPassword) },
+    el('summary', {}, turnOk && persistent && d.adminPassword ? '🔧 Diagnostic du serveur : tout est bon ✅' : '🔧 Diagnostic du serveur : quelque chose est à régler', el('small', { class: 'help' }, ` · version ${d.version}`)),
+    ...rows.filter(Boolean));
+}
+
 // ---------- Tableau de bord ----------
 async function dashboard() {
   const s = await api('/api/admin/stats');
@@ -37,8 +56,8 @@ async function dashboard() {
   const text = el('input', { class: 'input', maxlength: 300, placeholder: 'Message à envoyer à tous les connectés…' });
   page.replaceChildren(
     ...header('Tableau de bord', `Bonjour ${s.me.username} 👋 Voici l'activité de The Paradise.`),
-    s.turn ? '' : el('div', { class: 'panel turn-warn' }, el('b', {}, '⚠️ Vocal et appels : aucun serveur relais (TURN)'),
-      el('p', { class: 'help', style: 'margin:6px 0 0' }, 'Sans relais, les gens sur des réseaux différents (4G, box, entreprise) ne s\'entendent souvent pas. Ajoute un relais gratuit (Cloudflare ou Metered) dans les réglages de ton hébergeur : voir le README, partie « Vocal : serveur relais ».')),
+    s.diag ? diagPanel(s.diag) : s.turn ? '' : el('div', { class: 'panel turn-warn' }, el('b', {}, '⚠️ Vocal et appels : aucun serveur relais (TURN)'),
+      el('p', { class: 'help', style: 'margin:6px 0 0' }, 'Un administrateur peut régler un relais gratuit (Cloudflare) dans les réglages de l\'hébergeur.')),
     el('div', { class: 'kpis' },
       kpi('🟢 En ligne', s.online), kpi('👤 Membres', s.members), kpi('🎭 Invités', s.guests),
       kpi('✨ Nouveaux (24 h)', s.newToday), kpi('💬 Messages (24 h)', s.messagesToday), kpi('💌 Privés (24 h)', s.pmToday),

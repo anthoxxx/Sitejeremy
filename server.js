@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const { db, dataDir, getSettings, setSetting, log } = require('./db');
+const envText = v => String(v || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim(); // tolère les espaces et guillemets autour
 const uploadDir = path.join(dataDir, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -485,7 +486,6 @@ function celebrateBirthday(u) {
 
 app.get('/api/stats', (req, res) => {
   res.json({
-    turn: turnConfigured(),
     online: [...online.values()].filter(e => !e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
@@ -905,31 +905,64 @@ if (process.env.RADIO_CHECK !== '0') {
 //  - TURN_URL / TURN_USER / TURN_PASS : ton propre serveur (installé automatiquement sur un VPS IONOS)
 //  - CF_TURN_KEY_ID / CF_TURN_API_TOKEN : TURN de Cloudflare (gratuit jusqu'à un gros volume)
 //  - METERED_DOMAIN / METERED_API_KEY : TURN de Metered (offre gratuite)
+// Lecture tolérante des réglages : espaces, minuscules, tirets ou guillemets autour ne gênent pas
+const envKey = k => String(k).trim().toUpperCase().replace(/[\s-]+/g, '_');
+function envGet(name) {
+  if (process.env[name]) return envText(process.env[name]);
+  for (const [k, v] of Object.entries(process.env)) if (envKey(k) === name && v) return envText(v);
+  return '';
+}
+const turnEnv = () => ({
+  url: envGet('TURN_URL'), user: envGet('TURN_USER'), pass: envGet('TURN_PASS'),
+  cfId: envGet('CF_TURN_KEY_ID'), cfToken: envGet('CF_TURN_API_TOKEN'),
+  mDomain: envGet('METERED_DOMAIN'), mKey: envGet('METERED_API_KEY'),
+});
 let turnCache = { at: 0, servers: [] };
-async function remoteTurn() {
-  if (now() - turnCache.at < 3600 * 1000) return turnCache.servers;
-  let servers = [];
+let turnCheck = { at: 0, ok: null, error: '' }; // dernier essai auprès du relais (pour le diagnostic admin)
+async function remoteTurn(force = false) {
+  if (!force && now() - turnCache.at < 3600 * 1000) return turnCache.servers;
+  const t = turnEnv();
+  let servers = [], error = '';
   try {
-    if (process.env.CF_TURN_KEY_ID && process.env.CF_TURN_API_TOKEN) {
-      const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.CF_TURN_KEY_ID}/credentials/generate-ice-servers`, {
-        method: 'POST', headers: { Authorization: 'Bearer ' + process.env.CF_TURN_API_TOKEN, 'Content-Type': 'application/json' },
+    if (t.cfId && t.cfToken) {
+      const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(t.cfId)}/credentials/generate-ice-servers`, {
+        method: 'POST', headers: { Authorization: 'Bearer ' + t.cfToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ttl: 86400 }), signal: AbortSignal.timeout(6000) });
-      const d = await r.json();
+      if (!r.ok) error = `Cloudflare refuse les codes (erreur ${r.status}) : vérifie le Turn Token ID et l'API Token`;
+      const d = await r.json().catch(() => ({}));
       servers = Array.isArray(d.iceServers) ? d.iceServers : d.iceServers ? [d.iceServers] : [];
-    } else if (process.env.METERED_DOMAIN && process.env.METERED_API_KEY) {
-      const r = await fetch(`https://${process.env.METERED_DOMAIN}/api/v1/turn/credentials?apiKey=${encodeURIComponent(process.env.METERED_API_KEY)}`, { signal: AbortSignal.timeout(6000) });
-      const d = await r.json();
+    } else if (t.mDomain && t.mKey) {
+      const r = await fetch(`https://${t.mDomain}/api/v1/turn/credentials?apiKey=${encodeURIComponent(t.mKey)}`, { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) error = `Metered refuse la clé (erreur ${r.status})`;
+      const d = await r.json().catch(() => ({}));
       servers = Array.isArray(d) ? d : [];
-    }
-  } catch (e) { console.log('TURN : impossible d\'obtenir les accès —', e.message); }
+    } else return [];
+    if (!servers.length && !error) error = 'Réponse vide du relais';
+  } catch (e) { error = 'Relais injoignable : ' + e.message; }
+  if (error) console.log('TURN :', error);
+  turnCheck = { at: now(), ok: servers.length > 0, error };
   if (servers.length) turnCache = { at: now(), servers };
   return servers;
 }
-const turnConfigured = () => !!(process.env.TURN_URL || (process.env.CF_TURN_KEY_ID && process.env.CF_TURN_API_TOKEN) || (process.env.METERED_DOMAIN && process.env.METERED_API_KEY));
+const turnConfigured = () => { const t = turnEnv(); return !!(t.url || (t.cfId && t.cfToken) || (t.mDomain && t.mKey)); };
 if (!turnConfigured()) console.log('⚠️  Aucun serveur relais TURN : le vocal et les appels risquent de ne pas marcher entre certains réseaux (4G, box). Voir le README.');
+else setTimeout(() => remoteTurn(true).catch(() => {}), 3000).unref();
+// Diagnostic pour l'admin : ce que le site voit vraiment (jamais la valeur des codes secrets)
+function diagnostics() {
+  const t = turnEnv();
+  return {
+    version: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
+    dataDir, adminPassword: !!PANEL_HASH,
+    turn: { configured: turnConfigured(), provider: t.cfId || t.cfToken ? 'Cloudflare' : t.mDomain || t.mKey ? 'Metered' : t.url ? 'Serveur TURN' : '',
+      cfKeyId: !!t.cfId, cfToken: !!t.cfToken, mDomain: !!t.mDomain, mKey: !!t.mKey, url: !!t.url, ...turnCheck },
+    // Noms de réglages qui ressemblent à ceux attendus mais ne sont pas exactement pareils (fautes de frappe)
+    oddNames: Object.keys(process.env).filter(k => /TURN|ADMIN|DATA|METERED/i.test(k) && envKey(k) !== k).map(k => JSON.stringify(k)),
+  };
+}
 app.get('/api/ice', auth, async (req, res) => {
   const iceServers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
-  if (process.env.TURN_URL) iceServers.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USER, credential: process.env.TURN_PASS });
+  const t = turnEnv();
+  if (t.url) iceServers.push({ urls: t.url.split(','), username: t.user, credential: t.pass });
   iceServers.push(...await remoteTurn());
   res.json({ iceServers, relay: iceServers.length > 1 });
 });
@@ -1167,9 +1200,8 @@ function sendToCustoms(userId) {
 // ---------- Espace admin : connexion par identifiant + mot de passe ----------
 // L'identifiant (ADMIN_LOGIN, « admin » par défaut) et le mot de passe (ADMIN_PASSWORD) se règlent
 // sur le serveur : ils ne sont jamais écrits dans le code, qui est public.
-const envText = v => String(v || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim(); // tolère les espaces et guillemets autour
-const PANEL_USER = envText(process.env.ADMIN_LOGIN) || 'admin';
-const PANEL_PASS = envText(process.env.ADMIN_PASSWORD);
+const PANEL_USER = envGet('ADMIN_LOGIN') || 'admin';
+const PANEL_PASS = envGet('ADMIN_PASSWORD');
 const PANEL_HASH = PANEL_PASS ? bcrypt.hashSync(PANEL_PASS, 10) : null;
 if (!PANEL_HASH) console.log('⚠️  ADMIN_PASSWORD n\'est pas réglé : la connexion à l\'espace admin (/admin) est désactivée');
 const isPanelName = n => String(n || '').trim().toLowerCase() === PANEL_USER.toLowerCase();
@@ -1291,6 +1323,8 @@ admin.use(auth, requireRole('admin', 'moderator'));
 admin.get('/stats', (req, res) => {
   const day = now() - 24 * 3600 * 1000;
   res.json({
+    turn: turnConfigured(),
+    diag: isAdminRole(req.user) ? diagnostics() : null,
     online: [...online.values()].filter(e => !e.ghost).length,
     ghosts: [...online.values()].filter(e => e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
