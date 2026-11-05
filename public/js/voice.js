@@ -394,6 +394,7 @@ function renderVoice() {
   const r = state.currentRoom;
   const bar = $('voiceBar');
   const btn = $('headVoice');
+  renderVoiceMini();
   if (!r || state.view?.type !== 'room') { bar.classList.add('hidden'); return; }
   const parts = state.voice.get(r.slug) || [];
   const speakers = parts.filter(p => !p.listener), listeners = parts.filter(p => p.listener);
@@ -444,6 +445,36 @@ function renderVoice() {
     }), listenInfo),
     ctrl);
 }
+// Petite barre « tu es en vocal ailleurs » : le vocal reste connecté quand on change de salon ou qu'on ouvre un message privé
+function renderVoiceMini() {
+  const mini = $('voiceMini');
+  if (!mini) return;
+  const here = state.view?.type === 'room' && state.view.slug === Voice.slug;
+  if (!Voice.slug || here) { mini.classList.add('hidden'); return; }
+  const room = state.rooms.find(x => x.slug === Voice.slug);
+  const n = (state.voice.get(Voice.slug) || []).filter(p => !p.listener).length;
+  mini.classList.remove('hidden');
+  mini.replaceChildren(
+    el('span', { class: 'vm-dot' }),
+    el('button', { class: 'vm-where', title: 'Revenir au salon du vocal', onclick: () => joinRoom(Voice.slug) },
+      Voice.listening ? '🎧 Tu écoutes : ' : '🔊 En vocal : ', el('b', {}, room ? room.name : 'un salon'), el('small', {}, ` · ${n} en vocal`)),
+    Voice.listening ? null : el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: Voice.muted ? 'Rallumer le micro' : 'Couper le micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇' : '🎤'),
+    el('button', { class: 'btn btn-sm', title: 'Revenir au salon', onclick: () => joinRoom(Voice.slug) }, '↩'),
+    el('button', { class: 'btn btn-sm btn-danger', title: 'Quitter le vocal', onclick: () => Voice.leave() }, '📞'));
+}
+// Pendant un vocal ou un appel, les liens vers d'autres pages (Admin, Histoire…) s'ouvrent dans un nouvel onglet pour ne pas couper
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || a.target === '_blank' || e.defaultPrevented) return;
+  const busy = Voice.slug || (typeof Call !== 'undefined' && Call.id);
+  if (!busy) return;
+  let url;
+  try { url = new URL(a.href, location.href); } catch (err) { return; }
+  if (url.origin !== location.origin || url.pathname === location.pathname) return;
+  e.preventDefault();
+  window.open(url.href, '_blank');
+  toast('🎙️ Ouvert dans un nouvel onglet pour ne pas couper ton vocal');
+});
 // Petit indicateur de connexion avec chaque personne du vocal
 function connBadge(peer) {
   const st = peer?.state;

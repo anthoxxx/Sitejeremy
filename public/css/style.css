@@ -1244,3 +1244,8 @@ body.hub-open .modal-back { z-index: 260; }
 .online-badge { background: var(--green) !important; color: #052a1f !important; }
 .customs-online { display: block; margin: 4px 0; padding: 0; border: 0; background: none; color: var(--green); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; text-align: left; }
 .verify-steps { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--bg-2); font-size: .92rem; }
+/* Barre « tu es en vocal dans un autre salon » */
+.voice-mini { display: flex; align-items: center; gap: 8px; padding: 6px 12px; flex: none; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(51, 214, 166, .16), transparent); }
+.voice-mini .vm-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; animation: blink 1.6s infinite; }
+.voice-mini .vm-where { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: .88rem; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
+.voice-mini .vm-where small { color: var(--muted); }

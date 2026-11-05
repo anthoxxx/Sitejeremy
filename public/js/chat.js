@@ -204,7 +204,6 @@ function renderRoomHead() {
 function joinRoom(slug) {
   socket.emit('join', slug, res => {
     if (res.error) return toast(res.error);
-    if (Voice.slug && Voice.slug !== slug) Voice.leave(false);
     state.view = { type: 'room', slug };
     typers.clear(); renderTyping();
     state.currentRoom = res.room;
@@ -508,10 +507,10 @@ let myBuild = null;
 socket.on('build', b => {
   if (!myBuild) { myBuild = b; return; }
   if (b === myBuild) return;
-  const busy = (typeof Call !== 'undefined' && Call.id);
-  toast('✨ Le site vient d\'être mis à jour : rechargement…');
+  const busy = (typeof Call !== 'undefined' && Call.id) || (typeof Voice !== 'undefined' && Voice.slug);
   const go = () => location.reload();
-  if (busy) { toast('✨ Mise à jour du site : recharge la page après ton appel'); return; }
+  if (busy) { toast('✨ Le site a été mis à jour : recharge la page quand tu auras fini ton vocal ou ton appel'); return; }
+  toast('✨ Le site vient d\'être mis à jour : rechargement…');
   setTimeout(go, 2500);
 });
 const typers = new Map();
@@ -623,7 +622,7 @@ socket.on('room_deleted', ({ slug }) => {
   if (state.view?.slug === slug) { toast('Ce salon a été supprimé'); state.view = null; state.currentRoom = null; joinDefaultRoom(); }
 });
 socket.on('room_ejected', ({ slug, reason }) => {
-  if (Voice.slug === slug) Voice.leave(false);
+  if (Voice.slug === slug) { Voice.leave(false); if (state.view?.slug !== slug) toast('🎙️ ' + (reason || 'Tu as quitté le vocal')); }
   if (state.view?.slug === slug) { state.view = null; state.currentRoom = null; joinDefaultRoom(); }
 });
 // L'invitation arrive aussi comme notification (voir notifications.js)

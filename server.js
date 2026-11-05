@@ -2014,9 +2014,11 @@ function ejectFromRoom(userId, slug, reason) {
   if (!e) return;
   for (const sid of e.sockets) {
     const s = io.sockets.sockets.get(sid);
-    if (!s || !s.rooms.has('room:' + slug)) continue;
+    if (!s) continue;
+    const inVoice = voiceOf.get(sid) === slug;
+    if (!s.rooms.has('room:' + slug) && !inVoice) continue;
     s.leave('room:' + slug);
-    leaveVoiceBySocket(sid, null);
+    if (inVoice) leaveVoiceBySocket(sid, null);
     s.emit('room_ejected', { slug, reason });
   }
   if (e.room === slug) e.room = null;
@@ -2113,7 +2115,7 @@ io.on('connection', socket => {
     const u = current();
     const denied = roomAccess(u, room);
     if (denied) return ack && ack({ error: denied });
-    if (voiceOf.get(socket.id) && voiceOf.get(socket.id) !== room.slug) leaveVoiceBySocket(socket.id, null);
+    // On garde le vocal en changeant de salon (on reste en vocal là où on était)
     for (const r of socket.rooms) if (r.startsWith('room:')) socket.leave(r);
     socket.join('room:' + room.slug);
     const prev = entry.room;
