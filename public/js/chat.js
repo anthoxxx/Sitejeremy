@@ -358,7 +358,11 @@ function renderUsers() {
   if (typeof Team !== 'undefined') Team.renderBar();
   const q = $('userSearch').value.trim().toLowerCase();
   let users = state.online.filter(u => !state.blocked.has(u.id));
-  $('onlineCount').textContent = state.online.filter(u => !u.ghost).length;
+  const nOnline = state.online.filter(u => !u.ghost).length;
+  $('onlineCount').textContent = nOnline;
+  // Sur téléphone, le nombre de connectés s'affiche sur le bouton 👥
+  const ob = $('onlineBadge');
+  if (ob) { ob.textContent = nOnline > 99 ? '99+' : nOnline; ob.classList.toggle('hidden', !nOnline); }
   if (state.filter === 'f' || state.filter === 'h') users = users.filter(u => u.gender === state.filter);
   if (state.filter === 'room') users = users.filter(u => state.view?.type === 'room' && u.room === state.view.slug);
   if (q) users = users.filter(u => u.username.toLowerCase().includes(q));
@@ -733,6 +737,8 @@ function renderCustoms() {
   } else {
     b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
       el('div', { style: 'flex:1;min-width:0' }, el('b', {}, state.me.refused ? '❌ Ta demande a été refusée' : c.open ? 'Bienvenue à la douane !' : 'La douane est fermée pour le moment'),
+        el('button', { class: 'customs-online', onclick: () => { if (!$('right').classList.contains('open') && getComputedStyle($('toggleRight')).display !== 'none') $('toggleRight').click(); } },
+          `👥 ${state.online.filter(u => !u.ghost).length} personne(s) en ligne sur le site`, el('span', { class: 'help' }, ' · voir qui')),
         el('div', { class: 'help' }, state.me.refused
           ? 'Un super-admin a refusé ton accès : tu n\'as aucun rôle et tu ne peux pas écrire pour le moment.'
           : c.open

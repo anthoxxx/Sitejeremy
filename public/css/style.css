@@ -1239,3 +1239,7 @@ body.hub-open .modal-back { z-index: 260; }
 .diag-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
 .diag-row:first-of-type { margin-top: 10px; }
 .diag-ico { flex: none; }
+/* Nombre de connectés sur le bouton 👥 (téléphone) et dans la douane */
+#toggleRight { position: relative; }
+.online-badge { background: var(--green) !important; color: #052a1f !important; }
+.customs-online { display: block; margin: 4px 0; padding: 0; border: 0; background: none; color: var(--green); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; text-align: left; }
