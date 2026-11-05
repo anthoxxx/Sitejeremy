@@ -461,7 +461,8 @@ function toggleUserMenu() {
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     el('div', { class: 'um-sep' }),
-    item('🚪', 'Se déconnecter', askLogout, 'danger')].filter(Boolean));
+    item('🚪', 'Se déconnecter', askLogout, 'danger'),
+    el('div', { class: 'um-sig signature' }, '💻 Site créé par ', el('b', {}, 'Anthony'), ' · Développeur JS')].filter(Boolean));
   m.classList.remove('hidden');
 }
 document.addEventListener('click', e => { if (!e.target.closest('.user-menu-wrap')) closeUserMenu(); });

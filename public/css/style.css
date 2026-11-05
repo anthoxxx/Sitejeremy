@@ -1249,3 +1249,10 @@ body.hub-open .modal-back { z-index: 260; }
 .voice-mini .vm-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; animation: blink 1.6s infinite; }
 .voice-mini .vm-where { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: .88rem; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
 .voice-mini .vm-where small { color: var(--muted); }
+/* Signature du créateur du site */
+.signature { color: var(--muted); font-size: .82rem; }
+.signature b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+footer.site .signature { width: 100%; text-align: center; padding-top: 8px; border-top: 1px dashed var(--line); }
+.um-sig { text-align: center; padding: 8px 6px 2px; font-size: .74rem; }
+.admin-sig { padding: 18px 12px 6px; text-align: center; font-size: .76rem; line-height: 1.5; }
+@media (max-width: 760px) { .admin-layout aside .admin-sig { display: none; } }

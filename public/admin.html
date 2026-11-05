@@ -32,6 +32,7 @@
     <a class="list-item" href="/chat"><div class="ico">↩️</div><div class="name">Retour au chat</div></a>
     <div class="list-item" onclick="LC.toggleTheme()"><div class="ico">🌓</div><div class="name">Thème</div></div>
     <div class="list-item" onclick="if (confirm('Se déconnecter ?')) LC.api('/api/logout', { method: 'POST' }).finally(() => { location.href = '/'; })"><div class="ico">🚪</div><div class="name">Se déconnecter</div></div>
+    <div class="admin-sig signature">💻 Site créé par <b>Anthony</b><br>Développeur JS</div>
   </aside>
   <main id="page"></main>
 </div>
