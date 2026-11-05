@@ -1297,3 +1297,8 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .vt-zoom { display: none; }
 .vtile.floating .vt-zoom { display: flex; gap: 4px; position: absolute; top: 5px; left: 5px; z-index: 2; }
 .vt-zoom .vt-btn { position: static; font-size: 1rem; font-weight: 800; line-height: 1; }
+/* Qui regarde ma caméra */
+.vt-eye { position: absolute; left: 5px; top: 5px; z-index: 3; border: 0; border-radius: 999px; padding: 2px 8px; background: rgba(0, 0, 0, .6); color: #fff; font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; }
+.vtile.floating .vt-eye { top: auto; bottom: 30px; }
+.cv-person { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 12px; background: var(--bg-2); margin-bottom: 5px; }
+.cv-title { margin: 14px 0 6px; font-size: .9rem; }

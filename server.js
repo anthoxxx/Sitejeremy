@@ -2037,9 +2037,46 @@ function voiceList(slug) {
 function emitVoiceState(slug) {
   io.emit('voice_state', { slug, participants: voiceList(slug) });
 }
+// ---------- Qui regarde quelle caméra ----------
+// watching : socket de celui qui regarde -> Set(sockets des caméras qu'il a à l'écran)
+const watching = new Map();
+const camBlocksOf = ownerId => db.prepare('SELECT viewer_id FROM cam_blocks WHERE owner_id=?').all(ownerId).map(r => r.viewer_id);
+const blockedByOwners = viewerId => db.prepare('SELECT owner_id FROM cam_blocks WHERE viewer_id=?').all(viewerId).map(r => r.owner_id);
+function voiceUserOf(socketId) { const slug = voiceOf.get(socketId); return slug ? voice.get(slug)?.get(socketId) : null; }
+// Envoie au propriétaire de la caméra la liste des personnes qui la regardent
+function emitCamViewers(ownerSocket) {
+  const owner = voiceUserOf(ownerSocket);
+  if (!owner) return;
+  const blocked = new Set(camBlocksOf(owner.userId));
+  const seen = new Map();
+  for (const [viewerSocket, set] of watching) {
+    if (!set.has(ownerSocket) || voiceOf.get(viewerSocket) !== voiceOf.get(ownerSocket)) continue;
+    const v = voiceUserOf(viewerSocket);
+    if (!v || v.userId === owner.userId || blocked.has(v.userId) || isGhost(v.userId)) continue;
+    seen.set(v.userId, { userId: v.userId, username: v.username, color: v.color, avatar: v.avatar, frame: v.frame, listener: !!v.listener });
+  }
+  io.to(ownerSocket).emit('cam_viewers', { viewers: [...seen.values()] });
+}
+// Indique à quelqu'un du vocal quelles caméras ne lui sont pas partagées
+function emitCamBlockedMe(socketId) {
+  const me = voiceUserOf(socketId);
+  if (!me) return;
+  const owners = new Set(blockedByOwners(me.userId));
+  const slug = voiceOf.get(socketId);
+  const sockets = voiceList(slug).filter(p => owners.has(p.userId)).map(p => p.socketId);
+  io.to(socketId).emit('cam_blocked_me', { sockets });
+}
+function forgetWatcher(socketId) {
+  const set = watching.get(socketId);
+  watching.delete(socketId);
+  if (set) for (const owner of set) emitCamViewers(owner);
+  for (const [viewer, s] of watching) if (s.delete(socketId)) { /* la caméra qu'il regardait est partie */ }
+}
+
 function leaveVoiceBySocket(socketId, reason) {
   const slug = voiceOf.get(socketId);
   if (!slug) return;
+  forgetWatcher(socketId);
   voiceOf.delete(socketId);
   const m = voice.get(slug);
   if (m) { m.delete(socketId); if (!m.size) voice.delete(slug); }
@@ -2356,8 +2393,12 @@ io.on('connection', socket => {
     voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen });
     log(u, 'voice_join', listen ? `Écoute le vocal du salon ${room.name} 🎧` : `A rejoint le vocal du salon ${room.name}`);
     voiceOf.set(socket.id, slug);
-    ack && ack({ peers });
+    ack && ack({ peers, camBlocked: camBlocksOf(uid) });
     emitVoiceState(slug);
+    emitCamBlockedMe(socket.id);
+    // Ceux que je bloque et qui sont déjà dans ce vocal : on leur indique que ma caméra ne leur est pas partagée
+    const mine2 = new Set(camBlocksOf(uid));
+    for (const p of voiceList(slug)) if (mine2.has(p.userId)) emitCamBlockedMe(p.socketId);
   });
   socket.on('voice_leave', () => leaveVoiceBySocket(socket.id, null));
   // ----- Son relayé par le site (quand la connexion directe entre deux personnes est impossible) -----
@@ -2401,6 +2442,33 @@ io.on('connection', socket => {
     if (m?.get(socket.id)?.listener && m?.get(String(to))?.listener) return;
     io.to(String(to)).emit('voice_signal', { from: socket.id, data });
   });
+  // Caméras que j'ai à l'écran (pour que leurs propriétaires sachent qui les regarde)
+  socket.on('cam_watching', list => {
+    const slug = voiceOf.get(socket.id);
+    if (!slug || !Array.isArray(list)) return;
+    const now = new Set(list.slice(0, 40).map(String).filter(id => id !== socket.id && voiceOf.get(id) === slug));
+    const before = watching.get(socket.id) || new Set();
+    watching.set(socket.id, now);
+    for (const id of new Set([...before, ...now])) if (before.has(id) !== now.has(id)) emitCamViewers(id);
+  });
+  // Ne plus partager (ou partager de nouveau) sa caméra avec quelqu'un
+  socket.on('cam_block', ({ userId, block } = {}, ack) => {
+    const target = getUser(parseInt(userId, 10));
+    if (!target || target.id === uid) return ack && ack({ error: 'Personne introuvable' });
+    if (block) db.prepare('INSERT OR IGNORE INTO cam_blocks (owner_id, viewer_id, created_at) VALUES (?,?,?)').run(uid, target.id, now());
+    else db.prepare('DELETE FROM cam_blocks WHERE owner_id=? AND viewer_id=?').run(uid, target.id);
+    ack && ack({ ok: true, blocked: camBlocksOf(uid) });
+    // Prévenir la personne concernée (dans le vocal) et mettre à jour la liste de ceux qui regardent
+    const e = online.get(target.id);
+    if (e) for (const sid of e.sockets) if (voiceOf.get(sid)) emitCamBlockedMe(sid);
+    for (const sid of entry.sockets) if (voiceOf.get(sid)) emitCamViewers(sid);
+  });
+  socket.on('cam_blocks', ack => {
+    if (typeof ack !== 'function') return;
+    const ids = camBlocksOf(uid);
+    ack({ blocked: ids.map(id => { const u = getUser(id); return u && { userId: u.id, username: u.username, color: u.color, avatar: u.avatar }; }).filter(Boolean) });
+  });
+
   socket.on('voice_mute', muted => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);

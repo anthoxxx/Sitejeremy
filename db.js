@@ -152,6 +152,12 @@ addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 db.exec(`
+CREATE TABLE IF NOT EXISTS cam_blocks (
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  viewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (owner_id, viewer_id)
+);
 CREATE TABLE IF NOT EXISTS mod_applications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

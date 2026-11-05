@@ -42,6 +42,10 @@ const Voice = {
   joining: false,
   cam: null,           // piste vidéo de notre caméra (null = caméra coupée)
   listening: false,    // on écoute seulement (sans micro)
+  camBlocked: new Set(),  // personnes (userId) à qui je ne partage pas ma caméra
+  blockedMe: new Set(),   // caméras (socketId) qui ne me sont pas partagées
+  camViewers: [],         // qui regarde ma caméra en ce moment
+  peerUsers: new Map(),   // socketId -> userId des personnes du vocal
   relayTo: new Set(),  // personnes à qui on envoie notre voix par le site (connexion directe impossible)
   relayProc: null,
   autoListen: (() => { try { return localStorage.getItem('lc_autolisten') === '1'; } catch (e) { return false; } })(),
@@ -77,6 +81,8 @@ const Voice = {
       this.muted = listen;
       this.audioCtx();
       if (this.stream) this.meter('me', this.stream);
+      this.camBlocked = new Set(res.camBlocked || []);
+      res.peers.forEach(p => this.peerUsers.set(p.socketId, p.userId));
       res.peers.forEach(p => this.createPeer(p.socketId, true));
       renderVoice();
     });
@@ -91,6 +97,7 @@ const Voice = {
     this.stopLocal();
     this.slug = null;
     this.listening = false;
+    this.camViewers = []; this.blockedMe = new Set(); lastWatch = '';
     this.joining = false;
     renderVoice();
   },
@@ -116,7 +123,7 @@ const Voice = {
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
     else if (initiator) pc.addTransceiver('audio', { direction: 'recvonly' }); // auditeur : on reçoit seulement
     // Un canal vidéo est toujours prévu : allumer la caméra n'a pas besoin de renégocier
-    if (initiator) p.videoSender = pc.addTransceiver(this.cam || 'video', { direction: this.stream ? 'sendrecv' : 'recvonly' }).sender;
+    if (initiator) { p.videoSender = pc.addTransceiver('video', { direction: this.stream ? 'sendrecv' : 'recvonly' }).sender; this.applyCamBlocks(); }
     pc.onicecandidate = e => { if (e.candidate) socket.emit('voice_signal', { to: id, data: { candidate: e.candidate } }); };
     pc.ontrack = e => {
       if (e.track.kind === 'video') {
@@ -183,7 +190,7 @@ const Voice = {
         p.pending = [];
         if (data.sdp.type === 'offer') {
           const t = p.pc.getTransceivers().find(x => x.receiver.track && x.receiver.track.kind === 'video');
-          if (t && this.stream) { t.direction = 'sendrecv'; p.videoSender = t.sender; if (this.cam) await t.sender.replaceTrack(this.cam).catch(() => {}); }
+          if (t && this.stream) { t.direction = 'sendrecv'; p.videoSender = t.sender; this.applyCamBlocks(); }
           await p.pc.setLocalDescription(await p.pc.createAnswer());
           socket.emit('voice_signal', { to: from, data: { sdp: p.pc.localDescription } });
         }
@@ -206,8 +213,9 @@ const Voice = {
     if (this.cam) {
       this.cam.stop();
       this.cam = null;
-      this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(null).catch(() => {}));
+      this.applyCamBlocks();
       socket.emit('voice_video', false);
+      this.camViewers = [];
       renderVoice(); renderVideoGrid();
       return;
     }
@@ -215,7 +223,7 @@ const Voice = {
       const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 } } });
       this.cam = st.getVideoTracks()[0];
     } catch (e) { return toast('📷 Accès à la caméra refusé ou aucune caméra trouvée'); }
-    this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(this.cam).catch(() => {}));
+    this.applyCamBlocks();
     socket.emit('voice_video', true);
     renderVoice(); renderVideoGrid();
   },
@@ -226,12 +234,31 @@ const Voice = {
       const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.facing, width: { ideal: 640 }, height: { ideal: 480 } } });
       const old = this.cam;
       this.cam = st.getVideoTracks()[0];
-      this.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(this.cam).catch(() => {}));
+      this.applyCamBlocks(true);
       old.stop();
       renderVideoGrid();
     } catch (e) { toast('📷 Impossible de changer de caméra'); }
   },
 
+  // Envoie ma caméra à chaque personne du vocal, sauf à celles à qui je ne la partage pas
+  applyCamBlocks(force = false) {
+    for (const [id, p] of this.peers) {
+      if (!p.videoSender) continue;
+      const uid = this.peerUsers.get(id);
+      const track = this.cam && !(uid && this.camBlocked.has(uid)) ? this.cam : null;
+      if (!force && p.sentTrack === track) continue;
+      p.sentTrack = track;
+      p.videoSender.replaceTrack(track).catch(() => {});
+    }
+  },
+  async setCamBlock(userId, block) {
+    return new Promise(ok => socket.emit('cam_block', { userId, block }, r => {
+      if (r?.error) { toast(r.error); return ok(false); }
+      this.camBlocked = new Set(r.blocked || []);
+      this.applyCamBlocks();
+      ok(true);
+    }));
+  },
   toggleDeaf() {
     this.deaf = !this.deaf;
     this.applyVolumes();
@@ -417,6 +444,7 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: Voice.muted ? 'Rallumer le micro' : 'Couper le micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇' : '🎤', el('span', { class: 'lbl' }, Voice.muted ? ' Micro coupé' : ' Micro')),
       el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
       Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
+      Voice.cam ? el('button', { class: 'btn btn-sm cam-viewers-btn', title: 'Qui regarde ma caméra', onclick: () => openCamViewers() }, '👁 ' + Voice.camViewers.length) : null,
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
       el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'));
@@ -440,7 +468,7 @@ function renderVoice() {
       const mine = p.socketId === socket.id;
       return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
         LC.avatar(p),
-        el('span', { class: 'vname' }, p.username), p.video ? el('span', {}, '📷') : null, p.muted ? el('span', {}, '🔇') : null,
+        el('span', { class: 'vname' }, p.username), p.video ? (Voice.blockedMe.has(p.socketId) ? el('span', { title: 'Ne partage pas sa caméra avec toi' }, '📷🚫') : el('span', {}, '📷')) : null, p.muted ? el('span', {}, '🔇') : null,
         !mine && inThis ? connBadge(Voice.peers.get(p.socketId)) : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     }), listenInfo),
@@ -512,6 +540,8 @@ function muDecode(b) {
 socket.on('voice_state', ({ slug, participants }) => {
   state.voice.set(slug, participants);
   if (Voice.slug === slug) {
+    participants.forEach(p => Voice.peerUsers.set(p.socketId, p.userId));
+    Voice.applyCamBlocks();
     // nettoyer les connexions des personnes parties
     const ids = new Set(participants.map(p => p.socketId));
     for (const id of [...Voice.peers.keys()]) if (!ids.has(id)) Voice.closePeer(id);
@@ -527,7 +557,10 @@ socket.on('voice_state', ({ slug, participants }) => {
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
 // Le serveur refuse la caméra (badge 📷 manquant) : on l'éteint
-socket.on('voice_cam_refused', ({ error }) => { if (Voice.cam) { Voice.cam.stop(); Voice.cam = null; Voice.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(null).catch(() => {})); renderVoice(); renderVideoGrid(); } toast(error); });
+socket.on('voice_cam_refused', ({ error }) => { if (Voice.cam) { Voice.cam.stop(); Voice.cam = null; Voice.applyCamBlocks(); renderVoice(); renderVideoGrid(); } toast(error); });
+// Qui regarde ma caméra / quelles caméras ne me sont pas partagées
+socket.on('cam_viewers', ({ viewers }) => { Voice.camViewers = viewers || []; renderVoice(); });
+socket.on('cam_blocked_me', ({ sockets }) => { Voice.blockedMe = new Set(sockets || []); renderVideoGrid(); renderVoice(); });
 socket.on('voice_relay_peer', ({ peer }) => Voice.onRelayPeer(peer));
 socket.on('voice_relay_audio', ({ from, data }) => Voice.playRelay(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
@@ -659,6 +692,7 @@ function renderVideoGrid() {
   const tiles = [];
   for (const p of parts) {
     const mine = p.socketId === socket.id;
+    if (!mine && Voice.blockedMe.has(p.socketId)) continue; // cette personne ne me partage pas sa caméra
     const stream = mine ? (Voice.cam ? new MediaStream([Voice.cam]) : null) : Voice.peers.get(p.socketId)?.videoStream;
     if (!stream) continue;
     const key = mine ? 'me' : p.socketId;
@@ -697,6 +731,39 @@ function renderVideoGrid() {
   docked.forEach(([, t]) => t.querySelector('video').play().catch(() => {}));
   for (const [k, t] of docked) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '⤢'; b.title = 'Détacher et déplacer'; } }
   for (const [k, t] of floating) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '↩'; b.title = 'Remettre dans la bande'; } }
+  // Badge « 👁 n » sur ma propre caméra
+  const meTile = videoEls.get('me');
+  if (meTile) {
+    let eye = meTile.querySelector('.vt-eye');
+    if (!eye) { eye = el('button', { class: 'vt-eye', title: 'Qui regarde ma caméra', onclick: e => { e.stopPropagation(); openCamViewers(); } }); meTile.append(eye); }
+    eye.textContent = '👁 ' + Voice.camViewers.length;
+  }
+  // Dire au serveur quelles caméras j'ai vraiment à l'écran
+  const shown = hidden ? [] : [...docked, ...floating].map(([k]) => k).filter(k => k !== 'me');
+  const sig = shown.sort().join(',');
+  if (Voice.slug && sig !== lastWatch) { lastWatch = sig; socket.emit('cam_watching', shown); }
+}
+let lastWatch = '';
+// Fenêtre « Qui regarde ma caméra » : bloquer / débloquer
+function openCamViewers() {
+  const body = el('div');
+  const close = modal(el('h3', {}, '👁 Qui regarde ta caméra'), body,
+    el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:12px', onclick: () => close() }, 'Fermer'));
+  const draw = () => socket.emit('cam_blocks', ({ blocked }) => {
+    const person = (u, btn) => el('div', { class: 'cv-person' }, LC.avatar(u), el('b', { style: 'color:' + (u.color || 'inherit') }, u.username), u.listener ? el('small', { class: 'help' }, ' 🎧') : null, el('span', { style: 'flex:1' }), btn);
+    const block = u => el('button', { class: 'btn btn-sm btn-danger', title: 'Ne plus lui montrer ta caméra', onclick: async () => { if (await Voice.setCamBlock(u.userId, true)) { toast(`🚫 ${u.username} ne voit plus ta caméra`); draw(); } } }, '🚫 Ne plus partager');
+    const viewers = Voice.camViewers;
+    const viewerIds = new Set(viewers.map(v => v.userId));
+    const others = (state.voice.get(Voice.slug) || []).filter(p => p.userId !== state.me.id && !viewerIds.has(p.userId) && !Voice.camBlocked.has(p.userId));
+    body.replaceChildren(...[
+      el('p', { class: 'help', style: 'margin:-4px 0 10px' }, Voice.cam ? 'Les personnes qui ont ta caméra à l\'écran en ce moment.' : 'Ta caméra est éteinte. Tu peux quand même choisir à qui tu ne veux pas la montrer.'),
+      ...(viewers.length ? viewers.map(v => person(v, block(v))) : [el('p', { class: 'empty', style: 'padding:10px' }, 'Personne ne regarde ta caméra pour le moment')]),
+      others.length ? el('h4', { class: 'cv-title' }, 'Autres personnes du vocal') : null,
+      ...others.map(p => person(p, block(p))),
+      blocked.length ? el('h4', { class: 'cv-title' }, '🚫 Ne voient pas ta caméra') : null,
+      ...blocked.map(u => person(u, el('button', { class: 'btn btn-sm', onclick: async () => { if (await Voice.setCamBlock(u.userId, false)) { toast(`✅ ${u.username} peut de nouveau voir ta caméra`); draw(); } } }, '✅ Débloquer')))].filter(Boolean));
+  });
+  draw();
 }
 
 // Curseur de volume réutilisable (0 à 200 %)
