@@ -89,7 +89,7 @@ Les admins et super-admins sont en **rouge** et choisissent librement la durée 
 
 ## Mise en ligne
 
-- **Sur un VPS IONOS (ou autre VPS Ubuntu)** : suis le guide [`deploy/GUIDE-IONOS.md`](deploy/GUIDE-IONOS.md) — une seule commande installe tout (Node.js, Nginx, HTTPS gratuit, serveur d'appels TURN, pare-feu).
+- **Sur un VPS IONOS (ou autre VPS Ubuntu)** : suis le guide [`deploy/GUIDE-IONOS.md`](deploy/GUIDE-IONOS.md) — une seule commande installe tout (Node.js, Nginx, HTTPS gratuit, relais TURN pour le vocal, pare-feu, mises à jour de sécurité) et demande le mot de passe de l'espace admin.
 - Mise à jour : `bash /opt/theparadis/deploy/update.sh`
 
 ## Technique

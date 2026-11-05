@@ -4,6 +4,8 @@
 #  Système : Ubuntu 22.04 ou 24.04, à lancer en root :
 #     bash install-ionos.sh theparadise.fr ton-email@exemple.fr
 #  Le script peut être relancé sans risque (il met à jour sans rien effacer).
+#  Il installe : Node.js, le site, Nginx, le HTTPS gratuit, le serveur d'appels (TURN),
+#  le pare-feu, les mises à jour de sécurité automatiques, et demande le mot de passe de l'espace admin.
 # =====================================================================
 set -euo pipefail
 
@@ -28,7 +30,16 @@ step "Mise à jour du système"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get upgrade -y
-apt-get install -y curl git nginx ufw build-essential python3 certbot python3-certbot-nginx coturn openssl
+apt-get install -y curl git nginx ufw build-essential python3 certbot python3-certbot-nginx coturn openssl unattended-upgrades
+# Mises à jour de sécurité automatiques
+dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
+
+step "Mémoire d'appoint (swap) pour les petits VPS"
+if [ "$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)" -lt 2048 ] && ! swapon --show | grep -q .; then
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo "Swap de 1 Go ajouté"
+fi
 
 step "Installation de Node.js 22"
 if ! command -v node >/dev/null || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]; then
@@ -67,6 +78,30 @@ TURN_PASS=$TURN_PASS
 EOF
   chmod 600 "$ENV_FILE"
 fi
+
+step "Espace admin (connexion sur https://$DOMAIN/admin)"
+if ! grep -q '^ADMIN_PASSWORD=' "$ENV_FILE"; then
+  if [ -n "${ADMIN_PASSWORD:-}" ]; then
+    PASS1="$ADMIN_PASSWORD"
+  else
+    echo "Choisis le mot de passe de l'espace admin (identifiant : admin)."
+    echo "Il ne s'affiche pas quand tu tapes, c'est normal. 8 caractères minimum conseillés."
+    while true; do
+      read -r -s -p "Mot de passe : " PASS1 </dev/tty; echo
+      read -r -s -p "Encore une fois : " PASS2 </dev/tty; echo
+      if [ -z "$PASS1" ]; then echo "Le mot de passe ne peut pas être vide."; continue; fi
+      if [ "$PASS1" != "$PASS2" ]; then echo "Les deux mots de passe sont différents, recommence."; continue; fi
+      case "$PASS1" in *"'"*|*'\'*) echo "Évite l'apostrophe et la barre oblique inverse dans le mot de passe."; continue ;; esac
+      break
+    done
+  fi
+  # Écrit entre guillemets simples pour garder les caractères spéciaux (@, !, $…)
+  { echo "ADMIN_LOGIN=admin"; echo "ADMIN_PASSWORD='${PASS1}'"; } >> "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+  echo "Mot de passe enregistré."
+else
+  echo "Déjà réglé (pour le changer : nano $ENV_FILE, puis systemctl restart theparadis)."
+fi
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 PUBLIC_IP="$(curl -fsS4 https://api.ipify.org || hostname -I | awk '{print $1}')"
@@ -82,6 +117,15 @@ max-port=49200
 no-cli
 no-tls
 no-dtls
+# Sécurité : le relais ne sert qu'aux appels, jamais à atteindre le réseau interne
+no-multicast-peers
+no-loopback-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
 EOF
 sed -i 's/^#\?TURNSERVER_ENABLED=.*/TURNSERVER_ENABLED=1/' /etc/default/coturn 2>/dev/null || true
 systemctl enable coturn
@@ -160,13 +204,10 @@ else
   echo "    dans les DNS IONOS, attends quelques minutes, puis relance ce script."
 fi
 echo
-echo " 👑 Inscris-toi en premier sur le site : le premier compte devient super-admin."
+echo " 🔐 Espace admin : https://$DOMAIN/admin  (identifiant : admin + le mot de passe choisi)"
+echo " 👑 Le premier compte inscrit sur le site devient aussi super-admin."
 sleep 2
-if ! grep -q '^ADMIN_PASSWORD=' "$ENV_FILE"; then
-  echo " 🔐 Espace admin (https://$DOMAIN/admin) pas encore configuré. Pour le régler :"
-  echo "    nano $ENV_FILE   puis ajoute les lignes  ADMIN_LOGIN=admin  et  ADMIN_PASSWORD=ton-mot-de-passe"
-  echo "    puis :  systemctl restart theparadis"
-fi
+if systemctl is-active --quiet theparadis; then echo " 🟢 Le site tourne."; else echo " 🔴 Le site ne démarre pas : journalctl -u theparadis -n 50"; fi
 echo " 📁 Données (base + photos + vocaux) : $DATA_DIR"
 echo " 🔄 Mettre à jour plus tard :  bash $APP_DIR/deploy/update.sh"
 echo " 📜 Voir les journaux :         journalctl -u theparadis -f"
