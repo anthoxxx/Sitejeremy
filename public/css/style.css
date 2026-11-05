@@ -1243,3 +1243,4 @@ body.hub-open .modal-back { z-index: 260; }
 #toggleRight { position: relative; }
 .online-badge { background: var(--green) !important; color: #052a1f !important; }
 .customs-online { display: block; margin: 4px 0; padding: 0; border: 0; background: none; color: var(--green); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; text-align: left; }
+.verify-steps { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--bg-2); font-size: .92rem; }

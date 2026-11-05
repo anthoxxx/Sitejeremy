@@ -318,6 +318,7 @@ const defaults = {
   theme: 'auto',
   tempRoomsEnabled: '1',
   customsEnabled: '0',
+  mediaVerify: '1',
   modBotEnabled: '1',
   modBotWarnings: '3',
   modBotMuteMinutes: '5',
@@ -384,6 +385,16 @@ for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
 // Le thème Halloween n'existe plus : retour au thème automatique
 db.prepare("UPDATE settings SET value='auto' WHERE key='theme' AND value='halloween'").run();
 
+// Validation de la voix et de la caméra (remplace la douane bloquante) : appliquée une seule fois.
+// Les nouveaux venus ont accès à tout le site ; il faut le badge 🎙️ pour parler et 📷 pour la caméra.
+// Le salon « Douane » devient le salon « Vérification », où micro et caméra marchent pour tous.
+if (!db.prepare("SELECT 1 FROM settings WHERE key='mediaVerifyAutoOn'").get()) {
+  db.prepare("INSERT INTO settings (key, value) VALUES ('mediaVerifyAutoOn', '1')").run();
+  db.prepare("UPDATE settings SET value='1' WHERE key='mediaVerify'").run();
+  db.prepare("UPDATE settings SET value='0' WHERE key='customsEnabled'").run();
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('customsAutoOn', '1')").run();
+  db.prepare("UPDATE rooms SET name='Vérification', description='Viens avec ton micro et ta caméra : l''équipe valide tes badges 🎙️ 📷' WHERE slug='douane' AND name='Douane'").run();
+}
 // Douane obligatoire pour les nouveaux inscrits (activée une fois ; les comptes déjà là restent validés)
 if (!db.prepare("SELECT 1 FROM settings WHERE key='customsAutoOn'").get()) {
   db.prepare("UPDATE settings SET value='1' WHERE key='customsEnabled'").run();

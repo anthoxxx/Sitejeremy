@@ -518,12 +518,18 @@ function roomOut(r) {
 // Peut-on entrer dans ce salon ?
 // ---------- Douane : les nouveaux arrivants doivent être vérifiés par le staff ----------
 const customsOn = () => getSettings().customsEnabled === '1';
+// Validation de la voix et de la caméra : badge 🎙️ pour parler, badge 📷 pour la caméra
+const mediaVerifyOn = () => getSettings().mediaVerify === '1';
+const voiceAllowed = u => !mediaVerifyOn() || !!u?.voice_ok || isStaff(u);
+const camAllowed = u => !mediaVerifyOn() || !!u?.cam_ok || isStaff(u);
+const VOICE_NEEDED = '🎙️ Ta voix doit d\'abord être validée par l\'équipe : va dans le salon « Vérification » ou demande la validation. En attendant, tu peux écouter 🎧';
+const CAM_NEEDED = '📷 Ta caméra doit d\'abord être validée par l\'équipe : va dans le salon « Vérification » ou demande la validation.';
 const customsOpen = () => getSettings().customsOpen === '1';
 const isVerified = u => !!u && (!customsOn() || !!u.verified || isStaff(u));
 const NOT_VERIFIED = '🛂 Passe d\'abord par la Douane : un super-admin doit valider ta voix 🎙️ et ta caméra 📷.';
 function roomAccess(user, room) {
   if (!room) return 'Salon introuvable';
-  if (room.slug === 'douane' && !customsOn() && !isStaff(user)) return 'La douane est désactivée';
+  if (room.slug === 'douane' && !customsOn() && !mediaVerifyOn() && !isStaff(user)) return 'Ce salon est fermé';
   if (!isVerified(user) && room.slug !== 'douane') return NOT_VERIFIED;
   if (isStaff(user) || room.owner_id === user.id || isRoomManager(room.id, user.id)) return null;
   if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
@@ -555,13 +561,13 @@ app.get('/api/rooms', auth, (req, res) => {
   // Les salons fermés ne sont visibles que par les personnes qui peuvent y entrer
   // Pas encore validé : on ne voit que la douane
   const pending = !isVerified(req.user);
-  const visible = rooms.filter(r => (r.slug === 'douane' ? customsOn() || isStaff(req.user) : !pending && (!r.is_private || !roomAccess(req.user, r))));
+  const visible = rooms.filter(r => (r.slug === 'douane' ? customsOn() || mediaVerifyOn() || isStaff(req.user) : !pending && (!r.is_private || !roomAccess(req.user, r))));
   const s = getSettings();
   res.json({
     rooms: visible.map(roomOut),
     canCreate: s.userRoomsEnabled === '1' && !req.user.is_guest && isVerified(req.user),
     canCreateTemp: s.tempRoomsEnabled === '1' && isVerified(req.user),
-    customs: { enabled: s.customsEnabled === '1', open: s.customsOpen === '1' },
+    customs: { enabled: s.customsEnabled === '1', open: s.customsOpen === '1', media: s.mediaVerify === '1' },
     tempMinutes: parseInt(s.tempRoomMinutes, 10) || 5,
     maxUserRooms: parseInt(s.maxUserRooms, 10) || 0,
     voiceEnabled: s.voiceEnabled === '1',
@@ -1147,13 +1153,14 @@ app.post('/api/customs/open', auth, (req, res) => {
   const open = !!req.body.open;
   setSetting('customsOpen', open ? '1' : '0');
   log(req.user, 'customs', open ? '🛂 Douane ouverte' : '🛂 Douane fermée');
-  io.emit('customs', { enabled: customsOn(), open });
+  io.emit('customs', { enabled: customsOn(), open, media: mediaVerifyOn() });
   io.to('room:douane').emit('system', { room: 'douane', text: open ? `🛂 La douane est ouverte par ${displayName(req.user)} : présente-toi !` : '🛂 La douane est fermée pour le moment.' });
   res.json({ open });
 });
 // Validation en deux badges : 🎙️ voix et 📷 caméra. Les deux sont nécessaires pour être accepté.
 app.post('/api/customs/verify/:id', auth, (req, res) => {
-  if (!isSuper(req.user)) return res.status(403).json({ error: 'Seul un super-admin peut valider ou refuser à la douane' });
+  if (!isStaff(req.user)) return res.status(403).json({ error: 'Réservé à l\'équipe' });
+  if (customsOn() && !isSuper(req.user)) return res.status(403).json({ error: 'Seul un super-admin peut valider ou refuser à la douane' });
   const target = getUser(req.params.id);
   if (!target) return res.status(404).json({ error: 'Utilisateur introuvable' });
   if (isStaff(target)) return res.status(400).json({ error: 'Les membres du staff n\'ont pas besoin de passer la douane' });
@@ -1172,16 +1179,22 @@ app.post('/api/customs/verify/:id', auth, (req, res) => {
   log(req.user, verified ? 'verify' : 'unverify', `${target.username} : ${what === 'refuse' ? 'refusé à la douane ❌' : what === 'reset' ? 'badges retirés, renvoyé à la douane' : label}${verified && !wasVerified ? ' → accepté' : ''}`);
   const updated = getUser(target.id);
   refreshOnline(updated);
-  if (verified && !wasVerified) {
+  if (verified && !wasVerified && customsOn()) {
     notify(target.id, { type: 'verified', icon: '✅', title: 'Tu es accepté !', text: `Tu as les deux badges 🎙️ voix et 📷 caméra. Bienvenue sur ${getSettings().siteName} : tu as accès à tous les salons, aux messages privés et à tout le site.` });
     io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a les deux badges 🎙️📷 : accepté, bienvenue !` });
   } else if (what === 'refuse') {
     notify(target.id, { type: 'unverified', icon: '❌', title: 'Ta demande a été refusée', text: 'Un super-admin a refusé ton accès au site. Tu n\'as aucun rôle pour le moment.', important: true });
     io.to('room:douane').emit('system', { room: 'douane', text: `❌ ${target.username} a été refusé à la douane.` });
     sendToCustoms(target.id);
-  } else if (!verified && wasVerified) {
+  } else if (!verified && wasVerified && customsOn()) {
     notify(target.id, { type: 'unverified', icon: '🛂', title: 'Retour à la douane', text: 'Il te manque un badge (🎙️ voix ou 📷 caméra) : un super-admin doit à nouveau te valider.', important: true });
     sendToCustoms(target.id);
+  } else if (!customsOn() && (what === 'voice' || what === 'cam' || what === 'both')) {
+    const label = what === 'voice' ? '🎙️ voix' : what === 'cam' ? '📷 caméra' : '🎙️ voix et 📷 caméra';
+    const on = what === 'voice' ? voice : what === 'cam' ? cam : voice && cam;
+    notify(target.id, on
+      ? { type: 'verified', icon: what === 'cam' ? '📷' : '🎙️', title: `Badge ${label} validé !`, text: what === 'voice' ? 'Tu peux maintenant parler dans le vocal et passer des appels.' : what === 'cam' ? 'Tu peux maintenant allumer ta caméra dans le vocal et en appel vidéo.' : 'Tu peux parler et allumer ta caméra partout.' }
+      : { type: 'unverified', icon: '🛂', title: `Badge ${label} retiré`, text: 'Repasse par le salon Vérification pour le récupérer.' });
   } else if ((what === 'voice' && voice) || (what === 'cam' && cam)) {
     const missing = !voice ? '🎙️ la voix' : !cam ? '📷 la caméra' : '';
     notify(target.id, { type: 'verified', icon: what === 'voice' ? '🎙️' : '📷', title: what === 'voice' ? 'Badge voix validé 🎙️' : 'Badge caméra validé 📷', text: missing ? `Plus qu'une étape : il te reste ${missing} à faire valider à la douane.` : '' });
@@ -1274,6 +1287,19 @@ app.post('/api/team/apply', auth, (req, res) => {
   log(u, 'application', `🙋 Candidature pour devenir modérateur (${mine.length + 1}/2 cette année)`);
   for (const [id, e] of online) if (isAdminRole(e.user)) emitToUser(id, 'staff_alert', { text: `🙋 ${u.username} propose sa candidature pour devenir modérateur`, url: '/admin#applications' });
   res.json({ ok: true, used: mine.length + 1 });
+});
+
+// ---------- Demande de validation de la voix / caméra ----------
+app.post('/api/verify/request', auth, (req, res) => {
+  const u = req.user;
+  if (!mediaVerifyOn()) return res.status(400).json({ error: 'La validation n\'est pas activée' });
+  if (voiceAllowed(u) && camAllowed(u)) return res.json({ ok: true, already: true });
+  if (tooMany('verifyreq:' + u.id, 1, 5 * 60 * 1000)) return res.status(429).json({ error: 'Demande déjà envoyée : l\'équipe va te contacter. Réessaie dans quelques minutes.' });
+  const missing = [!voiceAllowed(u) && '🎙️ voix', !camAllowed(u) && '📷 caméra'].filter(Boolean).join(' et ');
+  let n = 0;
+  for (const [, e] of online) if (isStaff(e.user)) { emitToUser(e.user.id, 'staff_alert', { text: `🛂 ${u.username} demande la validation de sa ${missing} : il t'attend dans le salon Vérification`, slug: 'douane' }); n++; }
+  log(u, 'verify_request', `Demande de validation (${missing})`);
+  res.json({ ok: true, staffOnline: n });
 });
 
 // ---------- Notifications ----------
@@ -1660,6 +1686,7 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   const b = req.body;
   if (b.announcement !== undefined) setSetting('announcement', clean(b.announcement, 300));
   if (b.bannedWords !== undefined) setSetting('bannedWords', clean(b.bannedWords, 2000));
+  if (b.mediaVerify !== undefined) { setSetting('mediaVerify', b.mediaVerify ? '1' : '0'); roomsChanged(); io.emit('customs', { enabled: customsOn(), open: customsOpen(), media: mediaVerifyOn() }); }
   if (b.modBotEnabled !== undefined) setSetting('modBotEnabled', b.modBotEnabled ? '1' : '0');
   if (b.modBotWarnings !== undefined) setSetting('modBotWarnings', Math.min(10, Math.max(1, parseInt(b.modBotWarnings, 10) || 3)));
   if (b.modBotMuteMinutes !== undefined) setSetting('modBotMuteMinutes', Math.min(1440, Math.max(1, parseInt(b.modBotMuteMinutes, 10) || 5)));
@@ -1675,7 +1702,7 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
     setSetting('customsEnabled', b.customsEnabled ? '1' : '0');
     if (customsOn() !== was) {
       log(req.user, 'customs', customsOn() ? '🛂 Douane activée' : '🛂 Douane désactivée');
-      io.emit('customs', { enabled: customsOn(), open: customsOpen() });
+      io.emit('customs', { enabled: customsOn(), open: customsOpen(), media: mediaVerifyOn() });
       for (const [id] of online) {
         const ok = isVerified(getUser(id));
         if (!ok) sendToCustoms(id);
@@ -2208,6 +2235,10 @@ io.on('connection', socket => {
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Appel impossible avec cette personne pour le moment' });
     if ((!isVerified(u) && !isStaff(target)) || (!isVerified(target) && !isStaff(u))) return ack && ack({ error: '🛂 Appel impossible tant que la douane n\'est pas passée' });
+    // Sans badge, on ne peut appeler / être appelé que par l'équipe (pour se faire valider)
+    if (!isStaff(target) && !voiceAllowed(u)) return ack && ack({ error: VOICE_NEEDED });
+    if (!isStaff(target) && video && !camAllowed(u)) return ack && ack({ error: CAM_NEEDED });
+    if (!isStaff(u) && !voiceAllowed(target)) return ack && ack({ error: `${target.username} n'a pas encore le badge 🎙️ voix : il ne peut pas encore être appelé` });
     if (callOfSocket.has(socket.id) || userInCall(uid)) return ack && ack({ error: 'Tu es déjà en appel' });
     if (userInCall(target.id)) return ack && ack({ error: `${target.username} est déjà en appel` });
     if (tooMany('call:' + uid, 20, 10 * 60 * 1000)) return ack && ack({ error: 'Trop d\'appels, patiente un peu' });
@@ -2304,6 +2335,7 @@ io.on('connection', socket => {
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
     if (!listen && u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée' });
+    if (!listen && slug !== 'douane' && !voiceAllowed(u)) return ack && ack({ error: VOICE_NEEDED, needVoice: true });
     const mine = voice.get(slug)?.get(socket.id);
     if (mine && !!mine.listener === listen) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id && (!listen || !p.listener)) });
     leaveVoiceBySocket(socket.id, null);
@@ -2345,6 +2377,7 @@ io.on('connection', socket => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
     if (!p || p.listener) return;
+    if (on && slug !== 'douane' && !camAllowed(entry.user)) { socket.emit('voice_cam_refused', { error: CAM_NEEDED }); return; }
     const was = p.video;
     p.video = !!on;
     emitVoiceState(slug);

@@ -50,6 +50,7 @@ const Voice = {
   // listen = true : écouter le vocal sans micro
   async join(listen = false) {
     if (this.joining || state.view?.type !== 'room') return;
+    if (!listen && state.view.slug !== 'douane' && !mediaOk('voice')) return askVerify('voice');
     this.unlock(); // tout de suite, pendant le clic : sinon le navigateur bloque le son
     if (!window.RTCPeerConnection || (!listen && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)))
       return toast('🎤 Le vocal nécessite un navigateur récent et un site en https');
@@ -70,7 +71,7 @@ const Voice = {
     const slug = state.view?.slug;
     socket.emit('voice_join', listen ? { listen: true } : null, res => {
       this.joining = false;
-      if (!res || res.error) { this.stopLocal(); renderVoice(); return toast(res ? res.error : 'Erreur vocal'); }
+      if (!res || res.error) { this.stopLocal(); renderVoice(); return res?.needVoice ? askVerify('voice') : toast(res ? res.error : 'Erreur vocal'); }
       this.slug = slug;
       this.listening = listen;
       this.muted = listen;
@@ -201,6 +202,7 @@ const Voice = {
   },
 
   async toggleCam() {
+    if (!this.cam && this.slug !== 'douane' && !mediaOk('cam')) return askVerify('cam');
     if (this.cam) {
       this.cam.stop();
       this.cam = null;
@@ -492,6 +494,8 @@ socket.on('voice_state', ({ slug, participants }) => {
   if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
+// Le serveur refuse la caméra (badge 📷 manquant) : on l'éteint
+socket.on('voice_cam_refused', ({ error }) => { if (Voice.cam) { Voice.cam.stop(); Voice.cam = null; Voice.peers.forEach(p => p.videoSender && p.videoSender.replaceTrack(null).catch(() => {})); renderVoice(); renderVideoGrid(); } toast(error); });
 socket.on('voice_relay_peer', ({ peer }) => Voice.onRelayPeer(peer));
 socket.on('voice_relay_audio', ({ from, data }) => Voice.playRelay(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
@@ -554,4 +558,30 @@ function openVoiceVolume() {
       : el('p', { class: 'help' }, 'Personne d\'autre dans le vocal pour le moment.'),
     el('p', { class: 'help' }, 'Au-dessus de 100 %, le son est amplifié. Ces réglages sont gardés sur cet appareil.'),
     el('button', { class: 'btn btn-ghost', style: 'width:100%', onclick: () => close() }, 'Fermer'));
+}
+
+// ----- Validation de la voix 🎙️ et de la caméra 📷 par l'équipe -----
+function mediaOk(kind) {
+  if (!state.customs?.media || isStaff()) return true;
+  return kind === 'voice' ? !!state.me?.voiceOk : !!state.me?.camOk;
+}
+function askVerify(kind) {
+  const voice = kind === 'voice';
+  const close = modal(
+    el('h3', {}, voice ? '🎙️ Ta voix n\'est pas encore validée' : '📷 Ta caméra n\'est pas encore validée'),
+    el('p', { class: 'help', style: 'margin:-4px 0 12px' }, voice
+      ? 'Pour parler dans le vocal et passer des appels, l\'équipe doit d\'abord valider ta voix. En attendant, tu peux écouter le vocal 🎧.'
+      : 'Pour allumer ta caméra dans le vocal et en appel vidéo, l\'équipe doit d\'abord valider ta caméra.'),
+    el('div', { class: 'verify-steps' },
+      el('div', {}, '1️⃣ Va dans le salon ', el('b', {}, 'Vérification'), ' : là-bas, le micro et la caméra marchent pour tout le monde.'),
+      el('div', {}, '2️⃣ Rejoins le vocal avec ton micro', voice ? '' : ' et ta caméra', '.'),
+      el('div', {}, '3️⃣ Un membre de l\'équipe te valide : tu reçois le badge ', voice ? '🎙️' : '📷', '.')),
+    el('div', { class: 'actions', style: 'margin-top:14px' },
+      el('button', { class: 'btn btn-primary', onclick: () => { close(); joinRoom('douane'); } }, '🛂 Aller à la Vérification'),
+      el('button', { class: 'btn', onclick: async () => {
+        try { const r = await api('/api/verify/request', { method: 'POST' }); toast(r.already ? '✅ Tu as déjà tes badges' : r.staffOnline ? `📣 Demande envoyée à ${r.staffOnline} membre(s) de l'équipe en ligne` : '📣 Demande envoyée : l\'équipe te répondra dès qu\'elle sera connectée'); }
+        catch (e) { toast(e.message); }
+      } }, '📣 Prévenir l\'équipe'),
+      voice && state.view?.type === 'room' && state.view.slug !== 'douane' ? el('button', { class: 'btn', onclick: () => { close(); Voice.join(true); } }, '🎧 Écouter seulement') : null),
+    el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:8px', onclick: () => close() }, 'Fermer'));
 }

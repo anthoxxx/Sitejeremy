@@ -373,16 +373,18 @@ function renderUsers() {
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
     const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
-    const toCheck = state.customs?.enabled && !u.verified && isSuperMe() && !['admin', 'superadmin', 'moderator'].includes(u.role);
+    const staffRole = ['admin', 'superadmin', 'moderator'].includes(u.role);
+    // Douane : super-admin seulement ; validation voix/caméra : toute l'équipe
+    const toCheck = !staffRole && (state.customs?.enabled ? isSuperMe() && !u.verified : state.customs?.media && isStaff() && !(u.voiceOk && u.camOk));
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), state.customs?.enabled && !u.verified && !u.refused ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.camOk ? ' on' : ''), title: u.camOk ? 'Caméra validée (cliquer pour retirer)' : 'Valider la caméra', onclick: e => { e.stopPropagation(); setBadge(u, 'cam', !u.camOk); } }, '📷') : null,
-      toCheck && !u.refused ? el('button', { class: 'btn btn-sm verify-btn refuse', title: 'Refuser : aucun rôle, pas d\'accès', onclick: e => { e.stopPropagation(); verifyUser(u, false, true); } }, '❌') : null);
+      toCheck && state.customs?.enabled && !u.refused ? el('button', { class: 'btn btn-sm verify-btn refuse', title: 'Refuser : aucun rôle, pas d\'accès', onclick: e => { e.stopPropagation(); verifyUser(u, false, true); } }, '❌') : null);
   }));
 }
 $('userSearch').oninput = renderUsers;
@@ -721,11 +723,32 @@ async function verifyUser(u, verified, refuse = false) {
 async function setCustomsOpen(open) {
   try { await api('/api/customs/open', { method: 'POST', body: { open } }); } catch (e) { toast(e.message); }
 }
+// Salon « Vérification » : explications et badges de la personne, ou les personnes à valider pour l'équipe
+function renderVerifyBanner(b) {
+  b.classList.remove('hidden');
+  const waiting = state.online.filter(u => u.room === 'douane' && !['admin', 'superadmin', 'moderator'].includes(u.role) && !(u.voiceOk && u.camOk));
+  if (isStaff()) {
+    b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
+      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, 'Salle de vérification'),
+        el('div', { class: 'help' }, waiting.length ? `${waiting.length} personne(s) à valider. Écoute-les au vocal, puis clique sur 🎙️ (voix) ou 📷 (caméra) à côté de leur pseudo.` : 'Personne n\'attend de validation pour le moment.')));
+  } else {
+    const me = state.me;
+    b.replaceChildren(el('span', { class: 'ghost-ico' }, '🛂'),
+      el('div', { style: 'flex:1;min-width:0' }, el('b', {}, me.voiceOk && me.camOk ? '✅ Tu as tes deux badges !' : 'Fais valider ta voix et ta caméra'),
+        el('div', { class: 'help' }, me.voiceOk && me.camOk ? 'Tu peux parler et allumer ta caméra partout sur le site.' : 'Ici, le micro et la caméra marchent pour tout le monde. Rejoins le vocal 🎙️ avec ta caméra : un membre de l\'équipe va te valider.'),
+        el('div', { style: 'margin-top:4px;font-weight:700' }, `🎙️ Voix : ${me.voiceOk ? '✅' : '⏳'} · 📷 Caméra : ${me.camOk ? '✅' : '⏳'}`)),
+      me.voiceOk && me.camOk ? null : el('button', { class: 'btn btn-sm btn-primary', onclick: async () => {
+        try { const r = await api('/api/verify/request', { method: 'POST' }); toast(r.staffOnline ? `📣 ${r.staffOnline} membre(s) de l'équipe prévenu(s)` : '📣 Demande envoyée : l\'équipe te répondra dès qu\'elle sera connectée'); } catch (e) { toast(e.message); }
+      } }, '📣 Prévenir l\'équipe'));
+  }
+  renderMuteBanner();
+}
 function renderCustoms() {
   const b = $('customsBanner');
   const r = state.currentRoom;
   const inDouane = state.view?.type === 'room' && r?.slug === 'douane';
   const c = state.customs || {};
+  if (!c.enabled && c.media && inDouane) return renderVerifyBanner(b);
   if (!c.enabled || !inDouane && !needsCustoms()) { b.classList.add('hidden'); return renderMuteBanner(); }
   b.classList.remove('hidden');
   if (isStaff()) {
@@ -755,7 +778,7 @@ socket.on('customs', c => {
 });
 socket.on('verified_state', ({ verified, refused, voiceOk, camOk }) => {
   state.me.verified = verified;
-  if (voiceOk !== undefined) { state.me.voiceOk = voiceOk; state.me.camOk = camOk; }
+  if (voiceOk !== undefined) { state.me.voiceOk = voiceOk; state.me.camOk = camOk; if (typeof renderVoice === 'function') renderVoice(); }
   state.me.refused = !!refused;
   state.me.validated = !!(verified && state.customs?.enabled);
   if (typeof renderMe === 'function') renderMe();

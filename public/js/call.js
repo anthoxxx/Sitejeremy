@@ -28,6 +28,11 @@ const Call = {
   // ----- Lancer un appel -----
   async start(user, video) {
     if (this.id || this.incoming) return toast('📞 Tu es déjà en appel');
+    const toStaff = ['moderator', 'admin', 'superadmin'].includes(user.role);
+    if (!toStaff && typeof mediaOk === 'function') {
+      if (!mediaOk('voice')) return askVerify('voice');
+      if (video && !mediaOk('cam')) return askVerify('cam');
+    }
     if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) return toast('📞 Les appels nécessitent un navigateur récent et un site en https');
     try { this.local = await this.getMedia(video); }
     catch (e) { return toast(video ? '📹 Autorise la caméra et le micro pour passer un appel vidéo' : '🎤 Autorise le micro pour passer un appel'); }
@@ -44,6 +49,8 @@ const Call = {
   async accept(withVideo) {
     const inc = this.incoming;
     if (!inc) return;
+    // Caméra pas encore validée : on répond en audio (sauf si c'est l'équipe qui appelle pour valider)
+    if (withVideo && typeof mediaOk === 'function' && !mediaOk('cam') && !['moderator', 'admin', 'superadmin'].includes(inc.from?.role)) { withVideo = false; toast('📷 Caméra pas encore validée : tu réponds en audio'); }
     Ring.stop();
     try { this.local = await this.getMedia(withVideo); }
     catch (e) {
