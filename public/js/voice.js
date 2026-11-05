@@ -395,6 +395,7 @@ function renderVoice() {
   const bar = $('voiceBar');
   const btn = $('headVoice');
   renderVoiceMini();
+  if (typeof renderVideoGrid === 'function' && $('videoGrid')) renderVideoGrid();
   if (!r || state.view?.type !== 'room') { bar.classList.add('hidden'); return; }
   const parts = state.voice.get(r.slug) || [];
   const speakers = parts.filter(p => !p.listener), listeners = parts.filter(p => p.listener);
@@ -542,11 +543,82 @@ window.addEventListener('beforeunload', () => Voice.leave());
 const videosHidden = () => { try { return localStorage.getItem('lc_videos_hidden') === '1'; } catch (e) { return false; } };
 const setVideosHidden = v => { try { localStorage.setItem('lc_videos_hidden', v ? '1' : '0'); } catch (e) {} };
 const videoEls = new Map(); // clé -> élément <div class="vtile">
+const floatPos = new Map(); // clé -> { x, y, w } : caméras détachées et déplacées par l'utilisateur
+function floatLayer() {
+  let f = document.getElementById('videoFloat');
+  if (!f) { f = el('div', { id: 'videoFloat', class: 'video-float' }); document.body.append(f); }
+  return f;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+// Crée une vignette : clic = agrandir, ⤢ = détacher, glisser = déplacer, coin = redimensionner
+function makeVideoTile(key, mine) {
+  const v = el('video', { autoplay: true, playsinline: true, muted: true });
+  v.muted = true;
+  const tile = el('div', { class: 'vtile' + (mine ? ' mine' : ''), onclick: () => {
+    if (tile._dragged || floatPos.has(key)) return;
+    const big = !tile.classList.contains('big');
+    videoEls.forEach(t => t.classList.remove('big'));
+    tile.classList.toggle('big', big);
+    renderVideoGrid();
+  } }, v, el('span', { class: 'vtile-name' }),
+  el('button', { class: 'vt-btn vt-detach', title: 'Détacher et déplacer', onclick: e => {
+    e.stopPropagation();
+    if (floatPos.has(key)) floatPos.delete(key);
+    else {
+      const rc = tile.getBoundingClientRect();
+      const w = Math.min(innerWidth - 16, innerWidth < 760 ? 170 : 260);
+      floatPos.set(key, { x: clamp(rc.left, 8, innerWidth - w - 8), y: clamp(rc.top + 20, 8, innerHeight - w * 0.75 - 8), w });
+    }
+    renderVideoGrid();
+  } }, '⤢'),
+  el('span', { class: 'vt-resize', title: 'Agrandir / réduire' }));
+  // Glisser : sur ordinateur depuis la bande (ça la détache), partout pour une caméra déjà détachée
+  tile.addEventListener('pointerdown', e => {
+    if (e.button > 0 || e.target.closest('.vt-btn')) return;
+    const resizing = !!e.target.closest('.vt-resize');
+    if (!floatPos.has(key) && (e.pointerType !== 'mouse' || resizing)) return;
+    const rc = tile.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    let moved = false;
+    const move = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.hypot(dx, dy) < 6) return;
+      if (!moved) {
+        moved = true;
+        if (!floatPos.has(key)) { floatPos.set(key, { x: rc.left, y: rc.top, w: Math.max(200, rc.width) }); renderVideoGrid(); }
+        tile.classList.add('dragging');
+      }
+      ev.preventDefault();
+      const pos = floatPos.get(key);
+      if (resizing) pos.w = clamp(rc.width + dx, 120, Math.min(innerWidth - 16, 720));
+      else { pos.x = clamp(rc.left + dx, 0, innerWidth - pos.w); pos.y = clamp(rc.top + dy, 0, innerHeight - 50); }
+      tile.style.left = pos.x + 'px'; tile.style.top = pos.y + 'px'; tile.style.width = pos.w + 'px';
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      tile.classList.remove('dragging');
+      if (moved) { tile._dragged = true; setTimeout(() => { tile._dragged = false; }, 0); }
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+  videoEls.set(key, tile);
+  return tile;
+}
+// Si la fenêtre change de taille, les caméras détachées restent visibles
+window.addEventListener('resize', () => {
+  for (const [k, pos] of floatPos) { pos.w = Math.min(pos.w, innerWidth - 16); pos.x = clamp(pos.x, 0, innerWidth - pos.w); pos.y = clamp(pos.y, 0, innerHeight - 50); }
+  if (floatPos.size) renderVideoGrid();
+});
 function renderVideoGrid() {
   const grid = $('videoGrid');
   const r = state.currentRoom;
   const inThis = r && state.view?.type === 'room' && Voice.slug === r.slug;
-  const parts = inThis ? (state.voice.get(r.slug) || []).filter(p => p.video) : [];
+  // Toutes les caméras du vocal où l'on est (les caméras détachées restent visibles même dans un autre salon)
+  const parts = Voice.slug ? (state.voice.get(Voice.slug) || []).filter(p => p.video) : [];
   const tiles = [];
   for (const p of parts) {
     const mine = p.socketId === socket.id;
@@ -554,34 +626,40 @@ function renderVideoGrid() {
     if (!stream) continue;
     const key = mine ? 'me' : p.socketId;
     let tile = videoEls.get(key);
-    if (!tile) {
-      const v = el('video', { autoplay: true, playsinline: true, muted: true });
-      v.muted = true;
-      // Un toucher agrandit la vignette (une seule à la fois), un autre la réduit
-      tile = el('div', { class: 'vtile' + (mine ? ' mine' : ''), onclick: () => {
-        const big = !tile.classList.contains('big');
-        videoEls.forEach(t => t.classList.remove('big'));
-        tile.classList.toggle('big', big);
-        renderVideoGrid();
-      } }, v, el('span', { class: 'vtile-name' }));
-      videoEls.set(key, tile);
-    }
+    if (!tile) tile = makeVideoTile(key, mine);
     const v = tile.querySelector('video');
     const track = stream.getVideoTracks()[0];
     if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== track) { v.srcObject = stream; v.play().catch(() => {}); }
     tile.querySelector('.vtile-name').textContent = mine ? 'Toi' : p.username;
     tiles.push([key, tile]);
   }
-  for (const k of [...videoEls.keys()]) if (!tiles.some(([key]) => key === k)) videoEls.delete(k);
-  // Bande compacte : petites vignettes, un toucher agrandit, et on peut tout masquer
+  for (const k of [...videoEls.keys()]) if (!tiles.some(([key]) => key === k)) { videoEls.get(k).remove(); videoEls.delete(k); floatPos.delete(k); }
   const hidden = videosHidden();
+  const docked = inThis ? tiles.filter(([k]) => !floatPos.has(k)) : [];
+  const floating = tiles.filter(([k]) => floatPos.has(k));
+  // Bande compacte : petites vignettes, un toucher agrandit, et on peut tout masquer
   const toggle = el('button', { class: 'vgrid-toggle', title: hidden ? 'Afficher les caméras' : 'Masquer les caméras', onclick: () => { setVideosHidden(!hidden); renderVideoGrid(); } },
     hidden ? `📷 ${tiles.length} caméra${tiles.length > 1 ? 's' : ''} · afficher` : '▁');
-  grid.replaceChildren(...(hidden ? [] : tiles.map(([, t]) => t)), toggle);
-  grid.classList.toggle('hidden', !tiles.length);
+  grid.replaceChildren(...(hidden ? [] : docked.map(([, t]) => t)), toggle);
+  grid.classList.toggle('hidden', !inThis || !tiles.length);
   grid.classList.toggle('collapsed', hidden);
-  grid.classList.toggle('has-big', !hidden && tiles.some(([, t]) => t.classList.contains('big')));
+  grid.classList.toggle('has-big', !hidden && docked.some(([, t]) => t.classList.contains('big')));
   grid.dataset.count = Math.min(tiles.length, 4);
+  // Caméras détachées : petites fenêtres posées n'importe où sur l'écran
+  const layer = floatLayer();
+  for (const [k, t] of floating) {
+    const pos = floatPos.get(k);
+    t.classList.add('floating'); t.classList.remove('big');
+    t.style.left = pos.x + 'px'; t.style.top = pos.y + 'px'; t.style.width = pos.w + 'px';
+    t.classList.toggle('hidden', hidden);
+    if (t.parentNode !== layer) { layer.append(t); t.querySelector('video').play().catch(() => {}); }
+  }
+  for (const [, t] of docked) { t.classList.remove('floating', 'hidden'); t.style.left = t.style.top = t.style.width = ''; }
+  // Caméras de la bande quand on regarde un autre salon : on les retire de l'écran
+  for (const [k, t] of tiles) if (!floatPos.has(k) && !inThis) t.remove();
+  docked.forEach(([, t]) => t.querySelector('video').play().catch(() => {}));
+  for (const [k, t] of docked) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '⤢'; b.title = 'Détacher et déplacer'; } }
+  for (const [k, t] of floating) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '↩'; b.title = 'Remettre dans la bande'; } }
 }
 
 // Curseur de volume réutilisable (0 à 200 %)

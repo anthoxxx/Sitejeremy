@@ -56,7 +56,7 @@ Les admins et super-admins sont en **rouge** et choisissent librement la durée 
 - 🖼️ **Partage de médias** : photos (bouton 📎, coller, glisser-déposer, plein écran), liens **YouTube / Shorts**, Spotify, Dailymotion, Vimeo lus directement dans le chat, liens d'images / GIF / vidéos affichés, aperçu des autres liens (titre, image), et **galerie** des médias de chaque salon (bouton 🖼️)
 - 🎤 **Messages vocaux** (jusqu'à 2 minutes) dans les salons et en privé, avec lecteur et forme d'onde
 - 🗣️ **Dictée vocale** : on parle, le texte s'écrit (dire « point », « virgule », « point d'interrogation »…), plus correcteur orthographique du navigateur
-- 🎙️ **Vocal dans les salons** avec **caméra** : mosaïque vidéo, micro / caméra / son, changement de caméra avant ou arrière sur téléphone
+- 🎙️ **Vocal dans les salons** avec **caméra** : bande de vignettes compacte (un toucher agrandit), **caméras détachables et déplaçables n'importe où sur l'écran** (⤢, glisser, coin pour redimensionner ; elles restent visibles dans les autres salons), micro / caméra / son, changement de caméra avant ou arrière sur téléphone
 - 🎧 **Écouter le vocal sans y aller** : dans un salon où des gens parlent, le bouton « 🎧 Écouter » permet de les entendre (et de voir leurs caméras) sans micro. Ceux qui parlent voient combien de personnes écoutent. « 🎙️ Parler » pour prendre la parole, « 🔁 Auto » pour écouter tout seul en arrivant dans un salon
 - 🔊 **Volume réglable de 0 à 200 %** pendant les appels et dans le vocal des salons (volume général + volume de chaque personne)
 - 📹 **Appels audio et visio en tête-à-tête**, depuis le profil ou une conversation privée : sonnerie, répondre en audio ou en vidéo, appel manqué notifié
