@@ -1256,3 +1256,19 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .um-sig { text-align: center; padding: 8px 6px 2px; font-size: .74rem; }
 .admin-sig { padding: 18px 12px 6px; text-align: center; font-size: .76rem; line-height: 1.5; }
 @media (max-width: 760px) { .admin-layout aside .admin-sig { display: none; } }
+
+/* ===== Caméras en bande compacte (ne mangent plus la zone de discussion) ===== */
+.video-grid { display: flex; gap: 8px; padding: 8px 12px; max-height: none; overflow-x: auto; overflow-y: hidden; align-items: center; scrollbar-width: thin; }
+.video-grid .vtile { flex: none; height: 130px; aspect-ratio: 4 / 3; width: auto; border-radius: 12px; }
+.video-grid .vtile.mine { height: 100px; opacity: .95; }
+.video-grid .vtile.big { height: min(40vh, 340px); aspect-ratio: 4 / 3; grid-column: auto; }
+.video-grid .vtile-name { left: 6px; bottom: 6px; font-size: .72rem; padding: 2px 7px; }
+.vgrid-toggle { flex: none; align-self: flex-start; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 10px; padding: 4px 10px; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.video-grid.collapsed { padding: 5px 12px; background: transparent; }
+@media (max-width: 760px) {
+  .video-grid { padding: 6px 8px; gap: 6px; max-height: none; }
+  .video-grid .vtile { height: 92px; }
+  .video-grid .vtile.mine { height: 72px; }
+  .video-grid .vtile.big { height: min(32vh, 240px); }
+  .video-grid[data-count="1"] { grid-template-columns: none; }
+}

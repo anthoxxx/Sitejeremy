@@ -432,7 +432,7 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm btn-primary', onclick: () => Voice.join() }, 'Rejoindre'));
   }
   const unlockBtn = inThis && Voice.locked ? el('button', { class: 'btn btn-sm btn-primary voice-unlock', onclick: () => Voice.unlock() }, '🔊 Touche ici pour activer le son') : null;
-  bar.replaceChildren(
+  bar.replaceChildren(...[
     unlockBtn,
     el('span', { class: 'voice-label' }, '🎙️ Vocal'),
     el('div', { class: 'voice-people' }, ...speakers.map(p => {
@@ -443,7 +443,7 @@ function renderVoice() {
         !mine && inThis ? connBadge(Voice.peers.get(p.socketId)) : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     }), listenInfo),
-    ctrl);
+    ctrl].filter(Boolean));
 }
 // Petite barre « tu es en vocal ailleurs » : le vocal reste connecté quand on change de salon ou qu'on ouvre un message privé
 function renderVoiceMini() {
@@ -539,6 +539,8 @@ window.addEventListener('beforeunload', () => Voice.leave());
 ['pointerdown', 'keydown', 'touchend'].forEach(ev => document.addEventListener(ev, () => { if (Voice.slug && (Voice.locked || Voice.ctx?.state === 'suspended')) Voice.unlock(); }, { passive: true }));
 
 // ----- Mosaïque vidéo du salon -----
+const videosHidden = () => { try { return localStorage.getItem('lc_videos_hidden') === '1'; } catch (e) { return false; } };
+const setVideosHidden = v => { try { localStorage.setItem('lc_videos_hidden', v ? '1' : '0'); } catch (e) {} };
 const videoEls = new Map(); // clé -> élément <div class="vtile">
 function renderVideoGrid() {
   const grid = $('videoGrid');
@@ -555,7 +557,13 @@ function renderVideoGrid() {
     if (!tile) {
       const v = el('video', { autoplay: true, playsinline: true, muted: true });
       v.muted = true;
-      tile = el('div', { class: 'vtile' + (mine ? ' mine' : ''), onclick: () => tile.classList.toggle('big') }, v, el('span', { class: 'vtile-name' }));
+      // Un toucher agrandit la vignette (une seule à la fois), un autre la réduit
+      tile = el('div', { class: 'vtile' + (mine ? ' mine' : ''), onclick: () => {
+        const big = !tile.classList.contains('big');
+        videoEls.forEach(t => t.classList.remove('big'));
+        tile.classList.toggle('big', big);
+        renderVideoGrid();
+      } }, v, el('span', { class: 'vtile-name' }));
       videoEls.set(key, tile);
     }
     const v = tile.querySelector('video');
@@ -565,8 +573,14 @@ function renderVideoGrid() {
     tiles.push([key, tile]);
   }
   for (const k of [...videoEls.keys()]) if (!tiles.some(([key]) => key === k)) videoEls.delete(k);
-  grid.replaceChildren(...tiles.map(([, t]) => t));
+  // Bande compacte : petites vignettes, un toucher agrandit, et on peut tout masquer
+  const hidden = videosHidden();
+  const toggle = el('button', { class: 'vgrid-toggle', title: hidden ? 'Afficher les caméras' : 'Masquer les caméras', onclick: () => { setVideosHidden(!hidden); renderVideoGrid(); } },
+    hidden ? `📷 ${tiles.length} caméra${tiles.length > 1 ? 's' : ''} · afficher` : '▁');
+  grid.replaceChildren(...(hidden ? [] : tiles.map(([, t]) => t)), toggle);
   grid.classList.toggle('hidden', !tiles.length);
+  grid.classList.toggle('collapsed', hidden);
+  grid.classList.toggle('has-big', !hidden && tiles.some(([, t]) => t.classList.contains('big')));
   grid.dataset.count = Math.min(tiles.length, 4);
 }
 
