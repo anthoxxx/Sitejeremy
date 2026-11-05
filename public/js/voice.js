@@ -550,6 +550,20 @@ function floatLayer() {
   return f;
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const FLOAT_MIN = 100;
+const floatMax = () => Math.min(innerWidth - 16, 900);
+// Change la taille d'une caméra détachée en gardant son centre au même endroit
+function setFloatWidth(key, tile, w) {
+  const pos = floatPos.get(key);
+  if (!pos) return;
+  const nw = clamp(w, FLOAT_MIN, floatMax());
+  const cx = pos.x + pos.w / 2, cy = pos.y + pos.w * 0.375;
+  pos.w = nw;
+  pos.x = clamp(cx - nw / 2, 0, innerWidth - nw);
+  pos.y = clamp(cy - nw * 0.375, 0, innerHeight - 50);
+  tile.style.left = pos.x + 'px'; tile.style.top = pos.y + 'px'; tile.style.width = pos.w + 'px';
+}
+function zoomFloat(key, tile, f) { const pos = floatPos.get(key); if (pos) setFloatWidth(key, tile, pos.w * f); }
 // Crée une vignette : clic = agrandir, ⤢ = détacher, glisser = déplacer, coin = redimensionner
 function makeVideoTile(key, mine) {
   const v = el('video', { autoplay: true, playsinline: true, muted: true });
@@ -571,16 +585,39 @@ function makeVideoTile(key, mine) {
     }
     renderVideoGrid();
   } }, '⤢'),
+  el('div', { class: 'vt-zoom' },
+    el('button', { class: 'vt-btn vt-minus', title: 'Réduire', onclick: e => { e.stopPropagation(); zoomFloat(key, tile, 0.8); } }, '−'),
+    el('button', { class: 'vt-btn vt-plus', title: 'Agrandir', onclick: e => { e.stopPropagation(); zoomFloat(key, tile, 1.25); } }, '+')),
   el('span', { class: 'vt-resize', title: 'Agrandir / réduire' }));
+  // Pincer avec deux doigts pour agrandir ou réduire (téléphone, tablette)
+  const touches = new Map();
+  let pinch = null;
+  tile.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && floatPos.has(key)) touches.set(e.pointerId, e); }, true);
+  tile.addEventListener('pointermove', e => {
+    if (!touches.has(e.pointerId)) return;
+    touches.set(e.pointerId, e);
+    if (touches.size !== 2) return;
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const pos = floatPos.get(key);
+    if (!pinch) pinch = { d, w: pos.w };
+    setFloatWidth(key, tile, pinch.w * d / pinch.d);
+    e.preventDefault();
+  }, { passive: false });
+  const endTouch = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; };
+  tile.addEventListener('pointerup', endTouch);
+  tile.addEventListener('pointercancel', endTouch);
   // Glisser : sur ordinateur depuis la bande (ça la détache), partout pour une caméra déjà détachée
   tile.addEventListener('pointerdown', e => {
     if (e.button > 0 || e.target.closest('.vt-btn')) return;
+    if (e.pointerType === 'touch' && touches.size > 1) return;
     const resizing = !!e.target.closest('.vt-resize');
     if (!floatPos.has(key) && (e.pointerType !== 'mouse' || resizing)) return;
     const rc = tile.getBoundingClientRect();
     const sx = e.clientX, sy = e.clientY;
     let moved = false;
     const move = ev => {
+      if (ev.pointerId !== e.pointerId || pinch) return;
       const dx = ev.clientX - sx, dy = ev.clientY - sy;
       if (!moved && Math.hypot(dx, dy) < 6) return;
       if (!moved) {
@@ -590,7 +627,7 @@ function makeVideoTile(key, mine) {
       }
       ev.preventDefault();
       const pos = floatPos.get(key);
-      if (resizing) pos.w = clamp(rc.width + dx, 120, Math.min(innerWidth - 16, 720));
+      if (resizing) pos.w = clamp(rc.width + dx, FLOAT_MIN, floatMax());
       else { pos.x = clamp(rc.left + dx, 0, innerWidth - pos.w); pos.y = clamp(rc.top + dy, 0, innerHeight - 50); }
       tile.style.left = pos.x + 'px'; tile.style.top = pos.y + 'px'; tile.style.width = pos.w + 'px';
     };

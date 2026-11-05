@@ -1293,3 +1293,7 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
   background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, .7) 50%, rgba(255, 255, 255, .7) 60%, transparent 60%, transparent 72%, rgba(255, 255, 255, .7) 72%, rgba(255, 255, 255, .7) 82%, transparent 82%); }
 .video-grid .vtile:not(.floating) { cursor: pointer; }
 @media (hover: hover) { .video-grid .vtile:not(.floating) { cursor: grab; } }
+/* Boutons − / + des caméras détachées */
+.vt-zoom { display: none; }
+.vtile.floating .vt-zoom { display: flex; gap: 4px; position: absolute; top: 5px; left: 5px; z-index: 2; }
+.vt-zoom .vt-btn { position: static; font-size: 1rem; font-weight: 800; line-height: 1; }
