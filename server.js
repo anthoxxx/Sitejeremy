@@ -1926,6 +1926,7 @@ app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirn
 // ---------- Temps réel ----------
 // online : userId -> { user, sockets:Set, room }
 const online = new Map();
+const recentLeave = new Map(); // userId -> { room, timer } : départ pas encore annoncé
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
 
@@ -2124,7 +2125,11 @@ io.on('connection', socket => {
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
-    if (prev !== room.slug && !entry.ghost) {
+    // Reconnexion rapide (connexion qui saute, page rechargée) : pas de « déconnecté / a rejoint » en boucle
+    const quick = recentLeave.get(uid);
+    const silent = !prev && quick && quick.room === room.slug;
+    if (quick) { clearTimeout(quick.timer); recentLeave.delete(uid); if (!silent && !entry.ghost) io.to('room:' + quick.room).emit('system', { room: quick.room, text: `${u.username} a quitté le salon` }); }
+    if (prev !== room.slug && !entry.ghost && !silent) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
     }
@@ -2424,7 +2429,15 @@ io.on('connection', socket => {
       online.delete(uid);
       Games.onUserGone(uid);
       db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
-      if (entry.room && !entry.ghost) io.to('room:' + entry.room).emit('system', { room: entry.room, text: `${entry.user.username} s'est déconnecté` });
+      // On attend 15 s avant d'annoncer le départ : si la personne revient tout de suite, on n'affiche rien
+      if (entry.room && !entry.ghost) {
+        const room = entry.room, name = entry.user.username;
+        const timer = setTimeout(() => {
+          recentLeave.delete(uid);
+          if (!online.has(uid)) io.to('room:' + room).emit('system', { room, text: `${name} s'est déconnecté` });
+        }, 15000);
+        recentLeave.set(uid, { room, timer });
+      }
       schedulePresence();
     }
   });

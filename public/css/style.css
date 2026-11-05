@@ -1272,3 +1272,11 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
   .video-grid .vtile.big { height: min(32vh, 240px); }
   .video-grid[data-count="1"] { grid-template-columns: none; }
 }
+
+/* Barre du vocal : les pseudos ne sont jamais recouverts ; s'il manque de place, les boutons passent à la ligne */
+.voice-bar { row-gap: 8px; }
+.voice-people { flex: 1 1 220px; min-width: 160px; }
+.voice-chip { flex: none; max-width: 100%; }
+.voice-chip .vname { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-ctrl { flex-wrap: wrap; margin-left: auto; justify-content: flex-end; }
+@media (max-width: 760px) { .voice-people { min-width: 0; flex-basis: 100%; } .voice-ctrl { margin-left: 0; justify-content: center; } }
