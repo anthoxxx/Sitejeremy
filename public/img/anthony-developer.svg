@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="580" viewBox="0 0 640 580">
+<defs>
+  <style>@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&amp;display=swap");</style>
+  <linearGradient id="bubble" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#7ef0ff"/><stop offset=".55" stop-color="#2ec5f5"/><stop offset="1" stop-color="#3b7cf0"/></linearGradient>
+  <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb547"/><stop offset=".5" stop-color="#ff7fb0"/><stop offset="1" stop-color="#ff5fa2"/></linearGradient>
+  <linearGradient id="palm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b06cff"/><stop offset="1" stop-color="#4b1fa8"/></linearGradient>
+  <linearGradient id="t1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5ee7ff"/><stop offset=".5" stop-color="#8b9cff"/><stop offset="1" stop-color="#b47cff"/></linearGradient>
+  <linearGradient id="t2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8b6cff"/><stop offset=".55" stop-color="#ff5fa2"/><stop offset="1" stop-color="#ffb547"/></linearGradient>
+  <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <clipPath id="bclip"><path id="bpath" d="M300 40c112 0 200 76 200 170s-88 170-200 170c-24 0-47-3-68-10l-78 42 22-70c-46-31-76-80-76-132 0-94 88-170 200-170z"/></clipPath>
+  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#2a0f5c" flood-opacity=".45"/></filter>
+</defs>
+<g filter="url(#sh)">
+  <!-- bubble outline -->
+  <use href="#bpath" fill="none" stroke="#fff" stroke-width="22" stroke-linejoin="round"/>
+  <use href="#bpath" fill="none" stroke="#3a1680" stroke-width="8" stroke-linejoin="round" transform="translate(0,0)"/>
+  <g clip-path="url(#bclip)">
+    <rect x="80" y="30" width="440" height="420" fill="url(#bubble)"/>
+    <!-- sunset -->
+    <circle cx="390" cy="250" r="78" fill="url(#sun)"/>
+    <g fill="#ff9cc6" opacity=".9"><rect x="300" y="248" width="180" height="7"/><rect x="300" y="264" width="180" height="6"/><rect x="300" y="278" width="180" height="5"/></g>
+    <!-- sea -->
+    <path d="M80 270h440v200H80z" fill="#29b6f0"/>
+    <path d="M80 270c80 10 170 6 260-4 70-8 120-6 180 4v12c-60-8-110-10-180-2-90 10-180 14-260 2z" fill="#bff6ff" opacity=".8"/>
+    <!-- island -->
+    <path d="M300 330c60-40 150-58 230-50v200H260c-20-40 0-110 40-150z" fill="url(#palm)"/>
+    <path d="M250 380c40-10 70-30 90-60" stroke="#e6fbff" stroke-width="6" fill="none" stroke-linecap="round" opacity=".85"/>
+    <!-- gloss -->
+    <ellipse cx="230" cy="105" rx="110" ry="40" fill="url(#gloss)" transform="rotate(-18 230 105)"/>
+  </g>
+  <!-- code symbol </> -->
+  <g fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="210,150 165,190 210,230"/>
+    <line x1="270" y1="125" x2="240" y2="255"/>
+    <polyline points="300,150 345,190 300,230"/>
+  </g>
+  <!-- palm tree -->
+  <g>
+    <path d="M478 330c-6-70 2-140 24-200" stroke="#3a1680" stroke-width="22" fill="none" stroke-linecap="round"/>
+    <path d="M478 330c-6-70 2-140 24-200" stroke="url(#palm)" stroke-width="14" fill="none" stroke-linecap="round"/>
+    <g fill="url(#palm)" stroke="#3a1680" stroke-width="5" stroke-linejoin="round">
+      <path d="M502 132c-30-40-90-50-130-30 40 0 80 14 100 50z"/>
+      <path d="M502 132c-50-10-100 20-120 70 30-30 70-50 115-55z"/>
+      <path d="M502 132c10-50 60-80 110-70-40 10-75 35-95 75z"/>
+      <path d="M502 132c50-10 100 20 115 75-30-30-70-50-110-60z"/>
+      <path d="M502 132c-10-45-40-80-85-95 25 25 45 55 75 100z"/>
+      <path d="M502 132c20 40 20 90 0 130 -5-40-10-80-10-125z"/>
+    </g>
+    <circle cx="500" cy="140" r="9" fill="#ff5fa2" stroke="#3a1680" stroke-width="4"/>
+  </g>
+</g>
+<!-- Text -->
+<g font-family="Fredoka" font-weight="700" text-anchor="middle" filter="url(#sh)">
+  <text x="320" y="462" font-size="104" fill="none" stroke="#fff" stroke-width="26" stroke-linejoin="round">Anthony</text>
+  <text x="320" y="462" font-size="104" fill="none" stroke="#3a1680" stroke-width="12" stroke-linejoin="round">Anthony</text>
+  <text x="320" y="462" font-size="104" fill="url(#t1)">Anthony</text>
+  <text x="320" y="530" font-size="58" font-weight="600" letter-spacing="3" fill="none" stroke="#fff" stroke-width="18" stroke-linejoin="round">Developer</text>
+  <text x="320" y="530" font-size="58" font-weight="600" letter-spacing="3" fill="none" stroke="#3a1680" stroke-width="8" stroke-linejoin="round">Developer</text>
+  <text x="320" y="530" font-size="58" font-weight="600" letter-spacing="3" fill="url(#t2)">Developer</text>
+</g>
+</svg>
