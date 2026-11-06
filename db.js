@@ -150,6 +150,8 @@ addColumn('messages', 'duration', 'INTEGER DEFAULT 0');
 addColumn('private_messages', 'kind', "TEXT DEFAULT 'text'");
 addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
+addColumn('messages', 'edited_at', 'INTEGER NOT NULL DEFAULT 0'); // message corrigé par son auteur
+addColumn('private_messages', 'edited_at', 'INTEGER NOT NULL DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 db.exec(`
 CREATE TABLE IF NOT EXISTS cam_blocks (

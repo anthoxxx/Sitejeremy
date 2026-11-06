@@ -1426,7 +1426,7 @@ app.get('/api/pm/:id', auth, (req, res) => {
   db.prepare('UPDATE private_messages SET is_read=1 WHERE from_id=? AND to_id=?').run(other, req.user.id);
   res.json({ messages: msgs.map(pmOut) });
 });
-const pmOut = m => ({ id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: !!m.is_read, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0 });
+const pmOut = m => ({ id: m.id, from: m.from_id, to: m.to_id, content: m.content, createdAt: m.created_at, read: !!m.is_read, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, editedAt: m.edited_at || 0 });
 
 // ---------- Administration ----------
 const admin = express.Router();
@@ -2318,6 +2318,37 @@ io.on('connection', socket => {
     if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});
   });
 
+  // ----- Corriger un message (faute d'orthographe…) : seulement le sien, texte ou légende de photo, 15 min max -----
+  socket.on('message_edit', ({ id, text } = {}, ack) => {
+    const u = current();
+    const m = db.prepare('SELECT m.*, r.slug FROM messages m JOIN rooms r ON r.id=m.room_id WHERE m.id=?').get(parseInt(id, 10));
+    if (!u || !m || m.user_id !== uid) return ack && ack({ error: 'Tu ne peux modifier que tes messages' });
+    if (m.kind === 'audio') return ack && ack({ error: 'Un message vocal ne peut pas être modifié' });
+    if (now() - m.created_at > EDIT_WINDOW) return ack && ack({ error: 'Trop tard : on peut modifier un message pendant 15 minutes' });
+    if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
+    if (flood()) return ack && ack({ error: 'Doucement !' });
+    const scanned = modScan(clean(text, 500));
+    const content = scanned.text || (m.kind === 'image' ? '🖼️ Photo' : '');
+    if (!content) return ack && ack({ error: 'Le message est vide' });
+    db.prepare('UPDATE messages SET content=?, edited_at=? WHERE id=?').run(content, now(), m.id);
+    io.to('room:' + m.slug).emit('message_edited', { id: m.id, content, editedAt: now() });
+    ack && ack({ ok: true });
+    if (scanned.level) { const room = getRoomBySlug(m.slug); if (room) modBotStrike(u, room, scanned); }
+  });
+  socket.on('pm_edit', ({ id, text } = {}, ack) => {
+    const u = current();
+    const m = db.prepare('SELECT * FROM private_messages WHERE id=?').get(parseInt(id, 10));
+    if (!u || !m || m.from_id !== uid) return ack && ack({ error: 'Tu ne peux modifier que tes messages' });
+    if (m.kind === 'audio') return ack && ack({ error: 'Un message vocal ne peut pas être modifié' });
+    if (now() - m.created_at > EDIT_WINDOW) return ack && ack({ error: 'Trop tard : on peut modifier un message pendant 15 minutes' });
+    const content = filterWords(clean(text, 1000)) || (m.kind === 'image' ? '🖼️ Photo' : '');
+    if (!content) return ack && ack({ error: 'Le message est vide' });
+    db.prepare('UPDATE private_messages SET content=?, edited_at=? WHERE id=?').run(content, now(), m.id);
+    const ev = { id: m.id, from: m.from_id, to: m.to_id, content, editedAt: now() };
+    emitToUser(m.to_id, 'pm_edited', ev); emitToUser(uid, 'pm_edited', ev);
+    ack && ack({ ok: true });
+  });
+
   socket.on('typing', () => {
     if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
@@ -2665,11 +2696,12 @@ function modBotStrike(u, room, scanned) {
   emitToStaff('staff_alert', { text: `🛡️ ModoBot a rendu ${u.username} muet ${fmtDuration(minutes)} (dans ${room.name})` });
 }
 
+const EDIT_WINDOW = 15 * 60 * 1000; // on peut corriger son message pendant 15 minutes
 function msgOut(m) {
   // Message signé « Modération » (super-admin en mode fantôme anonyme) : l'identité reste visible dans l'admin
   if (m.anon) return { id: m.id, userId: 0, username: 'Modération', color: '#c3b8ff', gender: 'x', role: 'moderation', avatar: '', nameEffect: 'glow', frame: 'none', isBirthday: false,
     content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, anon: true };
-  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0 };
+  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, editedAt: m.edited_at || 0 };
 }
 
 // Nettoyage : invités inactifs depuis 24 h et vieux messages (30 jours)

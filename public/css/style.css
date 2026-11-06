@@ -1324,3 +1324,20 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .mic-left.low { background: rgba(229,56,77,.25); color: #ff8a98; animation: micBlink 1s infinite; }
 @keyframes micBlink { 50% { opacity: .5; } }
 [data-uid] { -webkit-touch-callout: none; }
+
+/* ---------- Modifier son message ---------- */
+.msg .msg-tools { position: absolute; right: 8px; top: 6px; display: none; gap: 4px; }
+.msg:hover .msg-tools, .msg.editing .msg-tools { display: inline-flex; }
+@media (hover: none) { .msg .msg-tools { display: inline-flex; opacity: .75; } }
+.msg .msg-tools .btn { padding: 4px 8px; }
+.edited { color: var(--muted); font-size: .7rem; font-style: italic; margin-left: 4px; }
+.bubble-row.mine .edited { color: rgba(255,255,255,.75); }
+.edit-box { margin-top: 6px; }
+.edit-box .edit-input { width: 100%; min-height: 44px; resize: vertical; font: inherit; color: var(--text); }
+.edit-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
+.edit-actions small { margin-right: auto; }
+.bubble-row.editing .bubble { max-width: 92%; width: 100%; }
+.bubble-edit { align-self: center; margin-right: 6px; opacity: 0; transition: opacity .15s; background: none; border: 0; }
+.bubble-row:hover .bubble-edit, .bubble-row.editing .bubble-edit { opacity: .8; }
+@media (hover: none) { .bubble-edit { opacity: .6; } }
+.bubble-row.mine { justify-content: flex-end; }

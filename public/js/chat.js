@@ -268,9 +268,12 @@ function addRoomMessage(m, live = true) {
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
-        el('span', { class: 'time' }, LC.time(m.createdAt))),
+        el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
       ...messageBody(m)),
-    isStaff() ? el('button', { class: 'btn btn-sm btn-danger del', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null);
+    el('div', { class: 'msg-tools' },
+      canEdit(m, m.userId) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'room') }, '✏️') : null,
+      isStaff() ? el('button', { class: 'btn btn-sm btn-danger', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null));
+  row._msg = m;
   $('messages').append(row);
   trimMessages();
   if (live) { scrollDown(m.userId === state.me.id); if (mention) { ding(); toast(`${m.username} t'a mentionné`); } }
@@ -349,9 +352,63 @@ async function openPm(user) {
 }
 function addBubble(m) {
   const mine = m.from === state.me.id;
-  $('messages').append(el('div', { class: 'bubble-row' + (mine ? ' mine' : '') },
-    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time' }, LC.time(m.createdAt)))));
+  const row = el('div', { class: 'bubble-row' + (mine ? ' mine' : ''), 'data-pm': m.id },
+    canEdit(m, m.from) ? el('button', { class: 'btn btn-sm edit bubble-edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'pm') }, '✏️') : null,
+    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time' }, LC.time(m.createdAt), editedTag(m))));
+  row._msg = m;
+  $('messages').append(row);
   trimMessages();
+}
+
+// ---------- Modifier son message (faute d'orthographe…) pendant 15 minutes ----------
+const EDIT_MS = 15 * 60 * 1000;
+const canEdit = (m, authorId) => !!state.me && authorId === state.me.id && !m.anon && m.kind !== 'audio' && Date.now() - m.createdAt < EDIT_MS;
+const editedTag = m => m.editedAt ? el('span', { class: 'edited', title: 'Modifié à ' + LC.time(m.editedAt) }, ' (modifié)') : null;
+function startEdit(row, m, kind) {
+  if (row.querySelector('.edit-box')) return;
+  if (Date.now() - m.createdAt >= EDIT_MS) return toast('Trop tard : on peut modifier un message pendant 15 minutes');
+  const old = m.content === '🖼️ Photo' ? '' : m.content;
+  const area = el('textarea', { class: 'input edit-input', rows: Math.min(6, old.split('\n').length + 1), maxlength: kind === 'pm' ? 1000 : 500 });
+  area.value = old;
+  const target = kind === 'pm' ? row.querySelector('.bubble') : row.querySelector('.body');
+  const save = () => {
+    const text = area.value.trim();
+    if (text === old) return cancel();
+    if (!text && m.kind !== 'image') return toast('Le message est vide');
+    socket.emit(kind === 'pm' ? 'pm_edit' : 'message_edit', { id: m.id, text }, res => {
+      if (res?.error) return toast(res.error);
+      cancel();
+    });
+  };
+  const cancel = () => { box.remove(); row.classList.remove('editing'); };
+  area.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  const box = el('div', { class: 'edit-box' }, area,
+    el('div', { class: 'edit-actions' },
+      el('small', { class: 'help' }, 'Entrée pour enregistrer · Échap pour annuler'),
+      el('button', { class: 'btn btn-sm', onclick: cancel }, 'Annuler'),
+      el('button', { class: 'btn btn-sm btn-primary', onclick: save }, '✔ Enregistrer')));
+  row.classList.add('editing');
+  target.append(box);
+  area.focus();
+  area.setSelectionRange(area.value.length, area.value.length);
+}
+// Un message a été corrigé : on met à jour son texte partout
+function applyEdit(row, m, kind) {
+  if (!row) return;
+  if (kind === 'pm') {
+    const bubble = row.querySelector('.bubble'), time = bubble.querySelector(':scope > .time');
+    [...bubble.children].forEach(c => { if (c !== time && !c.classList.contains('edit-box')) c.remove(); });
+    messageBody(m).forEach(n => bubble.insertBefore(n, time));
+    if (!time.querySelector('.edited')) time.append(editedTag(m));
+  } else {
+    const body = row.querySelector('.body'), head = body.firstElementChild;
+    [...body.children].forEach(c => { if (c !== head && !c.classList.contains('edit-box')) c.remove(); });
+    body.append(...messageBody(m));
+    if (!head.querySelector('.edited')) head.append(editedTag(m));
+  }
 }
 
 // ---------- Utilisateurs connectés ----------
@@ -617,6 +674,21 @@ socket.on('pm', m => {
     toast(`💌 ${m.fromUser.username} : ${m.content.slice(0, 60)}`, () => openPm(m.fromUser));
   }
   renderConvs();
+});
+socket.on('message_edited', ({ id, content, editedAt }) => {
+  const row = document.querySelector(`.msg[data-id="${id}"]`);
+  if (!row) return;
+  const m = row._msg || {};
+  Object.assign(m, { content, editedAt });
+  applyEdit(row, m, 'room');
+});
+socket.on('pm_edited', ({ id, from, to, content, editedAt }) => {
+  const otherId = from === state.me.id ? to : from;
+  const list = state.pmCache.get(otherId);
+  const cached = list && list.find(x => x.id === id);
+  if (cached) Object.assign(cached, { content, editedAt });
+  const row = document.querySelector(`.bubble-row[data-pm="${id}"]`);
+  if (row) { const m = row._msg || {}; Object.assign(m, { content, editedAt }); applyEdit(row, m, 'pm'); }
 });
 socket.on('message_deleted', ({ id }) => document.querySelector(`.msg[data-id="${id}"]`)?.remove());
 socket.on('room_cleared', ({ slug }) => { if (state.view?.slug === slug) { $('messages').replaceChildren(); addSys('Le salon a été vidé par un administrateur.'); } });
