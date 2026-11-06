@@ -220,7 +220,8 @@ td .btn { margin: 2px; }
 .status-on { color: var(--green); font-weight: 600; }
 .status-ban { color: var(--red); font-weight: 600; }
 .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.switch input { width: 20px; height: 20px; accent-color: var(--rose); }
+.switch input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--rose); flex: none; }
+.switch input.input { width: 90px; flex: none; text-align: center; padding: 8px 6px; }
 .bar { height: 8px; border-radius: 99px; background: var(--bg-2); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--grad); border-radius: 99px; }
 .pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; color: var(--muted); font-size: .9rem; }
