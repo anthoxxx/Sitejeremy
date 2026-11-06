@@ -1302,3 +1302,24 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .vtile.floating .vt-eye { top: auto; bottom: 30px; }
 .cv-person { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 12px; background: var(--bg-2); margin-bottom: 5px; }
 .cv-title { margin: 14px 0 6px; font-size: .9rem; }
+
+/* ---------- Modérateurs de salon (badge blanc) et menu clic droit ---------- */
+.badge.roommod { background: #fff; color: #1a1030; border: 1px solid rgba(0,0,0,.15); }
+.ctx-menu { position: fixed; z-index: 9999; min-width: 210px; max-width: 280px; background: var(--panel, #1d1430); color: var(--text, #fff); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.45); padding: 6px; animation: ctxIn .12s ease-out; }
+@keyframes ctxIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.ctx-head { font-weight: 700; padding: 6px 10px 8px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-sep { font-size: 12px; opacity: .65; padding: 8px 10px 4px; border-top: 1px solid rgba(255,255,255,.08); margin-top: 4px; }
+.ctx-item { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.ctx-item:hover, .ctx-item:focus { background: rgba(255,255,255,.08); }
+.ctx-item.danger { color: #ff7a8a; }
+[data-theme="light"] .ctx-menu { background: #fff; color: #1a1030; border-color: rgba(0,0,0,.1); }
+[data-theme="light"] .ctx-item:hover { background: rgba(0,0,0,.06); }
+.ban-kind { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,.08); white-space: nowrap; }
+.ban-kind.k-ban { background: rgba(229,56,77,.2); color: #ff7a8a; }
+.ban-row { align-items: center; }
+/* Temps de micro */
+.mic-left { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,.1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mic-left.first { background: rgba(80,200,120,.2); color: #6fdc95; }
+.mic-left.low { background: rgba(229,56,77,.25); color: #ff8a98; animation: micBlink 1s infinite; }
+@keyframes micBlink { 50% { opacity: .5; } }
+[data-uid] { -webkit-touch-callout: none; }

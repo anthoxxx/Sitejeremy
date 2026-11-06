@@ -466,14 +466,26 @@ function renderVoice() {
     el('span', { class: 'voice-label' }, '🎙️ Vocal'),
     el('div', { class: 'voice-people' }, ...speakers.map(p => {
       const mine = p.socketId === socket.id;
-      return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, title: p.username },
+      return el('div', { class: 'voice-chip' + (p.muted ? ' muted' : ''), 'data-voice': mine ? 'me' : p.socketId, 'data-uid': p.userId, title: p.username },
         LC.avatar(p),
-        el('span', { class: 'vname' }, p.username), p.video ? (Voice.blockedMe.has(p.socketId) ? el('span', { title: 'Ne partage pas sa caméra avec toi' }, '📷🚫') : el('span', {}, '📷')) : null, p.muted ? el('span', {}, '🔇') : null,
+        el('span', { class: 'vname' }, p.username), roomModBadge(p.userId), micTimeTag(p, speakers), p.video ? (Voice.blockedMe.has(p.socketId) ? el('span', { title: 'Ne partage pas sa caméra avec toi' }, '📷🚫') : el('span', {}, '📷')) : null, p.muted ? el('span', {}, '🔇') : null,
         !mine && inThis ? connBadge(Voice.peers.get(p.socketId)) : null,
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     }), listenInfo),
     ctrl].filter(Boolean));
 }
+// Temps de micro : le 1er n'a pas de limite, les suivants ont un compte à rebours
+const micFmt = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); const m = Math.floor(t / 60), sec = t % 60; return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`; };
+function micTimeTag(p, speakers) {
+  if (!speakers.some(x => x.micEnd)) return null; // minuteur désactivé ou personne de limité
+  if (!p.micEnd) return el('span', { class: 'mic-left first', title: '1er micro : pas de limite de temps' }, '🎙️1');
+  return el('span', { class: 'mic-left' + (p.micEnd - Date.now() < 60000 ? ' low' : ''), 'data-mic-end': p.micEnd, title: 'Temps de micro restant' }, '⏱ ' + micFmt(p.micEnd - Date.now()));
+}
+setInterval(() => document.querySelectorAll('[data-mic-end]').forEach(e => {
+  const left = +e.dataset.micEnd - Date.now();
+  e.textContent = '⏱ ' + micFmt(left);
+  e.classList.toggle('low', left < 60000);
+}), 1000);
 // Petite barre « tu es en vocal ailleurs » : le vocal reste connecté quand on change de salon ou qu'on ouvre un message privé
 function renderVoiceMini() {
   const mini = $('voiceMini');
@@ -538,6 +550,8 @@ function muDecode(b) {
 
 // ----- Événements serveur -----
 socket.on('voice_state', ({ slug, participants }) => {
+  const t0 = Date.now();
+  participants.forEach(p => { p.micEnd = p.micLeft ? t0 + p.micLeft : 0; });
   state.voice.set(slug, participants);
   if (Voice.slug === slug) {
     participants.forEach(p => Voice.peerUsers.set(p.socketId, p.userId));
@@ -564,6 +578,13 @@ socket.on('cam_blocked_me', ({ sockets }) => { Voice.blockedMe = new Set(sockets
 socket.on('voice_relay_peer', ({ peer }) => Voice.onRelayPeer(peer));
 socket.on('voice_relay_audio', ({ from, data }) => Voice.playRelay(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
+// Temps de micro écoulé : on repasse en écoute
+socket.on('voice_time_up', ({ reason }) => {
+  const slug = Voice.slug;
+  Voice.leave(false);
+  toast(reason || '⏱️ Ton temps de micro est terminé');
+  if (slug && state.view?.type === 'room' && state.view.slug === slug) setTimeout(() => Voice.join(true), 400);
+});
 socket.on('voice_kicked', ({ reason }) => {
   Voice.leave(false);
   if (reason !== 'Tu as été retiré du vocal') toast('🎙️ ' + reason); // le retrait par le propriétaire arrive en notification

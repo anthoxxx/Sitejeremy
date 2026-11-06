@@ -375,7 +375,9 @@ async function settings() {
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
   const voiceOn = el('input', { type: 'checkbox', checked: s.voiceEnabled === '1' });
-  const voiceMax = el('input', { class: 'input', type: 'number', min: 2, max: 20, value: s.voiceMax, style: 'max-width:100px' });
+  const voiceMax = el('input', { class: 'input', type: 'number', min: 2, max: 30, value: s.voiceMax || 10, style: 'max-width:100px' });
+  const micTimer = el('input', { type: 'checkbox', checked: s.micTimer !== '0' });
+  const micStep = el('input', { class: 'input', type: 'number', min: 1, max: 120, value: s.micStep || 10, style: 'max-width:100px' });
   const userRooms = el('input', { type: 'checkbox', checked: s.userRoomsEnabled === '1' });
   const maxRooms = el('input', { class: 'input', type: 'number', min: 0, max: 20, value: s.maxUserRooms, style: 'max-width:100px' });
   const tempOn = el('input', { type: 'checkbox', checked: s.tempRoomsEnabled !== '0' });
@@ -393,7 +395,9 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '✍️ Inscriptions ouvertes'), reg),
       el('div', { class: 'switch' }, el('span', {}, '🔞 Âge minimum'), minAge),
       el('div', { class: 'switch' }, el('span', {}, '🎙️ Chat vocal activé'), voiceOn),
-      el('div', { class: 'switch' }, el('span', {}, '👥 Personnes maximum par vocal'), voiceMax),
+      el('div', { class: 'switch' }, el('span', {}, '🎙️ Nombre de micros par vocal (les autres peuvent écouter 🎧)'), voiceMax),
+      el('div', { class: 'switch' }, el('span', {}, '⏱️ Temps de micro : le 1er micro n\'a pas de limite, le 2e a 2 fois le temps ci-dessous, le 3e 3 fois, etc.'), micTimer),
+      el('div', { class: 'switch' }, el('span', {}, '⏱️ Minutes par place (10 → 2e micro 20 min, 3e micro 30 min…)'), micStep),
       el('div', { class: 'switch' }, el('span', {}, '🏠 Les membres peuvent créer leur salon'), userRooms),
       el('div', { class: 'switch' }, el('span', {}, '🔢 Salons permanents maximum par membre'), maxRooms),
       el('div', { class: 'switch' }, el('span', {}, '🎙️📷 Validation de la voix et de la caméra : il faut le badge 🎙️ pour parler et 📷 pour la caméra (validés par l\'équipe dans le salon Vérification). Le reste du site est ouvert à tous.'), mediaBox),
@@ -402,7 +406,7 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
         announcement: announcement.value, bannedWords: words.value, modBotEnabled: modOn.checked, modBotWarnings: modWarn.value, modBotMuteMinutes: modMute.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
-        voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
+        voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, micTimer: micTimer.checked, micStep: micStep.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
         tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked, mediaVerify: mediaBox.checked,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
 }

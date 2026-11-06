@@ -501,7 +501,18 @@ const getRoomBySlug = slug => db.prepare('SELECT * FROM rooms WHERE slug=?').get
 const getStation = id => (id ? db.prepare('SELECT * FROM stations WHERE id=?').get(id) : null);
 const stationOut = s => s && { id: s.id, name: s.name, url: s.url, genre: s.genre, icon: s.icon };
 const isRoomMember = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_members WHERE room_id=? AND user_id=?').get(roomId, userId);
-const isRoomBanned = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_bans WHERE room_id=? AND user_id=?').get(roomId, userId);
+// Sanction de salon en cours (levée toute seule quand sa durée est passée)
+function roomBan(roomId, userId) {
+  const b = db.prepare('SELECT * FROM room_bans WHERE room_id=? AND user_id=?').get(roomId, userId);
+  if (b && b.until && b.until <= Date.now()) { db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(roomId, userId); return null; }
+  return b || null;
+}
+const isRoomBanned = (roomId, userId) => !!roomBan(roomId, userId);
+// Modérateurs de salon (« modo simple », 4 par salon) : expulsion 1 h, exclusion 5 h avec motif, bannissement à vie
+const ROOM_MODS_MAX = 4;
+const isRoomMod = (roomId, userId) => !!db.prepare('SELECT 1 FROM room_mods WHERE room_id=? AND user_id=?').get(roomId, userId);
+const roomModsOf = roomId => db.prepare('SELECT u.id, u.username FROM room_mods m JOIN users u ON u.id=m.user_id WHERE m.room_id=? ORDER BY u.username').all(roomId);
+const ROOM_SANCTIONS = { expulsion: { minutes: 60, label: 'expulsé', icon: '⏱️' }, exclusion: { minutes: 300, label: 'exclu', icon: '🚪', reason: true }, ban: { minutes: 0, label: 'banni à vie', icon: '⛔' } };
 
 function roomOut(r) {
   const owner = r.owner_id ? getUser(r.owner_id) : null;
@@ -511,6 +522,7 @@ function roomOut(r) {
     voiceEnabled: !!r.voice_enabled, station: stationOut(getStation(r.station_id)),
     count: roomCount(r.slug), voice: voiceList(r.slug).filter(p => !p.listener).length, background: r.background || '',
     managers: r.owner_id ? roomManagers(r.id) : [],
+    mods: roomModsOf(r.id),
     temporary: !!r.temporary,
     closesAt: r.temporary && r.empty_since ? r.empty_since + tempRoomDelay() : null,
   };
@@ -533,7 +545,8 @@ function roomAccess(user, room) {
   if (!isVerified(user) && room.slug !== 'douane') return NOT_VERIFIED;
   if (isStaff(user) || room.owner_id === user.id || isRoomManager(room.id, user.id)) return null;
   if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
-  if (isRoomBanned(room.id, user.id)) return 'Tu as été exclu de ce salon';
+  const rb = roomBan(room.id, user.id);
+  if (rb) return `Tu es ${ROOM_SANCTIONS[rb.kind]?.label || 'exclu'} de ce salon${rb.until ? ' jusqu\'à ' + new Date(rb.until).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }) : ''}${rb.reason ? ' : ' + rb.reason : ''}`;
   if (room.is_private && !isRoomMember(room.id, user.id)) return 'Ce salon est fermé : seules les personnes invitées peuvent entrer';
   return null;
 }
@@ -547,6 +560,11 @@ function canManageRoom(user, room) {
   return isAdminRole(user);
 }
 // Supprimer le salon et choisir les co-gérants : propriétaire ou équipe seulement
+// Peut sanctionner dans ce salon : l'équipe du site, le propriétaire et ses co-gérants, les modérateurs du salon
+function canModRoom(user, room) {
+  if (!room || !user) return false;
+  return isStaff(user) || canManageRoom(user, room) || isRoomMod(room.id, user.id);
+}
 function canOwnRoom(user, room) {
   if (!room || !user) return false;
   return room.owner_id ? room.owner_id === user.id || isStaff(user) : isAdminRole(user);
@@ -734,10 +752,78 @@ app.post('/api/rooms/:id/kick/:userId', auth, (req, res) => {
 });
 app.delete('/api/rooms/:id/bans/:userId', auth, (req, res) => {
   const room = getRoom(req.params.id);
-  if (!canManageRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  if (!canModRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne gères pas ce salon' });
+  const t = getUser(req.params.userId);
   db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, req.params.userId);
+  if (t) {
+    log(req.user, 'room_unban', `${t.username} débanni du salon ${room.name}`);
+    notify(t.id, { type: 'room_unban', icon: '✅', title: `Tu peux revenir dans « ${room.name} »`, text: `${displayName(req.user)} a levé ta sanction.`, data: { slug: room.slug } });
+  }
   roomsChanged();
   res.json({ ok: true });
+});
+
+// ---------- Modération des salons (modo simple) ----------
+// Liste des personnes sanctionnées dans le salon
+app.get('/api/rooms/:id/bans', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canModRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne modères pas ce salon' });
+  const rows = db.prepare('SELECT b.*, u.username, u.color, u.avatar FROM room_bans b JOIN users u ON u.id=b.user_id WHERE b.room_id=? ORDER BY b.created_at DESC').all(room.id)
+    .filter(b => !(b.until && b.until <= now()));
+  res.json({ bans: rows.map(b => ({ userId: b.user_id, username: b.username, color: b.color, avatar: b.avatar, kind: b.kind, until: b.until, reason: b.reason, by: b.by_name, at: b.created_at })) });
+});
+// Expulsion 1 h · exclusion 5 h avec motif · bannissement à vie
+app.post('/api/rooms/:id/sanction', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!canModRoom(req.user, room)) return res.status(403).json({ error: 'Tu ne modères pas ce salon' });
+  const kind = String(req.body.kind || '');
+  const S = ROOM_SANCTIONS[kind];
+  if (!S) return res.status(400).json({ error: 'Sanction inconnue' });
+  const target = getUser(parseInt(req.body.userId, 10));
+  if (!target || target.id === req.user.id) return res.status(400).json({ error: 'Impossible de sanctionner cette personne' });
+  if (target.id === room.owner_id) return res.status(403).json({ error: 'C\'est le propriétaire du salon' });
+  if (isStaff(target) && !isSuper(req.user)) return res.status(403).json({ error: 'Impossible de sanctionner un membre de l\'équipe du site' });
+  const iAmManager = isStaff(req.user) || canManageRoom(req.user, room);
+  if (!iAmManager && (isRoomMod(room.id, target.id) || isRoomManager(room.id, target.id))) return res.status(403).json({ error: 'Un modérateur ne peut pas sanctionner un autre modérateur du salon' });
+  const reason = clean(req.body.reason, 200);
+  if (S.reason && reason.length < 3) return res.status(400).json({ error: 'Indique le motif de l\'exclusion' });
+  const until = S.minutes ? now() + S.minutes * 60000 : 0;
+  const by = displayName(req.user);
+  db.prepare('DELETE FROM room_members WHERE room_id=? AND user_id=?').run(room.id, target.id);
+  db.prepare('INSERT OR REPLACE INTO room_bans (room_id, user_id, until, reason, kind, by_name, created_at) VALUES (?,?,?,?,?,?,?)').run(room.id, target.id, until, reason, kind, by, now());
+  const dur = S.minutes ? (S.minutes >= 60 ? S.minutes / 60 + ' h' : S.minutes + ' min') : 'à vie';
+  log(req.user, 'room_kick', `${target.username} ${S.label}${S.minutes ? ' ' + dur : ''} du salon ${room.name}${reason ? ' : ' + reason : ''}`);
+  notify(target.id, { type: 'room_kick', icon: S.icon, title: `Tu as été ${S.label}${S.minutes ? ' ' + dur : ''} du salon « ${room.name} »`, text: `Par ${by}. ${reasonText(reason)}${until ? ' Tu pourras revenir à ' + new Date(until).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }) + '.' : ''}`, important: true });
+  ejectFromRoom(target.id, room.slug, `Tu as été ${S.label}${S.minutes ? ' ' + dur : ''} du salon ${room.name}${reason ? ' : ' + reason : ''}`);
+  io.to('room:' + room.slug).emit('system', { room: room.slug, text: `${S.icon} ${target.username} a été ${S.label}${S.minutes ? ' ' + dur : ''} du salon par ${by}${reason ? ' (' + reason + ')' : ''}` });
+  roomsChanged();
+  res.json({ ok: true });
+});
+// Nommer / retirer les modérateurs du salon (4 maximum)
+app.post('/api/rooms/:id/mods', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Salon introuvable' });
+  if (!canOwnRoom(req.user, room)) return res.status(403).json({ error: room.owner_id ? 'Seul le propriétaire du salon peut nommer ses modérateurs' : 'Seuls les admins nomment les modérateurs des salons officiels' });
+  const target = req.body.userId ? getUser(req.body.userId) : getUserByName(clean(req.body.username, 20));
+  if (!target) return res.status(404).json({ error: 'Pseudo introuvable' });
+  if (target.is_guest) return res.status(400).json({ error: 'Un invité ne peut pas être modérateur (il doit s\'inscrire)' });
+  if (target.id === room.owner_id) return res.status(400).json({ error: 'C\'est le propriétaire du salon' });
+  if (!isRoomMod(room.id, target.id) && roomModsOf(room.id).length >= ROOM_MODS_MAX) return res.status(400).json({ error: `${ROOM_MODS_MAX} modérateurs maximum par salon` });
+  db.prepare('INSERT OR IGNORE INTO room_mods (room_id, user_id, created_at) VALUES (?,?,?)').run(room.id, target.id, now());
+  db.prepare('DELETE FROM room_bans WHERE room_id=? AND user_id=?').run(room.id, target.id);
+  log(req.user, 'room_edit', `${target.username} nommé modérateur du salon ${room.name}`);
+  notify(target.id, { type: 'role', icon: '🤍', title: `Tu es modérateur du salon « ${room.name} »`, text: 'Clic droit (ou appui long) sur un pseudo dans ce salon : expulsion 1 h, exclusion 5 h avec motif, bannissement à vie, débannissement.', data: { slug: room.slug } });
+  roomsChanged();
+  res.json({ mods: roomModsOf(room.id) });
+});
+app.delete('/api/rooms/:id/mods/:userId', auth, (req, res) => {
+  const room = getRoom(req.params.id);
+  const uid2 = parseInt(req.params.userId, 10);
+  if (!room) return res.status(404).json({ error: 'Salon introuvable' });
+  if (!canOwnRoom(req.user, room) && req.user.id !== uid2) return res.status(403).json({ error: 'Action non autorisée' });
+  db.prepare('DELETE FROM room_mods WHERE room_id=? AND user_id=?').run(room.id, uid2);
+  roomsChanged();
+  res.json({ mods: roomModsOf(room.id) });
 });
 
 // Fond d'écran d'un salon (propriétaire ou équipe)
@@ -1694,7 +1780,9 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
-  if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(20, Math.max(2, parseInt(b.voiceMax, 10) || 8)));
+  if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(30, Math.max(2, parseInt(b.voiceMax, 10) || 10)));
+  if (b.micTimer !== undefined) { setSetting('micTimer', b.micTimer ? '1' : '0'); for (const slug of voice.keys()) { const m = voice.get(slug); for (const p of m.values()) p.micUntil = 0; emitVoiceState(slug); } }
+  if (b.micStep !== undefined) setSetting('micStep', Math.min(120, Math.max(1, parseInt(b.micStep, 10) || 10)));
   if (b.userRoomsEnabled !== undefined) setSetting('userRoomsEnabled', b.userRoomsEnabled ? '1' : '0');
   if (b.tempRoomsEnabled !== undefined) setSetting('tempRoomsEnabled', b.tempRoomsEnabled ? '1' : '0');
   if (b.customsEnabled !== undefined) {
@@ -2032,11 +2120,38 @@ const voice = new Map();
 const voiceOf = new Map(); // socketId -> slug
 function voiceList(slug) {
   const m = voice.get(slug);
-  return m ? [...m.entries()].map(([socketId, p]) => ({ socketId, ...p })) : [];
+  return m ? [...m.entries()].map(([socketId, p]) => ({ socketId, ...p, micLeft: p.micUntil ? Math.max(0, p.micUntil - now()) : 0 })) : [];
 }
 function emitVoiceState(slug) {
+  micRecalc(slug);
   io.emit('voice_state', { slug, participants: voiceList(slug) });
 }
+// ---------- Temps de micro ----------
+// Le 1er micro (le plus ancien) n'a pas de limite ; le 2e a 2 × micStep minutes (20 min), le 3e 3 × micStep (30 min), etc.
+// Quand quelqu'un devant part, les suivants avancent ; celui qui devient 1er n'a plus de limite.
+const micTimerOn = () => getSettings().micTimer === '1';
+const micStepMs = () => Math.min(120, Math.max(1, parseInt(getSettings().micStep, 10) || 10)) * 60000;
+function micRecalc(slug) {
+  const m = voice.get(slug);
+  if (!m) return;
+  const speakers = [...m.values()].filter(p => !p.listener).sort((a, b) => (a.micSince || 0) - (b.micSince || 0));
+  const on = micTimerOn(), step = micStepMs();
+  speakers.forEach((p, i) => {
+    if (!on || i === 0) p.micUntil = 0;
+    else if (!p.micUntil) p.micUntil = now() + (i + 1) * step;
+  });
+}
+setInterval(() => {
+  if (!micTimerOn()) return;
+  for (const [slug, m] of voice) {
+    const t = now();
+    for (const [sid, p] of [...m.entries()]) {
+      if (p.listener || !p.micUntil || p.micUntil > t) continue;
+      io.to(sid).emit('voice_time_up', { reason: '⏱️ Ton temps de micro est terminé : tu repasses en écoute. Reprends le micro pour te remettre dans la file.' });
+      leaveVoiceBySocket(sid, null);
+    }
+  }
+}, 5000).unref();
 // ---------- Qui regarde quelle caméra ----------
 // watching : socket de celui qui regarde -> Set(sockets des caméras qu'il a à l'écran)
 const watching = new Map();
@@ -2383,14 +2498,14 @@ io.on('connection', socket => {
     const mine = voice.get(slug)?.get(socket.id);
     if (mine && !!mine.listener === listen) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id && (!listen || !p.listener)) });
     leaveVoiceBySocket(socket.id, null);
-    const max = parseInt(s.voiceMax, 10) || 8;
+    const max = parseInt(s.voiceMax, 10) || 10;
     const all = voiceList(slug);
     if (!listen && all.filter(p => !p.listener).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum) : tu peux écouter 🎧 en attendant` });
     if (listen && all.filter(p => p.listener).length >= 25) return ack && ack({ error: 'Trop de monde écoute déjà ce vocal' });
     // Un auditeur ne se connecte qu'à ceux qui parlent ; quelqu'un qui parle se connecte à tout le monde
     const peers = listen ? all.filter(p => !p.listener) : all;
     if (!voice.has(slug)) voice.set(slug, new Map());
-    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen });
+    voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen, micSince: listen ? 0 : now(), micUntil: 0 });
     log(u, 'voice_join', listen ? `Écoute le vocal du salon ${room.name} 🎧` : `A rejoint le vocal du salon ${room.name}`);
     voiceOf.set(socket.id, slug);
     ack && ack({ peers, camBlocked: camBlocksOf(uid) });

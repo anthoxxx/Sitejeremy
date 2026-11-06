@@ -129,6 +129,8 @@ async function loadRooms() {
   }
   renderRooms();
   renderRoomHead();
+  renderUsers();
+  if (typeof renderVoice === 'function') renderVoice();
 }
 const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff() || (r.managers || []).some(m => m.id === state.me.id)) : LC.isAdminRole(state.me));
 
@@ -207,7 +209,7 @@ function joinRoom(slug) {
     state.view = { type: 'room', slug };
     typers.clear(); renderTyping();
     state.currentRoom = res.room;
-    state.voice.set(slug, res.voice || []);
+    state.voice.set(slug, (res.voice || []).map(p => ({ ...p, micEnd: p.micLeft ? Date.now() + p.micLeft : 0 })));
     try { localStorage.setItem('lc_room', slug); } catch (e) {}
     $('headProfile').classList.add('hidden');
     setPlaceholder(`Message dans ${res.room.name}…`);
@@ -264,8 +266,8 @@ function addRoomMessage(m, live = true) {
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
-        el('span', { class: 'who', onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
-        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user),
+        el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
+        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt))),
       ...messageBody(m)),
     isStaff() ? el('button', { class: 'btn btn-sm btn-danger del', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null);
@@ -375,10 +377,10 @@ function renderUsers() {
     const staffRole = ['admin', 'superadmin', 'moderator'].includes(u.role);
     // Douane : super-admin seulement ; validation voix/caméra : toute l'équipe
     const toCheck = !staffRole && (state.customs?.enabled ? isSuperMe() && !u.verified : state.customs?.media && isStaff() && !(u.voiceOk && u.camOk));
-    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
+    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,

@@ -139,17 +139,14 @@ async function openRoomSettings(room) {
 
   const inviteInput = el('input', { class: 'input', maxlength: 20, placeholder: 'Pseudo à inviter' });
   const memberList = el('div', { class: 'people-list' });
-  const banList = el('div', { class: 'people-list' });
 
   async function loadPeople() {
     try {
-      const { members, bans } = await api(`/api/rooms/${room.id}/members`);
+      const { members } = await api(`/api/rooms/${room.id}/members`);
       memberList.replaceChildren(...(members.length ? members.map(u => personRow(u, '✕ Retirer', async () => {
         await api(`/api/rooms/${room.id}/members/${u.id}`, { method: 'DELETE' }); loadPeople();
       })) : [el('div', { class: 'side-empty' }, 'Personne pour l\'instant')]));
-      banList.replaceChildren(...(bans.length ? bans.map(u => personRow(u, '↺ Autoriser', async () => {
-        await api(`/api/rooms/${room.id}/bans/${u.id}`, { method: 'DELETE' }); loadPeople();
-      })) : [el('div', { class: 'side-empty' }, 'Aucune personne exclue')]));
+
     } catch (e) { err.textContent = e.message; }
   }
   const personRow = (u, label, action) => el('div', { class: 'person' },
@@ -194,7 +191,8 @@ async function openRoomSettings(room) {
       el('h4', {}, '🎟️ Personnes invitées'),
       el('div', { class: 'row', style: 'gap:8px;margin-bottom:10px' }, inviteInput, el('button', { class: 'btn', style: 'flex:none', onclick: invite }, 'Inviter')),
       memberList),
-    el('div', { class: 'staff-actions' }, el('h4', {}, '🚪 Personnes exclues'), banList),
+    el('div', { class: 'staff-actions' }, el('h4', {}, '🛡️ Sanctions en cours'), roomBansList(room)),
+    roomModsBox(room),
     room.ownerId ? managersBox(room) : null,
     room.ownerId && isRoomOwner(room) ? el('div', { class: 'staff-actions' },
       el('button', { class: 'btn btn-danger', style: 'width:100%', onclick: async () => {
@@ -234,24 +232,167 @@ function managersBox(room) {
     list);
 }
 
-// Boutons ajoutés dans la fiche profil quand on gère le salon actuel
+// Boutons ajoutés dans la fiche profil quand on gère ou modère le salon actuel
 function roomActions(u, closeProfile) {
   const r = state.currentRoom;
-  if (state.view?.type !== 'room' || !canManage(r) || u.id === r.ownerId || u.id === state.me.id) return null;
+  if (state.view?.type !== 'room' || !canModRoom(r) || u.id === r.ownerId || u.id === state.me.id) return null;
+  const manage = canManage(r);
   return el('div', { class: 'staff-actions' },
     el('h4', {}, r.ownerId === state.me.id ? `Mon salon « ${r.name} »` : `Salon « ${r.name} »`),
     el('div', { class: 'actions' },
-      r.ownerId && isRoomOwner(r) && !(r.managers || []).some(m => m.id === u.id) && !u.isGuest ? el('button', { class: 'btn btn-sm', onclick: async () => {
+      manage && r.ownerId && isRoomOwner(r) && !(r.managers || []).some(m => m.id === u.id) && !u.isGuest ? el('button', { class: 'btn btn-sm', onclick: async () => {
         try { await api(`/api/rooms/${r.id}/managers`, { method: 'POST', body: { userId: u.id } }); toast(`👑 ${u.username} est maintenant co-gérant`); closeProfile(); } catch (e) { toast(e.message); }
       } }, '👑 Nommer co-gérant') : null,
-      r.isPrivate ? el('button', { class: 'btn btn-sm', onclick: async () => {
+      isRoomOwner(r) && !u.isGuest ? (isRoomModOf(r, u.id)
+        ? el('button', { class: 'btn btn-sm', onclick: () => setRoomMod(r, u, false) }, '🤍 Retirer modo du salon')
+        : el('button', { class: 'btn btn-sm', onclick: () => setRoomMod(r, u, true) }, '🤍 Nommer modo du salon')) : null,
+      manage && r.isPrivate ? el('button', { class: 'btn btn-sm', onclick: async () => {
         try { await api(`/api/rooms/${r.id}/members`, { method: 'POST', body: { userId: u.id } }); toast(`🎟️ ${u.username} invité`); } catch (e) { toast(e.message); }
       } }, '🎟️ Inviter') : null,
-      el('button', { class: 'btn btn-sm btn-danger', onclick: async () => {
-        if (!confirm(`Exclure ${u.username} du salon ? Il ne pourra plus y revenir.`)) return;
-        try { await api(`/api/rooms/${r.id}/kick/${u.id}`, { method: 'POST' }); toast(`🚪 ${u.username} exclu`); closeProfile(); } catch (e) { toast(e.message); }
-      } }, '🚪 Exclure du salon')));
+      ...Object.entries(ROOM_SANCTIONS).map(([k, S]) => el('button', { class: 'btn btn-sm btn-danger', onclick: () => roomSanction(r, u, k, closeProfile) }, S.icon + ' ' + S.btn))));
 }
+
+// ---------- Modération des salons (modo simple : badge blanc, 4 par salon) ----------
+const ROOM_SANCTIONS = {
+  expulsion: { icon: '⏱️', btn: 'Expulsion 1 h', label: 'expulsé 1 h', text: 'Il pourra revenir dans 1 heure.' },
+  exclusion: { icon: '🚪', btn: 'Exclusion 5 h', label: 'exclu 5 h', text: 'Il pourra revenir dans 5 heures.', reason: true },
+  ban: { icon: '⛔', btn: 'Bannir à vie', label: 'banni à vie', text: 'Il ne pourra plus revenir, sauf si on le débannit.' },
+};
+const isRoomModOf = (r, id) => !!r && (r.mods || []).some(m => m.id === id);
+const canModRoom = r => !!r && state.me && !state.me.isGuest && (canManage(r) || isRoomModOf(r, state.me.id));
+async function roomSanction(r, u, kind, done) {
+  const S = ROOM_SANCTIONS[kind];
+  let reason = '';
+  if (S.reason) {
+    reason = prompt(`🚪 Exclusion de ${u.username} pendant 5 h\nMotif (obligatoire) :`, '');
+    if (reason === null) return;
+    reason = reason.trim();
+    if (reason.length < 3) return toast('Indique le motif de l\'exclusion');
+  } else if (!confirm(`${S.icon} ${S.btn} : ${u.username} du salon « ${r.name} » ?\n${S.text}`)) return;
+  try {
+    await api(`/api/rooms/${r.id}/sanction`, { method: 'POST', body: { kind, userId: u.id, reason } });
+    toast(`${S.icon} ${u.username} ${S.label}`);
+    done && done();
+  } catch (e) { toast(e.message); }
+}
+async function setRoomMod(r, u, on) {
+  try {
+    if (on) await api(`/api/rooms/${r.id}/mods`, { method: 'POST', body: { userId: u.id } });
+    else await api(`/api/rooms/${r.id}/mods/${u.id}`, { method: 'DELETE' });
+    toast(on ? `🤍 ${u.username} est modérateur du salon` : `${u.username} n'est plus modérateur du salon`);
+  } catch (e) { toast(e.message); }
+}
+// Liste des personnes sanctionnées, avec le bouton « Débannir »
+function roomBansList(room) {
+  const box = el('div', { class: 'people-list' }, el('div', { class: 'side-empty' }, 'Chargement…'));
+  const fmt = t => new Date(t).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const load = async () => {
+    try {
+      const { bans } = await api(`/api/rooms/${room.id}/bans`);
+      box.replaceChildren(...(bans.length ? bans.map(b => el('div', { class: 'person ban-row' },
+        LC.avatar(b),
+        el('div', { style: 'flex:1;min-width:0' },
+          el('b', {}, b.username), ' ', el('span', { class: 'ban-kind k-' + b.kind }, (ROOM_SANCTIONS[b.kind] || ROOM_SANCTIONS.ban).icon + ' ' + (b.until ? (b.kind === 'exclusion' ? 'Exclu' : 'Expulsé') + ' jusqu\'à ' + fmt(b.until) : 'Banni à vie')),
+          el('div', { class: 'help', style: 'margin:2px 0 0' }, [b.reason ? 'Motif : ' + b.reason : '', b.by ? 'par ' + b.by : ''].filter(Boolean).join(' · '))),
+        el('button', { class: 'btn btn-sm btn-ok', onclick: async () => {
+          try { await api(`/api/rooms/${room.id}/bans/${b.userId}`, { method: 'DELETE' }); toast(`✅ ${b.username} peut revenir`); load(); } catch (e) { toast(e.message); }
+        } }, '↺ Débannir'))) : [el('div', { class: 'side-empty' }, 'Personne n\'est sanctionné dans ce salon')]));
+    } catch (e) { box.replaceChildren(el('div', { class: 'side-empty' }, e.message)); }
+  };
+  load();
+  return box;
+}
+function openRoomBans(room) {
+  const close = modal(el('h3', {}, `🛡️ Sanctions · ${room.name}`),
+    el('p', { class: 'help' }, 'Les expulsions (1 h) et exclusions (5 h) se lèvent toutes seules. Le bannissement est à vie, sauf si on débannit.'),
+    roomBansList(room),
+    el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:12px', onclick: () => close() }, 'Fermer'));
+}
+// Les modérateurs du salon (4 maximum), nommés par le propriétaire (ou les admins pour les salons officiels)
+function roomModsBox(room) {
+  const list = el('div', { class: 'people-list' });
+  const input = el('input', { class: 'input', maxlength: 20, placeholder: 'Pseudo du modérateur' });
+  const owner = isRoomOwner(room);
+  const draw = () => {
+    const mods = room.mods || [];
+    list.replaceChildren(...(mods.length ? mods.map(m => el('div', { class: 'person' },
+      el('span', { style: 'flex:1' }, el('span', { class: 'badge roommod' }, 'Modo'), ' ', m.username),
+      owner || m.id === state.me.id ? el('button', { class: 'btn btn-sm', onclick: async () => {
+        try { await api(`/api/rooms/${room.id}/mods/${m.id}`, { method: 'DELETE' }); room.mods = mods.filter(x => x.id !== m.id); draw(); } catch (e) { toast(e.message); }
+      } }, m.id === state.me.id ? 'Me retirer' : '✕ Retirer') : null))
+      : [el('div', { class: 'side-empty' }, 'Aucun modérateur pour l\'instant')]));
+  };
+  const add = async () => {
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      await api(`/api/rooms/${room.id}/mods`, { method: 'POST', body: { username: name } });
+      const { rooms } = await api('/api/rooms');
+      room.mods = rooms.find(x => x.id === room.id)?.mods || room.mods;
+      input.value = ''; draw(); toast(`🤍 ${name} est modérateur du salon`);
+    } catch (e) { toast(e.message); }
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  draw();
+  return el('div', { class: 'staff-actions' },
+    el('h4', {}, '🤍 Modérateurs du salon (4 maximum)'),
+    el('p', { class: 'help', style: 'margin:0 0 8px' }, 'Clic droit (ou appui long) sur un pseudo : expulsion 1 h, exclusion 5 h avec motif, bannissement à vie et débannissement.'),
+    owner ? el('div', { class: 'row', style: 'gap:8px;margin-bottom:10px' }, input, el('button', { class: 'btn', style: 'flex:none', onclick: add }, 'Nommer')) : null,
+    list);
+}
+
+// Badge blanc « Modo » des modérateurs du salon où l'on est
+function roomModBadge(id) {
+  const r = state.view?.type === 'room' ? state.currentRoom : null;
+  return isRoomModOf(r, id) ? el('span', { class: 'badge roommod', title: `Modérateur du salon « ${r.name} »` }, 'Modo salon') : null;
+}
+
+// ---------- Menu clic droit (ou appui long sur téléphone) sur un pseudo ----------
+function openUserMenu(uid, x, y) {
+  document.querySelector('.ctx-menu')?.remove();
+  const u = (state.online || []).find(o => o.id === uid) || { id: uid, username: '' };
+  const r = state.view?.type === 'room' ? state.currentRoom : null;
+  const items = [];
+  const item = (label, fn, cls = '') => items.push(el('button', { class: 'ctx-item ' + cls, onclick: () => { menu.remove(); fn(); } }, label));
+  item('👤 Voir le profil', () => openProfile(uid));
+  if (uid !== state.me.id && u.username) item('💌 Message privé', () => openPm(u));
+  if (r && canModRoom(r) && uid !== state.me.id && uid !== r.ownerId) {
+    items.push(el('div', { class: 'ctx-sep' }, `🛡️ ${r.name}`));
+    for (const [k, S] of Object.entries(ROOM_SANCTIONS)) item(S.icon + ' ' + S.btn, () => roomSanction(r, u, k), 'danger');
+    if (isRoomOwner(r) && !u.isGuest) item(isRoomModOf(r, uid) ? '🤍 Retirer modo du salon' : '🤍 Nommer modo du salon', () => setRoomMod(r, u, !isRoomModOf(r, uid)));
+  }
+  if (r && canModRoom(r)) item('📋 Sanctions / débannir', () => openRoomBans(r));
+  const menu = el('div', { class: 'ctx-menu' }, u.username ? el('div', { class: 'ctx-head' }, u.username) : null, ...items);
+  document.body.append(menu);
+  const w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = Math.max(6, Math.min(x, innerWidth - w - 6)) + 'px';
+  menu.style.top = Math.max(6, Math.min(y, innerHeight - h - 6)) + 'px';
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
+}
+document.addEventListener('contextmenu', e => {
+  const t = e.target.closest && e.target.closest('[data-uid]');
+  if (!t || !state.me) return;
+  e.preventDefault();
+  openUserMenu(parseInt(t.dataset.uid, 10), e.clientX, e.clientY);
+});
+// Appui long sur téléphone
+(() => {
+  let timer = null, sx = 0, sy = 0;
+  document.addEventListener('touchstart', e => {
+    const t = e.target.closest && e.target.closest('[data-uid]');
+    if (!t || !state.me) return;
+    const p = e.touches[0]; sx = p.clientX; sy = p.clientY;
+    timer = setTimeout(() => {
+      timer = null;
+      openUserMenu(parseInt(t.dataset.uid, 10), sx, sy);
+      const stop = ev => { ev.preventDefault(); ev.stopPropagation(); };
+      t.addEventListener('click', stop, { capture: true, once: true }); // pas d'ouverture du profil en plus
+      setTimeout(() => t.removeEventListener('click', stop, { capture: true }), 600);
+    }, 550);
+  }, { passive: true });
+  const cancel = e => { if (!timer) return; if (e.type === 'touchmove') { const p = e.touches[0]; if (Math.hypot(p.clientX - sx, p.clientY - sy) < 10) return; } clearTimeout(timer); timer = null; };
+  ['touchend', 'touchmove', 'touchcancel'].forEach(ev => document.addEventListener(ev, cancel, { passive: true }));
+})();
 
 // ---------- Fonds de salon (aussi utilisés par chat.js) ----------
 const BG_PRESETS = [['aurore', 'Aurore'], ['etoiles', 'Étoiles'], ['galaxie', 'Galaxie'], ['vagues', 'Vagues néon'], ['bulles', 'Bulles'], ['pluie', 'Pluie'], ['coucher', 'Coucher de soleil'], ['feu', 'Feu de camp']];

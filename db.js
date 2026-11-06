@@ -218,6 +218,12 @@ CREATE TABLE IF NOT EXISTS room_members (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (room_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS room_mods (
+  room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (room_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS room_bans (
   room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -232,6 +238,13 @@ CREATE TABLE IF NOT EXISTS stations (
   sort INTEGER DEFAULT 0
 );
 `);
+
+// Sanctions de salon avec durée et motif (expulsion 1 h, exclusion 5 h, bannissement à vie)
+addColumn('room_bans', 'until', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('room_bans', 'reason', "TEXT NOT NULL DEFAULT ''");
+addColumn('room_bans', 'kind', "TEXT NOT NULL DEFAULT 'ban'");
+addColumn('room_bans', 'by_name', "TEXT NOT NULL DEFAULT ''");
+addColumn('room_bans', 'created_at', 'INTEGER NOT NULL DEFAULT 0');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS notifications (
@@ -317,7 +330,9 @@ const defaults = {
   registrationOpen: '1',
   minAge: '18',
   voiceEnabled: '1',
-  voiceMax: '8',
+  voiceMax: '10',
+  micTimer: '1',
+  micStep: '10',
   userRoomsEnabled: '1',
   maxUserRooms: '2',
   maxAccounts: '2',
@@ -388,6 +403,11 @@ Avertissement, mute temporaire, expulsion ou bannissement définitif selon la gr
 };
 const insSetting = db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)');
 for (const [k, v] of Object.entries(defaults)) insSetting.run(k, v);
+// 10 micros par vocal au lieu de 8 (si l'ancien réglage par défaut n'avait pas été changé)
+if (!db.prepare("SELECT 1 FROM settings WHERE key='voiceMax10'").get()) {
+  db.prepare("UPDATE settings SET value='10' WHERE key='voiceMax' AND value='8'").run();
+  db.prepare("INSERT INTO settings (key, value) VALUES ('voiceMax10', '1')").run();
+}
 // Le thème Halloween n'existe plus : retour au thème automatique
 db.prepare("UPDATE settings SET value='auto' WHERE key='theme' AND value='halloween'").run();
 
