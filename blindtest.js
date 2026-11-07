@@ -27,7 +27,7 @@ function close(guess, target) {
 }
 const artistsOf = a => [a, ...String(a).split(/\s*(?:&|,| et | x | feat\.? )\s*/i)].filter(x => norm(x).length >= 2);
 
-module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs }) {
+module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs, notify = () => {}, notifyLive = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS bt_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     wins INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0, stars INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
@@ -107,6 +107,8 @@ module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs
     g.finalists = top.map(p => p.id);
     g.phase = 'bet'; g.bets = new Map(); g.betDeadline = now() + BET_MS; g.song = null;
     host(`🏆 Place à la grande finale : ${top[0].username} contre ${top[1].username} ! Public, pariez sur votre favori ⭐`);
+    top.forEach(p => notify(p.id, { type: 'game', icon: '🏆', title: 'Tu es en grande finale du Blind Test !', text: `Contre ${top.find(x => x.id !== p.id).username}. Les points comptent double !`, data: { slug: SLUG } }));
+    for (const e of getOnline().values()) if (e.room === SLUG && !g.finalists.includes(e.user.id)) notifyLive(e.user.id, { type: 'game', icon: '⭐', title: 'Paris ouverts : parie sur ton finaliste !', text: `${top[0].username} contre ${top[1].username}`, data: { slug: SLUG } });
     say(`🏆 FINALE : ${top[0].username} (${top[0].score} pts) contre ${top[1].username} (${top[1].score} pts) ! ${FINAL_SONGS} chansons, les points comptent double. Le public a ${BET_MS / 1000} secondes pour parier ⭐`);
     broadcast();
     setTimer(BET_MS, () => {
@@ -124,7 +126,8 @@ module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs
     g.winner = best && !tie && best.score > 0 ? { id: best.id, username: best.username, score: best.score } : null;
     g.players.forEach(p => addScore(p.id, { points: p.score, games: 1, wins: g.winner && g.winner.id === p.id ? 1 : 0 }));
     let goodBets = 0;
-    if (g.winner) for (const [uid, pick] of g.bets) if (pick === g.winner.id) { addScore(uid, { stars: 1 }); goodBets++; }
+    if (g.winner) for (const [uid, pick] of g.bets) if (pick === g.winner.id) { addScore(uid, { stars: 1 }); goodBets++; notify(uid, { type: 'game', icon: '⭐', title: 'Pari gagné ! +1 étoile au Blind Test', text: `${g.winner.username} a gagné l'émission.`, data: { slug: SLUG } }); }
+    g.players.forEach(p => notify(p.id, { type: 'game', icon: g.winner?.id === p.id ? '👑' : '🎩', title: g.winner?.id === p.id ? `Tu as gagné Le Grand Blind Test avec ${p.score} points !` : `Le Grand Blind Test est terminé : ${p.score} points pour toi`, text: g.winner ? `Gagnant : ${g.winner.username}` : 'Égalité !', data: { slug: SLUG } }));
     lb = leaderboard();
     host(g.winner ? `👑 Et le grand gagnant de ce soir est… ${g.winner.username} ! Bravo !` : '🤝 Égalité parfaite ! Merci à nos candidats !');
     say(g.winner ? `👑 ${g.winner.username} remporte Le Grand Blind Test du Paradise ! 👏👏👏${goodBets ? ` ${goodBets} personne${goodBets > 1 ? 's' : ''} du public gagne${goodBets > 1 ? 'nt' : ''} une ⭐ pour son pari.` : ''} Clique sur « Nouvelle émission » pour rejouer.` : '🤝 Égalité ! Merci à tous, à la prochaine émission 🎤');
@@ -177,6 +180,7 @@ module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs
       if (g.final) return { error: 'La finale est en cours : tu pourras jouer à la prochaine émission' };
       if (g.players.length >= MAX_PLAYERS) return { error: `Le plateau est complet (${MAX_PLAYERS} candidats)` };
       g.players.push({ id: uid, username: u.username, color: u.color, avatar: u.avatar || '', score: 0 });
+      if (g.phase === 'lobby') for (const p of g.players) notifyLive(p.id, { type: 'game', icon: '🙌', title: `${u.username} rejoint le Blind Test`, data: { slug: SLUG } });
       say(`🙌 ${u.username} monte sur le plateau ! (${g.players.length}/${MAX_PLAYERS})`);
       if (g.phase === 'end') toLobby(); else broadcast();
     }));

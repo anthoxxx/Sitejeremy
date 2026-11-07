@@ -249,6 +249,7 @@ app.post('/api/register', (req, res) => {
     clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '');
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
   log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
@@ -822,7 +823,9 @@ app.delete('/api/rooms/:id/mods/:userId', auth, (req, res) => {
   const uid2 = parseInt(req.params.userId, 10);
   if (!room) return res.status(404).json({ error: 'Salon introuvable' });
   if (!canOwnRoom(req.user, room) && req.user.id !== uid2) return res.status(403).json({ error: 'Action non autorisée' });
+  const was = isRoomMod(room.id, uid2);
   db.prepare('DELETE FROM room_mods WHERE room_id=? AND user_id=?').run(room.id, uid2);
+  if (was && req.user.id !== uid2) notify(uid2, { type: 'role', icon: '🤍', title: `Tu n'es plus modérateur du salon « ${room.name} »`, text: `Retiré par ${req.user.username}.`, data: { slug: room.slug } });
   roomsChanged();
   res.json({ mods: roomModsOf(room.id) });
 });
@@ -1149,14 +1152,17 @@ app.post('/api/friends/:id/accept', auth, (req, res) => {
 });
 app.post('/api/friends/:id/refuse', auth, (req, res) => {
   const me = req.user, otherId = parseInt(req.params.id, 10);
-  db.prepare("DELETE FROM friends WHERE from_id=? AND to_id=? AND status='pending'").run(otherId, me.id);
+  const had = db.prepare("DELETE FROM friends WHERE from_id=? AND to_id=? AND status='pending'").run(otherId, me.id).changes;
+  if (had) notify(otherId, { type: 'friend', icon: '🙅', title: `${me.username} n'a pas accepté ta demande d'ami`, data: { userId: me.id } });
   friendsChanged(me.id, otherId);
   res.json({ status: 'none' });
 });
 // Retirer un ami ou annuler sa demande
 app.delete('/api/friends/:id', auth, (req, res) => {
   const me = req.user.id, otherId = parseInt(req.params.id, 10);
+  const old = friendRow(me, otherId);
   db.prepare('DELETE FROM friends WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(me, otherId, otherId, me);
+  if (old?.status === 'accepted') notify(otherId, { type: 'friend', icon: '💔', title: `${req.user.username} t'a retiré de ses amis`, data: { userId: me } });
   friendsChanged(me, otherId);
   res.json({ status: 'none' });
 });
@@ -2113,9 +2119,9 @@ const online = new Map();
 const recentLeave = new Map(); // userId -> { room, timer } : départ pas encore annoncé
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
-const Wheel = require('./wheel')({ io, getOnline: () => online });
-const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, catalogs: Jukebox.catalogs });
-const Sommet = require('./sommet')({ io, db, getOnline: () => online });
+const Wheel = require('./wheel')({ io, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2169,6 +2175,14 @@ log.onEntry(entry => {
 
 // ---------- Notifications (enregistrées + envoyées en direct) ----------
 // important = true → s'affiche en grand chez la personne (sanctions)
+// Notification en direct seulement (pas gardée dans la cloche après rechargement) : tours de jeu, amis en ligne…
+let liveSeq = 0;
+function notifyLive(userId, { type, icon = '🔔', title, text = '', data = {} }) {
+  emitToUser(userId, 'notification', { id: 'live' + (++liveSeq), type, icon, title, text, data, important: false, read: false, createdAt: now(), live: true });
+}
+// Évite d'envoyer la même notification trop souvent (clé → dernière fois)
+const notifThrottle = new Map();
+function throttled(key, ms) { const t = notifThrottle.get(key) || 0; if (now() - t < ms) return true; notifThrottle.set(key, now()); if (notifThrottle.size > 5000) notifThrottle.clear(); return false; }
 function notify(userId, { type, icon = '🔔', title, text = '', data = {}, important = false }) {
   const info = db.prepare('INSERT INTO notifications (user_id,type,icon,title,text,data,created_at) VALUES (?,?,?,?,?,?,?)')
     .run(userId, type, icon, title, text, JSON.stringify(data), now());
@@ -2349,8 +2363,14 @@ io.on('connection', socket => {
     entry = { user: u0, sockets: new Set(), room: null, ghost: !!(u0.ghost && u0.role === 'superadmin'), ghostAnon: !!u0.ghost_anon };
     online.set(uid, entry);
   }
+  const firstSocket = !entry.sockets.size;
   entry.sockets.add(socket.id);
   if (isSuper(entry.user)) socket.join('supers');
+  // Les amis en ligne sont prévenus quand tu arrives (une fois par heure au maximum)
+  if (firstSocket && !entry.ghost && !entry.user.is_guest && !throttled('online:' + uid, 3600000)) {
+    const fr = db.prepare("SELECT CASE WHEN from_id=? THEN to_id ELSE from_id END AS id FROM friends WHERE (from_id=? OR to_id=?) AND status='accepted'").all(uid, uid, uid);
+    for (const f of fr) if (online.has(f.id)) notifyLive(f.id, { type: 'friend_online', icon: '🟢', title: `${entry.user.username} vient de se connecter`, data: { userId: uid } });
+  }
   db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(now(), uid);
 
   socket.emit('hello', { user: selfUser(entry.user), announcement: getSettings().announcement, ghost: !!entry.ghost, ghostAnon: !!entry.ghostAnon });
@@ -2379,6 +2399,9 @@ io.on('connection', socket => {
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
+    // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre
+    if (room.owner_id && room.owner_id !== uid && prev !== room.slug && !entry.ghost && !throttled(`visit:${uid}:${room.id}`, 1800000))
+      notifyLive(room.owner_id, { type: 'room_visit', icon: '🚪', title: `${u.username} est entré dans ton salon « ${room.name} »`, data: { slug: room.slug } });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
     // Reconnexion rapide (connexion qui saute, page rechargée) : pas de « déconnecté / a rejoint » en boucle
     const quick = recentLeave.get(uid);
@@ -2419,6 +2442,13 @@ io.on('connection', socket => {
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon, staff_only: staffOnly });
     if (staffOnly) emitToRoomAdmins(room.slug, 'message', { room: room.slug, ...msg });
     else io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
+    // Les personnes mentionnées avec @pseudo reçoivent une notification
+    const mentioned = [...new Set((content.match(/@([A-Za-z0-9_-]{3,20})/g) || []).map(x => x.slice(1).toLowerCase()))].slice(0, 5);
+    for (const name of mentioned) {
+      const t = getUserByName(name);
+      if (!t || t.id === uid || (staffOnly && !isAdminRole(t)) || isBlocked(t.id, uid)) continue;
+      if (!throttled(`mention:${uid}:${t.id}`, 30000)) notify(t.id, { type: 'mention', icon: '📣', title: `${anon ? 'La modération' : u.username} t'a mentionné dans « ${room.name} »`, text: content.slice(0, 120), data: { slug: room.slug } });
+    }
     if (staffOnly) return ack && ack({ ok: true });
     ack && ack({ ok: true });
     if (scanned.level) modBotStrike(u, room, scanned);
@@ -2526,6 +2556,7 @@ io.on('connection', socket => {
     const m = pmOut({ id: info.lastInsertRowid, from_id: uid, to_id: target.id, content, created_at: now(), is_read: 0, kind, media, duration });
     emitToUser(target.id, 'pm', { ...m, fromUser: publicUser(u) });
     emitToUser(uid, 'pm', { ...m, fromUser: publicUser(u) });
+    if (!throttled(`pm:${uid}:${target.id}`, 60000)) notify(target.id, { type: 'pm', icon: '💌', title: `${u.username} t'a envoyé un message privé`, text: content.slice(0, 120), data: { userId: uid } });
     ack && ack({ ok: true, message: m });
   });
 
@@ -2862,6 +2893,16 @@ function patchText(n) {
 const patchMsg = n => ({ room: PATCH_SLUG, id: 'patch' + n.id, userId: 0, username: PATCH_BOT.username, color: PATCH_BOT.color, gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: PATCH_BOT.icon, content: patchText(n), createdAt: new Date(n.date + 'T12:00:00Z').getTime(), kind: 'text' });
 const patchHistory = () => { try { delete require.cache[require.resolve('./patchnotes')]; return require('./patchnotes').map(patchMsg); } catch (e) { console.error('patchnotes.js', e.message); return []; } };
 const patchLast = () => { try { return Math.max(0, ...require('./patchnotes').map(n => n.id)); } catch (e) { return 0; } };
+// Nouvelle patch note : tous les membres venus ces 30 derniers jours reçoivent une notification (une seule fois)
+setTimeout(() => {
+  const last = patchLast(), done = parseInt(getSettings().patchNotified || '0', 10);
+  if (!last || last <= done) return;
+  setSetting('patchNotified', String(last));
+  if (!done) return; // première installation : pas d'avalanche de notifications
+  let n; try { n = require('./patchnotes').find(x => x.id === last); } catch (e) { return; }
+  const users = db.prepare('SELECT id FROM users WHERE is_guest=0 AND last_seen>?').all(now() - 30 * 24 * 3600 * 1000);
+  for (const u of users) notify(u.id, { type: 'patch', icon: '📝', title: `Nouveauté sur le site : ${n?.title || 'patch note n°' + last}`, text: 'Va voir le salon 📝 Patch note pour tout découvrir !', data: { slug: 'patchnote' } });
+}, 15000).unref();
 
 const EDIT_WINDOW = 15 * 60 * 1000; // on peut corriger son message pendant 15 minutes
 function msgOut(m) {

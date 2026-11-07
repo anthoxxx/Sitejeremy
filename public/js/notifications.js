@@ -38,7 +38,10 @@ function timeAgo(ts) {
 }
 
 function notifAction(n) {
-  if (n.type === 'room_invite' && n.data?.slug) return () => joinRoom(n.data.slug);
+  if (n.data?.slug && ['room_invite', 'mention', 'game', 'patch', 'room_visit', 'room_unban'].includes(n.type)) return () => joinRoom(n.data.slug);
+  if (n.type === 'pm' && n.data?.userId) return () => { const c = state.convs.get(n.data.userId); openPm(c ? c.user : { id: n.data.userId, username: (n.title.split(' ')[0] || '') }); };
+  if (['friend', 'friend_request', 'friend_online'].includes(n.type) && n.data?.userId) return () => openProfile(n.data.userId);
+  if (n.type === 'new_member') return () => (n.data?.userId ? openProfile(n.data.userId) : (location.href = '/admin'));
   if (n.type === 'role' && isStaff()) return () => { location.href = '/admin'; };
   return () => showSanction(n);
 }
@@ -102,7 +105,8 @@ socket.on('notification', n => {
   Notifs.list = Notifs.list.slice(0, 40);
   if (n.type === 'mute') { state.me.mutedUntil = n.data.until; Voice.leave(false); renderMuteBanner(); }
   if (n.type === 'unmute') { state.me.mutedUntil = 0; renderMuteBanner(); }
-  ding();
+  const quiet = n.type === 'pm'; // les messages privés ont déjà leur son et leur bulle
+  if (!quiet) ding();
   if (Notifs.open) {
     renderNotifPanel();
     api('/api/notifications/read', { method: 'POST' }).catch(() => {});
@@ -111,6 +115,7 @@ socket.on('notification', n => {
     renderNotifCount();
   }
   if (n.type === 'birthday') { showBirthday(n); desktopNotify(n); return; }
+  if (quiet) return;
   if (IMPORTANT.includes(n.type)) showSanction(n);
   else toast(`${n.icon} ${n.title}`, notifAction(n));
   desktopNotify(n);

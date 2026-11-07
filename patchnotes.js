@@ -164,4 +164,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 12,
+    date: '2026-11-07',
+    title: 'Des notifications pour tout 🔔',
+    added: [
+      'Notification quand quelqu\'un t\'envoie un message privé ou te mentionne avec @ton pseudo',
+      'Notification quand un ami se connecte, refuse ta demande ou te retire de ses amis',
+      'Notification quand quelqu\'un entre dans ton salon de membre',
+      'Jeux : notification quand c\'est ton tour (Roue, Sommet), quand tu vas en finale du Blind Test, quand tu gagnes un pari et à la fin de chaque partie',
+      'Notification à chaque nouvelle patch note, et pour les admins à chaque nouveau membre inscrit',
+      'En cliquant sur une notification, tu arrives directement au bon endroit',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

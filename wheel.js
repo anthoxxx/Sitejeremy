@@ -15,7 +15,7 @@ const SEGMENTS = [
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/Œ/g, 'OE').replace(/Æ/g, 'AE');
 const isLetter = c => c >= 'A' && c <= 'Z';
 
-module.exports = function setupWheel({ io, getOnline }) {
+module.exports = function setupWheel({ io, getOnline, notify = () => {}, notifyLive = () => {} }) {
   const now = () => Date.now();
   let msgSeq = 1, timer = null, lastThemes = [], lastPuzzles = new Set();
   const g = {
@@ -56,6 +56,7 @@ module.exports = function setupWheel({ io, getOnline }) {
     g.phase = 'turn'; g.value = 0; g.spin = null;
     g.deadline = now() + TURN_MS;
     if (text) event(text);
+    if (g.players.length > 1) notifyLive(cur().id, { type: 'game', icon: '🎡', title: 'À toi de jouer à La Roue du Paradise !', text: 'Tourne la roue, achète une voyelle ou propose la réponse (35 s).', data: { slug: SLUG } });
     setTimer(TURN_MS, () => nextTurn(`⏱️ Trop tard pour ${cur()?.username || 'le joueur'}`));
     broadcast();
   }
@@ -96,6 +97,7 @@ module.exports = function setupWheel({ io, getOnline }) {
     const best = ranking[0];
     g.winner = best ? { id: best.id, username: best.username, total: best.total, final: true } : null;
     event(best ? `👑 ${best.username} gagne la partie avec ${best.total} points !` : 'Partie terminée');
+    ranking.forEach((p, i) => notify(p.id, { type: 'game', icon: i === 0 ? '👑' : '🎡', title: i === 0 ? `Tu as gagné La Roue du Paradise avec ${p.total} points !` : `La Roue du Paradise : tu finis ${i + 1}e avec ${p.total} points`, text: `Gagnant : ${best.username}`, data: { slug: SLUG } }));
     if (best) say(`👑 Fin de la partie ! ${ranking.map((p, i) => `${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${p.username} ${p.total}`).join(' · ')}. Clique sur « Nouvelle partie » pour rejouer !`);
     broadcast();
     setTimer(60000, toLobby);

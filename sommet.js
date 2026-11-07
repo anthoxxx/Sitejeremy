@@ -11,7 +11,7 @@ const SAFE = new Set([3, 7]); // index des paliers de sécurité (1 000 et 20 00
 const Q_MS = 45000, VOTE_MS = 15000, SUSPENSE_MS = 2600, RESULT_MS = 3500, OVER_MS = 9000;
 const fmt = n => n.toLocaleString('fr-FR');
 
-module.exports = function setupSommet({ io, db, getOnline }) {
+module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, notifyLive = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS sommet_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     best INTEGER NOT NULL DEFAULT 0, total INTEGER NOT NULL DEFAULT 0, tops INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
@@ -69,6 +69,8 @@ module.exports = function setupSommet({ io, db, getOnline }) {
       return broadcast();
     }
     Object.assign(g, { phase: 'intro', level: 0, q: null, pick: null, removed: [], voteCounts: null, result: null, won: 0, jokers: { half: true, vote: true, swap: true }, deadline: 0 });
+    notify(g.cand.id, { type: 'game', icon: '🏔️', title: 'C\'est ton tour au Sommet du Paradise !', text: 'Tu es sur scène : 12 questions jusqu\'au million de points.', data: { slug: SLUG } });
+    if (g.queue[0]) notifyLive(g.queue[0], { type: 'game', icon: '⏳', title: 'Prépare-toi : tu passes juste après au Sommet !', data: { slug: SLUG } });
     host(`🎩 Applaudissez bien fort ${g.cand.username} ! Objectif : le sommet et son million de points !`);
     say(`🏔️ ${g.cand.username} monte sur scène ! 12 questions jusqu'au million de points. Paliers de sécurité à ${fmt(LADDER[3])} et ${fmt(LADDER[7])} points. Bonne chance !`);
     broadcast();
@@ -94,6 +96,7 @@ module.exports = function setupSommet({ io, db, getOnline }) {
     host(kind === 'top' ? `🏆 INCROYABLE ! ${c.username} atteint le SOMMET : 1 MILLION de points !` : kind === 'quit' ? `💼 ${c.username} s'arrête là et repart avec ${fmt(pts)} points. Sage décision !` : kind === 'timeout' ? `⏱️ Le temps est écoulé… ${c.username} repart avec ${fmt(pts)} points.` : `😮 Oh non ! ${c.username} repart avec ${fmt(pts)} points.`);
     say(kind === 'top' ? `🏆🏆🏆 ${c.username} a atteint le SOMMET DU PARADISE et gagne 1 000 000 de points ! Bravo !!!` : `🏔️ ${c.username} termine son ascension avec ${fmt(pts)} points. Merci et bravo !`);
     save(c.id, pts, kind === 'top');
+    notify(c.id, { type: 'game', icon: kind === 'top' ? '🏆' : '🏔️', title: kind === 'top' ? 'Tu as atteint le SOMMET : 1 000 000 de points !' : `Sommet du Paradise : tu repars avec ${fmt(pts)} points`, text: `Tu es allé jusqu'à la question ${g.level + 1}.`, data: { slug: SLUG } });
     lb = leaderboard();
     broadcast();
     setTimer(OVER_MS, nextCandidate);
