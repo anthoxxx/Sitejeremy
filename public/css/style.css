@@ -1337,7 +1337,8 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .edit-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
 .edit-actions small { margin-right: auto; }
 .bubble-row.editing .bubble { max-width: 92%; width: 100%; }
-.bubble-edit { align-self: center; margin-right: 6px; opacity: 0; transition: opacity .15s; background: none; border: 0; }
-.bubble-row:hover .bubble-edit, .bubble-row.editing .bubble-edit { opacity: .8; }
-@media (hover: none) { .bubble-edit { opacity: .6; } }
+.bubble-tools { align-self: center; margin-right: 6px; display: inline-flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.bubble-tools .btn { padding: 4px 7px; background: none; border: 0; }
+.bubble-row:hover .bubble-tools, .bubble-row.editing .bubble-tools { opacity: 1; }
+@media (hover: none) { .bubble-tools { opacity: .6; } }
 .bubble-row.mine { justify-content: flex-end; }

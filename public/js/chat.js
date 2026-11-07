@@ -353,7 +353,9 @@ async function openPm(user) {
 function addBubble(m) {
   const mine = m.from === state.me.id;
   const row = el('div', { class: 'bubble-row' + (mine ? ' mine' : ''), 'data-pm': m.id },
-    canEdit(m, m.from) ? el('button', { class: 'btn btn-sm edit bubble-edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'pm') }, '✏️') : null,
+    mine ? el('div', { class: 'bubble-tools' },
+      canEdit(m, m.from) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'pm') }, '✏️') : null,
+      el('button', { class: 'btn btn-sm', title: 'Supprimer pour tout le monde', onclick: () => deletePm(m) }, '🗑')) : null,
     el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time' }, LC.time(m.createdAt), editedTag(m))));
   row._msg = m;
   $('messages').append(row);
@@ -681,6 +683,18 @@ socket.on('message_edited', ({ id, content, editedAt }) => {
   const m = row._msg || {};
   Object.assign(m, { content, editedAt });
   applyEdit(row, m, 'room');
+});
+// Supprimer son message privé : il disparaît chez les deux personnes
+function deletePm(m) {
+  if (!confirm('Supprimer ce message pour tout le monde ?\nIl disparaîtra aussi chez l\'autre personne.')) return;
+  socket.emit('pm_delete', { id: m.id }, res => res?.error && toast(res.error));
+}
+socket.on('pm_deleted', ({ id, from, to }) => {
+  const otherId = from === state.me.id ? to : from;
+  const list = state.pmCache.get(otherId);
+  if (list) state.pmCache.set(otherId, list.filter(x => x.id !== id));
+  document.querySelector(`.bubble-row[data-pm="${id}"]`)?.remove();
+  if (typeof loadConvs === 'function') loadConvs().catch(() => {});
 });
 socket.on('pm_edited', ({ id, from, to, content, editedAt }) => {
   const otherId = from === state.me.id ? to : from;

@@ -2349,6 +2349,16 @@ io.on('connection', socket => {
     ack && ack({ ok: true });
   });
 
+  // ----- Supprimer son message privé pour tout le monde -----
+  socket.on('pm_delete', ({ id } = {}, ack) => {
+    const m = db.prepare('SELECT * FROM private_messages WHERE id=?').get(parseInt(id, 10));
+    if (!m || m.from_id !== uid) return ack && ack({ error: 'Tu ne peux supprimer que tes messages' });
+    db.prepare('DELETE FROM private_messages WHERE id=?').run(m.id);
+    const ev = { id: m.id, from: m.from_id, to: m.to_id };
+    emitToUser(m.to_id, 'pm_deleted', ev); emitToUser(uid, 'pm_deleted', ev);
+    ack && ack({ ok: true });
+  });
+
   socket.on('typing', () => {
     if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
