@@ -1877,3 +1877,13 @@ body { background:
 .emote-create { display: flex; align-items: center; gap: 14px; margin: 6px 0; }
 .emote-preview { width: 96px; height: 96px; border-radius: 18px; display: grid; place-items: center; font-size: 2rem; background: var(--panel-2); border: 2px dashed var(--line); overflow: hidden; flex: none; }
 .emote-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Sur téléphone (écran tactile), les boutons 🌐 ✏️ 🗑 d'un message passent en bas à droite du message :
+   ils ne cachent plus le pseudo ni les badges */
+@media (hover: none) {
+  .msg { flex-wrap: wrap; }
+  .msg .msg-tools { position: static; order: 3; flex-basis: 100%; justify-content: flex-end; margin: 2px 0 -2px; opacity: .8; }
+  .msg .msg-tools .btn { padding: 2px 8px; font-size: .78rem; min-height: 0; }
+}
+/* Sur ordinateur, ils gardent un fond pour rester lisibles au survol */
+@media (hover: hover) { .msg .msg-tools { background: var(--panel); padding: 3px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); } }
