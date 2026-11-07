@@ -109,4 +109,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 8,
+    date: '2026-11-07',
+    title: 'Le Sommet du Paradise 🏔️',
+    added: [
+      'Nouveau salon 🏔️ Le Sommet du Paradise : le grand quiz sur scène présenté par Maestro Paradise',
+      '12 questions de plus en plus dures pour grimper jusqu\'au MILLION de points, avec deux paliers de sécurité',
+      'Trois aides : ✂️ Moitié, 🗳️ Vote du salon (les spectateurs votent en direct) et 🔄 Changer de question',
+      'On peut s\'arrêter à tout moment avec ses points, et un classement des meilleurs grimpeurs',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -338,6 +338,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='blindtest'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('blindtest', 'Le Grand Blind Test', 'L\'émission musicale du Paradise présentée par Maestro Paradise : buzzez et trouvez la chanson ! 🎩', '🎩', sort, 0, Date.now());
 }
+// Salon « Le Sommet du Paradise » (grand quiz sur scène, présenté par Maestro Paradise)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='sommet'").get()) {
+  const r = db.prepare("SELECT sort FROM rooms WHERE slug='blindtest'").get();
+  const sort = r ? r.sort + 1 : 13;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('sommet', 'Le Sommet du Paradise', 'Le grand quiz sur scène : 12 questions pour décrocher le million de points ! 🏔️', '🏔️', sort, 0, Date.now());
+}
 // Salon « Patch note » : personne n'y écrit, seul le bot y annonce les nouveautés du site
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
   const top = db.prepare('SELECT MIN(sort) s FROM rooms WHERE owner_id IS NULL').get();

@@ -2020,6 +2020,7 @@ const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, get
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
 const Wheel = require('./wheel')({ io, getOnline: () => online });
 const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, catalogs: Jukebox.catalogs });
+const Sommet = require('./sommet')({ io, db, getOnline: () => online });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2322,6 +2323,7 @@ io.on('connection', socket => {
     if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});
     if (Wheel.has(room.slug) && kind === 'text' && content.startsWith('!')) Wheel.command(u, content).catch(() => {});
     if (BlindTest.has(room.slug) && kind === 'text' && content.startsWith('!')) BlindTest.command(u, content).catch(() => {});
+    if (Sommet.has(room.slug) && kind === 'text' && content.startsWith('!')) Sommet.command(u, content).catch(() => {});
   });
 
   // ----- Corriger un message (faute d'orthographe…) : seulement le sien, texte ou légende de photo, 15 min max -----
@@ -2416,6 +2418,7 @@ io.on('connection', socket => {
   TvBot.onConnection(socket, uid, current);
   Wheel.onConnection(socket, uid, current);
   BlindTest.onConnection(socket, uid, current);
+  Sommet.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

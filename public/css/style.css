@@ -1520,3 +1520,86 @@ body { background:
   .bt-buzzer { width: 92px; height: 92px; font-size: 1.1rem; }
   .bt-title { font-size: .9rem; }
 }
+
+/* ---------- Le Sommet du Paradise : la scène ---------- */
+.so-stage { position: relative; overflow: hidden; flex: none; margin: 10px 16px 0; padding: 12px; border-radius: 20px; display: grid; gap: 10px; color: #fff;
+  background: linear-gradient(180deg, #0a1028 0%, #15123a 55%, #2b1440 100%); border: 1px solid rgba(124, 200, 255, .4); box-shadow: inset 0 -60px 80px rgba(255, 140, 60, .12); }
+.so-stage > * { position: relative; z-index: 1; }
+.so-sky { position: absolute !important; inset: 0; z-index: 0 !important; pointer-events: none;
+  background: radial-gradient(2px 2px at 12% 18%, #fff, transparent), radial-gradient(1.5px 1.5px at 30% 8%, #cfe8ff, transparent), radial-gradient(2px 2px at 64% 14%, #fff, transparent), radial-gradient(1.5px 1.5px at 82% 26%, #ffe9a8, transparent), radial-gradient(1px 1px at 48% 30%, #fff, transparent); }
+.so-sky i { position: absolute; bottom: 0; width: 0; height: 0; border-left: 140px solid transparent; border-right: 140px solid transparent; border-bottom: 110px solid rgba(124, 200, 255, .07); }
+.so-sky i:nth-child(1) { left: -40px; } .so-sky i:nth-child(2) { left: 35%; border-bottom-width: 150px; border-bottom-color: rgba(139, 108, 255, .09); } .so-sky i:nth-child(3) { right: -60px; border-bottom-width: 90px; }
+.so-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.so-title { font-size: 1.02rem; background: linear-gradient(90deg, #cfe8ff, #7cc8ff, #ffd76a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.so-chip { font-size: .76rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: rgba(124, 200, 255, .18); color: #cfe8ff; }
+.so-timer { font-weight: 900; font-variant-numeric: tabular-nums; color: #7cc8ff; }
+.so-timer.low { color: #ff8a98; animation: micBlink 1s infinite; }
+.so-main { display: grid; grid-template-columns: 150px 1fr 150px; gap: 12px; align-items: stretch; }
+.so-left { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.so-host { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.so-host .bt-host-figure { width: 72px; height: 84px; }
+.so-host.talking .bt-mouth { animation: btTalk .35s infinite alternate; transform-origin: 60px 78px; }
+.so-bubble { font-size: .74rem; line-height: 1.3; text-align: center; background: #fff; color: #1a1030; padding: 6px 8px; border-radius: 12px; font-weight: 600; position: relative; }
+.so-bubble:empty { display: none; }
+.so-bubble::before { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-top: 0; border-bottom-color: #fff; }
+.so-cand { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px 6px; text-align: center; }
+.so-cand .avatar { width: 40px; height: 40px; position: relative; z-index: 1; }
+.so-cand b { font-size: .86rem; position: relative; z-index: 1; }
+.so-cand small { font-size: .7rem; color: #cfe8ff; position: relative; z-index: 1; }
+.so-spot { position: absolute; inset: -30px 10px 0; background: radial-gradient(ellipse at 50% 100%, rgba(255, 215, 106, .35), transparent 65%); pointer-events: none; }
+.so-empty { color: rgba(255, 255, 255, .6); }
+.so-board { display: flex; flex-direction: column; gap: 10px; justify-content: center; min-width: 0; }
+.so-question { padding: 14px 16px; border-radius: 16px; text-align: center; font-weight: 800; font-size: 1.08rem; line-height: 1.35; background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .03)); border: 1px solid rgba(207, 232, 255, .35); box-shadow: 0 0 22px rgba(124, 200, 255, .15); }
+.so-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.so-ans { position: relative; overflow: hidden; display: flex; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(207, 232, 255, .3); background: rgba(10, 16, 40, .75); color: #fff; font: inherit; font-weight: 700; cursor: pointer; min-height: 46px; transition: background .2s, transform .1s; }
+.so-ans:not(:disabled):hover { background: rgba(124, 200, 255, .18); }
+.so-ans:disabled { cursor: default; }
+.so-letter { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #ffd76a; color: #1a1030; font-weight: 900; font-size: .85rem; position: relative; z-index: 1; }
+.so-text { position: relative; z-index: 1; }
+.so-ans.gone { opacity: .25; }
+.so-ans.picked { background: linear-gradient(135deg, #ff9f1c, #ff7a1f); border-color: #ffd76a; color: #1a1030; animation: soPick .8s ease-in-out infinite alternate; }
+@keyframes soPick { to { box-shadow: 0 0 18px rgba(255, 159, 28, .7); } }
+.so-ans.right { background: linear-gradient(135deg, #33d6a6, #1d9e7a); border-color: #b8ffe6; color: #fff; animation: soRight .5s ease-in-out 3 alternate; }
+@keyframes soRight { to { transform: scale(1.03); box-shadow: 0 0 24px rgba(51, 214, 166, .8); } }
+.so-ans.wrong { background: linear-gradient(135deg, #e5384d, #a3122a); border-color: #ff9aa8; color: #fff; }
+.so-vote { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+.so-vote i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(124, 200, 255, .25); transition: width .6s; }
+.so-vote em { position: relative; font-style: normal; font-weight: 900; color: #cfe8ff; }
+.so-big { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 1.3rem; font-weight: 900; }
+.so-big small { font-size: .9rem; font-weight: 600; opacity: .85; }
+.so-lobby { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+.so-lobby ol { margin: 0; padding-left: 20px; text-align: left; font-size: .88rem; }
+.so-won { text-align: center; font-weight: 900; font-size: 1.1rem; color: #ffd76a; }
+.so-won.top { font-size: 1.4rem; text-shadow: 0 0 18px rgba(255, 215, 106, .8); animation: btPulse .6s infinite alternate; }
+.so-ladder { display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 14px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(207, 232, 255, .2); }
+.so-peak { text-align: center; font-size: 1.1rem; }
+.so-step { display: flex; justify-content: space-between; gap: 6px; padding: 2px 8px; border-radius: 6px; font-size: .74rem; color: #cfe8ff; font-variant-numeric: tabular-nums; }
+.so-step span { opacity: .6; }
+.so-step.safe { color: #ffd76a; }
+.so-step.done { opacity: .5; }
+.so-step.now { background: linear-gradient(90deg, #ff9f1c, #ffd76a); color: #1a1030; opacity: 1; }
+.so-step.now span { opacity: 1; }
+.so-ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.so-validate { min-width: 220px; }
+.so-joker:disabled { opacity: .35; text-decoration: line-through; }
+.so-wait { font-weight: 700; font-size: .9rem; color: #cfe8ff; }
+.so-stage.mini .so-ladder, .so-stage.mini .so-left { display: none; }
+.so-stage.mini .so-main { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .so-main { grid-template-columns: 1fr; }
+  .so-left { flex-direction: row; justify-content: center; }
+  .so-ladder { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .so-peak { display: none; }
+  .so-step { flex-direction: column; align-items: center; padding: 2px 5px; font-size: .64rem; gap: 0; }
+}
+@media (max-width: 760px) {
+  .so-stage { margin: 6px 8px 0; padding: 8px; gap: 7px; }
+  .so-host .bt-host-figure { width: 50px; height: 58px; }
+  .so-bubble { max-width: 150px; font-size: .68rem; }
+  .so-question { font-size: .92rem; padding: 10px; }
+  .so-answers { gap: 6px; }
+  .so-ans { padding: 8px; min-height: 40px; font-size: .84rem; }
+  .so-title { font-size: .9rem; }
+}
+.so-ans:has(.so-vote) { padding-right: 58px; }
+.so-vote em { background: rgba(10, 16, 40, .8); padding: 1px 6px; border-radius: 999px; font-size: .8rem; }
