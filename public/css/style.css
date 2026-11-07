@@ -1772,3 +1772,74 @@ body { background:
 @keyframes hdBounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-4px); } 60% { transform: translateY(1px); } }
 @keyframes hdAvatar { 0%, 100% { box-shadow: 0 0 8px rgba(255, 95, 162, .5); } 50% { box-shadow: 0 0 16px rgba(124, 200, 255, .7); } }
 @media (prefers-reduced-motion: reduce) { .app-header *, .app-header *::after { animation: none !important; } }
+
+/* =====================================================================
+   DANS LES SALONS : tout s'illumine, scintille et bouge
+   ===================================================================== */
+/* En-tête du salon : couleur néon du salon, titre lumineux, ligne qui pulse */
+.room-head.head-neon { border-bottom: 2px solid var(--neon); animation: headNeon 2.6s ease-in-out infinite; }
+.room-head.head-neon #headTitle { color: var(--neon-text, var(--neon)); text-shadow: 0 0 3px var(--neon-glow, var(--neon)), 0 0 10px var(--neon-glow, var(--neon)); animation: neonFlicker 5s linear infinite; }
+.room-head.head-neon #headSub { color: var(--neon-sub, var(--neon)); opacity: .9; }
+.room-head.head-neon #headIcon { box-shadow: 0 0 12px color-mix(in srgb, var(--neon-glow, var(--neon)) 70%, transparent); }
+@keyframes headNeon { 0%, 100% { box-shadow: 0 4px 12px -6px var(--neon-glow, var(--neon)); } 50% { box-shadow: 0 6px 22px -4px var(--neon-glow, var(--neon)); } }
+.room-head.head-gold { border-bottom: 2px solid #ffc94d; box-shadow: 0 4px 16px -6px #ffc94d; }
+.room-head.head-gold #headTitle { background: linear-gradient(90deg, #ffe08a, #ffb547 45%, #fff3c4, #ffb547); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: goldShine 3s linear infinite; }
+.room-head.head-vip { border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff) 1; }
+.room-head.head-vip #headTitle { background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff, #ff2d55); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: vipRainbow 3s linear infinite; }
+
+/* Étoiles qui scintillent derrière les messages */
+.main::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(1.5px 1.5px at 8% 20%, #fff, transparent), radial-gradient(1.5px 1.5px at 22% 70%, #ffd76a, transparent), radial-gradient(2px 2px at 37% 35%, #7cc8ff, transparent),
+    radial-gradient(1.5px 1.5px at 51% 82%, #fff, transparent), radial-gradient(2px 2px at 64% 15%, #ff9ce9, transparent), radial-gradient(1.5px 1.5px at 78% 55%, #fff, transparent),
+    radial-gradient(2px 2px at 90% 30%, #9dffc6, transparent), radial-gradient(1.5px 1.5px at 12% 90%, #fff, transparent), radial-gradient(1.5px 1.5px at 70% 92%, #ffd76a, transparent), radial-gradient(1.5px 1.5px at 45% 55%, #fff, transparent);
+  animation: starsTwinkle 3.5s ease-in-out infinite alternate; }
+@keyframes starsTwinkle { 0% { opacity: .25; } 50% { opacity: .9; } 100% { opacity: .4; transform: translateY(-4px); } }
+
+/* Les messages arrivent en glissant avec un petit éclat */
+#messages > .msg, #messages > .bubble-row { animation: msgIn .45s cubic-bezier(.2, .8, .3, 1.2) both; }
+@keyframes msgIn { from { opacity: 0; transform: translateY(10px) scale(.97); filter: brightness(1.8); } to { opacity: 1; transform: none; filter: none; } }
+#messages > .sys { animation: sysIn .5s ease-out both; }
+@keyframes sysIn { from { opacity: 0; letter-spacing: .2em; } to { opacity: 1; letter-spacing: normal; } }
+/* Les pseudos des derniers messages brillent, et leurs photos ont un halo qui respire */
+#messages > .msg:nth-last-child(-n+8) .who { animation: whoGlow 2.4s ease-in-out infinite; }
+@keyframes whoGlow { 0%, 100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 8px currentColor; } }
+#messages > .msg:nth-last-child(-n+8) > .avatar { animation: avBreath 2.6s ease-in-out infinite; }
+@keyframes avBreath { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 95, 162, 0); } 50% { box-shadow: 0 0 0 3px rgba(255, 95, 162, .25), 0 0 14px rgba(124, 200, 255, .45); } }
+.msg.mention { animation: msgIn .45s both, mentionGlow 1.6s ease-in-out infinite; }
+@keyframes mentionGlow { 0%, 100% { box-shadow: inset 3px 0 0 var(--gold); } 50% { box-shadow: inset 3px 0 0 var(--gold), 0 0 16px rgba(255, 181, 71, .35); } }
+
+/* Les badges brillent (reflet qui passe) */
+.badge { position: relative; overflow: hidden; display: inline-block; line-height: 1.3; }
+.badge::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent); transform: skewX(-20deg); animation: shineSweep 3.2s ease-in-out infinite; }
+@keyframes shineSweep { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+
+/* La zone d'écriture : contour arc-en-ciel qui tourne, bouton Envoyer qui brille */
+.composer .input { position: relative; animation: inputGlow 4s ease-in-out infinite; }
+@keyframes inputGlow { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 95, 162, .35), 0 0 10px rgba(255, 95, 162, .15); } 33% { box-shadow: 0 0 0 1px rgba(124, 200, 255, .45), 0 0 12px rgba(124, 200, 255, .2); } 66% { box-shadow: 0 0 0 1px rgba(255, 215, 106, .45), 0 0 12px rgba(255, 215, 106, .2); } }
+.composer.staff-mode .input { animation: none; }
+.btn-primary { position: relative; overflow: hidden; background-size: 160% 160%; animation: gradMove 4s ease-in-out infinite; }
+.btn-primary::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; left: -50%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .45), transparent); transform: skewX(-20deg); animation: shineSweep 2.8s ease-in-out infinite; pointer-events: none; }
+@keyframes gradMove { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.composer .btn-icon { animation: icoFloat 2.8s ease-in-out infinite; }
+.composer .btn-icon:nth-child(2) { animation-delay: -.7s; } .composer .btn-icon:nth-child(3) { animation-delay: -1.4s; } .composer .btn-icon:nth-child(4) { animation-delay: -2.1s; }
+
+/* La bannière d'annonce : dégradé qui défile */
+.announce, .season-banner { background-size: 200% 200% !important; animation: gradMove 6s ease-in-out infinite; }
+
+/* Liste des connectés : point vert qui pulse, photos qui s'illuminent */
+.avatar .on { animation: onPulse 1.8s ease-in-out infinite; }
+@keyframes onPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(51, 214, 166, .7); } 50% { box-shadow: 0 0 0 4px rgba(51, 214, 166, 0); } }
+#userList .list-item { transition: transform .2s, background .2s; }
+#userList .list-item:hover { transform: translateX(3px); }
+#userList .list-item:hover .avatar { box-shadow: 0 0 12px rgba(255, 95, 162, .6); }
+.side-title { background: linear-gradient(90deg, var(--muted), #fff, var(--muted)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: goldShine 5s linear infinite; }
+.side-title .pill, .side-title .btn { -webkit-text-fill-color: var(--text); }
+.side-title .btn-primary { -webkit-text-fill-color: #fff; }
+
+/* Le vocal : les participants qui parlent s'illuminent déjà ; la barre respire */
+.voice-bar:not(.hidden) { animation: voiceBreath 3s ease-in-out infinite; }
+@keyframes voiceBreath { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(51, 214, 166, .2); } 50% { box-shadow: inset 0 0 0 1px rgba(51, 214, 166, .5), 0 0 14px rgba(51, 214, 166, .2); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .main::after, #messages > *, .badge::after, .btn-primary, .btn-primary::after, .composer .input, .composer .btn-icon, .announce, .season-banner, .avatar .on, .side-title, .voice-bar, .room-head, #headTitle { animation: none !important; }
+}

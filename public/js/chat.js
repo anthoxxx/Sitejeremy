@@ -207,9 +207,12 @@ function renderRoomHead() {
   // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
   renderRoomBg(inRoom ? r : null);
   if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); return; }
-  $('headIcon').textContent = r.icon;
+  $('headIcon').replaceChildren(el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon));
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
   $('headTitle').className = r.temporary ? 'room-temp' : 'room-perm';
+  // L'en-tête prend la couleur néon du salon (ou doré pour les jeux, arc-en-ciel pour le VIP)
+  const head = document.querySelector('.room-head');
+  head.className = 'room-head' + (NEON[r.slug] ? ' head-neon neon-' + NEON[r.slug] : GAME_ROOMS.has(r.slug) ? ' head-gold' : r.slug === 'membres' ? ' head-vip' : ' head-neon neon-blue');
   $('headSub').textContent = r.temporary ? `⏳ Salon temporaire de ${r.ownerName} · se ferme ${state.tempMinutes || 5} min après le départ du dernier` : r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
   if (r.station) {
     const playing = Media.isPlaying(r.station);

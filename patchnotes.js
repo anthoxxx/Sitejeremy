@@ -160,6 +160,7 @@ module.exports = [
       'Tous les salons officiels passent en néon avec leur couleur : Rencontres en rose, les salons d\'âge en bleu, Amitié en vert, Jeux vidéo en gris, Musique et Karaoké en orange, TV du monde en noir, Vérification en blanc et Patch note en bleu-violet',
       'Tous les salons scintillent comme de vraies enseignes lumineuses',
       'Toute la barre du haut est animée : le logo flotte, la cloche sonne, la manette vibre, le fantôme flotte, et ta photo a un anneau arc-en-ciel qui tourne',
+      'Dans les salons, tout s\'illumine : en-tête aux couleurs néon du salon, étoiles qui scintillent, messages qui arrivent en glissant, pseudos qui brillent, badges avec reflet, zone d\'écriture lumineuse, boutons qui brillent',
     ],
     removed: [],
   },
