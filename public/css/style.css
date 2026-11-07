@@ -1653,3 +1653,39 @@ body { background:
   to { filter: drop-shadow(0 0 4px rgba(52, 255, 106, .75)) drop-shadow(0 0 10px rgba(198, 77, 255, .6)); }
 }
 @media (prefers-reduced-motion: reduce) { .list-item.vip-room .name .room-perm, .list-item.vip-room .name { animation: none; } }
+
+/* ---------- Salon VIP : contour et description en arc-en-ciel néon ---------- */
+.list-item.vip-room { position: relative; animation: vipBox 3s linear infinite; }
+.list-item.vip-room::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+  background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff, #ff2d55);
+  background-size: 200% 100%; animation: vipRainbow 3s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.list-item.vip-room .sub {
+  background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff, #ff2d55);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700;
+  animation: vipRainbow 3s linear infinite;
+}
+@keyframes vipBox {
+  0% { box-shadow: 0 0 10px rgba(255, 45, 85, .55), inset 0 0 8px rgba(255, 45, 85, .2); }
+  25% { box-shadow: 0 0 10px rgba(255, 230, 0, .55), inset 0 0 8px rgba(255, 230, 0, .2); }
+  50% { box-shadow: 0 0 10px rgba(0, 229, 255, .55), inset 0 0 8px rgba(0, 229, 255, .2); }
+  75% { box-shadow: 0 0 10px rgba(198, 77, 255, .6), inset 0 0 8px rgba(198, 77, 255, .2); }
+  100% { box-shadow: 0 0 10px rgba(255, 45, 85, .55), inset 0 0 8px rgba(255, 45, 85, .2); }
+}
+
+/* ---------- Salon Général : rouge néon (nom, description, contour) ---------- */
+.list-item.red-neon-room { position: relative; border: 2px solid #ff2d55; animation: redNeon 2.4s ease-in-out infinite; }
+.list-item.red-neon-room .name .room-perm { color: #ff4d6d; font-weight: 900; text-shadow: 0 0 4px #ff2d55, 0 0 10px #ff2d55, 0 0 18px rgba(255, 45, 85, .7); }
+.list-item.red-neon-room .sub { color: #ff8095; text-shadow: 0 0 6px rgba(255, 45, 85, .8); font-weight: 600; }
+.list-item.red-neon-room .ico { box-shadow: 0 0 10px rgba(255, 45, 85, .6); }
+.list-item.red-neon-room.active { box-shadow: inset 3px 0 0 #ff2d55; }
+@keyframes redNeon {
+  0%, 100% { box-shadow: 0 0 6px #ff2d55, 0 0 14px rgba(255, 45, 85, .55), inset 0 0 8px rgba(255, 45, 85, .25); }
+  50% { box-shadow: 0 0 10px #ff2d55, 0 0 24px rgba(255, 45, 85, .8), inset 0 0 12px rgba(255, 45, 85, .35); }
+  52% { box-shadow: 0 0 2px #ff2d55, inset 0 0 4px rgba(255, 45, 85, .15); }
+  54% { box-shadow: 0 0 10px #ff2d55, 0 0 24px rgba(255, 45, 85, .8), inset 0 0 12px rgba(255, 45, 85, .35); }
+}
+.side-scroll { padding-left: 14px; padding-right: 14px; }
+@media (prefers-reduced-motion: reduce) { .list-item.vip-room, .list-item.vip-room::before, .list-item.vip-room .sub, .list-item.red-neon-room { animation: none; } }

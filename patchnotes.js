@@ -144,6 +144,8 @@ module.exports = [
     added: [],
     changed: [
       'Le nom du Salon VIP brille maintenant en arc-en-ciel néon 🌈',
+      'Le Salon VIP a aussi un contour et une description en arc-en-ciel néon',
+      'Le salon Général passe en rouge néon ❤️‍🔥 : nom, description et contour',
     ],
     removed: [],
   },
