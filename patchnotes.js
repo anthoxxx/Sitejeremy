@@ -149,4 +149,14 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 11,
+    date: '2026-11-07',
+    title: 'Des icônes de salons qui bougent ✨',
+    added: [
+      'Toutes les icônes des salons sont animées : la roue 🎡 tourne, le diamant 💎 brille, le cœur 💞 bat, les étoiles ✨ scintillent, la manette 🎮 vibre, la télé 📺 grésille…',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

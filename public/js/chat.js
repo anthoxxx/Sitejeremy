@@ -137,6 +137,15 @@ async function loadRooms() {
 }
 const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff() || (r.managers || []).some(m => m.id === state.me.id)) : LC.isAdminRole(state.me));
 
+// Chaque icône de salon a son animation (elle tourne, scintille, bat, se balance…)
+const ICON_ANIMS = { patchnote: 'wiggle', douane: 'pulse', general: 'twinkle', rencontres: 'heart', '18-25': 'bounce', '25-40': 'swing', '40-plus': 'glow',
+  amitie: 'wave', gaming: 'shake', musique: 'dance', karaoke: 'swing', tv: 'flicker', roue: 'spin', blindtest: 'tip', sommet: 'float', membres: 'gem' };
+const ANIM_CYCLE = ['bounce', 'twinkle', 'swing', 'float', 'pulse', 'spin', 'wiggle', 'dance'];
+function iconAnim(r) {
+  if (ICON_ANIMS[r.slug]) return ICON_ANIMS[r.slug];
+  let h = 0; for (const c of r.slug) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return ANIM_CYCLE[Math.abs(h) % ANIM_CYCLE.length];
+}
 // Les salons des jeux s'affichent en doré
 const GAME_ROOMS = new Set(['roue', 'blindtest', 'sommet']);
 function roomItem(r, counts) {
@@ -148,7 +157,7 @@ function roomItem(r, counts) {
     title: r.description, style: locked ? 'opacity:.5' : '',
     onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },
-    el('div', { class: 'ico' }, r.icon),
+    el('div', { class: 'ico' }, el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon)),
     el('div', { class: 'meta' },
       el('div', { class: 'name' }, el('span', { class: r.temporary ? 'room-temp' : 'room-perm' }, r.name), r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
       el('div', { class: 'sub' }, r.temporary ? tempLabel(r) : r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
