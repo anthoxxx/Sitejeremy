@@ -691,7 +691,7 @@ document.addEventListener('viewchange', updateStaffOnlyBtn);
 function renderEmojiPanel(tab = 'paradise') {
   $('emojiPanel').dataset.tab = tab;
   const add = t => { input.value += (input.value && !input.value.endsWith(' ') ? ' ' : '') + t + ' '; input.focus(); input.dispatchEvent(new Event('input')); };
-  $('emojiPanel').replaceChildren(
+  $('emojiPanel').replaceChildren(...[
     el('div', { class: 'emoji-tabs' },
       el('button', { type: 'button', class: tab === 'paradise' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('paradise'); } }, '✨ Paradise'),
       el('button', { type: 'button', class: tab === 'emoji' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('emoji'); } }, '😀 Émojis')),
@@ -708,7 +708,7 @@ function renderEmojiPanel(tab = 'paradise') {
       ...pendingEmotes.map(e => el('div', { class: 'emote-prow' },
         el('img', { class: 'emote', src: e.url, alt: e.code }), el('span', {}, `:${e.code}: · ${e.owner}`),
         LC.isAdminRole(state.me) ? el('button', { type: 'button', class: 'btn btn-sm btn-ok', onclick: async ev => { ev.stopPropagation(); try { await api(`/api/emotes/${e.id}/approve`, { method: 'POST' }); toast(`✅ :${e.code}: validée`); loadEmotes(); } catch (er) { toast(er.message); } } }, '✅') : null,
-        el('button', { type: 'button', class: 'btn btn-sm', onclick: ev => { ev.stopPropagation(); deleteEmote(e); } }, LC.isAdminRole(state.me) ? '❌' : 'Annuler')))) : null);
+        el('button', { type: 'button', class: 'btn btn-sm', onclick: ev => { ev.stopPropagation(); deleteEmote(e); } }, LC.isAdminRole(state.me) ? '❌' : 'Annuler')))) : null].filter(Boolean));
 }
 async function deleteEmote(e) {
   if (!confirm(`Supprimer l'émoticône :${e.code}: ?`)) return;

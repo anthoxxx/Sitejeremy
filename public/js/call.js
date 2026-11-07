@@ -247,11 +247,11 @@ const Call = {
       volBox = el('div', { class: 'call-volume' }, volumeSlider(this.volume, v => this.setVolume(v)));
       this.ui.append(volBox);
     }
-    this.ui.querySelector('.call-controls').replaceChildren(
+    this.ui.querySelector('.call-controls').replaceChildren(...[
       el('button', { class: 'call-btn' + (this.muted ? ' off' : ''), title: 'Micro', onclick: () => this.toggleMute() }, this.muted ? '🔇' : '🎤'),
       el('button', { class: 'call-btn' + (!hasCam || this.camOff ? ' off' : ''), title: 'Caméra', onclick: () => this.toggleCam() }, '📷'),
       hasCam && !this.camOff ? el('button', { class: 'call-btn', title: 'Changer de caméra', onclick: () => this.switchCam() }, '🔄') : null,
-      el('button', { class: 'call-btn hang', title: 'Raccrocher', onclick: () => this.hangup() }, '📞'));
+      el('button', { class: 'call-btn hang', title: 'Raccrocher', onclick: () => this.hangup() }, '📞')].filter(Boolean));
   },
 };
 const fmtDur = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
