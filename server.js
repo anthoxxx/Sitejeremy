@@ -1069,6 +1069,58 @@ app.get('/api/users/:id', auth, (req, res) => {
   res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id) });
 });
 
+// ---------- Émoticônes créées à partir d'une photo ----------
+const BUILTIN_EMOTES = new Set(['ptdr', 'love', 'coeur', 'feu', 'cool', 'clin', 'bisou', 'wow', 'triste', 'colere', 'fete', 'dodo', 'couronne', 'etoiles', 'palmier', 'gg', 'mdr', 'bravo', 'coucou']);
+const emoteOut = e => { const o = e.owner_id && getUser(e.owner_id); return { id: e.id, code: e.code, url: e.url, owner: o ? o.username : '', ownerId: e.owner_id, status: e.status }; };
+app.get('/api/emotes', auth, (req, res) => {
+  const all = db.prepare('SELECT * FROM custom_emotes ORDER BY id').all();
+  res.json({ emotes: all.filter(e => e.status === 'ok').map(emoteOut), pending: isAdminRole(req.user) ? all.filter(e => e.status === 'pending').map(emoteOut) : all.filter(e => e.status === 'pending' && e.owner_id === req.user.id).map(emoteOut) });
+});
+app.post('/api/emotes', auth, express.raw({ type: () => true, limit: '3mb' }), (req, res) => {
+  const u = req.user;
+  if (u.is_guest) return res.status(403).json({ error: 'Inscris-toi pour créer des émoticônes' });
+  const code = String(req.query.code || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  if (code.length < 2 || code.length > 15) return res.status(400).json({ error: 'Le nom doit faire de 2 à 15 lettres ou chiffres (sans espace)' });
+  if (BUILTIN_EMOTES.has(code) || db.prepare('SELECT 1 FROM custom_emotes WHERE code=?').get(code)) return res.status(409).json({ error: `Le nom :${code}: est déjà pris` });
+  if (modScan(code).level) return res.status(400).json({ error: 'Ce nom n\'est pas autorisé' });
+  if (tooMany('emote:' + u.id, isAdminRole(u) ? 60 : 5, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'émoticônes créées, réessaie plus tard' });
+  if (!isAdminRole(u) && db.prepare("SELECT COUNT(*) c FROM custom_emotes WHERE owner_id=? AND status='pending'").get(u.id).c >= 5) return res.status(400).json({ error: 'Tu as déjà 5 émoticônes en attente de validation' });
+  const buf = req.body;
+  if (!Buffer.isBuffer(buf) || buf.length < 50) return res.status(400).json({ error: 'Image vide' });
+  const img = IMAGE_TYPES.find(t => t.test(buf));
+  if (!img) return res.status(400).json({ error: 'Formats acceptés : PNG, JPG, GIF (animé) ou WEBP' });
+  if (buf.length > 2 * 1024 * 1024) return res.status(400).json({ error: 'Image trop lourde (2 Mo maximum)' });
+  const name = `emote-${code}-${crypto.randomBytes(5).toString('hex')}.${img.ext}`;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  const ok = isAdminRole(u);
+  const info = db.prepare('INSERT INTO custom_emotes (code, url, owner_id, status, created_at) VALUES (?,?,?,?,?)').run(code, '/uploads/' + name, u.id, ok ? 'ok' : 'pending', now());
+  log(u, 'emote', `${ok ? 'Émoticône créée' : 'Émoticône proposée'} : :${code}:`, { data: { image: '/uploads/' + name } });
+  if (ok) io.emit('emotes_changed');
+  else for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin')").all())
+    notify(a.id, { type: 'emote', icon: '😊', title: `${u.username} propose l'émoticône :${code}:`, text: 'Ouvre le panneau 😊 → ✨ Paradise pour la valider ou la refuser.', data: { code } });
+  res.json({ emote: emoteOut(db.prepare('SELECT * FROM custom_emotes WHERE id=?').get(info.lastInsertRowid)) });
+});
+app.post('/api/emotes/:id/approve', auth, requireRole('admin'), (req, res) => {
+  const e = db.prepare('SELECT * FROM custom_emotes WHERE id=?').get(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Émoticône introuvable' });
+  db.prepare("UPDATE custom_emotes SET status='ok' WHERE id=?").run(e.id);
+  if (e.owner_id) notify(e.owner_id, { type: 'emote', icon: '🎉', title: `Ton émoticône :${e.code}: est validée !`, text: 'Tout le monde peut maintenant l\'utiliser.', data: { code: e.code } });
+  log(req.user, 'emote', `Émoticône validée : :${e.code}:`);
+  io.emit('emotes_changed');
+  res.json({ ok: true });
+});
+app.delete('/api/emotes/:id', auth, (req, res) => {
+  const e = db.prepare('SELECT * FROM custom_emotes WHERE id=?').get(req.params.id);
+  if (!e) return res.status(404).json({ error: 'Émoticône introuvable' });
+  if (!isAdminRole(req.user) && e.owner_id !== req.user.id) return res.status(403).json({ error: 'Ce n\'est pas ton émoticône' });
+  db.prepare('DELETE FROM custom_emotes WHERE id=?').run(e.id);
+  removeUpload(e.url);
+  if (e.status === 'pending' && e.owner_id && e.owner_id !== req.user.id) notify(e.owner_id, { type: 'emote', icon: '🙅', title: `Ton émoticône :${e.code}: n'a pas été acceptée` });
+  log(req.user, 'emote', `Émoticône supprimée : :${e.code}:`);
+  io.emit('emotes_changed');
+  res.json({ ok: true });
+});
+
 // ---------- Traducteur des salons ----------
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ro', 'tr', 'ar', 'ru', 'uk', 'zh-CN', 'ja', 'ko', 'hi', 'vi', 'id', 'el', 'sv'];
 const trCache = new Map();

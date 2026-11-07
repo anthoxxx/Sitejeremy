@@ -22,7 +22,21 @@ try { state.sound = localStorage.getItem('lc_sound') !== '0'; } catch (e) {}
 // Émoticônes animées du site (dessinées pour The Paradise) : on les écrit :nom: dans un message
 const EMOTES = ['ptdr', 'love', 'coeur', 'feu', 'cool', 'clin', 'bisou', 'wow', 'triste', 'colere', 'fete', 'dodo', 'couronne', 'etoiles', 'palmier', 'gg', 'mdr', 'bravo', 'coucou'];
 const EMOTE_SET = new Set(EMOTES);
-const emoteImg = (code, big) => el('img', { class: 'emote' + (big ? ' big' : '') + (/^(gg|mdr|bravo|coucou)$/.test(code) ? ' wide' : ''), src: `/img/emotes/${code}.svg`, alt: `:${code}:`, title: `:${code}:`, draggable: 'false' });
+// Émoticônes créées par les membres à partir d'une photo : code -> { url, owner, id }
+const customEmotes = new Map();
+let pendingEmotes = [];
+const isEmote = code => EMOTE_SET.has(code) || customEmotes.has(code);
+const emoteImg = (code, big) => el('img', { class: 'emote' + (big ? ' big' : '') + (/^(gg|mdr|bravo|coucou)$/.test(code) ? ' wide' : '') + (customEmotes.has(code) ? ' custom' : ''),
+  src: customEmotes.has(code) ? customEmotes.get(code).url : `/img/emotes/${code}.svg`, alt: `:${code}:`, title: `:${code}:` + (customEmotes.get(code)?.owner ? ` (créée par ${customEmotes.get(code).owner})` : ''), draggable: 'false' });
+async function loadEmotes() {
+  try {
+    const d = await api('/api/emotes');
+    customEmotes.clear();
+    d.emotes.forEach(e => customEmotes.set(e.code, e));
+    pendingEmotes = d.pending || [];
+    if (!$('emojiPanel').classList.contains('hidden')) renderEmojiPanel($('emojiPanel').dataset.tab || 'paradise');
+  } catch (e) {}
+}
 const EMOJIS = '😀 😂 🥰 😍 😘 😉 😎 🤩 🥳 😇 🤔 😏 😅 😢 😭 😡 👍 👎 👏 🙏 💪 🔥 ✨ 💯 ❤️ 💜 💕 💋 🌹 🎉 ☕ 🍷'.split(' ');
 const isStaff = () => LC.rank(state.me) >= 1;
 
@@ -273,12 +287,12 @@ function scrollDown(force) { const m = $('messages'); if (force || nearBottom())
 
 function linkify(text) {
   const frag = document.createDocumentFragment();
-  const re = /(https?:\/\/[^\s<]+)|(@[\p{L}\p{N}_\-]{3,20})|:([a-z]{2,12}):/gu;
+  const re = /(https?:\/\/[^\s<]+)|(@[\p{L}\p{N}_\-]{3,20})|:([a-z0-9]{2,15}):/gu;
   // Un message fait seulement d'émoticônes : on les affiche en grand
-  const onlyEmotes = /^\s*(:[a-z]{2,12}:\s*){1,6}$/.test(text) && (text.match(/:([a-z]{2,12}):/g) || []).every(x => EMOTE_SET.has(x.slice(1, -1)));
+  const onlyEmotes = /^\s*(:[a-z0-9]{2,15}:\s*){1,6}$/.test(text) && (text.match(/:([a-z0-9]{2,15}):/g) || []).every(x => isEmote(x.slice(1, -1)));
   let last = 0, m;
   while ((m = re.exec(text))) {
-    if (m[3] && !EMOTE_SET.has(m[3])) continue;
+    if (m[3] && !isEmote(m[3])) continue;
     frag.append(text.slice(last, m.index));
     if (m[1]) frag.append(el('a', { href: m[1], target: '_blank', rel: 'noopener noreferrer nofollow' }, m[1]));
     else if (m[3]) frag.append(emoteImg(m[3], onlyEmotes));
@@ -675,17 +689,93 @@ $('staffOnlyBtn').onclick = () => { staffOnlyMode = !staffOnlyMode; updateStaffO
 document.addEventListener('viewchange', updateStaffOnlyBtn);
 // Panneau : deux onglets, les émojis classiques et les émoticônes animées du Paradise
 function renderEmojiPanel(tab = 'paradise') {
+  $('emojiPanel').dataset.tab = tab;
   const add = t => { input.value += (input.value && !input.value.endsWith(' ') ? ' ' : '') + t + ' '; input.focus(); input.dispatchEvent(new Event('input')); };
   $('emojiPanel').replaceChildren(
     el('div', { class: 'emoji-tabs' },
       el('button', { type: 'button', class: tab === 'paradise' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('paradise'); } }, '✨ Paradise'),
       el('button', { type: 'button', class: tab === 'emoji' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('emoji'); } }, '😀 Émojis')),
     el('div', { class: 'emoji-grid' + (tab === 'paradise' ? ' emotes' : '') }, ...(tab === 'paradise'
-      ? EMOTES.map(c => el('button', { type: 'button', class: /^(gg|mdr|bravo|coucou)$/.test(c) ? 'wide' : '', title: `:${c}:`, onclick: () => add(`:${c}:`) }, emoteImg(c)))
-      : EMOJIS.map(em => el('button', { type: 'button', onclick: () => add(em) }, em)))));
+      ? [state.me && !state.me.isGuest ? el('button', { type: 'button', class: 'emote-add', title: 'Créer une émoticône avec une photo', onclick: ev => { ev.stopPropagation(); $('emojiPanel').classList.add('hidden'); openCreateEmote(); } }, '➕', el('small', {}, 'Créer')) : null,
+        ...EMOTES.map(c => el('button', { type: 'button', class: /^(gg|mdr|bravo|coucou)$/.test(c) ? 'wide' : '', title: `:${c}:`, onclick: () => add(`:${c}:`) }, emoteImg(c))),
+        ...[...customEmotes.values()].map(e => el('div', { class: 'emote-cell' },
+          el('button', { type: 'button', title: `:${e.code}: · créée par ${e.owner || '?'}`, onclick: () => add(`:${e.code}:`) }, emoteImg(e.code)),
+          LC.isAdminRole(state.me) || e.ownerId === state.me?.id ? el('button', { type: 'button', class: 'emote-del', title: 'Supprimer cette émoticône', onclick: ev => { ev.stopPropagation(); deleteEmote(e); } }, '✕') : null)),
+        null]
+      : EMOJIS.map(em => el('button', { type: 'button', onclick: () => add(em) }, em)))),
+    tab === 'paradise' && pendingEmotes.length ? el('div', { class: 'emote-pending' },
+      el('b', {}, LC.isAdminRole(state.me) ? '⏳ À valider' : '⏳ En attente de validation'),
+      ...pendingEmotes.map(e => el('div', { class: 'emote-prow' },
+        el('img', { class: 'emote', src: e.url, alt: e.code }), el('span', {}, `:${e.code}: · ${e.owner}`),
+        LC.isAdminRole(state.me) ? el('button', { type: 'button', class: 'btn btn-sm btn-ok', onclick: async ev => { ev.stopPropagation(); try { await api(`/api/emotes/${e.id}/approve`, { method: 'POST' }); toast(`✅ :${e.code}: validée`); loadEmotes(); } catch (er) { toast(er.message); } } }, '✅') : null,
+        el('button', { type: 'button', class: 'btn btn-sm', onclick: ev => { ev.stopPropagation(); deleteEmote(e); } }, LC.isAdminRole(state.me) ? '❌' : 'Annuler')))) : null);
+}
+async function deleteEmote(e) {
+  if (!confirm(`Supprimer l'émoticône :${e.code}: ?`)) return;
+  try { await api('/api/emotes/' + e.id, { method: 'DELETE' }); toast(`🗑 :${e.code}: supprimée`); loadEmotes(); } catch (er) { toast(er.message); }
+}
+// Créer une émoticône : on choisit une photo, on lui donne un nom, et hop !
+function openCreateEmote() {
+  let blob = null;
+  const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' });
+  const preview = el('div', { class: 'emote-preview' }, el('span', {}, '🖼️'));
+  const name = el('input', { class: 'input', maxlength: 15, placeholder: 'ex : anthony, rire, fiesta…' });
+  const err = el('div', { class: 'error' });
+  const isAdm = LC.isAdminRole(state.me);
+  file.onchange = async () => {
+    const f = file.files[0];
+    if (!f) return;
+    err.textContent = '';
+    if (!name.value) name.value = f.name.replace(/\.[^.]+$/, '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 15);
+    try {
+      if (f.type === 'image/gif' || f.type === 'image/webp') {
+        // Les GIF animés gardent leur animation
+        if (f.size > 2 * 1024 * 1024) throw new Error('GIF trop lourd (2 Mo maximum)');
+        blob = f;
+      } else blob = await squareImage(f, 160);
+      preview.replaceChildren(el('img', { src: URL.createObjectURL(blob), alt: '' }));
+    } catch (e) { err.textContent = e.message; blob = null; }
+  };
+  const close = modal(
+    el('h3', {}, '😊 Créer une émoticône'),
+    el('p', { class: 'help', style: 'margin-top:-6px' }, isAdm ? 'Ajoute une photo, donne-lui un nom, et hop : tout le monde peut l\'utiliser tout de suite !' : 'Ajoute une photo et donne-lui un nom. Un administrateur la validera, puis tout le monde pourra l\'utiliser.'),
+    el('div', { class: 'emote-create' }, preview,
+      el('button', { type: 'button', class: 'btn btn-primary', onclick: () => file.click() }, '📁 Choisir une photo ou un GIF')),
+    el('small', { class: 'help' }, 'PNG, JPG, GIF animé ou WEBP. La photo est recadrée en carré.'),
+    field('Nom de l\'émoticône (on l\'écrira :nom: dans les messages)', name),
+    err, file,
+    el('button', { class: 'btn btn-primary', style: 'width:100%;margin-top:6px', onclick: async () => {
+      err.textContent = '';
+      const code = name.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!blob) return (err.textContent = 'Choisis d\'abord une photo');
+      if (code.length < 2) return (err.textContent = 'Donne-lui un nom (2 à 15 lettres ou chiffres)');
+      try {
+        const r = await fetch('/api/emotes?code=' + encodeURIComponent(code), { method: 'POST', body: blob, headers: { 'Content-Type': 'application/octet-stream' }, credentials: 'same-origin' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Envoi impossible');
+        close();
+        toast(d.emote.status === 'ok' ? `🎉 :${d.emote.code}: est prête ! Écris :${d.emote.code}: dans un message` : `⏳ :${d.emote.code}: est envoyée : un admin va la valider`);
+        loadEmotes();
+      } catch (e) { err.textContent = e.message; }
+    } }, '✨ Créer l\'émoticône'));
+  return close;
+}
+// Recadre une photo en carré (centre) et la réduit
+function squareImage(f, size) {
+  return new Promise((ok, ko) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const s = Math.min(img.width, img.height);
+      c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+      c.toBlob(b => (b ? ok(b) : ko(new Error('Image illisible'))), 'image/png');
+    };
+    img.onerror = () => ko(new Error('Image illisible'));
+    img.src = URL.createObjectURL(f);
+  });
 }
 renderEmojiPanel();
-$('emojiBtn').onclick = () => $('emojiPanel').classList.toggle('hidden');
+$('emojiBtn').onclick = () => { const p = $('emojiPanel'); const opening = p.classList.contains('hidden'); if (opening) renderEmojiPanel(p.dataset.tab || 'paradise'); p.classList.toggle('hidden'); if (opening) loadEmotes(); };
 document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #emojiBtn')) $('emojiPanel').classList.add('hidden'); });
 
 // ---------- Socket ----------
@@ -747,6 +837,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
     await loadRooms();
     await loadConvs();
     loadFriends();
+    loadEmotes();
   } catch (e) { return toast(e.message); }
   if (state.view?.type === 'pm') return;
   let slug = state.view?.slug;
@@ -807,6 +898,7 @@ socket.on('pm', m => {
   renderConvs();
 });
 socket.on('friends_changed', () => loadFriends());
+socket.on('emotes_changed', () => loadEmotes());
 socket.on('message_revealed', ({ id }) => {
   const row = document.querySelector(`.msg[data-id="${id}"]`);
   if (!row) return;

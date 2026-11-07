@@ -41,6 +41,7 @@ function notifAction(n) {
   if (n.data?.slug && ['room_invite', 'mention', 'game', 'patch', 'room_visit', 'room_unban'].includes(n.type)) return () => joinRoom(n.data.slug);
   if (n.type === 'pm' && n.data?.userId) return () => { const c = state.convs.get(n.data.userId); openPm(c ? c.user : { id: n.data.userId, username: (n.title.split(' ')[0] || '') }); };
   if (['friend', 'friend_request', 'friend_online'].includes(n.type) && n.data?.userId) return () => openProfile(n.data.userId);
+  if (n.type === 'emote') return () => { renderEmojiPanel('paradise'); $('emojiPanel').classList.remove('hidden'); };
   if (n.type === 'new_member') return () => (n.data?.userId ? openProfile(n.data.userId) : (location.href = '/admin'));
   if (n.type === 'role' && isStaff()) return () => { location.href = '/admin'; };
   return () => showSanction(n);
@@ -105,6 +106,7 @@ socket.on('notification', n => {
   Notifs.list = Notifs.list.slice(0, 40);
   if (n.type === 'mute') { state.me.mutedUntil = n.data.until; Voice.leave(false); renderMuteBanner(); }
   if (n.type === 'unmute') { state.me.mutedUntil = 0; renderMuteBanner(); }
+  if (n.type === 'emote' && typeof loadEmotes === 'function') loadEmotes();
   const quiet = n.type === 'pm'; // les messages privés ont déjà leur son et leur bulle
   if (!quiet) ding();
   if (Notifs.open) {

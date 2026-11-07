@@ -1860,3 +1860,20 @@ body { background:
 .emoji-grid.emotes button.wide { grid-column: span 2; }
 .emoji-grid.emotes button.wide img { height: 30px; }
 .emoji-grid.emotes button:hover img { transform: scale(1.15); transition: transform .15s; }
+/* Émoticônes créées par les membres */
+.emote.custom { border-radius: 8px; object-fit: cover; aspect-ratio: 1; }
+.emote-cell { position: relative; display: grid; }
+.emote-cell > button:first-child { display: grid; place-items: center; padding: 4px; }
+.emote-cell img { height: 40px; width: 40px; }
+.emote-del { position: absolute; top: -2px; right: -2px; width: 18px; height: 18px; padding: 0 !important; border-radius: 50% !important; font-size: .6rem !important; background: var(--red) !important; color: #fff; opacity: 0; transition: opacity .15s; }
+.emote-cell:hover .emote-del { opacity: 1; }
+@media (hover: none) { .emote-del { opacity: .85; } }
+.emote-add { display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 0; border: 2px dashed var(--line) !important; font-size: 1.1rem !important; color: var(--text); }
+.emote-add small { font-size: .62rem; font-weight: 700; }
+.emote-pending { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; font-size: .8rem; }
+.emote-prow { display: flex; align-items: center; gap: 6px; }
+.emote-prow span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emote-prow .btn { padding: 3px 8px !important; font-size: .8rem !important; }
+.emote-create { display: flex; align-items: center; gap: 14px; margin: 6px 0; }
+.emote-preview { width: 96px; height: 96px; border-radius: 18px; display: grid; place-items: center; font-size: 2rem; background: var(--panel-2); border: 2px dashed var(--line); overflow: hidden; flex: none; }
+.emote-preview img { width: 100%; height: 100%; object-fit: cover; }

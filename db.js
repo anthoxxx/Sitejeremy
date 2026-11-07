@@ -249,6 +249,14 @@ addColumn('room_bans', 'kind', "TEXT NOT NULL DEFAULT 'ban'");
 addColumn('room_bans', 'by_name', "TEXT NOT NULL DEFAULT ''");
 addColumn('room_bans', 'created_at', 'INTEGER NOT NULL DEFAULT 0');
 
+// Émoticônes créées sur le site à partir d'une photo (ok = utilisable par tous, pending = attend un admin)
+db.exec(`CREATE TABLE IF NOT EXISTS custom_emotes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL DEFAULT 0)`);
 // Amis : une demande (pending) puis acceptée (accepted). from_id = celui qui a demandé
 db.exec(`CREATE TABLE IF NOT EXISTS friends (
   from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
