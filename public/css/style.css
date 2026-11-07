@@ -1352,3 +1352,25 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .conv-del { padding: 4px 8px; background: none; border: 0; opacity: 0; transition: opacity .15s; flex: none; }
 #pmList .list-item:hover .conv-del { opacity: .9; }
 @media (hover: none) { .conv-del { opacity: .65; } }
+
+/* ---------- Colonne des salons transparente (effet verre) ---------- */
+body { background:
+  radial-gradient(900px 600px at -10% 10%, rgba(255, 95, 162, .26), transparent 60%),
+  radial-gradient(700px 500px at 10% 95%, rgba(124, 200, 255, .22), transparent 60%),
+  radial-gradient(600px 500px at 30% 50%, rgba(255, 166, 60, .14), transparent 65%),
+  var(--bg) fixed; }
+.app { background: transparent; }
+.sidebar.left { background: rgba(255, 255, 255, .025); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-right-color: rgba(255, 255, 255, .07); }
+.sidebar.left .player { background: rgba(255, 255, 255, .04); }
+.sidebar.left .list-item:hover { background: rgba(255, 255, 255, .06); }
+.sidebar.left .list-item.active { background: rgba(255, 255, 255, .09); }
+.sidebar.left .list-item .ico { background: rgba(255, 255, 255, .07); }
+:root[data-theme="light"] .sidebar.left { background: rgba(255, 255, 255, .35); border-right-color: rgba(0, 0, 0, .06); }
+:root[data-theme="light"] .sidebar.left .player { background: rgba(255, 255, 255, .5); }
+:root[data-theme="light"] .sidebar.left .list-item:hover, :root[data-theme="light"] .sidebar.left .list-item.active { background: rgba(0, 0, 0, .05); }
+:root[data-theme="light"] .sidebar.left .list-item .ico { background: rgba(0, 0, 0, .05); }
+/* Sur téléphone, le menu s'ouvre par-dessus le chat : on garde la transparence, avec un flou plus fort pour rester lisible */
+@media (max-width: 900px) {
+  .sidebar.left { background: color-mix(in srgb, var(--bg-2) 72%, transparent); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+  :root[data-theme="light"] .sidebar.left { background: color-mix(in srgb, var(--bg-2) 75%, transparent); }
+}

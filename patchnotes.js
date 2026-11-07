@@ -72,4 +72,14 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 5,
+    date: '2026-11-07',
+    title: 'Nouveau look de la colonne des salons',
+    added: [],
+    changed: [
+      'La colonne des salons à gauche est maintenant transparente (effet verre) au lieu d\'être noire',
+    ],
+    removed: [],
+  },
 ];
