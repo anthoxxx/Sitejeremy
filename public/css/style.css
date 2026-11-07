@@ -1639,3 +1639,17 @@ body { background:
 .bubble-row .bubble-tr { order: 2; align-self: center; margin-left: 6px; padding: 4px 7px; background: none; border: 0; opacity: 0; transition: opacity .15s; }
 .bubble-row:hover .bubble-tr { opacity: .85; }
 @media (hover: none) { .bubble-row .bubble-tr { opacity: .6; } }
+
+/* ---------- Salon VIP : nom en arc-en-ciel néon ---------- */
+.list-item.vip-room .name .room-perm {
+  background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff, #ff2d55);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 900;
+  animation: vipRainbow 3s linear infinite;
+}
+.list-item.vip-room .name { animation: vipGlow 1.6s ease-in-out infinite alternate; }
+@keyframes vipRainbow { to { background-position: -200% 0; } }
+@keyframes vipGlow {
+  from { filter: drop-shadow(0 0 3px rgba(255, 45, 140, .75)) drop-shadow(0 0 7px rgba(0, 229, 255, .45)); }
+  to { filter: drop-shadow(0 0 4px rgba(52, 255, 106, .75)) drop-shadow(0 0 10px rgba(198, 77, 255, .6)); }
+}
+@media (prefers-reduced-motion: reduce) { .list-item.vip-room .name .room-perm, .list-item.vip-room .name { animation: none; } }

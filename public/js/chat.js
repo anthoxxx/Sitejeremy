@@ -144,7 +144,7 @@ function roomItem(r, counts) {
   const locked = (r.membersOnly && state.me.isGuest) || customsLock;
   const v = (state.voice.get(r.slug) || []).filter(p => !p.listener).length;
   return el('div', {
-    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
+    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (r.slug === 'membres' ? ' vip-room' : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
     onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },

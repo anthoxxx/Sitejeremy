@@ -137,4 +137,14 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 10,
+    date: '2026-11-07',
+    title: 'Le Salon VIP en arc-en-ciel néon 🌈',
+    added: [],
+    changed: [
+      'Le nom du Salon VIP brille maintenant en arc-en-ciel néon 🌈',
+    ],
+    removed: [],
+  },
 ];
