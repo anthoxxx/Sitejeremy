@@ -2361,6 +2361,16 @@ io.on('connection', socket => {
     ack && ack({ ok: true });
   });
 
+  // ----- Supprimer toute une conversation privée pour tout le monde -----
+  socket.on('pm_delete_conv', ({ userId } = {}, ack) => {
+    const other = parseInt(userId, 10);
+    if (!other || other === uid) return ack && ack({ error: 'Conversation introuvable' });
+    const n = db.prepare('DELETE FROM private_messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(uid, other, other, uid).changes;
+    emitToUser(uid, 'pm_conv_deleted', { a: uid, b: other });
+    emitToUser(other, 'pm_conv_deleted', { a: uid, b: other });
+    ack && ack({ ok: true, deleted: n });
+  });
+
   socket.on('typing', () => {
     if (entry.room && entry.room !== PATCH_SLUG) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });

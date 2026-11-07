@@ -334,8 +334,14 @@ function renderConvs() {
     return el('div', { class: 'list-item' + (state.view?.type === 'pm' && state.view.userId === c.user.id ? ' active' : ''), onclick: () => openPm(c.user) },
       av,
       el('div', { class: 'meta' }, el('div', { class: 'name' }, c.user.username), el('div', { class: 'sub' }, c.last?.content || '')),
-      c.unread ? el('span', { class: 'pill hot' }, c.unread) : null);
+      c.unread ? el('span', { class: 'pill hot' }, c.unread) : null,
+      el('button', { class: 'btn btn-sm conv-del', title: 'Supprimer la conversation pour tout le monde', onclick: e => { e.stopPropagation(); deleteConv(c.user); } }, '🗑'));
   }));
+}
+// Supprimer toute la conversation : elle disparaît aussi chez l'autre personne
+function deleteConv(user) {
+  if (!confirm(`Supprimer toute la conversation avec ${user.username} pour tout le monde ?\nTous les messages disparaîtront aussi chez ${user.username}.`)) return;
+  socket.emit('pm_delete_conv', { userId: user.id }, res => res?.error ? toast(res.error) : toast('🗑 Conversation supprimée'));
 }
 
 async function openPm(user) {
@@ -703,6 +709,16 @@ function deletePm(m) {
   if (!confirm('Supprimer ce message pour tout le monde ?\nIl disparaîtra aussi chez l\'autre personne.')) return;
   socket.emit('pm_delete', { id: m.id }, res => res?.error && toast(res.error));
 }
+socket.on('pm_conv_deleted', ({ a, b }) => {
+  const other = a === state.me.id ? b : a;
+  state.convs.delete(other);
+  state.pmCache.delete(other);
+  if (state.view?.type === 'pm' && state.view.userId === other) {
+    $('messages').replaceChildren();
+    addSys(a === state.me.id ? '🗑 Conversation supprimée' : '🗑 Cette conversation a été supprimée');
+  }
+  renderConvs();
+});
 socket.on('pm_deleted', ({ id, from, to }) => {
   const otherId = from === state.me.id ? to : from;
   const list = state.pmCache.get(otherId);

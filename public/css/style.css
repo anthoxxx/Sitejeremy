@@ -1346,3 +1346,9 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 /* ---------- Salon Patch note ---------- */
 .readonly-bar { margin: 8px 20px 14px; padding: 12px 16px; border-radius: 14px; text-align: center; font-size: .88rem; color: var(--muted); background: rgba(124, 200, 255, .08); border: 1px dashed rgba(124, 200, 255, .35); }
 .pill.patch-new { background: linear-gradient(135deg, #7cc8ff, #ff5fa2); color: #fff; font-weight: 800; font-size: .62rem; letter-spacing: .04em; animation: micBlink 1.6s infinite; }
+
+/* Supprimer une conversation privée */
+#pmList .list-item { position: relative; }
+.conv-del { padding: 4px 8px; background: none; border: 0; opacity: 0; transition: opacity .15s; flex: none; }
+#pmList .list-item:hover .conv-del { opacity: .9; }
+@media (hover: none) { .conv-del { opacity: .65; } }

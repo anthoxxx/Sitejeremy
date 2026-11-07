@@ -62,4 +62,14 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 4,
+    date: '2026-11-07',
+    title: 'Supprimer une conversation privée',
+    added: [
+      'Bouton 🗑 sur chaque conversation de la liste « Messages privés » : toute la conversation est supprimée pour tout le monde',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
