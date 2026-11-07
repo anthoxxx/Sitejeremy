@@ -2018,6 +2018,7 @@ const online = new Map();
 const recentLeave = new Map(); // userId -> { room, timer } : départ pas encore annoncé
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
+const Wheel = require('./wheel')({ io, getOnline: () => online });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2318,6 +2319,7 @@ io.on('connection', socket => {
     if (scanned.level) modBotStrike(u, room, scanned);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
     if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});
+    if (Wheel.has(room.slug) && kind === 'text' && content.startsWith('!')) Wheel.command(u, content).catch(() => {});
   });
 
   // ----- Corriger un message (faute d'orthographe…) : seulement le sien, texte ou légende de photo, 15 min max -----
@@ -2410,6 +2412,7 @@ io.on('connection', socket => {
   Games.onConnection(socket, uid, current);
   Jukebox.onConnection(socket, uid, current);
   TvBot.onConnection(socket, uid, current);
+  Wheel.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

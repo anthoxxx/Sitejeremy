@@ -82,4 +82,17 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 6,
+    date: '2026-11-07',
+    title: 'La Roue du Paradise 🎡',
+    added: [
+      'Nouveau salon 🎡 La Roue du Paradise avec le Roue Bot : jusqu\'à 6 joueurs, 3 manches',
+      'On tourne la roue, on choisit une consonne (points × nombre de lettres), on achète une voyelle (200 points) ou on propose la réponse',
+      '16 thèmes et 160 énigmes : cinéma, musique, cuisine, animaux, proverbes, expressions, sport, vacances…',
+      'Cases spéciales : 💥 tout perdu, ⏭️ passe ton tour, ⭐ 1500 points',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
