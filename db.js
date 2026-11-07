@@ -322,6 +322,13 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='tv'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('tv', 'TV du monde', 'Regardez ensemble les chaînes de télé du monde entier avec le TV Bot 📺', '📺', sort, 0, Date.now());
 }
+// Salon « Patch note » : personne n'y écrit, seul le bot y annonce les nouveautés du site
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
+  const top = db.prepare('SELECT MIN(sort) s FROM rooms WHERE owner_id IS NULL').get();
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('patchnote', 'Patch note', 'Toutes les nouveautés du site, annoncées par le bot 📝', '📝', (top && top.s != null ? top.s : 0) - 1, 0, Date.now());
+  db.prepare("UPDATE rooms SET voice_enabled=0 WHERE slug='patchnote'").run();
+}
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 

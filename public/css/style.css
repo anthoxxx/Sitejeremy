@@ -1342,3 +1342,7 @@ footer.site .signature { width: 100%; text-align: center; padding-top: 8px; bord
 .bubble-row:hover .bubble-tools, .bubble-row.editing .bubble-tools { opacity: 1; }
 @media (hover: none) { .bubble-tools { opacity: .6; } }
 .bubble-row.mine { justify-content: flex-end; }
+
+/* ---------- Salon Patch note ---------- */
+.readonly-bar { margin: 8px 20px 14px; padding: 12px 16px; border-radius: 14px; text-align: center; font-size: .88rem; color: var(--muted); background: rgba(124, 200, 255, .08); border: 1px dashed rgba(124, 200, 255, .35); }
+.pill.patch-new { background: linear-gradient(135deg, #7cc8ff, #ff5fa2); color: #fff; font-weight: 800; font-size: .62rem; letter-spacing: .04em; animation: micBlink 1.6s infinite; }

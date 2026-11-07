@@ -589,6 +589,7 @@ app.get('/api/rooms', auth, (req, res) => {
     tempMinutes: parseInt(s.tempRoomMinutes, 10) || 5,
     maxUserRooms: parseInt(s.maxUserRooms, 10) || 0,
     voiceEnabled: s.voiceEnabled === '1',
+    patchLast: patchLast(),
   });
 });
 
@@ -2275,13 +2276,13 @@ io.on('connection', socket => {
     entry.room = room.slug;
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
-    ack && ack({ room: roomOut(room), history: history.map(msgOut), voice: voiceList(room.slug) });
+    ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
     // Reconnexion rapide (connexion qui saute, page rechargée) : pas de « déconnecté / a rejoint » en boucle
     const quick = recentLeave.get(uid);
     const silent = !prev && quick && quick.room === room.slug;
     if (quick) { clearTimeout(quick.timer); recentLeave.delete(uid); if (!silent && !entry.ghost) io.to('room:' + quick.room).emit('system', { room: quick.room, text: `${u.username} a quitté le salon` }); }
-    if (prev !== room.slug && !entry.ghost && !silent) {
+    if (prev !== room.slug && !entry.ghost && !silent && room.slug !== PATCH_SLUG && prev !== PATCH_SLUG) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
     }
@@ -2292,6 +2293,7 @@ io.on('connection', socket => {
     const u = current();
     if (!u || u.banned) return;
     if (!entry.room) return ack && ack({ error: 'Rejoins un salon d\'abord' });
+    if (entry.room === PATCH_SLUG) return ack && ack({ error: '📝 Personne ne peut écrire dans le salon Patch note : seul le bot y annonce les nouveautés' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (flood()) return ack && ack({ error: 'Doucement ! Tu envoies trop de messages' });
     const audio = typeof payload === 'object' && payload ? checkAudio(payload.audio, uid) : null;
@@ -2360,7 +2362,7 @@ io.on('connection', socket => {
   });
 
   socket.on('typing', () => {
-    if (entry.room) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
+    if (entry.room && entry.room !== PATCH_SLUG) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
 
   socket.on('pm', ({ to, text, audio: rawAudio, image: rawImage } = {}, ack) => {
@@ -2705,6 +2707,20 @@ function modBotStrike(u, room, scanned) {
   modBotSay(room.slug, `🔇 ${u.username} est rendu muet pendant ${fmtDuration(minutes)} pour langage grossier. Restons respectueux 💜`);
   emitToStaff('staff_alert', { text: `🛡️ ModoBot a rendu ${u.username} muet ${fmtDuration(minutes)} (dans ${room.name})` });
 }
+
+// ---------- Salon « Patch note » : le bot annonce les nouveautés (voir patchnotes.js) ----------
+const PATCH_SLUG = 'patchnote';
+const PATCH_BOT = { username: 'Patch Note Bot', color: '#7cc8ff', icon: '📝' };
+function patchText(n) {
+  const d = new Date(n.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+  const part = (t, list) => list && list.length ? `\n\n${t}\n` + list.map(x => '• ' + x).join('\n') : '';
+  return `theparadise bonjour\n\n📝 Patch note n°${n.id} du ${d}${n.title ? ' : ' + n.title : ''}`
+    + part('✨ Ajouts', n.added) + part('🔧 Modifications', n.changed) + part('🗑️ Retraits', n.removed)
+    + '\n\ncreate by Anthony';
+}
+const patchMsg = n => ({ room: PATCH_SLUG, id: 'patch' + n.id, userId: 0, username: PATCH_BOT.username, color: PATCH_BOT.color, gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: PATCH_BOT.icon, content: patchText(n), createdAt: new Date(n.date + 'T12:00:00Z').getTime(), kind: 'text' });
+const patchHistory = () => { try { delete require.cache[require.resolve('./patchnotes')]; return require('./patchnotes').map(patchMsg); } catch (e) { console.error('patchnotes.js', e.message); return []; } };
+const patchLast = () => { try { return Math.max(0, ...require('./patchnotes').map(n => n.id)); } catch (e) { return 0; } };
 
 const EDIT_WINDOW = 15 * 60 * 1000; // on peut corriger son message pendant 15 minutes
 function msgOut(m) {

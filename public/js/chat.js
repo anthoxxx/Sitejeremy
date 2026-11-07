@@ -122,6 +122,9 @@ async function loadRooms() {
   state.tempMinutes = d.tempMinutes;
   state.maxUserRooms = d.maxUserRooms;
   state.voiceEnabled = d.voiceEnabled;
+  const firstPatch = state.patchLast === undefined;
+  state.patchLast = d.patchLast || 0;
+  if (firstPatch && patchNew() && patchSeen() > 0) toast('📝 Nouvelle patch note : clique pour voir les nouveautés', () => joinRoom('patchnote'));
   d.rooms.forEach(r => { if (!state.voice.has(r.slug)) state.voice.set(r.slug, []); });
   if (state.view?.type === 'room') {
     const cur = d.rooms.find(r => r.slug === state.view.slug);
@@ -148,6 +151,7 @@ function roomItem(r, counts) {
       el('div', { class: 'name' }, el('span', { class: r.temporary ? 'room-temp' : 'room-perm' }, r.name), r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
       el('div', { class: 'sub' }, r.temporary ? tempLabel(r) : r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
     v ? el('span', { class: 'pill voice-pill', title: 'En vocal' }, '🎙️' + v) : null,
+    r.slug === 'patchnote' && patchNew() ? el('span', { class: 'pill patch-new', title: 'Nouvelle patch note' }, 'NEW') : null,
     el('span', { class: 'pill' + (counts[r.slug] ? ' hot' : '') }, counts[r.slug] || 0));
 }
 // « ⏳ temporaire · par Lina » ou « ⏳ se ferme dans 3 min » quand il est vide
@@ -203,6 +207,16 @@ function renderRoomHead() {
   renderVoice();
 }
 
+// ---------- Salon « Patch note » (lecture seule, le bot annonce les nouveautés) ----------
+const patchSeen = () => { try { return parseInt(localStorage.getItem('lc_patch_seen') || '0', 10); } catch (e) { return 0; } };
+const patchNew = () => (state.patchLast || 0) > patchSeen();
+function updateReadonly() {
+  const ro = state.view?.type === 'room' && state.view.slug === 'patchnote';
+  $('composer').classList.toggle('hidden', ro);
+  $('readonlyBar')?.classList.toggle('hidden', !ro);
+  if (ro && patchNew()) { try { localStorage.setItem('lc_patch_seen', String(state.patchLast)); } catch (e) {} renderRooms(); }
+}
+document.addEventListener('viewchange', updateReadonly);
 function joinRoom(slug) {
   socket.emit('join', slug, res => {
     if (res.error) return toast(res.error);
@@ -215,7 +229,7 @@ function joinRoom(slug) {
     setPlaceholder(`Message dans ${res.room.name}…`);
     $('messages').replaceChildren();
     res.history.forEach(m => addRoomMessage(m, false));
-    addSys('Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
+    addSys(slug === 'patchnote' ? '📝 Toutes les nouveautés du site sont ici' : 'Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
     if (res.room.station && !Media.isPlaying(res.room.station)) addSys(`📻 Ce salon écoute ${res.room.station.name} — clique sur ${res.room.station.name} ▶ en haut pour l'écouter.`);
     scrollDown(true);
     renderRoomHead(); renderRooms(); renderConvs(); renderUsers();
@@ -228,7 +242,7 @@ function joinRoom(slug) {
 const needsCustoms = () => !!(state.customs?.enabled && state.me && !state.me.verified && !isStaff());
 function joinDefaultRoom() {
   if (needsCustoms()) return joinRoom('douane');
-  const r = state.rooms.find(x => !x.ownerId && x.slug !== 'douane' && !(x.membersOnly && state.me.isGuest)) || state.rooms[0];
+  const r = state.rooms.find(x => !x.ownerId && x.slug !== 'douane' && x.slug !== 'patchnote' && !(x.membersOnly && state.me.isGuest)) || state.rooms[0];
   if (r) joinRoom(r.slug);
 }
 
