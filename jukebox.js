@@ -293,6 +293,7 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
 
   return {
     onConnection,
+    ytSearch, catalogs: [...KARAOKE_CATALOG, ...MUSIC_CATALOG], // aussi utilisés par le Grand Blind Test
     has: slug => boxes.has(slug),
     command: (slug, user, text) => boxes.get(slug)?.command(user, text) || Promise.resolve(),
   };

@@ -95,4 +95,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 7,
+    date: '2026-11-07',
+    title: 'Le Grand Blind Test du Paradise 🎩',
+    added: [
+      'Nouveau salon 🎩 Le Grand Blind Test : une émission musicale sur un plateau avec projecteurs et écran géant',
+      'Présentée par Maestro Paradise, le présentateur du site',
+      'Un extrait de chanson démarre : le premier qui appuie sur le BUZZ 🔴 donne le titre (2 points) et/ou l\'artiste (1 point)',
+      '8 chansons puis une grande finale à deux, avec les points doublés',
+      'Le public parie ⭐ sur son finaliste préféré, et un classement des champions du Blind Test',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
