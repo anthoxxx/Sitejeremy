@@ -156,7 +156,10 @@ module.exports = [
     added: [
       'Toutes les icônes des salons sont animées : la roue 🎡 tourne, le diamant 💎 brille, le cœur 💞 bat, les étoiles ✨ scintillent, la manette 🎮 vibre, la télé 📺 grésille…',
     ],
-    changed: [],
+    changed: [
+      'Tous les salons officiels passent en néon avec leur couleur : Rencontres en rose, les salons d\'âge en bleu, Amitié en vert, Jeux vidéo en gris, Musique et Karaoké en orange, TV du monde en noir, Vérification en blanc et Patch note en bleu-violet',
+      'Tous les salons scintillent comme de vraies enseignes lumineuses',
+    ],
     removed: [],
   },
 ];

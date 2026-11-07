@@ -146,6 +146,9 @@ function iconAnim(r) {
   let h = 0; for (const c of r.slug) h = (h * 31 + c.charCodeAt(0)) | 0;
   return ANIM_CYCLE[Math.abs(h) % ANIM_CYCLE.length];
 }
+// Couleur néon de chaque salon officiel (nom, description et contour)
+const NEON = { general: 'red', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
+  musique: 'orange', karaoke: 'orange', tv: 'black', douane: 'white', patchnote: 'violet' };
 // Les salons des jeux s'affichent en doré
 const GAME_ROOMS = new Set(['roue', 'blindtest', 'sommet']);
 function roomItem(r, counts) {
@@ -153,7 +156,7 @@ function roomItem(r, counts) {
   const locked = (r.membersOnly && state.me.isGuest) || customsLock;
   const v = (state.voice.get(r.slug) || []).filter(p => !p.listener).length;
   return el('div', {
-    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (r.slug === 'membres' ? ' vip-room' : '') + (r.slug === 'general' ? ' red-neon-room' : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
+    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (r.slug === 'membres' ? ' vip-room' : '') + (NEON[r.slug] ? ' neon-room neon-' + NEON[r.slug] : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
     onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },

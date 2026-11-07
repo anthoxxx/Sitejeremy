@@ -1675,20 +1675,35 @@ body { background:
   100% { box-shadow: 0 0 10px rgba(255, 45, 85, .55), inset 0 0 8px rgba(255, 45, 85, .2); }
 }
 
-/* ---------- Salon Général : rouge néon (nom, description, contour) ---------- */
-.list-item.red-neon-room { position: relative; border: 2px solid #ff2d55; animation: redNeon 2.4s ease-in-out infinite; }
-.list-item.red-neon-room .name .room-perm { color: #ff4d6d; font-weight: 900; text-shadow: 0 0 4px #ff2d55, 0 0 10px #ff2d55, 0 0 18px rgba(255, 45, 85, .7); }
-.list-item.red-neon-room .sub { color: #ff8095; text-shadow: 0 0 6px rgba(255, 45, 85, .8); font-weight: 600; }
-.list-item.red-neon-room .ico { box-shadow: 0 0 10px rgba(255, 45, 85, .6); }
-.list-item.red-neon-room.active { box-shadow: inset 3px 0 0 #ff2d55; }
-@keyframes redNeon {
-  0%, 100% { box-shadow: 0 0 6px #ff2d55, 0 0 14px rgba(255, 45, 85, .55), inset 0 0 8px rgba(255, 45, 85, .25); }
-  50% { box-shadow: 0 0 10px #ff2d55, 0 0 24px rgba(255, 45, 85, .8), inset 0 0 12px rgba(255, 45, 85, .35); }
-  52% { box-shadow: 0 0 2px #ff2d55, inset 0 0 4px rgba(255, 45, 85, .15); }
-  54% { box-shadow: 0 0 10px #ff2d55, 0 0 24px rgba(255, 45, 85, .8), inset 0 0 12px rgba(255, 45, 85, .35); }
+/* ---------- Salons en néon : chaque salon a sa couleur (nom, description, contour) ---------- */
+.list-item.neon-room { position: relative; border: 2px solid var(--neon); margin-bottom: 6px; animation: neonBox 2.6s ease-in-out infinite, neonFlicker 5s linear infinite; }
+.list-item.neon-room .name .room-perm { color: var(--neon-text, var(--neon)); font-weight: 900; text-shadow: 0 0 3px var(--neon-glow, var(--neon)), 0 0 9px var(--neon-glow, var(--neon)), 0 0 16px color-mix(in srgb, var(--neon-glow, var(--neon)) 65%, transparent); }
+.list-item.neon-room .sub { color: var(--neon-sub, var(--neon)); text-shadow: 0 0 6px color-mix(in srgb, var(--neon-glow, var(--neon)) 75%, transparent); font-weight: 600; }
+.list-item.neon-room .ico { box-shadow: 0 0 10px color-mix(in srgb, var(--neon-glow, var(--neon)) 60%, transparent); }
+.list-item.neon-room.active { box-shadow: inset 3px 0 0 var(--neon); }
+.neon-red { --neon: #ff2d55; --neon-sub: #ff8095; }
+.neon-pink { --neon: #ff4fd8; --neon-sub: #ff9ce9; }
+.neon-blue { --neon: #2fa8ff; --neon-sub: #8fd0ff; }
+.neon-green { --neon: #2bff88; --neon-sub: #9dffc6; }
+.neon-grey { --neon: #b8c0d0; --neon-sub: #d9dee8; }
+.neon-orange { --neon: #ff8a1f; --neon-sub: #ffbd80; }
+.neon-black { --neon: #050505; --neon-text: #0b0b0b; --neon-sub: #1c1c1c; --neon-glow: #e8e8f0; background: rgba(255, 255, 255, .08); }
+.neon-white { --neon: #ffffff; --neon-sub: #f2f2ff; --neon-glow: #dfe8ff; }
+.neon-violet { --neon: #7a5cff; --neon-sub: #b8a6ff; }
+@keyframes neonBox {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-glow, var(--neon)), 0 0 14px color-mix(in srgb, var(--neon-glow, var(--neon)) 55%, transparent), inset 0 0 8px color-mix(in srgb, var(--neon-glow, var(--neon)) 25%, transparent); }
+  50% { box-shadow: 0 0 10px var(--neon-glow, var(--neon)), 0 0 24px color-mix(in srgb, var(--neon-glow, var(--neon)) 80%, transparent), inset 0 0 12px color-mix(in srgb, var(--neon-glow, var(--neon)) 35%, transparent); }
 }
+/* Petit scintillement d'enseigne lumineuse (chaque salon à son rythme) */
+@keyframes neonFlicker { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; } 20%, 24%, 55% { opacity: .6; } }
+#roomList .list-item:nth-child(2n) { animation-delay: -.7s, -1.3s; }
+#roomList .list-item:nth-child(3n) { animation-delay: -1.4s, -2.6s; }
+#roomList .list-item:nth-child(5n) { animation-delay: -.3s, -3.9s; }
+/* Les salons des jeux dorés et le Salon VIP scintillent aussi */
+.list-item.game-room { animation: neonFlicker 6s linear infinite; }
+.list-item.vip-room { animation: vipBox 3s linear infinite, neonFlicker 5.5s linear infinite; }
 .side-scroll { padding-left: 14px; padding-right: 14px; }
-@media (prefers-reduced-motion: reduce) { .list-item.vip-room, .list-item.vip-room::before, .list-item.vip-room .sub, .list-item.red-neon-room { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .list-item.vip-room, .list-item.vip-room::before, .list-item.vip-room .sub, .list-item.neon-room, .list-item.game-room { animation: none; } }
 
 /* ---------- Icônes des salons animées ---------- */
 .ico-anim { display: inline-block; line-height: 1; will-change: transform; transform-origin: 50% 50%; }
@@ -1723,3 +1738,7 @@ body { background:
 @keyframes icoPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); filter: brightness(1.25); } }
 @keyframes icoWiggle { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(8deg); } 60% { transform: rotate(-5deg); } 80% { transform: rotate(3deg); } }
 @media (prefers-reduced-motion: reduce) { .ico-anim { animation: none !important; } }
+/* La lueur des noms ne doit pas être coupée en rectangle (le nom coupe ce qui dépasse) */
+.list-item.neon-room .name, .list-item.vip-room .name, .list-item.game-room .name { padding: 6px 8px; margin: -6px -8px; }
+.list-item.neon-room .sub { padding: 4px 8px; margin: -4px -8px; }
+.list-item.neon-room .name .room-perm { text-shadow: 0 0 2px var(--neon-glow, var(--neon)), 0 0 6px var(--neon-glow, var(--neon)); }
