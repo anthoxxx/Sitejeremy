@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<radialGradient id="f" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff1a8"/><stop offset=".55" stop-color="#ffcc4d"/><stop offset="1" stop-color="#ff9d2e"/></radialGradient>
+<radialGradient id="ck" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff6fae" stop-opacity=".75"/><stop offset="1" stop-color="#ff6fae" stop-opacity="0"/></radialGradient>
+</defs><style>.a{transform-box:fill-box;transform-origin:center}.face{animation:n 1.6s ease-in-out infinite}@keyframes n{50%{transform:rotate(-6deg)}}.sh,.sh2{animation:s 2s ease-in-out infinite}@keyframes s{0%,60%{transform:translateX(0);opacity:0}70%{opacity:1}100%{transform:translateX(10px);opacity:0}}</style>
+<g class="a face"><circle cx="32" cy="33" r="27" fill="url(#f)" stroke="#e07b12" stroke-width="1.5"/><path d="M10 24 h44 v4 h-2 l-2 8 q-1 4 -6 4 h-6 q-4 0 -5 -4 l-1 -4 h-4 l-1 4 q-1 4 -5 4 h-6 q-5 0 -6 -4 l-2 -8 h-2z" fill="#1a1030"/>
+<path class="a sh" d="M14 28 l6 0 l-4 8z" fill="#7cc8ff" opacity=".9"/><path class="a sh2" d="M38 28 l6 0 l-4 8z" fill="#ff9ce9" opacity=".9"/>
+<path d="M22 44 q10 6 22 -2" stroke="#7a2840" stroke-width="3.5" fill="none" stroke-linecap="round"/></g></svg>

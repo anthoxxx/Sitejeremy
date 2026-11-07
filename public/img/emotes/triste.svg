@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<radialGradient id="f" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff1a8"/><stop offset=".55" stop-color="#ffcc4d"/><stop offset="1" stop-color="#ff9d2e"/></radialGradient>
+<radialGradient id="ck" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ff6fae" stop-opacity=".75"/><stop offset="1" stop-color="#ff6fae" stop-opacity="0"/></radialGradient>
+</defs><style>.a{transform-box:fill-box;transform-origin:center}.d{animation:d 1.8s ease-in infinite}@keyframes d{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(16px);opacity:0}}</style>
+<g class="a face"><circle cx="32" cy="33" r="27" fill="#ffd36b" stroke="#e07b12" stroke-width="1.5"/><circle cx="18" cy="40" r="6" fill="url(#ck)"/><circle cx="46" cy="40" r="6" fill="url(#ck)"/><circle cx="22" cy="27" r="3.5" fill="#5a2d0c"/><circle cx="42" cy="27" r="3.5" fill="#5a2d0c"/><path d="M15 20 l9 -3" stroke="#5a2d0c" stroke-width="2.5" stroke-linecap="round"/><path d="M49 20 l-9 -3" stroke="#5a2d0c" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M22 47 q10 -9 20 0" stroke="#7a2840" stroke-width="3.5" fill="none" stroke-linecap="round"/><path class="a d" d="M43 32 q-4 7 0 9 q4 -2 0 -9z" fill="#7cd4ff"/></g></svg>

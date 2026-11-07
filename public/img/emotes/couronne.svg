@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#ffcc33"/><stop offset="1" stop-color="#e09a00"/></linearGradient></defs>
+<style>.a{transform-box:fill-box;transform-origin:center}.cr{animation:f 2s ease-in-out infinite}@keyframes f{50%{transform:translateY(-3px)}}.sp{animation:s 1.4s ease-in-out infinite}.sp2{animation-delay:.7s}@keyframes s{0%,100%{transform:scale(0) rotate(0);opacity:0}50%{transform:scale(1) rotate(90deg);opacity:1}}</style>
+<g class="a cr"><path d="M8 46 L6 18 L20 30 L32 12 L44 30 L58 18 L56 46 Z" fill="url(#g)" stroke="#b37400" stroke-width="2" stroke-linejoin="round"/><rect x="8" y="46" width="48" height="8" rx="2" fill="url(#g)" stroke="#b37400" stroke-width="2"/>
+<circle cx="32" cy="36" r="4" fill="#ff2d6f"/><circle cx="18" cy="40" r="3" fill="#7cc8ff"/><circle cx="46" cy="40" r="3" fill="#33d6a6"/></g>
+<path class="a sp" d="M52 8 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2z" fill="#fff"/><path class="a sp sp2" d="M10 6 l1.5 4 l4 1.5 l-4 1.5 l-1.5 4 l-1.5 -4 l-4 -1.5 l4 -1.5z" fill="#fff"/></svg>

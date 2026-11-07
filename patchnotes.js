@@ -179,4 +179,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 13,
+    date: '2026-11-07',
+    title: 'Les émoticônes animées du Paradise ✨',
+    added: [
+      '19 émoticônes animées dessinées pour The Paradise : rire aux larmes, cœur qui bat, feu, lunettes de soleil, bisou, larme, colère, fête, dodo, couronne, palmier qui se balance…',
+      'Des enseignes néon qui clignotent : GG, MDR, BRAVO, COUCOU',
+      'Nouvel onglet « ✨ Paradise » dans le panneau 😊 ; un message avec seulement des émoticônes les affiche en grand',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -1843,3 +1843,20 @@ body { background:
 @media (prefers-reduced-motion: reduce) {
   .main::after, #messages > *, .badge::after, .btn-primary, .btn-primary::after, .composer .input, .composer .btn-icon, .announce, .season-banner, .avatar .on, .side-title, .voice-bar, .room-head, #headTitle { animation: none !important; }
 }
+
+/* ---------- Émoticônes animées du Paradise ---------- */
+.emote { height: 1.7em; width: auto; vertical-align: -.45em; margin: 0 1px; }
+.emote.big { height: 64px; vertical-align: middle; margin: 2px 3px; }
+.emote.wide { height: 1.5em; }
+.emote.big.wide { height: 46px; }
+.emoji-panel { display: flex; flex-direction: column; gap: 8px; grid-template-columns: none; width: 330px; max-width: calc(100vw - 24px); }
+.emoji-tabs { display: flex; gap: 6px; }
+.emoji-tabs button { flex: 1; font-size: .82rem !important; font-weight: 700; padding: 6px !important; border-radius: 10px !important; background: var(--panel-2) !important; color: var(--text); }
+.emoji-tabs button.on { background: var(--grad) !important; color: #fff; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-height: 240px; overflow-y: auto; }
+.emoji-grid.emotes { grid-template-columns: repeat(5, 1fr); }
+.emoji-grid.emotes button { display: grid; place-items: center; padding: 4px; }
+.emoji-grid.emotes button img { height: 40px; max-width: 100%; }
+.emoji-grid.emotes button.wide { grid-column: span 2; }
+.emoji-grid.emotes button.wide img { height: 30px; }
+.emoji-grid.emotes button:hover img { transform: scale(1.15); transition: transform .15s; }

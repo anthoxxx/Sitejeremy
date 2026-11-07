@@ -19,6 +19,10 @@ const state = {
 };
 try { state.sound = localStorage.getItem('lc_sound') !== '0'; } catch (e) {}
 
+// Émoticônes animées du site (dessinées pour The Paradise) : on les écrit :nom: dans un message
+const EMOTES = ['ptdr', 'love', 'coeur', 'feu', 'cool', 'clin', 'bisou', 'wow', 'triste', 'colere', 'fete', 'dodo', 'couronne', 'etoiles', 'palmier', 'gg', 'mdr', 'bravo', 'coucou'];
+const EMOTE_SET = new Set(EMOTES);
+const emoteImg = (code, big) => el('img', { class: 'emote' + (big ? ' big' : '') + (/^(gg|mdr|bravo|coucou)$/.test(code) ? ' wide' : ''), src: `/img/emotes/${code}.svg`, alt: `:${code}:`, title: `:${code}:`, draggable: 'false' });
 const EMOJIS = '😀 😂 🥰 😍 😘 😉 😎 🤩 🥳 😇 🤔 😏 😅 😢 😭 😡 👍 👎 👏 🙏 💪 🔥 ✨ 💯 ❤️ 💜 💕 💋 🌹 🎉 ☕ 🍷'.split(' ');
 const isStaff = () => LC.rank(state.me) >= 1;
 
@@ -269,11 +273,15 @@ function scrollDown(force) { const m = $('messages'); if (force || nearBottom())
 
 function linkify(text) {
   const frag = document.createDocumentFragment();
-  const re = /(https?:\/\/[^\s<]+)|(@[\p{L}\p{N}_\-]{3,20})/gu;
+  const re = /(https?:\/\/[^\s<]+)|(@[\p{L}\p{N}_\-]{3,20})|:([a-z]{2,12}):/gu;
+  // Un message fait seulement d'émoticônes : on les affiche en grand
+  const onlyEmotes = /^\s*(:[a-z]{2,12}:\s*){1,6}$/.test(text) && (text.match(/:([a-z]{2,12}):/g) || []).every(x => EMOTE_SET.has(x.slice(1, -1)));
   let last = 0, m;
   while ((m = re.exec(text))) {
+    if (m[3] && !EMOTE_SET.has(m[3])) continue;
     frag.append(text.slice(last, m.index));
     if (m[1]) frag.append(el('a', { href: m[1], target: '_blank', rel: 'noopener noreferrer nofollow' }, m[1]));
+    else if (m[3]) frag.append(emoteImg(m[3], onlyEmotes));
     else frag.append(el('b', { style: 'color:var(--gold)' }, m[2]));
     last = m.index + m[0].length;
   }
@@ -665,7 +673,18 @@ function updateStaffOnlyBtn() {
 }
 $('staffOnlyBtn').onclick = () => { staffOnlyMode = !staffOnlyMode; updateStaffOnlyBtn(); $('input').focus(); };
 document.addEventListener('viewchange', updateStaffOnlyBtn);
-$('emojiPanel').append(...EMOJIS.map(em => el('button', { type: 'button', onclick: () => { input.value += em; input.focus(); } }, em)));
+// Panneau : deux onglets, les émojis classiques et les émoticônes animées du Paradise
+function renderEmojiPanel(tab = 'paradise') {
+  const add = t => { input.value += (input.value && !input.value.endsWith(' ') ? ' ' : '') + t + ' '; input.focus(); input.dispatchEvent(new Event('input')); };
+  $('emojiPanel').replaceChildren(
+    el('div', { class: 'emoji-tabs' },
+      el('button', { type: 'button', class: tab === 'paradise' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('paradise'); } }, '✨ Paradise'),
+      el('button', { type: 'button', class: tab === 'emoji' ? 'on' : '', onclick: e => { e.stopPropagation(); renderEmojiPanel('emoji'); } }, '😀 Émojis')),
+    el('div', { class: 'emoji-grid' + (tab === 'paradise' ? ' emotes' : '') }, ...(tab === 'paradise'
+      ? EMOTES.map(c => el('button', { type: 'button', class: /^(gg|mdr|bravo|coucou)$/.test(c) ? 'wide' : '', title: `:${c}:`, onclick: () => add(`:${c}:`) }, emoteImg(c)))
+      : EMOJIS.map(em => el('button', { type: 'button', onclick: () => add(em) }, em)))));
+}
+renderEmojiPanel();
 $('emojiBtn').onclick = () => $('emojiPanel').classList.toggle('hidden');
 document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #emojiBtn')) $('emojiPanel').classList.add('hidden'); });
 
