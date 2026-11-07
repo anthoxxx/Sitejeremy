@@ -1742,3 +1742,33 @@ body { background:
 .list-item.neon-room .name, .list-item.vip-room .name, .list-item.game-room .name { padding: 6px 8px; margin: -6px -8px; }
 .list-item.neon-room .sub { padding: 4px 8px; margin: -4px -8px; }
 .list-item.neon-room .name .room-perm { text-shadow: 0 0 2px var(--neon-glow, var(--neon)), 0 0 6px var(--neon-glow, var(--neon)); }
+
+/* ---------- Barre du haut : tout est animé ---------- */
+.app-header .logo img { animation: hdFloat 3s ease-in-out infinite; }
+#toggleLeft { animation: hdWiggle 3s ease-in-out infinite; }
+#gamesBtn { animation: hdShake 3s ease-in-out infinite; }
+#ghostBtn { animation: hdGhost 3.2s ease-in-out infinite; }
+#adminLink { animation: hdShield 2.4s ease-in-out infinite; }
+#notifBtn { animation: hdRing 4s ease-in-out infinite; transform-origin: 50% 10%; }
+#notifBtn:has(.notif-count:not(.hidden)) { animation: hdRing 1.6s ease-in-out infinite; }
+#soundBtn { animation: hdPulse 1.8s ease-in-out infinite; }
+.app-header button[onclick="LC.toggleTheme()"] { animation: hdSpin 8s linear infinite; }
+#toggleRight { animation: hdBounce 1.6s ease-in-out infinite; }
+/* Avatar : anneau lumineux qui tourne autour de la photo */
+.me-chip .avatar { position: relative; animation: hdAvatar 3s ease-in-out infinite; }
+.me-chip .avatar::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; padding: 3px; pointer-events: none;
+  background: conic-gradient(#ff2d55, #ff9500, #ffe600, #34ff6a, #00e5ff, #4d6bff, #c64dff, #ff2d55);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: hdSpin 2.5s linear infinite; }
+.notif-count { animation: hdPulse 1.2s ease-in-out infinite; }
+@keyframes hdFloat { 0%, 100% { transform: translateY(0) rotate(-3deg); filter: drop-shadow(0 4px 10px rgba(124, 200, 255, .35)); } 50% { transform: translateY(-3px) rotate(3deg); filter: drop-shadow(0 6px 16px rgba(255, 95, 162, .55)); } }
+@keyframes hdWiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-12deg); } 90% { transform: rotate(10deg); } 95% { transform: rotate(-6deg); } }
+@keyframes hdShake { 0%, 72%, 100% { transform: translate(0) rotate(0); } 76% { transform: translate(-2px, 1px) rotate(-10deg); } 80% { transform: translate(2px, -1px) rotate(10deg); } 84% { transform: translate(-2px, 0) rotate(-6deg); } 88% { transform: translate(1px, 1px) rotate(5deg); } }
+@keyframes hdGhost { 0%, 100% { transform: translate(0, 0) rotate(-6deg); opacity: 1; } 50% { transform: translate(3px, -4px) rotate(6deg); opacity: .7; } }
+@keyframes hdShield { 0%, 100% { box-shadow: 0 0 0 rgba(124, 200, 255, 0); } 50% { box-shadow: 0 0 14px rgba(124, 200, 255, .55); border-color: rgba(124, 200, 255, .6); } }
+@keyframes hdRing { 0%, 60%, 100% { transform: rotate(0); } 64% { transform: rotate(16deg); } 70% { transform: rotate(-14deg); } 76% { transform: rotate(10deg); } 82% { transform: rotate(-6deg); } 88% { transform: rotate(3deg); } }
+@keyframes hdPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+@keyframes hdSpin { to { transform: rotate(360deg); } }
+@keyframes hdBounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-4px); } 60% { transform: translateY(1px); } }
+@keyframes hdAvatar { 0%, 100% { box-shadow: 0 0 8px rgba(255, 95, 162, .5); } 50% { box-shadow: 0 0 16px rgba(124, 200, 255, .7); } }
+@media (prefers-reduced-motion: reduce) { .app-header *, .app-header *::after { animation: none !important; } }
