@@ -137,12 +137,14 @@ async function loadRooms() {
 }
 const canManage = r => !!r && (r.ownerId ? (r.ownerId === state.me.id || isStaff() || (r.managers || []).some(m => m.id === state.me.id)) : LC.isAdminRole(state.me));
 
+// Les salons des jeux s'affichent en doré
+const GAME_ROOMS = new Set(['roue', 'blindtest', 'sommet']);
 function roomItem(r, counts) {
   const customsLock = needsCustoms() && r.slug !== 'douane';
   const locked = (r.membersOnly && state.me.isGuest) || customsLock;
   const v = (state.voice.get(r.slug) || []).filter(p => !p.listener).length;
   return el('div', {
-    class: 'list-item' + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
+    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
     onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },
@@ -276,15 +278,18 @@ function addRoomMessage(m, live = true) {
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
   const user = { id: m.userId, username: m.username, color: m.color, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
-  const row = el('div', { class: 'msg' + (mention ? ' mention' : ''), 'data-id': m.id },
+  const row = el('div', { class: 'msg' + (mention ? ' mention' : '') + (m.staffOnly ? ' staff-only' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
-      ...messageBody(m)),
+      ...messageBody(m),
+      m.staffOnly ? el('div', { class: 'staff-only-bar' }, el('span', {}, '🔒 Visible seulement par les administrateurs'),
+        m.userId === state.me.id || isSuperMe() ? el('button', { class: 'btn btn-sm', onclick: () => socket.emit('message_reveal', { id: m.id }, r => r?.error ? toast(r.error) : toast('👁 Ton message est maintenant visible par tout le monde')) }, '👁 Montrer mon message') : null) : null),
     el('div', { class: 'msg-tools' },
+      m.userId !== state.me.id && m.kind !== 'audio' ? el('button', { class: 'btn btn-sm', title: 'Traduire ce message', onclick: () => Translator.translateRow(row) }, '🌐') : null,
       canEdit(m, m.userId) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'room') }, '✏️') : null,
       isStaff() ? el('button', { class: 'btn btn-sm btn-danger', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null));
   row._msg = m;
@@ -373,6 +378,7 @@ async function openPm(user) {
 function addBubble(m) {
   const mine = m.from === state.me.id;
   const row = el('div', { class: 'bubble-row' + (mine ? ' mine' : ''), 'data-pm': m.id },
+    !mine && m.kind !== 'audio' ? el('button', { class: 'btn btn-sm bubble-tr', title: 'Traduire ce message', onclick: () => Translator.translateRow(row) }, '🌐') : null,
     mine ? el('div', { class: 'bubble-tools' },
       canEdit(m, m.from) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'pm') }, '✏️') : null,
       el('button', { class: 'btn btn-sm', title: 'Supprimer pour tout le monde', onclick: () => deletePm(m) }, '🗑')) : null,
@@ -433,8 +439,59 @@ function applyEdit(row, m, kind) {
   }
 }
 
+// ---------- Amis ----------
+state.friends = { friends: [], incoming: [], outgoing: [] };
+async function loadFriends() {
+  if (!state.me || state.me.isGuest) { $('friendList')?.replaceChildren(); return; }
+  try { state.friends = await api('/api/friends'); } catch (e) { return; }
+  renderFriends();
+}
+function renderFriends() {
+  const box = $('friendList');
+  if (!box) return;
+  const f = state.friends, online = new Set(state.online.map(u => u.id));
+  $('friendTotal').textContent = f.incoming.length ? '+' + f.incoming.length : f.friends.filter(x => online.has(x.id)).length;
+  $('friendTotal').classList.toggle('hot', f.incoming.length > 0);
+  const rows = [];
+  for (const u of f.incoming) rows.push(el('div', { class: 'list-item friend-req', 'data-uid': u.id, onclick: () => openProfile(u.id) },
+    LC.avatar(u),
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, u.username), el('div', { class: 'sub' }, '👋 veut être ton ami')),
+    el('button', { class: 'btn btn-sm btn-ok', title: 'Accepter', onclick: e => { e.stopPropagation(); friendAction(u, 'accept'); } }, '✅'),
+    el('button', { class: 'btn btn-sm', title: 'Refuser', onclick: e => { e.stopPropagation(); friendAction(u, 'refuse'); } }, '❌')));
+  for (const u of f.friends) {
+    const av = LC.avatar(u);
+    if (online.has(u.id)) av.append(el('span', { class: 'on' }));
+    rows.push(el('div', { class: 'list-item', 'data-uid': u.id, onclick: () => openProfile(u.id) },
+      av, el('div', { class: 'meta' }, el('div', { class: 'name' }, u.username), el('div', { class: 'sub' }, online.has(u.id) ? '🟢 en ligne' : 'hors ligne')),
+      el('button', { class: 'btn btn-sm conv-del', title: 'Message privé', onclick: e => { e.stopPropagation(); openPm(u); } }, '💌')));
+  }
+  for (const u of f.outgoing) rows.push(el('div', { class: 'list-item friend-out', 'data-uid': u.id, onclick: () => openProfile(u.id) },
+    LC.avatar(u), el('div', { class: 'meta' }, el('div', { class: 'name' }, u.username), el('div', { class: 'sub' }, '⏳ demande envoyée'))));
+  box.replaceChildren(...(rows.length ? rows : [el('div', { class: 'side-empty' }, 'Ajoute des amis depuis leur profil ➕')]));
+}
+async function friendAction(u, action) {
+  try {
+    const path = `/api/friends/${u.id}` + (action === 'accept' ? '/accept' : action === 'refuse' ? '/refuse' : '');
+    const r = await api(path, { method: action === 'remove' ? 'DELETE' : 'POST' });
+    toast({ sent: `👋 Demande d'ami envoyée à ${u.username}`, friends: `🤝 ${u.username} et toi êtes maintenant amis`, none: action === 'refuse' ? `Demande de ${u.username} refusée` : action === 'remove' ? `${u.username} n'est plus dans tes amis` : '' }[r.status] || 'OK');
+    loadFriends();
+    return r.status;
+  } catch (e) { toast(e.message); }
+}
+// Le bouton d'ami sur un profil, selon où on en est
+function friendButton(u, status, done) {
+  const go = a => { done && done(); friendAction(u, a); };
+  if (status === 'friends') return el('button', { class: 'btn', onclick: () => { if (confirm(`Retirer ${u.username} de tes amis ?`)) go('remove'); } }, '🤝 Amis ✓');
+  if (status === 'sent') return el('button', { class: 'btn', onclick: () => go('remove') }, '⏳ Demande envoyée (annuler)');
+  if (status === 'received') return el('div', { class: 'friend-choice' },
+    el('button', { class: 'btn btn-ok', onclick: () => go('accept') }, '✅ Accepter l\'ami'),
+    el('button', { class: 'btn', onclick: () => go('refuse') }, '❌ Refuser'));
+  return el('button', { class: 'btn', onclick: () => go('add') }, '➕ Ajouter en ami');
+}
+
 // ---------- Utilisateurs connectés ----------
 function renderUsers() {
+  if (typeof renderFriends === 'function') renderFriends();
   if (typeof Team !== 'undefined') Team.renderBar();
   const q = $('userSearch').value.trim().toLowerCase();
   let users = state.online.filter(u => !state.blocked.has(u.id));
@@ -575,9 +632,24 @@ $('composer').onsubmit = e => {
     input.value = ''; input.style.height = 'auto';
     input.dispatchEvent(new Event('input'));
   };
-  if (state.view.type === 'room') socket.emit('message', text, done);
+  if (state.view.type === 'room') socket.emit('message', staffOnlyMode ? { text, staffOnly: true } : text, done);
   else socket.emit('pm', { to: state.view.userId, text }, done);
 };
+// ---------- Messages réservés aux administrateurs (en orange) ----------
+let staffOnlyMode = false;
+function updateStaffOnlyBtn() {
+  const b = $('staffOnlyBtn');
+  const can = LC.isAdminRole(state.me) && state.view?.type === 'room';
+  b.classList.toggle('hidden', !can);
+  if (!can) staffOnlyMode = false;
+  b.classList.toggle('on', staffOnlyMode);
+  $('composer').classList.toggle('staff-mode', staffOnlyMode);
+  b.textContent = staffOnlyMode ? '🔒' : '🔓';
+  b.title = staffOnlyMode ? 'Mode admins : seuls les administrateurs verront ton message (clique pour écrire à tout le monde)' : 'Écrire un message visible seulement par les administrateurs';
+  if (state.view?.type === 'room' && state.currentRoom) setPlaceholder(staffOnlyMode ? '🔒 Message visible seulement par les admins…' : `Message dans ${state.currentRoom.name}…`, staffOnlyMode ? '🔒 Admins seulement…' : 'Message…');
+}
+$('staffOnlyBtn').onclick = () => { staffOnlyMode = !staffOnlyMode; updateStaffOnlyBtn(); $('input').focus(); };
+document.addEventListener('viewchange', updateStaffOnlyBtn);
 $('emojiPanel').append(...EMOJIS.map(em => el('button', { type: 'button', onclick: () => { input.value += em; input.focus(); } }, em)));
 $('emojiBtn').onclick = () => $('emojiPanel').classList.toggle('hidden');
 document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #emojiBtn')) $('emojiPanel').classList.add('hidden'); });
@@ -623,6 +695,8 @@ socket.on('connect_error', err => {
   if (err.message === 'unauthorized' || err.message === 'banned') location.href = '/';
 });
 socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
+  // On attend que tous les fichiers du site soient chargés (sinon une connexion très rapide arrive trop tôt)
+  if (document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
   state.me = user;
   state.ghostAnon = !!ghostAnon;
   renderMe();
@@ -638,6 +712,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
     state.blocked = new Set(ids);
     await loadRooms();
     await loadConvs();
+    loadFriends();
   } catch (e) { return toast(e.message); }
   if (state.view?.type === 'pm') return;
   let slug = state.view?.slug;
@@ -696,6 +771,14 @@ socket.on('pm', m => {
     toast(`💌 ${m.fromUser.username} : ${m.content.slice(0, 60)}`, () => openPm(m.fromUser));
   }
   renderConvs();
+});
+socket.on('friends_changed', () => loadFriends());
+socket.on('message_revealed', ({ id }) => {
+  const row = document.querySelector(`.msg[data-id="${id}"]`);
+  if (!row) return;
+  row.classList.remove('staff-only');
+  row.querySelector('.staff-only-bar')?.remove();
+  if (row._msg) row._msg.staffOnly = false;
 });
 socket.on('message_edited', ({ id, content, editedAt }) => {
   const row = document.querySelector(`.msg[data-id="${id}"]`);

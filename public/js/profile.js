@@ -65,6 +65,7 @@ async function openProfile(id) {
       el('div', { class: 'actions' },
         u.isBirthday ? el('button', { class: 'btn btn-primary', style: 'flex-basis:100%', onclick: () => { close(); wishBirthday(u); } }, '🎂 Lui souhaiter un joyeux anniversaire') : null,
         el('button', { class: 'btn btn-primary', onclick: () => { close(); openPm(u); } }, '💌 Message privé'),
+        u.isGuest || state.me.isGuest ? null : friendButton(u, data.friend, () => close()),
         el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, false); } }, '📞 Appeler'),
         el('button', { class: 'btn', disabled: !data.online, title: data.online ? '' : 'Hors ligne', onclick: () => { close(); Call.start(u, true); } }, '📹 Visio'),
         el('button', { class: 'btn', onclick: () => { close(); mention(u.username); } }, '@ Mentionner'),

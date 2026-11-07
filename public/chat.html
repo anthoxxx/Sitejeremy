@@ -47,6 +47,8 @@
       <div class="side-title">⏳ Temporaires <button class="btn btn-sm hidden" id="createTempBtn" title="Créer un salon temporaire">＋ Créer</button></div>
       <div id="tempRoomList"></div>
       <div class="room-legend"><span><i class="dot-perm"></i> permanent</span><span><i class="dot-temp"></i> temporaire</span></div>
+      <div class="side-title">👥 Amis <span class="pill" id="friendTotal">0</span></div>
+      <div id="friendList"></div>
       <div class="side-title">Messages privés <span class="pill" id="pmTotal">0</span></div>
       <div id="pmList"></div>
       <div class="side-links">
@@ -72,6 +74,7 @@
         <p id="headSub"></p>
       </div>
       <button class="btn btn-sm btn-ghost hidden" id="headRadio" title="Écouter la radio du salon"></button>
+      <button class="btn btn-icon" id="headTranslate" title="Traducteur : choisir ta langue" aria-label="Traducteur">🌐</button>
       <button class="btn btn-icon hidden" id="headMedia" title="Photos, vidéos et liens partagés dans ce salon" aria-label="Médias">🖼️</button>
       <button class="btn btn-sm hidden" id="headVoice" title="Chat vocal"></button>
       <button class="btn btn-icon hidden" id="headSettings" title="Gérer le salon" aria-label="Gérer le salon">⚙️</button>
@@ -97,6 +100,7 @@
     <div class="readonly-bar hidden" id="readonlyBar">📝 Salon en lecture seule : seul le bot y annonce les nouveautés du site</div>
     <form class="composer" id="composer">
       <button type="button" class="btn btn-icon" id="emojiBtn" aria-label="Émojis">😊</button>
+      <button type="button" class="btn btn-icon hidden" id="staffOnlyBtn" title="Message visible seulement par les administrateurs" aria-label="Message réservé aux administrateurs">🔒</button>
       <button type="button" class="btn btn-icon" id="attachBtn" title="Envoyer une photo" aria-label="Envoyer une photo">📎</button>
       <button type="button" class="btn btn-icon hidden" id="dictateBtn" title="Dictée vocale : parle, ça écrit" aria-label="Dictée vocale">🗣️</button>
       <div class="emoji-panel hidden" id="emojiPanel"></div>
@@ -139,6 +143,7 @@
 <script src="/js/wheel.js"></script>
 <script src="/js/blindtest.js"></script>
 <script src="/js/sommet.js"></script>
+<script src="/js/translate.js"></script>
 <script src="/js/capture.js"></script>
 <script src="/js/team.js"></script>
 </body>

@@ -1603,3 +1603,39 @@ body { background:
 }
 .so-ans:has(.so-vote) { padding-right: 58px; }
 .so-vote em { background: rgba(10, 16, 40, .8); padding: 1px 6px; border-radius: 999px; font-size: .8rem; }
+
+/* ---------- Salons des jeux en doré ---------- */
+.list-item.game-room .name .room-perm { background: linear-gradient(90deg, #ffe08a, #ffb547 45%, #ffd76a 70%, #fff3c4); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; background-size: 200% 100%; animation: goldShine 4s linear infinite; }
+.list-item.game-room .ico { background: linear-gradient(135deg, #ffe08a, #e0a12a); box-shadow: 0 0 12px rgba(255, 196, 70, .45); }
+.list-item.game-room { box-shadow: inset 0 0 0 1px rgba(255, 196, 70, .22); }
+.list-item.game-room.active { box-shadow: inset 3px 0 0 #ffc94d, inset 0 0 0 1px rgba(255, 196, 70, .35); }
+.list-item.game-room .sub { color: #e8c77a; }
+@keyframes goldShine { to { background-position: -200% 0; } }
+:root[data-theme="light"] .list-item.game-room .name .room-perm { background: linear-gradient(90deg, #b07a00, #e0a12a, #b07a00); -webkit-background-clip: text; background-clip: text; }
+:root[data-theme="light"] .list-item.game-room .sub { color: #9a6c00; }
+
+/* ---------- Amis ---------- */
+#friendList .list-item { position: relative; }
+#friendList .friend-req { box-shadow: inset 0 0 0 1px rgba(51, 214, 166, .35); background: rgba(51, 214, 166, .06); }
+#friendList .friend-req .btn { padding: 4px 7px; flex: none; }
+#friendList .friend-out { opacity: .7; }
+#friendList .list-item:hover .conv-del { opacity: .9; }
+.friend-choice { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- Messages réservés aux administrateurs (orange) ---------- */
+.msg.staff-only { background: rgba(255, 138, 31, .1); box-shadow: inset 3px 0 0 #ff8a1f; }
+.msg.staff-only .text { color: #ffb36b; }
+.staff-only-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: .74rem; font-weight: 700; color: #ff8a1f; }
+.staff-only-bar .btn { padding: 3px 9px; font-size: .74rem; background: rgba(255, 138, 31, .18); color: #ffb36b; }
+#staffOnlyBtn.on { background: rgba(255, 138, 31, .25); box-shadow: inset 0 0 0 1px #ff8a1f; }
+.composer.staff-mode .input { border-color: #ff8a1f; box-shadow: 0 0 0 3px rgba(255, 138, 31, .2); }
+:root[data-theme="light"] .msg.staff-only .text { color: #b35a00; }
+
+/* ---------- Traducteur ---------- */
+.tr-box { margin-top: 5px; padding: 6px 10px; border-radius: 10px; background: rgba(124, 200, 255, .1); border-left: 3px solid #7cc8ff; font-size: .9rem; white-space: pre-wrap; }
+.tr-box small { display: block; color: #7cc8ff; font-weight: 700; font-size: .7rem; margin-bottom: 2px; }
+.bubble .tr-box { background: rgba(0, 0, 0, .18); }
+#headTranslate.on { background: rgba(124, 200, 255, .2); box-shadow: inset 0 0 0 1px #7cc8ff; }
+.bubble-row .bubble-tr { order: 2; align-self: center; margin-left: 6px; padding: 4px 7px; background: none; border: 0; opacity: 0; transition: opacity .15s; }
+.bubble-row:hover .bubble-tr { opacity: .85; }
+@media (hover: none) { .bubble-row .bubble-tr { opacity: .6; } }

@@ -122,4 +122,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 9,
+    date: '2026-11-07',
+    title: 'Amis, traducteur et salons des jeux dorés',
+    added: [
+      'Demandes d\'amis 👥 : ajoute quelqu\'un depuis son profil ou par clic droit, il peut accepter ✅ ou refuser ❌',
+      'Liste « 👥 Amis » à gauche, avec qui est en ligne et les demandes reçues',
+      'Traducteur 🌐 dans les salons et les messages privés : choisis ta langue, traduction automatique ou message par message, et traduction de ton propre message avant de l\'envoyer',
+      'Les administrateurs peuvent écrire des messages visibles seulement par les administrateurs (en orange 🔒), puis les montrer à tout le monde',
+    ],
+    changed: [
+      'Les salons des jeux (Roue, Blind Test, Sommet) brillent maintenant en doré ✨',
+    ],
+    removed: [],
+  },
 ];

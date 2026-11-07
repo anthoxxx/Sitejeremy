@@ -151,6 +151,7 @@ addColumn('private_messages', 'kind', "TEXT DEFAULT 'text'");
 addColumn('private_messages', 'media', "TEXT DEFAULT ''");
 addColumn('private_messages', 'duration', 'INTEGER DEFAULT 0');
 addColumn('messages', 'edited_at', 'INTEGER NOT NULL DEFAULT 0'); // message corrigé par son auteur
+addColumn('messages', 'staff_only', 'INTEGER NOT NULL DEFAULT 0'); // message visible seulement par les administrateurs
 addColumn('private_messages', 'edited_at', 'INTEGER NOT NULL DEFAULT 0');
 db.exec('CREATE INDEX IF NOT EXISTS idx_logs_cat ON logs(category, id)');
 db.exec(`
@@ -248,6 +249,13 @@ addColumn('room_bans', 'kind', "TEXT NOT NULL DEFAULT 'ban'");
 addColumn('room_bans', 'by_name', "TEXT NOT NULL DEFAULT ''");
 addColumn('room_bans', 'created_at', 'INTEGER NOT NULL DEFAULT 0');
 
+// Amis : une demande (pending) puis acceptée (accepted). from_id = celui qui a demandé
+db.exec(`CREATE TABLE IF NOT EXISTS friends (
+  from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (from_id, to_id))`);
 db.exec(`
 CREATE TABLE IF NOT EXISTS notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

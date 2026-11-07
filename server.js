@@ -1063,7 +1063,102 @@ app.get('/api/ice', auth, async (req, res) => {
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id) });
+  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id) });
+});
+
+// ---------- Traducteur des salons ----------
+const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ro', 'tr', 'ar', 'ru', 'uk', 'zh-CN', 'ja', 'ko', 'hi', 'vi', 'id', 'el', 'sv'];
+const trCache = new Map();
+async function translate(text, to) {
+  const key = to + '|' + text;
+  if (trCache.has(key)) return trCache.get(key);
+  let out = null;
+  try {
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&dt=t&tl=' + encodeURIComponent(to) + '&q=' + encodeURIComponent(text), { signal: AbortSignal.timeout(6000) });
+    if (r.ok) { const d = await r.json(); out = { text: (d[0] || []).map(x => x[0]).join(''), from: d[2] || '' }; }
+  } catch (e) {}
+  if (!out || !out.text) {
+    try { // service de secours
+      const r = await fetch('https://api.mymemory.translated.net/get?langpair=' + encodeURIComponent('autodetect|' + to) + '&q=' + encodeURIComponent(text), { signal: AbortSignal.timeout(6000) });
+      if (r.ok) { const d = await r.json(); if (d?.responseData?.translatedText) out = { text: d.responseData.translatedText, from: '' }; }
+    } catch (e) {}
+  }
+  if (!out || !out.text) throw new Error('Le traducteur ne répond pas pour le moment');
+  trCache.set(key, out);
+  if (trCache.size > 3000) trCache.delete(trCache.keys().next().value);
+  return out;
+}
+app.post('/api/translate', auth, async (req, res) => {
+  const to = String(req.body.to || 'fr');
+  const text = String(req.body.text || '').slice(0, 1000).trim();
+  if (!LANGS.includes(to)) return res.status(400).json({ error: 'Langue inconnue' });
+  if (!text) return res.json({ text: '', from: '' });
+  if (tooMany('tr:' + req.user.id, 120, 60 * 1000)) return res.status(429).json({ error: 'Doucement avec le traducteur !' });
+  try { res.json(await translate(text, to)); } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
+// ---------- Amis : demande, accepter, refuser, retirer ----------
+const friendRow = (a, b) => db.prepare('SELECT * FROM friends WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').get(a, b, b, a);
+function friendStatus(me, other) {
+  const r = friendRow(me, other);
+  if (!r) return 'none';
+  if (r.status === 'accepted') return 'friends';
+  return r.from_id === me ? 'sent' : 'received';
+}
+const friendsChanged = (...ids) => ids.forEach(id => emitToUser(id, 'friends_changed', {}));
+app.get('/api/friends', auth, (req, res) => {
+  const me = req.user.id;
+  const rows = db.prepare('SELECT * FROM friends WHERE from_id=? OR to_id=? ORDER BY created_at DESC').all(me, me);
+  const out = { friends: [], incoming: [], outgoing: [] };
+  for (const r of rows) {
+    const other = getUser(r.from_id === me ? r.to_id : r.from_id);
+    if (!other) continue;
+    const u = { ...publicUser(other), online: visibleOnline(other.id, req.user) };
+    if (r.status === 'accepted') out.friends.push(u); else if (r.from_id === me) out.outgoing.push(u); else out.incoming.push(u);
+  }
+  out.friends.sort((a, b) => (b.online - a.online) || a.username.localeCompare(b.username));
+  res.json(out);
+});
+app.post('/api/friends/:id', auth, (req, res) => {
+  const me = req.user, other = getUser(parseInt(req.params.id, 10));
+  if (!other || other.id === me.id || other.is_guest) return res.status(400).json({ error: 'Impossible d\'ajouter cette personne' });
+  if (me.is_guest) return res.status(403).json({ error: 'Inscris-toi pour avoir des amis' });
+  if (isBlocked(other.id, me.id) || isBlocked(me.id, other.id)) return res.status(403).json({ error: 'Impossible : il y a un blocage entre vous' });
+  if (tooMany('friend:' + me.id, 30)) return res.status(429).json({ error: 'Doucement ! Trop de demandes d\'amis' });
+  const st = friendStatus(me.id, other.id);
+  if (st === 'friends') return res.json({ status: st });
+  if (st === 'sent') return res.json({ status: st });
+  if (st === 'received') { // il m'avait déjà demandé : on devient amis
+    db.prepare("UPDATE friends SET status='accepted' WHERE from_id=? AND to_id=?").run(other.id, me.id);
+    notify(other.id, { type: 'friend', icon: '🤝', title: `${me.username} a accepté ta demande d'ami`, data: { userId: me.id } });
+    friendsChanged(me.id, other.id);
+    return res.json({ status: 'friends' });
+  }
+  db.prepare("INSERT INTO friends (from_id, to_id, status, created_at) VALUES (?,?,'pending',?)").run(me.id, other.id, now());
+  notify(other.id, { type: 'friend_request', icon: '👋', title: `${me.username} veut être ton ami`, text: 'Accepte ou refuse dans « 👥 Amis » à gauche, ou sur son profil.', data: { userId: me.id } });
+  friendsChanged(me.id, other.id);
+  res.json({ status: 'sent' });
+});
+app.post('/api/friends/:id/accept', auth, (req, res) => {
+  const me = req.user, otherId = parseInt(req.params.id, 10);
+  const r = db.prepare("UPDATE friends SET status='accepted' WHERE from_id=? AND to_id=? AND status='pending'").run(otherId, me.id);
+  if (!r.changes) return res.status(404).json({ error: 'Demande introuvable' });
+  notify(otherId, { type: 'friend', icon: '🤝', title: `${me.username} a accepté ta demande d'ami`, data: { userId: me.id } });
+  friendsChanged(me.id, otherId);
+  res.json({ status: 'friends' });
+});
+app.post('/api/friends/:id/refuse', auth, (req, res) => {
+  const me = req.user, otherId = parseInt(req.params.id, 10);
+  db.prepare("DELETE FROM friends WHERE from_id=? AND to_id=? AND status='pending'").run(otherId, me.id);
+  friendsChanged(me.id, otherId);
+  res.json({ status: 'none' });
+});
+// Retirer un ami ou annuler sa demande
+app.delete('/api/friends/:id', auth, (req, res) => {
+  const me = req.user.id, otherId = parseInt(req.params.id, 10);
+  db.prepare('DELETE FROM friends WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?)').run(me, otherId, otherId, me);
+  friendsChanged(me, otherId);
+  res.json({ status: 'none' });
 });
 
 // ---------- Blocages & signalements ----------
@@ -2089,6 +2184,10 @@ function fmtDuration(min) {
   return `${min} minute${min > 1 ? 's' : ''}`;
 }
 
+// Envoie seulement aux administrateurs présents dans un salon
+function emitToRoomAdmins(slug, ev, data) {
+  for (const e of online.values()) if (e.room === slug && isAdminRole(e.user)) for (const s of e.sockets) io.to(s).emit(ev, data);
+}
 function emitToStaff(ev, data) {
   for (const e of online.values()) if (isStaff(e.user)) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
@@ -2278,7 +2377,7 @@ io.on('connection', socket => {
     const prev = entry.room;
     entry.room = room.slug;
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
-      WHERE m.room_id=? ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
+      WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     if (room.slug === 'douane' && !isVerified(u) && prev !== room.slug) emitToStaff('staff_alert', { text: `🛂 ${u.username} attend à la douane`, slug: 'douane' });
     // Reconnexion rapide (connexion qui saute, page rechargée) : pas de « déconnecté / a rejoint » en boucle
@@ -2314,9 +2413,13 @@ io.on('connection', socket => {
     if (room.slug === 'douane' && u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée : tu ne peux pas écrire pour le moment' });
     const kind = audio ? 'audio' : image ? 'image' : 'text', media = audio ? audio.url : image ? image.url : '', duration = audio ? audio.duration : 0;
     const anon = entry.ghost && entry.ghostAnon ? 1 : 0;
-    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon) VALUES (?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon);
-    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon });
-    io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
+    // Message réservé aux administrateurs (visible en orange par eux seuls, jusqu'à ce que l'auteur le montre)
+    const staffOnly = typeof payload === 'object' && payload?.staffOnly && isAdminRole(u) ? 1 : 0;
+    const info = db.prepare('INSERT INTO messages (room_id,user_id,content,created_at,kind,media,duration,anon,staff_only) VALUES (?,?,?,?,?,?,?,?,?)').run(room.id, uid, content, now(), kind, media, duration, anon, staffOnly);
+    const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon, staff_only: staffOnly });
+    if (staffOnly) emitToRoomAdmins(room.slug, 'message', { room: room.slug, ...msg });
+    else io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
+    if (staffOnly) return ack && ack({ ok: true });
     ack && ack({ ok: true });
     if (scanned.level) modBotStrike(u, room, scanned);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
@@ -2324,6 +2427,24 @@ io.on('connection', socket => {
     if (Wheel.has(room.slug) && kind === 'text' && content.startsWith('!')) Wheel.command(u, content).catch(() => {});
     if (BlindTest.has(room.slug) && kind === 'text' && content.startsWith('!')) BlindTest.command(u, content).catch(() => {});
     if (Sommet.has(room.slug) && kind === 'text' && content.startsWith('!')) Sommet.command(u, content).catch(() => {});
+  });
+
+  // ----- Montrer à tout le monde un message réservé aux administrateurs -----
+  socket.on('message_reveal', ({ id } = {}, ack) => {
+    const u = current();
+    if (!isAdminRole(u)) return ack && ack({ error: 'Réservé aux administrateurs' });
+    const m = db.prepare('SELECT m.*, r.slug FROM messages m JOIN rooms r ON r.id=m.room_id WHERE m.id=?').get(parseInt(id, 10));
+    if (!m || !m.staff_only) return ack && ack({ error: 'Message introuvable' });
+    if (m.user_id !== uid && !isSuper(u)) return ack && ack({ error: 'Seul l\'auteur peut montrer son message' });
+    db.prepare('UPDATE messages SET staff_only=0 WHERE id=?').run(m.id);
+    const author = getUser(m.user_id) || u;
+    const msg = msgOut({ ...author, ...m, staff_only: 0 });
+    // Les administrateurs voient le message changer de couleur ; les autres le reçoivent comme un nouveau message
+    for (const e of online.values()) {
+      if (e.room !== m.slug) continue;
+      for (const sid of e.sockets) io.to(sid).emit(isAdminRole(e.user) ? 'message_revealed' : 'message', isAdminRole(e.user) ? { id: m.id } : { room: m.slug, ...msg });
+    }
+    ack && ack({ ok: true });
   });
 
   // ----- Corriger un message (faute d'orthographe…) : seulement le sien, texte ou légende de photo, 15 min max -----
@@ -2339,7 +2460,8 @@ io.on('connection', socket => {
     const content = scanned.text || (m.kind === 'image' ? '🖼️ Photo' : '');
     if (!content) return ack && ack({ error: 'Le message est vide' });
     db.prepare('UPDATE messages SET content=?, edited_at=? WHERE id=?').run(content, now(), m.id);
-    io.to('room:' + m.slug).emit('message_edited', { id: m.id, content, editedAt: now() });
+    if (m.staff_only) emitToRoomAdmins(m.slug, 'message_edited', { id: m.id, content, editedAt: now() });
+    else io.to('room:' + m.slug).emit('message_edited', { id: m.id, content, editedAt: now() });
     ack && ack({ ok: true });
     if (scanned.level) { const room = getRoomBySlug(m.slug); if (room) modBotStrike(u, room, scanned); }
   });
@@ -2746,7 +2868,7 @@ function msgOut(m) {
   // Message signé « Modération » (super-admin en mode fantôme anonyme) : l'identité reste visible dans l'admin
   if (m.anon) return { id: m.id, userId: 0, username: 'Modération', color: '#c3b8ff', gender: 'x', role: 'moderation', avatar: '', nameEffect: 'glow', frame: 'none', isBirthday: false,
     content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, anon: true };
-  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, editedAt: m.edited_at || 0 };
+  return { id: m.id, userId: m.user_id, username: m.username, color: m.color, gender: m.gender, role: m.role, ...miniUser(m), content: m.content, createdAt: m.created_at, kind: m.kind || 'text', media: m.media || '', duration: m.duration || 0, editedAt: m.edited_at || 0, staffOnly: !!m.staff_only };
 }
 
 // Nettoyage : invités inactifs depuis 24 h et vieux messages (30 jours)

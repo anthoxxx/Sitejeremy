@@ -356,6 +356,11 @@ function openUserMenu(uid, x, y) {
   const item = (label, fn, cls = '') => items.push(el('button', { class: 'ctx-item ' + cls, onclick: () => { menu.remove(); fn(); } }, label));
   item('👤 Voir le profil', () => openProfile(uid));
   if (uid !== state.me.id && u.username) item('💌 Message privé', () => openPm(u));
+  if (uid !== state.me.id && u.username && !u.isGuest && !state.me.isGuest && typeof friendAction === 'function') {
+    const fr = state.friends || { friends: [], incoming: [], outgoing: [] };
+    if (fr.incoming.some(x => x.id === uid)) item('✅ Accepter son amitié', () => friendAction(u, 'accept'));
+    else if (!fr.friends.some(x => x.id === uid) && !fr.outgoing.some(x => x.id === uid)) item('➕ Ajouter en ami', () => friendAction(u, 'add'));
+  }
   if (r && canModRoom(r) && uid !== state.me.id && uid !== r.ownerId) {
     items.push(el('div', { class: 'ctx-sep' }, `🛡️ ${r.name}`));
     for (const [k, S] of Object.entries(ROOM_SANCTIONS)) item(S.icon + ' ' + S.btn, () => roomSanction(r, u, k), 'danger');
