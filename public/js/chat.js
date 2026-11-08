@@ -168,17 +168,19 @@ function iconAnim(r) {
 const NEON = { general: 'red', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
   musique: 'orange', karaoke: 'orange', tv: 'black', douane: 'white', patchnote: 'violet' };
 // Les salons des jeux s'affichent en doré
-const GAME_ROOMS = new Set(['roue', 'blindtest', 'sommet', 'paroles']);
+// Salons dorés avec le logo animé comme icône
+const GOLD_LOGO = new Set(['paroles', 'motdor']);
+const GAME_ROOMS = new Set(['roue', 'blindtest', 'sommet', 'paroles', 'motdor']);
 function roomItem(r, counts) {
   const customsLock = needsCustoms() && r.slug !== 'douane';
   const locked = (r.membersOnly && state.me.isGuest) || customsLock;
   const v = (state.voice.get(r.slug) || []).filter(p => !p.listener).length;
   return el('div', {
-    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (r.slug === 'membres' ? ' vip-room' : '') + (r.slug === 'paroles' ? ' gold-neon-room' : '') + (NEON[r.slug] ? ' neon-room neon-' + NEON[r.slug] : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
+    class: 'list-item' + (GAME_ROOMS.has(r.slug) ? ' game-room' : '') + (r.slug === 'membres' ? ' vip-room' : '') + (GOLD_LOGO.has(r.slug) ? ' gold-neon-room' : '') + (NEON[r.slug] ? ' neon-room neon-' + NEON[r.slug] : '') + (state.view?.type === 'room' && state.view.slug === r.slug ? ' active' : ''),
     title: r.description, style: locked ? 'opacity:.5' : '',
     onclick: () => (customsLock ? toast('🛂 Passe d\'abord par la Douane : un membre du staff va te vérifier') : locked ? toast('🔒 Salon réservé aux membres inscrits') : joinRoom(r.slug)),
   },
-    el('div', { class: 'ico' }, r.slug === 'paroles' ? el('img', { class: 'ico-logo', src: '/img/logo-mark.webp?v=3', alt: '' }) : el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon)),
+    el('div', { class: 'ico' }, GOLD_LOGO.has(r.slug) ? el('img', { class: 'ico-logo', src: '/img/logo-mark.webp?v=3', alt: '' }) : el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon)),
     el('div', { class: 'meta' },
       el('div', { class: 'name' }, el('span', { class: r.temporary ? 'room-temp' : 'room-perm' }, r.name), r.isPrivate ? ' 🔒' : '', locked ? ' 🔒' : '', r.ownerId === state.me.id || (r.managers || []).some(m => m.id === state.me.id) ? ' 👑' : ''),
       el('div', { class: 'sub' }, r.temporary ? tempLabel(r) : r.ownerId ? `par ${r.ownerName}${r.station ? ' · 📻 ' + r.station.name : ''}` : (r.station ? '📻 ' + r.station.name : r.description))),
@@ -225,7 +227,7 @@ function renderRoomHead() {
   // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
   renderRoomBg(inRoom ? r : null);
   if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); return; }
-  $('headIcon').replaceChildren(r.slug === 'paroles' ? el('img', { class: 'ico-logo', src: '/img/logo-mark.webp?v=3', alt: '' }) : el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon));
+  $('headIcon').replaceChildren(GOLD_LOGO.has(r.slug) ? el('img', { class: 'ico-logo', src: '/img/logo-mark.webp?v=3', alt: '' }) : el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon));
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
   $('headTitle').className = r.temporary ? 'room-temp' : 'room-perm';
   // L'en-tête prend la couleur néon du salon (ou doré pour les jeux, arc-en-ciel pour le VIP)

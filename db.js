@@ -371,6 +371,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='paroles'").get()) {
     .run('paroles', 'Les Paroles d\'Or', 'La musique s\'arrête… à toi de finir les paroles ! 🎤', '🎤', sort, 0, Date.now());
   db.prepare("UPDATE rooms SET voice_enabled=1 WHERE slug='paroles'").run();
 }
+// Salon « Le Mot d'Or » (salon doré : trouver le mot caché en 6 essais)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='motdor'").get()) {
+  const r = db.prepare("SELECT sort FROM rooms WHERE slug='paroles'").get();
+  const sort = r ? r.sort + 1 : 15;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('motdor', 'Le Mot d\'Or', 'Trouve le mot caché en 6 essais : lettres dorées et violettes ✨', '✨', sort, 0, Date.now());
+}
 // Salon « Patch note » : personne n'y écrit, seul le bot y annonce les nouveautés du site
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
   const top = db.prepare('SELECT MIN(sort) s FROM rooms WHERE owner_id IS NULL').get();

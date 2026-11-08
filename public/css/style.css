@@ -1985,3 +1985,55 @@ body { background:
 .pa-anim { color: #ffd76a !important; font-weight: 800; }
 .pa-blocked { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 14px; background: rgba(20, 12, 4, .95); color: #fff; }
 .pa-blocked b { color: #ffd76a; }
+
+/* ---------- Le Mot d'Or ---------- */
+.md-stage { position: relative; overflow: hidden; flex: none; margin: 10px 16px 0; padding: 12px; border-radius: 20px; display: grid; gap: 10px; color: #fff;
+  background: radial-gradient(ellipse at 50% -10%, rgba(255, 215, 106, .45), transparent 60%), radial-gradient(ellipse at 50% 120%, rgba(139, 108, 255, .3), transparent 60%), #140c04;
+  border: 2px solid #ffc94d; animation: goldBox 2.4s ease-in-out infinite; }
+.md-stage > * { position: relative; z-index: 1; }
+.md-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.md-main { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.md-left { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.md-grid { display: flex; flex-direction: column; gap: 5px; align-items: center; min-width: 260px; }
+.md-row { display: flex; gap: 5px; }
+.md-cell { width: 40px; height: 44px; display: grid; place-items: center; font-weight: 900; font-size: 1.3rem; border-radius: 9px; background: rgba(0, 0, 0, .45); border: 2px solid rgba(255, 201, 77, .3); color: #fff; }
+.md-cell.md-blank { color: rgba(255, 215, 106, .55); }
+.md-cell.md-typing { border-color: rgba(255, 215, 106, .75); }
+.md-cell.md-cursor { box-shadow: inset 0 -3px 0 #ffd76a; animation: micBlink 1s infinite; }
+.md-cell.c2 { background: linear-gradient(180deg, #ffe08a, #e0a12a); color: #2a1600; border-color: #fff3c4; box-shadow: 0 0 12px rgba(255, 201, 77, .6); animation: mdFlip .5s both; }
+.md-cell.c1 { background: radial-gradient(circle, #a98bff 0 55%, #5b3fcf 56%); color: #fff; border-color: #c9b8ff; animation: mdFlip .5s both; }
+.md-cell.c0 { background: #2a2018; color: rgba(255, 255, 255, .55); border-color: rgba(255, 255, 255, .1); animation: mdFlip .5s both; }
+@keyframes mdFlip { 0% { transform: rotateX(90deg); } 100% { transform: none; } }
+.md-answer { margin-top: 6px; font-weight: 800; }
+.md-keys { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.md-krow { display: flex; gap: 4px; }
+.md-key { min-width: 30px; height: 38px; padding: 0 4px; border-radius: 7px; border: 0; background: rgba(255, 255, 255, .12); color: #fff; font-weight: 800; cursor: pointer; font: inherit; font-weight: 800; }
+.md-key.wide { min-width: 46px; }
+.md-key.ok { background: linear-gradient(135deg, #ffd76a, #ffb547); color: #2a1600; }
+.md-key.c2 { background: #e0a12a; color: #2a1600; }
+.md-key.c1 { background: #7b5cff; }
+.md-key.c0 { background: #1c140c; color: rgba(255, 255, 255, .35); }
+.md-others { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; align-content: start; }
+.md-other { padding: 8px; border-radius: 12px; background: linear-gradient(180deg, #3a2608, #1c1204); border: 1px solid rgba(255, 201, 77, .3); display: flex; flex-direction: column; gap: 5px; }
+.md-other.found { border-color: #ffd76a; box-shadow: 0 0 14px rgba(255, 215, 106, .55); }
+.md-other.out { opacity: .6; }
+.md-other small { font-size: .7rem; color: #ffe9a8; }
+.md-ohead { display: flex; align-items: center; gap: 6px; }
+.md-ohead .avatar { width: 26px; height: 26px; }
+.md-ohead b { flex: 1; min-width: 0; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md-mini { display: flex; flex-direction: column; gap: 2px; }
+.md-mrow { display: flex; gap: 2px; }
+.md-mrow i { width: 12px; height: 12px; border-radius: 3px; }
+.md-mrow i.c2 { background: #ffc94d; } .md-mrow i.c1 { background: #8b6cff; } .md-mrow i.c0 { background: #3a2c20; }
+.md-ctrl { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.md-stage.mini .md-others { display: none; }
+@media (max-width: 760px) {
+  .md-stage { margin: 6px 8px 0; padding: 8px; gap: 7px; }
+  .md-main { grid-template-columns: 1fr; }
+  .md-grid { min-width: 0; }
+  .md-cell { width: 36px; height: 40px; font-size: 1.15rem; }
+  .md-key { min-width: 27px; height: 36px; padding: 0 2px; font-size: .85rem; }
+  .md-key.wide { min-width: 38px; }
+  .md-others { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .md-stage, .md-cell { animation: none !important; } }

@@ -2175,6 +2175,7 @@ const Wheel = require('./wheel')({ io, getOnline: () => online, notify: (...a) =
 const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const MotDor = require('./motdor')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2511,6 +2512,7 @@ io.on('connection', socket => {
     if (BlindTest.has(room.slug) && kind === 'text' && content.startsWith('!')) BlindTest.command(u, content).catch(() => {});
     if (Sommet.has(room.slug) && kind === 'text' && content.startsWith('!')) Sommet.command(u, content).catch(() => {});
     if (Paroles.has(room.slug) && kind === 'text' && content.startsWith('!')) Paroles.command(u, content).catch(() => {});
+    if (MotDor.has(room.slug) && kind === 'text' && content.startsWith('!')) MotDor.command(u, content).catch(() => {});
   });
 
   // ----- Montrer à tout le monde un message réservé aux administrateurs -----
@@ -2627,6 +2629,7 @@ io.on('connection', socket => {
   BlindTest.onConnection(socket, uid, current);
   Sommet.onConnection(socket, uid, current);
   Paroles.onConnection(socket, uid, current);
+  MotDor.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

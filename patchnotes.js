@@ -206,4 +206,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 15,
+    date: '2026-11-08',
+    title: 'Le Mot d\'Or ✨',
+    added: [
+      'Nouveau salon doré ✨ Le Mot d\'Or, avec son contour doré néon et le logo animé',
+      'Trouve le mot caché en 6 essais : la première lettre est donnée, lettre dorée = bien placée, lettre violette = mal placée',
+      'Tout le monde cherche le même mot en même temps : le plus rapide gagne le plus de points ; on voit la progression des autres en couleurs',
+      'Clavier à l\'écran pour le téléphone, 5 mots par partie et un classement des champions',
+    ],
+    changed: [
+      'Les Paroles d\'Or : les vidéos karaoké bloquées par leur propriétaire (ex. KaraFun) ne sont plus proposées',
+    ],
+    removed: [],
+  },
 ];
