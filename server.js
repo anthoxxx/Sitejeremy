@@ -2174,7 +2174,7 @@ const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVe
 const Wheel = require('./wheel')({ io, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Paroles = require('./paroles')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Paroles = require('./paroles')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };

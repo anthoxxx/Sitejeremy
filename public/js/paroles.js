@@ -20,7 +20,8 @@ const Paroles = {
     const prev = this.data;
     this.offset = d.now - Date.now();
     this.data = d;
-    if (d.phase !== 'answer') this.sent = '';
+    if (d.phase !== 'answer' && d.phase !== 'live_answer') this.sent = '';
+    if (d.phase !== 'live_answer') this.liveAnswers = null;
     if (prev?.phase === 'playing' && d.phase === 'answer') this.sfx('stop');
     if (prev?.phase === 'answer' && d.phase === 'reveal') this.sfx(d.results?.some(r => r.id === state.me.id && r.perfect) ? 'win' : 'reveal');
     if (this.active()) { this.render(); this.syncMusic(); }
@@ -138,13 +139,42 @@ const Paroles = {
       return el('div', { class: 'pa-player' + (p.id === me ? ' me' : '') + (r?.perfect ? ' perfect' : ''), 'data-uid': p.id },
         LC.avatar(p), el('b', { style: 'color:' + (p.color || '#fff') }, p.username), el('span', { class: 'pa-score' }, p.score),
         d.phase === 'answer' ? el('small', {}, p.answered ? '✅ a répondu' : '✍️ écrit…') : null,
-        r ? el('small', { class: 'pa-res' }, `${r.perfect ? '✅' : r.good ? '🟡' : '❌'} « ${r.answer || '—'} » +${r.pts}`) : null);
+        r ? el('small', { class: 'pa-res' }, `${r.perfect ? '✅' : r.good ? '🟡' : '❌'} « ${r.answer || '—'} » +${r.pts}`) : null,
+        d.mode === 'live' && p.id === d.animator ? el('small', { class: 'pa-anim' }, '🎬 Animateur') : null,
+        d.mode === 'live' && d.phase === 'live_answer' && p.id !== d.animator ? el('small', {}, p.answered ? '✅ a répondu' : '✍️ écrit…') : null,
+        d.mode === 'live' && d.phase === 'live_reveal' && p.id !== d.animator ? el('small', { class: 'pa-res' }, p.answer ? `« ${p.answer} »` : '— pas de réponse —') : null,
+        d.mode === 'live' && d.phase === 'live_reveal' && p.id !== d.animator && p.mark != null ? el('small', { class: 'pa-res' }, p.mark === 30 ? '✅ +30' : p.mark === 10 ? '🟡 +10' : '❌ 0') : null,
+        d.mode === 'live' && d.phase === 'live_reveal' && d.animator === me && p.id !== d.animator && p.answer ? el('div', { class: 'pa-marks' },
+          el('button', { class: 'btn btn-sm btn-ok', title: 'Tout juste : +30', onclick: () => this.emit('pa_live_mark', { userId: p.id, pts: 30 }) }, '✅'),
+          el('button', { class: 'btn btn-sm', title: 'À moitié : +10', onclick: () => this.emit('pa_live_mark', { userId: p.id, pts: 10 }) }, '🟡'),
+          el('button', { class: 'btn btn-sm', title: 'Faux : 0', onclick: () => this.emit('pa_live_mark', { userId: p.id, pts: 0 }) }, '❌')) : null);
     }) : [el('div', { class: 'pa-empty' }, 'La scène attend ses chanteurs… 🎤')]));
     // Les boutons
     const ctrl = [];
+    const anim = d.mode === 'live' && d.animator === me;
     if (d.phase === 'lobby') {
-      if (joined) ctrl.push(el('button', { class: 'btn btn-primary', onclick: () => { this.audio(); this.emit('pa_start'); } }, '🎶 Lancer la partie'), el('button', { class: 'btn btn-sm', onclick: () => this.emit('pa_leave') }, 'Descendre de scène'));
+      if (joined) ctrl.push(el('button', { class: 'btn btn-primary', onclick: () => { this.audio(); this.emit('pa_start'); } }, '🎶 Chansons du Paradise'), el('button', { class: 'btn btn-sm', onclick: () => this.emit('pa_leave') }, 'Descendre de scène'));
       else ctrl.push(el('button', { class: 'btn btn-primary', onclick: () => { this.audio(); this.emit('pa_join'); } }, '🎤 Je chante'));
+      ctrl.push(el('button', { class: 'btn btn-primary pa-live-btn', title: 'Tu choisis de vraies chansons (version karaoké) et tu appuies sur STOP quand tu veux', onclick: () => this.emit('pa_live_start') }, '🎬 Vraies chansons (je suis l\'animateur)'));
+    } else if (d.mode === 'live' && d.phase !== 'end') {
+      if (anim) {
+        if (d.phase === 'live_play' || d.phase === 'live_reveal') ctrl.push(el('button', { class: 'pa-stop', onclick: () => this.emit('pa_live_stop') }, '✋ STOP'));
+        if (d.phase === 'live_answer') ctrl.push(el('button', { class: 'btn btn-primary', onclick: () => this.emit('pa_live_reveal') }, '🎬 Révéler la suite'));
+        if (d.phase !== 'live_pick') ctrl.push(el('button', { class: 'btn btn-sm', onclick: () => this.emit('pa_live_next') }, '⏭ Autre chanson'));
+        ctrl.push(el('button', { class: 'btn btn-sm', onclick: () => { if (confirm('Terminer la partie et afficher le classement ?')) this.emit('pa_live_end'); } }, '🏁 Terminer'));
+      } else if (d.phase === 'live_answer' && joined) {
+        if (this.sent) ctrl.push(el('span', { class: 'pa-wait' }, `✅ Réponse envoyée : « ${this.sent} »`));
+        else {
+          const inp = el('input', { class: 'input pa-answer', maxlength: 120, placeholder: 'Écris la suite des paroles…', autocomplete: 'off' });
+          const go = () => { const v = inp.value.trim(); if (!v) return; this.emit('pa_answer', v, r => { if (r?.ok) { this.sent = v; this.render(); } }); };
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+          ctrl.push(inp, el('button', { class: 'btn btn-primary', onclick: go }, 'Valider'));
+          setTimeout(() => inp.focus(), 0);
+        }
+      } else {
+        if (!joined && d.players.length < d.maxPlayers) ctrl.push(el('button', { class: 'btn btn-sm btn-primary', onclick: () => this.emit('pa_join') }, '🎤 Monter sur scène'));
+        ctrl.push(el('span', { class: 'pa-wait' }, d.phase === 'live_pick' ? '🎬 L\'animateur choisit une chanson…' : '🎶 Chante avec les paroles… attention au STOP !'));
+      }
     } else if (d.phase === 'answer' && joined) {
       if (this.sent) ctrl.push(el('span', { class: 'pa-wait' }, `✅ Réponse envoyée : « ${this.sent} »`));
       else {
@@ -167,6 +197,7 @@ const Paroles = {
   drawLyrics() {
     const box = $('paStage')?.querySelector('.pa-lyrics'), d = this.data;
     if (!box || !d) return;
+    if (d.mode === 'live' && d.phase !== 'end') return this.drawLive(box);
     const s = d.song;
     if (!s || d.phase === 'lobby') {
       box.replaceChildren(el('div', { class: 'pa-lobby' }, el('b', {}, '🏅 Les meilleures mémoires'),
@@ -200,6 +231,58 @@ const Paroles = {
     const kar = box.querySelector('.karaoke');
     if (kar) kar.style.setProperty('--p', (prog * 100).toFixed(1) + '%');
   },
+  // ----- Mode animateur : la vidéo karaoké (vraie chanson), le rideau du STOP, la recherche de l'animateur -----
+  drawLive(box) {
+    const d = this.data, me = state.me.id, anim = d.animator === me;
+    const k = 'live|' + d.phase + '|' + (d.video?.videoId || '') + '|' + anim;
+    if (box.dataset.k !== k) {
+      box.dataset.k = k;
+      if (d.phase === 'live_pick') {
+        this.liveKey = ''; 
+        if (anim) {
+          const inp = el('input', { class: 'input', placeholder: 'Titre ou artiste (ex : Céline Dion, Stromae…)', maxlength: 80 });
+          const list = el('div', { class: 'pa-results' });
+          const go = () => { if (!inp.value.trim()) return; list.replaceChildren(el('small', {}, '🔎 Recherche…'));
+            socket.emit('pa_search', inp.value, r => {
+              if (r?.error) return list.replaceChildren(el('small', {}, r.error));
+              list.replaceChildren(...(r.results.length ? r.results.map(v => el('button', { class: 'pa-result', onclick: () => this.emit('pa_live_song', v) },
+                el('img', { src: `https://i.ytimg.com/vi/${v.videoId}/default.jpg`, alt: '', referrerpolicy: 'no-referrer' }), el('span', {}, el('b', {}, v.title), el('small', {}, `${v.channel} · ${v.length}`)))) : [el('small', {}, 'Aucun résultat')]));
+            }); };
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+          box.replaceChildren(el('div', { class: 'pa-pick' }, el('b', {}, '🎬 Choisis une vraie chanson (version karaoké)'),
+            el('div', { class: 'row', style: 'gap:8px' }, inp, el('button', { class: 'btn btn-primary', style: 'flex:none', onclick: go }, '🔎')), list));
+          setTimeout(() => inp.focus(), 0);
+        } else box.replaceChildren(el('div', { class: 'pa-big small' }, '🎬 L\'animateur choisit une chanson…'));
+      } else {
+        // la vidéo reste en place pendant toute la chanson ; le rideau se pose dessus au STOP
+        let vbox = box.querySelector('.pa-video');
+        if (!vbox) { vbox = el('div', { class: 'pa-video' }); box.replaceChildren(el('div', { class: 'pa-song' }, `🎵 ${d.video?.title || ''}`), vbox); }
+        let curtain = vbox.querySelector('.pa-curtain');
+        if (!curtain) { curtain = el('div', { class: 'pa-curtain' }); vbox.append(curtain); }
+        curtain.replaceChildren(...[el('div', {}, '✋ STOP !'), el('small', {}, anim ? 'Les joueurs écrivent la suite… clique sur « Révéler la suite » quand tu veux' : 'Écris la suite des paroles !'), anim ? el('div', { class: 'pa-anim-answers' }) : null].filter(Boolean));
+        curtain.classList.toggle('on', d.phase === 'live_answer');
+      }
+    }
+    if (d.video && d.phase !== 'live_pick') this.syncVideo(box, d);
+    const aa = box.querySelector('.pa-anim-answers');
+    if (aa && this.liveAnswers) aa.replaceChildren(...this.liveAnswers.map(a => el('div', {}, el('b', {}, a.username + ' : '), a.answer)));
+  },
+  syncVideo(box, d) {
+    const vbox = box.querySelector('.pa-video');
+    if (!vbox) return;
+    const v = d.video;
+    const send = func => vbox.querySelector('iframe')?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
+    const key = v.videoId;
+    if (this.liveKey !== key) {
+      this.liveKey = key; this.livePaused = null;
+      const startSec = Math.floor(Math.max(0, v.pos) / 1000);
+      vbox.querySelector('iframe')?.remove();
+      vbox.prepend(el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1&start=${startSec}`, allow: 'autoplay; encrypted-media; fullscreen', allowfullscreen: true, title: v.title }));
+      setTimeout(() => this.syncVideo(box, this.data), 1500);
+      return;
+    }
+    if (this.livePaused !== v.paused) { this.livePaused = v.paused; send(v.paused ? 'pauseVideo' : 'playVideo'); }
+  },
   loop() {
     this.raf = requestAnimationFrame(() => this.loop());
     if (!this.data || !this.active()) return;
@@ -213,6 +296,7 @@ const Paroles = {
 };
 
 socket.on('paroles', d => Paroles.update(d));
+socket.on('pa_answers', ({ answers }) => { Paroles.liveAnswers = answers; if (Paroles.active()) Paroles.drawLyrics(); });
 document.addEventListener('viewchange', () => Paroles.onView());
 // Le moindre toucher active le son (les navigateurs l'exigent)
 ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => {

@@ -201,6 +201,7 @@ module.exports = [
       'Un jeu musical : la musique joue et les paroles défilent en karaoké… puis la musique s\'arrête au dernier refrain : écris la suite des paroles !',
       '10 points par mot trouvé, +20 si c\'est parfait, 4 chansons par partie, jusqu\'à 6 chanteurs',
       'Des chansons écrites pour The Paradise (Bienvenue au Paradise, Soleil de minuit, Mon cœur fait boum…) et des chansons traditionnelles',
+      'Mode 🎬 Vraies chansons : un animateur choisit de vraies chansons en version karaoké, appuie sur ✋ STOP quand il veut, l\'écran se cache derrière un rideau doré et il faut écrire la suite ! L\'animateur donne les points ✅ 🟡 ❌',
     ],
     changed: [],
     removed: [],

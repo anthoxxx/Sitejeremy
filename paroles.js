@@ -54,7 +54,7 @@ function prepare(song) {
   return { ...song, prepared: lines, hiddenLine };
 }
 
-module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, notifyLive = () => {} }) {
+module.exports = function setupParoles({ io, db, getOnline, ytSearch = null, isStaff = () => false, notify = () => {}, notifyLive = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS paroles_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     wins INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0, perfect INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
@@ -65,7 +65,11 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
     .map(r => ({ id: r.user_id, username: r.username, color: r.color, wins: r.wins, points: r.points, perfect: r.perfect }));
 
   let msgSeq = 1, timer = null, lb = leaderboard(), recent = [];
-  const g = { phase: 'lobby', players: [], songNo: 0, song: null, startAt: 0, stopAt: 0, deadline: 0, answers: new Map(), results: null, line: '', winner: null, queue: [] };
+  const g = { phase: 'lobby', players: [], songNo: 0, song: null, startAt: 0, stopAt: 0, deadline: 0, answers: new Map(), results: null, line: '', winner: null, queue: [],
+    // Mode animateur (vraies chansons) : une vidéo karaoké YouTube, l'animateur appuie sur STOP et donne les points
+    mode: 'auto', animator: null, video: null, marks: new Map(), stops: 0 };
+  const LIVE_ANSWER_MS = 40000;
+  const livePos = () => g.video ? g.video.played + (g.video.resumedAt && now() > g.video.resumedAt ? now() - g.video.resumedAt : 0) : 0;
   const say = content => io.to('room:' + SLUG).emit('message', { room: SLUG, id: 'pa' + (msgSeq++), userId: 0, username: HOST.username, color: HOST.color, gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: HOST.icon, content, createdAt: now(), kind: 'text' });
   const host = l => { g.line = l; };
   const lineMs = s => BEATS_PER_LINE * 60000 / s.bpm;
@@ -80,7 +84,11 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
   };
   const stateOut = () => ({
     phase: g.phase, songNo: g.songNo, total: ROUND_SONGS, song: songOut(g.song), startAt: g.startAt, stopAt: g.stopAt, deadline: g.deadline,
-    players: g.players.map(p => ({ id: p.id, username: p.username, color: p.color, avatar: p.avatar, score: p.score, answered: g.answers.has(p.id) })),
+    players: g.players.map(p => ({ id: p.id, username: p.username, color: p.color, avatar: p.avatar, score: p.score, answered: g.answers.has(p.id),
+      // en mode animateur, les réponses sont visibles par l'animateur pendant qu'on écrit, et par tout le monde après le STOP révélé
+      answer: g.mode === 'live' && g.answers.has(p.id) && g.phase === 'live_reveal' ? g.answers.get(p.id) : undefined, mark: g.marks.get(p.id) })),
+    mode: g.mode, animator: g.animator, stops: g.stops,
+    video: g.video ? { videoId: g.video.videoId, title: g.video.title, pos: livePos(), paused: !['live_play', 'live_reveal'].includes(g.phase), resumedAt: g.video.resumedAt } : null,
     results: g.results, line: g.line, winner: g.winner, leaderboard: lb, now: now(), maxPlayers: MAX_PLAYERS,
   });
   const broadcast = () => io.to('room:' + SLUG).emit('paroles', stateOut());
@@ -141,11 +149,11 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
   function endGame() {
     clearTimeout(timer);
     g.phase = 'end'; g.deadline = 0;
-    const ranking = [...g.players].sort((a, b) => b.score - a.score);
+    const ranking = [...g.players].filter(p => p.id !== g.animator).sort((a, b) => b.score - a.score);
     const best = ranking[0];
     const tie = best && ranking.filter(p => p.score === best.score).length > 1;
     g.winner = best && !tie && best.score > 0 ? { id: best.id, username: best.username, score: best.score } : null;
-    g.players.forEach(p => {
+    g.players.filter(p => p.id !== g.animator).forEach(p => {
       addScore(p.id, { points: p.score, games: 1, wins: g.winner?.id === p.id ? 1 : 0 });
       notify(p.id, { type: 'game', icon: g.winner?.id === p.id ? '👑' : '🎤', title: g.winner?.id === p.id ? `Tu as gagné Les Paroles d'Or avec ${p.score} points !` : `Les Paroles d'Or : ${p.score} points pour toi`, text: g.winner ? `Gagnant : ${g.winner.username}` : 'Égalité !', data: { slug: SLUG } });
     });
@@ -157,7 +165,7 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
   }
   function toLobby() {
     clearTimeout(timer);
-    Object.assign(g, { phase: 'lobby', songNo: 0, song: null, startAt: 0, stopAt: 0, deadline: 0, answers: new Map(), results: null, winner: null, queue: [] });
+    Object.assign(g, { phase: 'lobby', songNo: 0, song: null, startAt: 0, stopAt: 0, deadline: 0, answers: new Map(), results: null, winner: null, queue: [], mode: 'auto', animator: null, video: null, marks: new Map(), stops: 0 });
     g.players.forEach(p => { p.score = 0; });
     host(g.players.length ? '🎤 Prêts à chanter ? Lancez la partie !' : '🎤 Bienvenue ! Montez sur scène pour jouer.');
     broadcast();
@@ -167,6 +175,7 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
     if (i < 0) return;
     const [p] = g.players.splice(i, 1);
     if (!g.players.length && g.phase !== 'lobby') { say(`👋 ${p.username} a quitté la scène. Fin de la partie.`); return toLobby(); }
+    if (g.mode === 'live' && id === g.animator && g.phase !== 'end') { say(`👋 L'animateur ${p.username} est parti. Fin de la partie.`); g.video = null; return endGame(); }
     broadcast();
   }
   setInterval(() => {
@@ -202,13 +211,92 @@ module.exports = function setupParoles({ io, db, getOnline, notify = () => {}, n
       nextSong();
     }));
     socket.on('pa_answer', guard((u, text) => {
+      if (g.phase === 'live_answer') {
+        if (!me() || uid === g.animator) return { error: 'Monte sur scène pour jouer' };
+        if (now() > g.deadline) return { error: 'Trop tard !' };
+        g.answers.set(uid, String(text || '').slice(0, 120));
+        broadcast();
+        sendAnswersToAnimator();
+        return;
+      }
       if (g.phase !== 'answer') return { error: 'Pas maintenant !' };
       if (!me()) return { error: 'Monte sur scène pour jouer' };
       g.answers.set(uid, String(text || '').slice(0, 120));
       broadcast();
       if (g.players.every(p => g.answers.has(p.id))) reveal();
     }));
+    // ----- Mode animateur : vraies chansons (vidéo karaoké YouTube) -----
+    const isAnim = () => g.mode === 'live' && g.animator === uid;
+    socket.on('pa_live_start', guard(u => {
+      if (g.phase !== 'lobby' && g.phase !== 'end') return { error: 'Une partie est déjà en cours' };
+      if (!ytSearch) return { error: 'La recherche de musique n\'est pas disponible' };
+      if (g.phase === 'end') toLobby();
+      if (!me()) g.players.push({ id: uid, username: u.username, color: u.color, avatar: u.avatar || '', score: 0 });
+      g.players.forEach(p => { p.score = 0; });
+      Object.assign(g, { mode: 'live', animator: uid, phase: 'live_pick', video: null, marks: new Map(), answers: new Map(), stops: 0, deadline: 0 });
+      host(`🎬 ${u.username} est l'animateur ! Il choisit une vraie chanson…`);
+      say(`🎬 Mode animateur : ${u.username} choisit de vraies chansons en version karaoké. Chantez avec les paroles à l'écran… quand il appuie sur ✋ STOP, l'écran se cache et il faut écrire la suite !`);
+      broadcast();
+    }));
+    socket.on('pa_search', async (q, ack) => {
+      if (typeof ack !== 'function') return;
+      if (!isAnim()) return ack({ error: 'Seul l\'animateur choisit les chansons' });
+      const text = String(q || '').trim().slice(0, 80);
+      if (!text) return ack({ results: [] });
+      try {
+        const res = await ytSearch(/karaok|lyrics|paroles/i.test(text) ? text : text + ' karaoké');
+        ack({ results: res.slice(0, 8).map(r => ({ videoId: r.videoId, title: r.title, channel: r.channel, length: r.length })) });
+      } catch (e) { ack({ error: 'La recherche ne répond pas, réessaie' }); }
+    });
+    socket.on('pa_live_song', guard((u, v) => {
+      if (!isAnim()) return { error: 'Seul l\'animateur choisit les chansons' };
+      if (!v || !/^[\w-]{11}$/.test(v.videoId || '')) return { error: 'Vidéo invalide' };
+      g.video = { videoId: v.videoId, title: String(v.title || '').slice(0, 120), played: 0, resumedAt: now() + 1500 };
+      g.phase = 'live_play'; g.answers = new Map(); g.marks = new Map(); g.deadline = 0; g.songNo++;
+      host(`🎶 « ${g.video.title} » ! Chantez avec les paroles… et attention au STOP !`);
+      say(`🎶 Chanson : « ${g.video.title} ». Chantez !`);
+      broadcast();
+    }));
+    socket.on('pa_live_stop', guard(() => {
+      if (!isAnim() || !['live_play', 'live_reveal'].includes(g.phase)) return { error: 'Pas maintenant' };
+      g.video.played = livePos(); g.video.resumedAt = 0;
+      g.phase = 'live_answer'; g.answers = new Map(); g.marks = new Map(); g.stops++;
+      g.deadline = now() + LIVE_ANSWER_MS;
+      host('✋ STOP ! L\'écran se cache… Écrivez la suite des paroles !');
+      for (const p of g.players) if (p.id !== g.animator) notifyLive(p.id, { type: 'game', icon: '✋', title: 'STOP ! Écris la suite des paroles', data: { slug: SLUG } });
+      broadcast();
+    }));
+    socket.on('pa_live_reveal', guard(() => {
+      if (!isAnim() || g.phase !== 'live_answer') return { error: 'Pas maintenant' };
+      g.phase = 'live_reveal'; g.deadline = 0; g.video.resumedAt = now() + 800;
+      host('🎬 Et la suite était… écoutez bien ! L\'animateur donne les points.');
+      broadcast();
+    }));
+    socket.on('pa_live_mark', guard((u, data) => {
+      if (!isAnim() || g.phase !== 'live_reveal') return { error: 'Pas maintenant' };
+      const target = g.players.find(p => p.id === parseInt(data?.userId, 10));
+      const pts = [0, 10, 30].includes(data?.pts) ? data.pts : 0;
+      if (!target || target.id === g.animator) return { error: 'Joueur introuvable' };
+      target.score += pts - (g.marks.get(target.id) || 0);
+      g.marks.set(target.id, pts);
+      broadcast();
+    }));
+    socket.on('pa_live_next', guard(() => {
+      if (!isAnim()) return { error: 'Seul l\'animateur peut changer de chanson' };
+      g.phase = 'live_pick'; g.video = null; g.answers = new Map(); g.marks = new Map(); g.deadline = 0;
+      host('🎬 L\'animateur choisit la chanson suivante…');
+      broadcast();
+    }));
+    socket.on('pa_live_end', guard(() => {
+      if (!isAnim() && !isStaff(currentUser())) return { error: 'Seul l\'animateur peut terminer' };
+      g.video = null;
+      endGame();
+    }));
     socket.on('pa_new', guard(() => { if (g.phase === 'end') toLobby(); }));
+    function sendAnswersToAnimator() {
+      const e = [...getOnline().values()].find(x => x.user.id === g.animator);
+      if (e) for (const sid of e.sockets) io.to(sid).emit('pa_answers', { answers: g.players.filter(p => g.answers.has(p.id)).map(p => ({ id: p.id, username: p.username, answer: g.answers.get(p.id) })) });
+    }
   }
 
   function command(user, text) {
