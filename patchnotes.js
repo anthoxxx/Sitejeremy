@@ -221,4 +221,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 16,
+    date: '2026-11-08',
+    title: 'L\'espace Arc-en-ciel LGBTQ+ 🏳️‍🌈',
+    added: [
+      'Un bouton 🏳️‍🌈 tout en haut, à côté de la manette, mène à l\'espace Arc-en-ciel LGBTQ+',
+      'Un vrai univers aux couleurs de la fierté en néon animé : rayures arc-en-ciel qui défilent, cœurs qui montent, en-tête et messages colorés',
+      'Un espace fier et bienveillant pour la communauté LGBTQ+ et ses allié·e·s, surveillé par le ModoBot et l\'équipe',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -2037,3 +2037,57 @@ body { background:
   .md-others { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { .md-stage, .md-cell { animation: none !important; } }
+
+/* =====================================================================
+   ESPACE ARC-EN-CIEL LGBTQ+ : un univers aux couleurs de la fierté, en néon animé
+   ===================================================================== */
+:root { --pride: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #ff2d55); --trans: linear-gradient(90deg, #5bcefa, #f5a9b8, #ffffff, #f5a9b8, #5bcefa); }
+/* Le bouton en haut, à côté de la manette */
+.pride-btn { position: relative; animation: prideBtn 3s ease-in-out infinite; }
+.pride-btn::after { content: ''; position: absolute; inset: 2px; border-radius: 12px; padding: 2px; background: conic-gradient(#ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #5bcefa, #f5a9b8, #ff2d55);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: hdSpin 3s linear infinite; pointer-events: none; }
+@keyframes prideBtn { 0%, 100% { transform: rotate(-6deg); filter: drop-shadow(0 0 4px #ff2d55); } 33% { filter: drop-shadow(0 0 6px #34ff6a); } 50% { transform: rotate(6deg); } 66% { filter: drop-shadow(0 0 6px #c64dff); } }
+/* Le salon dans la liste : contour de toutes les couleurs des drapeaux, qui tourne */
+.list-item.pride-room { position: relative; margin-bottom: 6px; animation: prideBox 4s linear infinite, neonFlicker 6s linear infinite; }
+.list-item.pride-room::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+  background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #5bcefa, #f5a9b8, #ffffff, #f5a9b8, #5bcefa, #ff2d55); background-size: 300% 100%; animation: prideSlide 4s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.list-item.pride-room .name .room-perm, .list-item.pride-room .sub { background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #ff4fd8, #ff2d55); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 900; animation: prideSlide 3s linear infinite; }
+.list-item.pride-room .sub { font-weight: 700; }
+.list-item.pride-room .name { animation: prideGlow 3s ease-in-out infinite; padding: 6px 8px; margin: -6px -8px; }
+@keyframes prideSlide { to { background-position: -300% 0; } }
+@keyframes prideGlow { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 45, 85, .8)); } 25% { filter: drop-shadow(0 0 4px rgba(255, 230, 0, .8)); } 50% { filter: drop-shadow(0 0 4px rgba(47, 168, 255, .9)); } 75% { filter: drop-shadow(0 0 4px rgba(245, 169, 184, .9)); } }
+@keyframes prideBox { 0% { box-shadow: 0 0 12px rgba(255, 45, 85, .55); } 20% { box-shadow: 0 0 12px rgba(255, 149, 0, .55); } 40% { box-shadow: 0 0 12px rgba(52, 255, 106, .5); } 60% { box-shadow: 0 0 12px rgba(47, 168, 255, .6); } 80% { box-shadow: 0 0 12px rgba(198, 77, 255, .6); } 100% { box-shadow: 0 0 12px rgba(255, 45, 85, .55); } }
+/* L'en-tête du salon */
+.room-head.head-pride { border-bottom: 3px solid transparent; border-image: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #5bcefa, #f5a9b8, #fff) 1; box-shadow: 0 6px 22px -8px #c64dff; }
+.room-head.head-pride #headTitle { background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #ff4fd8, #ff2d55); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: prideSlide 3s linear infinite; }
+.room-head.head-pride #headSub { color: #f5a9b8; }
+/* Tout l'univers du salon */
+.main.pride-universe { background:
+  radial-gradient(ellipse at 15% 20%, rgba(255, 45, 85, .18), transparent 45%), radial-gradient(ellipse at 85% 25%, rgba(47, 168, 255, .18), transparent 45%),
+  radial-gradient(ellipse at 50% 90%, rgba(198, 77, 255, .2), transparent 50%), radial-gradient(ellipse at 20% 80%, rgba(52, 255, 106, .12), transparent 45%), var(--bg); }
+.main.pride-universe::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .13;
+  background: repeating-linear-gradient(115deg, #ff2d55 0 40px, #ff9500 40px 80px, #ffe600 80px 120px, #34ff6a 120px 160px, #2fa8ff 160px 200px, #c64dff 200px 240px);
+  background-size: 560px 560px; animation: prideStripes 14s linear infinite; }
+@keyframes prideStripes { to { background-position: 560px 0; } }
+.pride-fx { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.pride-fx span { position: absolute; bottom: -30px; opacity: .55; animation: prideRise linear infinite; text-shadow: 0 0 10px currentColor; }
+@keyframes prideRise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 10% { opacity: .6; } 100% { transform: translateY(-110vh) rotate(25deg); opacity: 0; } }
+.main.pride-universe > *:not(.pride-fx):not(.room-bg) { position: relative; z-index: 1; }
+.pride-banner { margin: 10px 16px 0; padding: 12px 16px; border-radius: 16px; text-align: center; display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden;
+  background: rgba(10, 6, 20, .75); border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 0 18px rgba(198, 77, 255, .35); }
+.pride-banner::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none; background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #5bcefa, #f5a9b8, #ffffff, #ff2d55); background-size: 300% 100%; animation: prideSlide 4s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.pride-banner b { font-size: 1.05rem; background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff, #ff2d55); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: prideSlide 3s linear infinite; }
+.pride-banner small { color: #f5d4ff; font-size: .82rem; line-height: 1.35; }
+.pride-flags { font-size: 1.5rem; display: flex; justify-content: center; gap: 10px; }
+.pride-flags > * { display: inline-block; }
+.pride-flags { animation: icoFloat 3s ease-in-out infinite; }
+/* Les messages et la zone d'écriture prennent les couleurs */
+.main.pride-universe #messages > .msg:nth-last-child(-n+8) .who { animation: prideGlow 3s ease-in-out infinite; }
+.main.pride-universe #messages > .msg { border-left: 3px solid transparent; border-image: linear-gradient(180deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff) 1; }
+.main.pride-universe .composer .input { animation: prideInput 6s linear infinite; }
+@keyframes prideInput { 0% { box-shadow: 0 0 0 2px #ff2d55, 0 0 14px rgba(255, 45, 85, .4); } 17% { box-shadow: 0 0 0 2px #ff9500, 0 0 14px rgba(255, 149, 0, .4); } 33% { box-shadow: 0 0 0 2px #ffe600, 0 0 14px rgba(255, 230, 0, .4); } 50% { box-shadow: 0 0 0 2px #34ff6a, 0 0 14px rgba(52, 255, 106, .4); } 67% { box-shadow: 0 0 0 2px #2fa8ff, 0 0 14px rgba(47, 168, 255, .4); } 83% { box-shadow: 0 0 0 2px #c64dff, 0 0 14px rgba(198, 77, 255, .4); } 100% { box-shadow: 0 0 0 2px #ff2d55, 0 0 14px rgba(255, 45, 85, .4); } }
+.main.pride-universe .btn-primary { background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff); background-size: 300% 100%; animation: prideSlide 4s linear infinite; }
+@media (max-width: 760px) { .pride-banner { margin: 6px 8px 0; padding: 8px 10px; } .pride-banner small { font-size: .74rem; } .pride-flags { font-size: 1.2rem; } }
+@media (prefers-reduced-motion: reduce) { .pride-btn, .pride-btn::after, .list-item.pride-room, .list-item.pride-room::before, .list-item.pride-room .name, .list-item.pride-room .name .room-perm, .list-item.pride-room .sub, .main.pride-universe::before, .pride-fx, .pride-banner::before, .pride-flags { animation: none !important; } .pride-fx { display: none; } }

@@ -379,6 +379,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='motdor'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('motdor', 'Le Mot d\'Or', 'Trouve le mot caché en 6 essais : lettres dorées et violettes ✨', '✨', sort, 0, Date.now());
 }
+// Espace « Arc-en-ciel » : un univers bienveillant pour la communauté LGBTQ+ et ses allié·e·s
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='fierte'").get()) {
+  const g = db.prepare("SELECT sort FROM rooms WHERE slug='general'").get();
+  const sort = g ? g.sort + 1 : 3;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote','general')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('fierte', 'Arc-en-ciel LGBTQ+', 'Un espace fier et bienveillant pour la communauté LGBTQ+ et ses allié·e·s 🏳️‍🌈', '🏳️‍🌈', sort, 0, Date.now());
+}
 // Salon « Patch note » : personne n'y écrit, seul le bot y annonce les nouveautés du site
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
   const top = db.prepare('SELECT MIN(sort) s FROM rooms WHERE owner_id IS NULL').get();
