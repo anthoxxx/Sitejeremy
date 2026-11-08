@@ -2174,6 +2174,7 @@ const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVe
 const Wheel = require('./wheel')({ io, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.ytSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Paroles = require('./paroles')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2509,6 +2510,7 @@ io.on('connection', socket => {
     if (Wheel.has(room.slug) && kind === 'text' && content.startsWith('!')) Wheel.command(u, content).catch(() => {});
     if (BlindTest.has(room.slug) && kind === 'text' && content.startsWith('!')) BlindTest.command(u, content).catch(() => {});
     if (Sommet.has(room.slug) && kind === 'text' && content.startsWith('!')) Sommet.command(u, content).catch(() => {});
+    if (Paroles.has(room.slug) && kind === 'text' && content.startsWith('!')) Paroles.command(u, content).catch(() => {});
   });
 
   // ----- Montrer à tout le monde un message réservé aux administrateurs -----
@@ -2624,6 +2626,7 @@ io.on('connection', socket => {
   Wheel.onConnection(socket, uid, current);
   BlindTest.onConnection(socket, uid, current);
   Sommet.onConnection(socket, uid, current);
+  Paroles.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

@@ -192,4 +192,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 14,
+    date: '2026-11-08',
+    title: 'Les Paroles d\'Or 🎤',
+    added: [
+      'Nouveau salon doré ✨ Les Paroles d\'Or, avec un contour doré néon et le logo du site animé',
+      'Un jeu musical : la musique joue et les paroles défilent en karaoké… puis la musique s\'arrête au dernier refrain : écris la suite des paroles !',
+      '10 points par mot trouvé, +20 si c\'est parfait, 4 chansons par partie, jusqu\'à 6 chanteurs',
+      'Des chansons écrites pour The Paradise (Bienvenue au Paradise, Soleil de minuit, Mon cœur fait boum…) et des chansons traditionnelles',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
