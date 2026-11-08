@@ -1983,3 +1983,5 @@ body { background:
 .pa-marks { display: flex; gap: 4px; margin-top: 4px; }
 .pa-marks .btn { padding: 3px 7px; }
 .pa-anim { color: #ffd76a !important; font-weight: 800; }
+.pa-blocked { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 14px; background: rgba(20, 12, 4, .95); color: #fff; }
+.pa-blocked b { color: #ffd76a; }

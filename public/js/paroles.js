@@ -277,7 +277,11 @@ const Paroles = {
       this.liveKey = key; this.livePaused = null;
       const startSec = Math.floor(Math.max(0, v.pos) / 1000);
       vbox.querySelector('iframe')?.remove();
-      vbox.prepend(el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1&start=${startSec}`, allow: 'autoplay; encrypted-media; fullscreen', allowfullscreen: true, title: v.title }));
+      vbox.querySelector('.pa-blocked')?.remove();
+      const frame = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}&start=${startSec}`, allow: 'autoplay; encrypted-media; fullscreen', allowfullscreen: true, title: v.title });
+      // On écoute le lecteur YouTube pour savoir si la vidéo refuse d'être lue ici
+      frame.addEventListener('load', () => { try { frame.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 'pa' }), '*'); } catch (e) {} });
+      vbox.prepend(frame);
       setTimeout(() => this.syncVideo(box, this.data), 1500);
       return;
     }
@@ -296,6 +300,19 @@ const Paroles = {
 };
 
 socket.on('paroles', d => Paroles.update(d));
+// Vidéo bloquée par son propriétaire (erreurs YouTube 101 / 150) : on prévient et l'animateur peut en choisir une autre
+window.addEventListener('message', e => {
+  if (!/youtube(-nocookie)?\.com$/.test(new URL(e.origin || 'http://x').hostname)) return;
+  let m; try { m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch (err) { return; }
+  if (m?.event !== 'onError' || !Paroles.active()) return;
+  const vbox = $('paStage')?.querySelector('.pa-video');
+  if (!vbox || vbox.querySelector('.pa-blocked')) return;
+  const anim = Paroles.data?.animator === state.me.id;
+  vbox.append(el('div', { class: 'pa-blocked' }, el('b', {}, '⚠️ Cette vidéo ne peut pas être lue sur le site'),
+    el('small', {}, anim ? 'Son propriétaire l\'interdit. Choisis une autre version :' : 'L\'animateur va choisir une autre version…'),
+    anim ? el('button', { class: 'btn btn-primary', onclick: () => Paroles.emit('pa_live_next') }, '⏭ Choisir une autre version') : null));
+  if (anim) toast('⚠️ Vidéo bloquée par son propriétaire : choisis une autre version');
+});
 socket.on('pa_answers', ({ answers }) => { Paroles.liveAnswers = answers; if (Paroles.active()) Paroles.drawLyrics(); });
 document.addEventListener('viewchange', () => Paroles.onView());
 // Le moindre toucher active le son (les navigateurs l'exigent)

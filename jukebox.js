@@ -128,6 +128,27 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
     if (cache.size > 300) cache.delete(cache.keys().next().value);
     return results;
   }
+  // Certaines vidéos (ex. KaraFun) interdisent la lecture sur un autre site : on les écarte.
+  // L'oEmbed de YouTube répond 401/403 pour une vidéo dont l'intégration est désactivée.
+  const embedCache = new Map();
+  async function isEmbeddable(id) {
+    const hit = embedCache.get(id);
+    if (hit !== undefined) return hit;
+    let ok = true;
+    try {
+      const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id), { signal: AbortSignal.timeout(4000) });
+      ok = r.ok; r.body?.cancel().catch(() => {});
+    } catch (e) { ok = true; } // en cas de doute on garde la vidéo
+    embedCache.set(id, ok);
+    if (embedCache.size > 2000) embedCache.delete(embedCache.keys().next().value);
+    return ok;
+  }
+  const BLOCKED_CHANNELS = /karafun/i;
+  async function playableSearch(q) {
+    const res = (await ytSearch(q)).filter(r => !BLOCKED_CHANNELS.test(r.channel || '') && !BLOCKED_CHANNELS.test(r.title || ''));
+    const checks = await Promise.all(res.map(r => isEmbeddable(r.videoId)));
+    return res.filter((r, i) => checks[i]);
+  }
   const searchQuery = (cfg, q) => (cfg.suffix && !cfg.keep.test(q) ? q + cfg.suffix : q);
 
   // ---------- Une file d'attente par salon ----------
@@ -219,7 +240,7 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
           }
           if (tooMany('ksearch:' + user.id, 20, 60 * 1000)) return say(`@${user.username} doucement, attends une minute 😉`);
           try {
-            const [first] = await ytSearch(searchQuery(cfg, arg));
+            const [first] = await playableSearch(searchQuery(cfg, arg));
             if (!first) return say(`😕 Je n'ai rien trouvé pour « ${arg} ». Essaie avec le nom de l'artiste.`);
             const r = add(user, { title: first.title, videoId: first.videoId, duration: first.duration });
             if (r.error) say(`@${user.username} ${r.error}`);
@@ -267,7 +288,7 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
     if (q.length < 2) return res.status(400).json({ error: 'Tape au moins 2 lettres' });
     if (tooMany('ksearch:' + req.user.id, 20, 60 * 1000)) return res.status(429).json({ error: 'Trop de recherches, attends une minute' });
     const query = searchQuery(box.cfg, q);
-    try { res.json({ results: await ytSearch(query) }); }
+    try { res.json({ results: await playableSearch(query) }); }
     catch (e) { res.json({ results: [], error: 'La recherche YouTube ne marche pas pour le moment : colle directement un lien YouTube.', searchUrl: 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query) }); }
   });
 
@@ -293,7 +314,7 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
 
   return {
     onConnection,
-    ytSearch, catalogs: [...KARAOKE_CATALOG, ...MUSIC_CATALOG], // aussi utilisés par le Grand Blind Test
+    ytSearch, playableSearch, isEmbeddable, catalogs: [...KARAOKE_CATALOG, ...MUSIC_CATALOG], // aussi utilisés par le Grand Blind Test
     has: slug => boxes.has(slug),
     command: (slug, user, text) => boxes.get(slug)?.command(user, text) || Promise.resolve(),
   };
