@@ -230,7 +230,9 @@ module.exports = [
       'Un vrai univers aux couleurs de la fierté en néon animé : rayures arc-en-ciel qui défilent, cœurs qui montent, en-tête et messages colorés',
       'Un espace fier et bienveillant pour la communauté LGBTQ+ et ses allié·e·s, surveillé par le ModoBot et l\'équipe',
     ],
-    changed: [],
+    changed: [
+      'Sur tout le site, les pseudos et les photos brillent en néon : rouge pour les administrateurs, bleu pour les hommes, rose pour les femmes',
+    ],
     removed: [],
   },
 ];

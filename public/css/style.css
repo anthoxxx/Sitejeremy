@@ -2091,3 +2091,23 @@ body { background:
 .main.pride-universe .btn-primary { background: linear-gradient(90deg, #ff2d55, #ff9500, #ffe600, #34ff6a, #2fa8ff, #c64dff); background-size: 300% 100%; animation: prideSlide 4s linear infinite; }
 @media (max-width: 760px) { .pride-banner { margin: 6px 8px 0; padding: 8px 10px; } .pride-banner small { font-size: .74rem; } .pride-flags { font-size: 1.2rem; } }
 @media (prefers-reduced-motion: reduce) { .pride-btn, .pride-btn::after, .list-item.pride-room, .list-item.pride-room::before, .list-item.pride-room .name, .list-item.pride-room .name .room-perm, .list-item.pride-room .sub, .main.pride-universe::before, .pride-fx, .pride-banner::before, .pride-flags { animation: none !important; } .pride-fx { display: none; } }
+
+/* =====================================================================
+   NÉONS SUR TOUT LE SITE : rouge = administrateurs, bleu = hommes, rose = femmes
+   ===================================================================== */
+.uname.nn-admin { color: #ff3355 !important; text-shadow: 0 0 3px #ff2d55, 0 0 9px rgba(255, 45, 85, .8), 0 0 16px rgba(255, 45, 85, .45); animation: nnAdmin 2.4s ease-in-out infinite; }
+.uname.nn-h { color: #4fb8ff !important; text-shadow: 0 0 3px #2fa8ff, 0 0 9px rgba(47, 168, 255, .75), 0 0 15px rgba(47, 168, 255, .4); }
+.uname.nn-f { color: #ff6fd2 !important; text-shadow: 0 0 3px #ff4fd8, 0 0 9px rgba(255, 79, 216, .75), 0 0 15px rgba(255, 79, 216, .4); }
+@keyframes nnAdmin { 0%, 100% { text-shadow: 0 0 3px #ff2d55, 0 0 9px rgba(255, 45, 85, .8), 0 0 16px rgba(255, 45, 85, .45); } 50% { text-shadow: 0 0 4px #ff2d55, 0 0 14px rgba(255, 45, 85, 1), 0 0 24px rgba(255, 45, 85, .6); } }
+.avatar.av-nn-admin { box-shadow: 0 0 0 2px #ff2d55, 0 0 10px rgba(255, 45, 85, .8), 0 0 18px rgba(255, 45, 85, .4); }
+.avatar.av-nn-h { box-shadow: 0 0 0 2px #2fa8ff, 0 0 10px rgba(47, 168, 255, .7); }
+.avatar.av-nn-f { box-shadow: 0 0 0 2px #ff4fd8, 0 0 10px rgba(255, 79, 216, .7); }
+/* La photo garde son halo néon dans les listes, même avec les autres animations */
+#userList .avatar.av-nn-admin, #messages .avatar.av-nn-admin { animation: avAdmin 2.4s ease-in-out infinite; }
+@keyframes avAdmin { 50% { box-shadow: 0 0 0 2px #ff2d55, 0 0 16px rgba(255, 45, 85, 1), 0 0 26px rgba(255, 45, 85, .55); } }
+#messages > .msg:nth-last-child(-n+8) > .avatar.av-nn-h { animation: none; }
+#messages > .msg:nth-last-child(-n+8) > .avatar.av-nn-f { animation: none; }
+:root[data-theme="light"] .uname.nn-h { color: #0a7fd6 !important; }
+:root[data-theme="light"] .uname.nn-f { color: #d6239f !important; }
+:root[data-theme="light"] .uname.nn-admin { color: #e0102f !important; }
+@media (prefers-reduced-motion: reduce) { .uname.nn-admin, .avatar.av-nn-admin { animation: none !important; } }

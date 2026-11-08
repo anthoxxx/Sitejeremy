@@ -198,8 +198,15 @@ window.LC = {
   },
   time(ts) { return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); },
   date(ts) { return ts ? new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
+  // Néon de chaque personne sur tout le site : rouge = administrateurs, bleu = hommes, rose = femmes
+  neonOf(u) {
+    if (!u || u.role === 'moderation' || u.role === 'bot') return '';
+    if (u.role === 'admin' || u.role === 'superadmin') return 'admin';
+    return u.gender === 'h' ? 'h' : u.gender === 'f' ? 'f' : '';
+  },
   avatar(u, big) {
-    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
+    const nn = LC.neonOf(u);
+    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (nn ? ' av-nn-' + nn : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
     if (u.avatar) a.append(LC.el('img', { src: u.avatar, alt: '', loading: 'lazy' }));
     else a.append((u.username || '?')[0].toUpperCase());
     if (u.validated) a.append(LC.el('span', { class: 'v-tick', title: 'Accepté : voix et caméra validées' }, '✓'));
@@ -216,7 +223,8 @@ window.LC = {
   // Pseudo avec sa couleur et son effet
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
-    const n = LC.el('span', { class: 'uname' + fx + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+    const nn = fx ? '' : LC.neonOf(u);
+    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
     if (!u.isBirthday) return n;
     return LC.el('span', { class: 'uname-wrap' }, n, LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂'));
   },
