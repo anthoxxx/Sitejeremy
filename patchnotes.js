@@ -262,4 +262,19 @@ module.exports = [
       'Le mode invité : il faut maintenant créer un compte (gratuit, en quelques secondes)',
     ],
   },
+  {
+    id: 19,
+    date: '2026-11-10',
+    title: "L'Île du Paradise 🏝️",
+    added: [
+      "L'Île du Paradise : une île animée où chaque membre est un petit personnage avec sa photo (bouton 🏝️ en haut)",
+      'On se promène en touchant le sol (ou avec les flèches du clavier) et on voit les autres bouger en direct',
+      'Des bulles de discussion au-dessus des têtes et des petits gestes 👋 ❤️ 😂 🎉 🔥 😍',
+      "Chaque salon est un lieu de l'île : le bar tiki du Général, le phare du Patch note, la villa VIP, l'arc-en-ciel, les kiosques dorés des jeux…",
+      "On s'approche d'un lieu et on touche « Entrer » pour rejoindre le salon",
+      "Le jour et la nuit suivent l'heure de Paris (le phare s'allume la nuit), avec des feuilles en automne et de la neige en hiver",
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

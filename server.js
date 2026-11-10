@@ -2495,6 +2495,7 @@ const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSe
 const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const MotDor = require('./motdor')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Island = require('./island')({ io, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2959,6 +2960,7 @@ io.on('connection', socket => {
   Sommet.onConnection(socket, uid, current);
   Paroles.onConnection(socket, uid, current);
   MotDor.onConnection(socket, uid, current);
+  Island.onConnection(socket, uid, current);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {
