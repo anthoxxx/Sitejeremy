@@ -105,7 +105,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -415,6 +415,8 @@ app.post('/api/admin/users/:id/vpn-ok', auth, requireRole('admin'), (req, res) =
 // Il faut créer un « identifiant OAuth » sur console.cloud.google.com et mettre sur l'hébergeur :
 // GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET (jamais dans le code). Adresse de retour : https://TON-DOMAINE/auth/google/callback
 // =====================================================================
+// Adresse e-mail facultative : '' si vide, null si invalide
+const cleanEmail = v => { const e = String(v || '').trim().toLowerCase().slice(0, 120); if (!e) return ''; return /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/.test(e) ? e : null; };
 const googleOn = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 const googleRedirect = req => (process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`) + '/auth/google/callback';
 const googlePending = new Map(); // jeton -> { sub, email, name, at } en attente du choix du pseudo
@@ -450,7 +452,7 @@ app.get('/auth/google/callback', async (req, res) => {
     // Quelqu'un déjà connecté veut relier son compte à Google
     const cur = userFromToken(req.cookies[COOKIE]);
     if (cur && !cur.is_guest) {
-      db.prepare('UPDATE users SET google_id=?, google_email=? WHERE id=?').run(sub, email, cur.id);
+      db.prepare("UPDATE users SET google_id=?, google_email=?, email=CASE WHEN email='' THEN lower(?) ELSE email END WHERE id=?").run(sub, email, email, cur.id);
       log(cur, 'google', 'Compte relié à Google');
       return res.redirect('/chat?google=linked');
     }
@@ -486,6 +488,7 @@ app.post('/api/register/google', vpnGuard, (req, res) => {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     username, bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10), req.body.gender, parseInt(req.body.age, 10),
     clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '', pend.sub, pend.email);
+  if (pend.email) db.prepare('UPDATE users SET email=lower(?) WHERE id=?').run(pend.email, info.lastInsertRowid);
   googlePending.delete(req.cookies.lc_gpend);
   res.clearCookie('lc_gpend');
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
@@ -504,6 +507,8 @@ app.post('/api/register', vpnGuard, (req, res) => {
   if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   const password = String(req.body.password || '');
+  const email = cleanEmail(req.body.email);
+  if (email === null) return res.status(400).json({ error: 'Adresse e-mail invalide (exemple : prenom@gmail.com)' });
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
   if (isPanelName(username)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
   if (password.length < 6) return res.status(400).json({ error: 'Mot de passe : 6 caractères minimum' });
@@ -526,6 +531,7 @@ app.post('/api/register', vpnGuard, (req, res) => {
     username, bcrypt.hashSync(password, 10), req.body.gender, parseInt(req.body.age, 10),
     clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '');
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
+  if (email) db.prepare('UPDATE users SET email=? WHERE id=?').run(email, info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
   shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
@@ -617,6 +623,11 @@ app.put('/api/me', auth, (req, res) => {
     bd = parseInt(b.birthDay, 10) || 0; bm = parseInt(b.birthMonth, 10) || 0;
     const maxDay = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][bm - 1] || 0;
     if (!bd || !bm || bd > maxDay) { bd = 0; bm = 0; }
+  }
+  if (b.email !== undefined) {
+    const em = cleanEmail(b.email);
+    if (em === null) return res.status(400).json({ error: 'Adresse e-mail invalide (exemple : prenom@gmail.com)' });
+    db.prepare('UPDATE users SET email=? WHERE id=?').run(em, u.id);
   }
   db.prepare('UPDATE users SET birth_day=?, birth_month=?, show_birthday=? WHERE id=?').run(bd, bm,
     b.showBirthday !== undefined ? (b.showBirthday ? 1 : 0) : u.show_birthday, u.id);
@@ -2322,7 +2333,7 @@ const BACKUP_DIR = path.join(dataDir, 'backups');
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const USER_FIELDS = ['username', 'password_hash', 'gender', 'age', 'city', 'bio', 'color', 'role', 'created_at', 'last_seen', 'banned', 'ban_reason',
   'banner_style', 'accent', 'name_effect', 'avatar_frame', 'status_emoji', 'status_text', 'interests', 'games', 'socials', 'show_age', 'show_city',
-  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner', 'mod_level', 'ban_until', 'ban_kind', 'google_id', 'google_email'];
+  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner', 'mod_level', 'ban_until', 'ban_kind', 'google_id', 'google_email', 'email'];
 function exportData() {
   const users = db.prepare('SELECT * FROM users WHERE is_guest=0 ORDER BY id').all().map(u => {
     const o = {};
@@ -2332,6 +2343,31 @@ function exportData() {
   const settings = getSettings();
   return { app: 'The Paradise', version: 1, exportedAt: new Date().toISOString(), counts: { users: users.length }, users, settings };
 }
+// ---------- 📧 Suivi des adresses e-mail (super-admin seulement) ----------
+admin.get('/emails', requireRole('superadmin'), (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase().slice(0, 60);
+  const rows = db.prepare(`SELECT id, username, email, google_id, role, banned, verified, created_at, last_seen, is_guest FROM users
+    WHERE is_guest=0 ${q ? "AND (lower(username) LIKE ? OR email LIKE ?)" : ''} ORDER BY created_at DESC LIMIT 1000`).all(...(q ? ['%' + q + '%', '%' + q + '%'] : []));
+  const dup = new Map();
+  for (const r of db.prepare("SELECT email, COUNT(*) c FROM users WHERE email<>'' GROUP BY email HAVING c>1").all()) dup.set(r.email, r.c);
+  const total = db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c;
+  const withEmail = db.prepare("SELECT COUNT(*) c FROM users WHERE is_guest=0 AND email<>''").get().c;
+  const google = db.prepare("SELECT COUNT(*) c FROM users WHERE is_guest=0 AND google_id<>''").get().c;
+  log(req.user, 'emails', `📧 Consultation de la liste des adresses e-mail${q ? ` (recherche « ${q} »)` : ''}`);
+  res.json({ total, withEmail, google, rows: rows.map(r => ({ id: r.id, username: r.username, email: r.email, google: !!r.google_id, role: r.role, banned: !!r.banned,
+    createdAt: r.created_at, lastSeen: r.last_seen, dup: r.email ? dup.get(r.email) || 0 : 0, online: online.has(r.id) })) });
+});
+admin.get('/emails.csv', requireRole('superadmin'), (req, res) => {
+  const rows = db.prepare("SELECT username, email, google_id, role, created_at, last_seen FROM users WHERE is_guest=0 AND email<>'' ORDER BY created_at DESC").all();
+  const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const d = t => (t ? new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) : '');
+  const csv = '\ufeff' + ['Pseudo;E-mail;Google;Rôle;Inscription;Dernière visite', ...rows.map(r => [r.username, r.email, r.google_id ? 'oui' : 'non', r.role, d(r.created_at), d(r.last_seen)].map(esc).join(';'))].join('\r\n');
+  log(req.user, 'emails', `📧 Export des adresses e-mail (${rows.length})`);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="the-paradise-emails.csv"');
+  res.send(csv);
+});
+
 admin.get('/backup/info', requireRole('superadmin'), (req, res) => {
   const counts = {};
   for (const r of db.prepare("SELECT role, COUNT(*) c FROM users WHERE is_guest=0 GROUP BY role").all()) counts[r.role] = r.c;

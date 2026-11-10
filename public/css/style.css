@@ -2126,3 +2126,13 @@ body { background:
 .or-sep { display: flex; align-items: center; gap: 10px; margin: 10px 0 14px; color: var(--muted); font-size: .8rem; }
 .or-sep::before, .or-sep::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .google-ok { padding: 10px 12px; border-radius: 12px; margin-bottom: 14px; background: rgba(51, 214, 166, .12); border: 1px solid rgba(51, 214, 166, .4); font-weight: 600; font-size: .9rem; }
+
+/* ---------- Admin : suivi des adresses e-mail ---------- */
+.email-list { overflow-x: auto; }
+.email-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.email-table th { text-align: left; color: var(--muted); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.email-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.email-table tr:hover td { background: rgba(255, 255, 255, .03); }
+.email-table tr.banned td { opacity: .55; }
+.email-role { color: var(--muted); }
+.email-dup { color: var(--gold); font-weight: 700; }

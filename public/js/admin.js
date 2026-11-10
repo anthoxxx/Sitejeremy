@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, settings, site, backups, logs };
+const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, settings, site, emails, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups', 'emails'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -411,6 +411,38 @@ async function settings() {
         tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked, mediaVerify: mediaBox.checked,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')),
     shieldPanel(shieldOnBox, vpnSel));
+}
+
+// ---------- 📧 Suivi des adresses e-mail (super-admin) ----------
+async function emails() {
+  const q = el('input', { class: 'input', placeholder: 'Chercher un pseudo ou une adresse…', style: 'max-width:320px' });
+  const list = el('div', { class: 'email-list' });
+  const stats = el('div', { class: 'kpis' });
+  const fmt = t => (t ? new Date(t).toLocaleDateString('fr-FR') : '—');
+  let timer;
+  const load = async () => {
+    const d = await api('/api/admin/emails?q=' + encodeURIComponent(q.value.trim()));
+    stats.replaceChildren(
+      el('div', { class: 'kpi' }, el('b', {}, d.total), el('span', {}, '👤 Membres')),
+      el('div', { class: 'kpi' }, el('b', {}, d.withEmail), el('span', {}, '📧 Avec une adresse')),
+      el('div', { class: 'kpi' }, el('b', {}, d.google), el('span', {}, '🔐 Inscrits avec Google')),
+      el('div', { class: 'kpi' }, el('b', {}, d.total ? Math.round(d.withEmail * 100 / d.total) + ' %' : '—'), el('span', {}, '📈 Taux d\'adresses')));
+    list.replaceChildren(...(d.rows.length ? [el('table', { class: 'email-table' },
+      el('thead', {}, el('tr', {}, ...['Pseudo', 'Adresse e-mail', 'Origine', 'Inscription', 'Dernière visite'].map(h => el('th', {}, h)))),
+      el('tbody', {}, ...d.rows.map(r => el('tr', { class: r.banned ? 'banned' : '' },
+        el('td', {}, r.online ? '🟢 ' : '', el('b', {}, r.username), r.role !== 'user' ? el('small', { class: 'email-role' }, ' ' + roleLabel(r.role)) : null, r.banned ? el('small', { class: 'email-role' }, ' ⛔ banni') : null),
+        el('td', {}, r.email ? el('span', {}, r.email, r.dup > 1 ? el('small', { class: 'email-dup', title: 'Cette adresse est utilisée par plusieurs comptes' }, ` ⚠️ ${r.dup} comptes`) : null) : el('span', { class: 'help' }, '— pas d\'adresse —')),
+        el('td', {}, r.google ? '🔐 Google' : r.email ? '✍️ Formulaire' : ''),
+        el('td', {}, fmt(r.createdAt)), el('td', {}, fmt(r.lastSeen))))))] : [el('p', { class: 'empty' }, 'Aucun membre trouvé')]));
+  };
+  q.oninput = () => { clearTimeout(timer); timer = setTimeout(() => load().catch(e => toast(e.message)), 250); };
+  page.replaceChildren(...header('📧 Adresses e-mail', 'Le suivi des adresses e-mail des membres inscrits. Réservé au super-admin : ces adresses sont privées, ne les partage avec personne.'),
+    el('div', { class: 'panel' }, stats,
+      el('div', { class: 'row', style: 'gap:8px;margin:14px 0;flex-wrap:wrap;align-items:center' }, q,
+        el('a', { class: 'btn btn-sm', href: '/api/admin/emails.csv', style: 'flex:none' }, '⬇️ Exporter (Excel / CSV)')),
+      el('p', { class: 'help' }, 'Les adresses viennent du formulaire d\'inscription (facultatif), du profil, ou du compte Google. ⚠️ = la même adresse est utilisée par plusieurs comptes (souvent la même personne).'),
+      list));
+  await load();
 }
 
 // ---------- Bouclier anti-bots ----------

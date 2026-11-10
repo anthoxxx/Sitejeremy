@@ -265,6 +265,9 @@ addColumn('users', 'vpn_ok', 'INTEGER NOT NULL DEFAULT 0'); // membre autorisé 
 // Connexion avec Google
 addColumn('users', 'google_id', "TEXT NOT NULL DEFAULT ''");
 addColumn('users', 'google_email', "TEXT NOT NULL DEFAULT ''");
+// Adresse e-mail (facultative à l'inscription, ou celle du compte Google) : visible seulement par le super-admin
+addColumn('users', 'email', "TEXT NOT NULL DEFAULT ''");
+db.prepare("UPDATE users SET email=lower(google_email) WHERE email='' AND google_email<>''").run();
 // Le mode invité est retiré : tout le monde doit s'inscrire
 if (!db.prepare("SELECT 1 FROM settings WHERE key='noGuests'").get()) {
   db.prepare("UPDATE settings SET value='0' WHERE key='guestsAllowed'").run();

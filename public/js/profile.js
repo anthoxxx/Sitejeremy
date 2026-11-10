@@ -232,6 +232,7 @@ function openMyProfile() {
     refresh();
   });
   const city = bind(el('input', { class: 'input', maxlength: 40, value: d.city || '' }), 'city');
+  const email = bind(el('input', { class: 'input', type: 'email', maxlength: 120, value: d.email || '', placeholder: 'prenom@gmail.com' }), 'email');
   const bioCount = el('small', { class: 'help' }, `${(d.bio || '').length}/500`);
   const bio = bind(el('textarea', { class: 'input', rows: 4, maxlength: 500, placeholder: 'Parle un peu de toi…' }, d.bio || ''), 'bio', v => { bioCount.textContent = `${v.length}/500`; return v; });
   const statusText = bind(el('input', { class: 'input', maxlength: 60, placeholder: 'Ex : En game sur Valorant', value: d.statusText || '' }), 'statusText');
@@ -240,6 +241,7 @@ function openMyProfile() {
     el('div', {}, f('📝 À propos de moi', bio), bioCount),
     el('div', { class: 'row', style: 'margin-top:14px' }, f('Âge', age), f('Je suis', gender)),
     f('Ville', city),
+    f('E-mail (privé : visible seulement par l\'administration du site)', email),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher mon âge aux autres'), bind(el('input', { type: 'checkbox', checked: d.showAge !== false }), 'showAge')),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher ma ville aux autres'), bind(el('input', { type: 'checkbox', checked: d.showCity !== false }), 'showCity')),
     f('🎂 Mon anniversaire', el('div', { class: 'row', style: 'gap:8px' },
@@ -291,7 +293,7 @@ function openMyProfile() {
             err.textContent = '';
             try {
               const { user } = await api('/api/me', { method: 'PUT', body: {
-                age: d.age, gender: d.gender, city: d.city, bio: d.bio, color: d.color, accent: d.accent,
+                age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
                 nameEffect: d.nameEffect, frame: d.frame, bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
