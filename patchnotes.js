@@ -277,4 +277,21 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 20,
+    date: '2026-11-10',
+    title: 'Les lieux virtuels de l\'Île 🪩🎬🏠',
+    added: [
+      'Le Paradise Club 🪩 : une boîte de nuit virtuelle avec piste de danse lumineuse, bar, coin salon et platines du DJ',
+      'Dans la boîte de nuit, chacun peut mettre une musique YouTube qui passe pour tout le monde en même temps (avec une file d\'attente)',
+      'Le Ciné Paradise 🎬 : un cinéma avec grand écran, rideaux et fauteuils pour regarder des films YouTube ensemble',
+      'Les Maisons 🏠 : chaque membre a sa maison virtuelle avec télé, canapé, cuisine et lit',
+      'Dans ta maison : tu choisis son nom, sa déco (6 styles) et qui peut entrer (tout le monde, tes amis ou personne)',
+      'Le propriétaire peut faire sortir quelqu\'un de sa maison, et reçoit une notification quand quelqu\'un lui rend visite',
+      'Des actions partout : danser 💃, boire un verre 🍹, mixer 🎧, s\'asseoir 🪑, manger du pop-corn 🍿, cuisiner 🍳, dormir 💤',
+      'La jauge d\'ambiance 🔥 : elle monte quand ça danse, parle et s\'amuse… et quand elle est pleine, c\'est l\'AMBIANCE DE FOLIE avec des confettis !',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

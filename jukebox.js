@@ -109,10 +109,10 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
     }
     for (const k in node) collect(node[k], out);
   }
-  async function ytSearch(q) {
+  async function ytSearch(q, maxDur = 15 * 60) {
     const key = q.toLowerCase();
     const hit = cache.get(key);
-    if (hit && now() - hit.at < 6 * 3600 * 1000) return hit.results;
+    if (hit && now() - hit.at < 6 * 3600 * 1000) return hit.results.filter(r => r.duration <= maxDur);
     const res = await fetch('https://www.youtube.com/results?hl=fr&gl=FR&search_query=' + encodeURIComponent(q), {
       headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36', 'accept-language': 'fr-FR,fr;q=0.9' },
       signal: AbortSignal.timeout(8000),
@@ -123,10 +123,10 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
     if (!m) throw new Error('Résultats illisibles');
     const out = [];
     collect(JSON.parse(m[1]), out);
-    const results = out.filter(r => r.duration > 0 && r.duration <= 15 * 60);
+    const results = out.filter(r => r.duration > 0);
     cache.set(key, { at: now(), results });
     if (cache.size > 300) cache.delete(cache.keys().next().value);
-    return results;
+    return results.filter(r => r.duration <= maxDur);
   }
   // Certaines vidéos (ex. KaraFun) interdisent la lecture sur un autre site : on les écarte.
   // L'oEmbed de YouTube répond 401/403 pour une vidéo dont l'intégration est désactivée.
@@ -144,8 +144,8 @@ module.exports = function setupJukebox({ app, io, auth, isStaff, tooMany, log, g
     return ok;
   }
   const BLOCKED_CHANNELS = /karafun/i;
-  async function playableSearch(q) {
-    const res = (await ytSearch(q)).filter(r => !BLOCKED_CHANNELS.test(r.channel || '') && !BLOCKED_CHANNELS.test(r.title || ''));
+  async function playableSearch(q, maxDur) {
+    const res = (await ytSearch(q, maxDur)).filter(r => !BLOCKED_CHANNELS.test(r.channel || '') && !BLOCKED_CHANNELS.test(r.title || ''));
     const checks = await Promise.all(res.map(r => isEmbeddable(r.videoId)));
     return res.filter((r, i) => checks[i]);
   }

@@ -41,6 +41,7 @@ function notifAction(n) {
   if (n.data?.slug && ['room_invite', 'mention', 'game', 'patch', 'room_visit', 'room_unban'].includes(n.type)) return () => joinRoom(n.data.slug);
   if (n.type === 'pm' && n.data?.userId) return () => { const c = state.convs.get(n.data.userId); openPm(c ? c.user : { id: n.data.userId, username: (n.title.split(' ')[0] || '') }); };
   if (['friend', 'friend_request', 'friend_online'].includes(n.type) && n.data?.userId) return () => openProfile(n.data.userId);
+  if (n.type === 'house_visit' && n.data?.ownerId) return () => Island.openHouse(n.data.ownerId);
   if (n.type === 'emote') return () => { renderEmojiPanel('paradise'); $('emojiPanel').classList.remove('hidden'); };
   if (n.type === 'new_member') return () => (n.data?.userId ? openProfile(n.data.userId) : (location.href = '/admin'));
   if (n.type === 'role' && isStaff()) return () => { location.href = '/admin'; };

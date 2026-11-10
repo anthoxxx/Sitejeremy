@@ -2495,7 +2495,7 @@ const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSe
 const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const MotDor = require('./motdor')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Island = require('./island')({ io, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id) });
+const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
