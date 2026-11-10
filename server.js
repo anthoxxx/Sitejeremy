@@ -104,7 +104,8 @@ function publicUser(u) {
 // Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
-    birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '' };
+    birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
+    googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -409,6 +410,93 @@ app.post('/api/admin/users/:id/vpn-ok', auth, requireRole('admin'), (req, res) =
   res.json({ ok: true });
 });
 
+// =====================================================================
+// 🔐 CONNEXION AVEC GOOGLE (OAuth 2.0)
+// Il faut créer un « identifiant OAuth » sur console.cloud.google.com et mettre sur l'hébergeur :
+// GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET (jamais dans le code). Adresse de retour : https://TON-DOMAINE/auth/google/callback
+// =====================================================================
+const googleOn = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+const googleRedirect = req => (process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`) + '/auth/google/callback';
+const googlePending = new Map(); // jeton -> { sub, email, name, at } en attente du choix du pseudo
+app.get('/auth/google', (req, res) => {
+  if (!googleOn()) return res.redirect('/?google=off');
+  const state = crypto.randomBytes(16).toString('hex');
+  res.cookie('lc_gstate', state, { httpOnly: true, sameSite: 'lax', maxAge: 10 * 60000 });
+  const q = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: googleRedirect(req), response_type: 'code', scope: 'openid email profile', state, prompt: 'select_account' });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?' + q);
+});
+app.get('/auth/google/callback', async (req, res) => {
+  try {
+    if (!googleOn()) return res.redirect('/?google=off');
+    if (!req.query.code || !req.query.state || req.query.state !== req.cookies.lc_gstate) return res.redirect('/?google=error');
+    res.clearCookie('lc_gstate');
+    const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code: String(req.query.code), client_id: process.env.GOOGLE_CLIENT_ID, client_secret: process.env.GOOGLE_CLIENT_SECRET, redirect_uri: googleRedirect(req), grant_type: 'authorization_code' }),
+      signal: AbortSignal.timeout(10000) });
+    const tok = await r.json();
+    if (!tok.id_token) return res.redirect('/?google=error');
+    // Le jeton vient directement de Google (échange sécurisé avec notre secret) : on lit son contenu
+    const info = JSON.parse(Buffer.from(tok.id_token.split('.')[1], 'base64url').toString('utf8'));
+    if (info.aud !== process.env.GOOGLE_CLIENT_ID || !/accounts\.google\.com$/.test(info.iss || '') || !info.sub || info.exp * 1000 < now()) return res.redirect('/?google=error');
+    const sub = String(info.sub), email = info.email_verified ? String(info.email || '') : '';
+    // Déjà un compte relié à ce Google : on le connecte
+    const known = db.prepare('SELECT * FROM users WHERE google_id=?').get(sub);
+    if (known) {
+      if (banBlock(known)) return res.redirect('/?google=banned');
+      createSession(res, known.id);
+      log(known, 'login', 'Connexion avec Google', { ip: req.ip });
+      return res.redirect('/chat');
+    }
+    // Quelqu'un déjà connecté veut relier son compte à Google
+    const cur = userFromToken(req.cookies[COOKIE]);
+    if (cur && !cur.is_guest) {
+      db.prepare('UPDATE users SET google_id=?, google_email=? WHERE id=?').run(sub, email, cur.id);
+      log(cur, 'google', 'Compte relié à Google');
+      return res.redirect('/chat?google=linked');
+    }
+    // Nouveau : il reste à choisir son pseudo, son âge et son genre
+    const t = crypto.randomBytes(24).toString('hex');
+    googlePending.set(t, { sub, email, name: String(info.given_name || info.name || ''), at: now() });
+    for (const [k, v] of googlePending) if (now() - v.at > 30 * 60000) googlePending.delete(k);
+    res.cookie('lc_gpend', t, { httpOnly: true, sameSite: 'lax', maxAge: 30 * 60000 });
+    const suggest = String(info.given_name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20);
+    return res.redirect('/?google=finish&name=' + encodeURIComponent(suggest));
+  } catch (e) { console.error('Google', e.message); return res.redirect('/?google=error'); }
+});
+// Fin de l'inscription avec Google
+app.post('/api/register/google', vpnGuard, (req, res) => {
+  const s = getSettings();
+  const pend = googlePending.get(req.cookies.lc_gpend);
+  if (!pend) return res.status(400).json({ error: 'La connexion Google a expiré : clique à nouveau sur « Continuer avec Google »' });
+  if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
+  { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
+  if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
+  if (db.prepare('SELECT 1 FROM users WHERE google_id=?').get(pend.sub)) return res.status(409).json({ error: 'Ce compte Google a déjà un compte sur le site : connecte-toi avec Google' });
+  const username = clean(req.body.username, 20);
+  if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
+  if (isPanelName(username)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
+  const err = validateProfile(req.body);
+  if (err) return res.status(400).json({ error: err });
+  const existing = getUserByName(username);
+  if (existing && (banBlock(existing) || !(existing.is_guest && !online.has(existing.id)))) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
+  if (existing) deleteUserRecord(existing);
+  const isFirst = db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c === 0;
+  const role = isFirst ? 'superadmin' : 'user';
+  const info = db.prepare(`INSERT INTO users (username,password_hash,gender,age,city,color,role,created_at,last_seen,device_id,signup_ip,google_id,google_email)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    username, bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10), req.body.gender, parseInt(req.body.age, 10),
+    clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '', pend.sub, pend.email);
+  googlePending.delete(req.cookies.lc_gpend);
+  res.clearCookie('lc_gpend');
+  if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
+  createSession(res, info.lastInsertRowid);
+  shieldAfterSignup(req, info.lastInsertRowid);
+  for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre (Google) : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
+  log(getUser(info.lastInsertRowid), 'register', `Inscription avec Google (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
+  res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
+});
+app.get('/api/register/google/pending', (req, res) => res.json({ pending: googlePending.has(req.cookies.lc_gpend) }));
+
 app.post('/api/register', vpnGuard, (req, res) => {
   const s = getSettings();
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
@@ -469,7 +557,7 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/guest', vpnGuard, (req, res) => {
   const s = getSettings();
-  if (s.guestsAllowed !== '1') return res.status(403).json({ error: "L'accès invité est désactivé, inscris-toi !" });
+  return res.status(403).json({ error: 'Le mode invité n\'existe plus : crée ton compte en quelques secondes (ou continue avec Google) !' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
   if (tooMany('guest:' + req.ip, 20)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
@@ -683,7 +771,8 @@ app.get('/api/stats', (req, res) => {
     online: [...online.values()].filter(e => !e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
-    guestsAllowed: getSettings().guestsAllowed === '1',
+    guestsAllowed: false,
+    googleLogin: googleOn(),
     registrationOpen: getSettings().registrationOpen === '1',
     minAge: parseInt(getSettings().minAge, 10) || 18,
   });
@@ -2123,7 +2212,6 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.modBotEnabled !== undefined) setSetting('modBotEnabled', b.modBotEnabled ? '1' : '0');
   if (b.modBotWarnings !== undefined) setSetting('modBotWarnings', Math.min(10, Math.max(1, parseInt(b.modBotWarnings, 10) || 3)));
   if (b.modBotMuteMinutes !== undefined) setSetting('modBotMuteMinutes', Math.min(1440, Math.max(1, parseInt(b.modBotMuteMinutes, 10) || 5)));
-  if (b.guestsAllowed !== undefined) setSetting('guestsAllowed', b.guestsAllowed ? '1' : '0');
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
@@ -2234,7 +2322,7 @@ const BACKUP_DIR = path.join(dataDir, 'backups');
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const USER_FIELDS = ['username', 'password_hash', 'gender', 'age', 'city', 'bio', 'color', 'role', 'created_at', 'last_seen', 'banned', 'ban_reason',
   'banner_style', 'accent', 'name_effect', 'avatar_frame', 'status_emoji', 'status_text', 'interests', 'games', 'socials', 'show_age', 'show_city',
-  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner', 'mod_level', 'ban_until', 'ban_kind'];
+  'birth_day', 'birth_month', 'show_birthday', 'device_id', 'signup_ip', 'avatar', 'banner', 'mod_level', 'ban_until', 'ban_kind', 'google_id', 'google_email'];
 function exportData() {
   const users = db.prepare('SELECT * FROM users WHERE is_guest=0 ORDER BY id').all().map(u => {
     const o = {};

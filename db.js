@@ -262,6 +262,16 @@ db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (ip TEXT PRIMARY KEY, until INTE
 // Anti-VPN : résultat des vérifications d'adresses IP (gardé 24 h)
 db.exec(`CREATE TABLE IF NOT EXISTS ip_checks (ip TEXT PRIMARY KEY, vpn INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '', isp TEXT NOT NULL DEFAULT '', checked_at INTEGER NOT NULL DEFAULT 0)`);
 addColumn('users', 'vpn_ok', 'INTEGER NOT NULL DEFAULT 0'); // membre autorisé à utiliser un VPN
+// Connexion avec Google
+addColumn('users', 'google_id', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'google_email', "TEXT NOT NULL DEFAULT ''");
+// Le mode invité est retiré : tout le monde doit s'inscrire
+if (!db.prepare("SELECT 1 FROM settings WHERE key='noGuests'").get()) {
+  db.prepare("UPDATE settings SET value='0' WHERE key='guestsAllowed'").run();
+  // Le texte d'accueil ne parle plus de « sans inscription » (s'il n'a pas été personnalisé)
+  db.prepare("UPDATE settings SET value=? WHERE key='heroText' AND value LIKE '%avec ou sans inscription%'").run('Le chat gratuit et en temps réel : crée ton compte gratuit en quelques secondes (ou avec Google) et fais de nouvelles rencontres partout en France.');
+  db.prepare("INSERT INTO settings (key, value) VALUES ('noGuests', '1')").run();
+}
 // Amis : une demande (pending) puis acceptée (accepted). from_id = celui qui a demandé
 db.exec(`CREATE TABLE IF NOT EXISTS friends (
   from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -407,7 +417,7 @@ const defaults = {
   antiVpn: 'block',
   announcement: '',
   bannedWords: '',
-  guestsAllowed: '1',
+  guestsAllowed: '0',
   registrationOpen: '1',
   minAge: '18',
   voiceEnabled: '1',
@@ -431,7 +441,7 @@ const defaults = {
   siteName: 'The Paradise',
   siteDomain: 'theparadise.fr',
   heroTitle: 'Discute, rencontre, *brille* sur The Paradise.',
-  heroText: 'Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.',
+  heroText: 'Le chat gratuit et en temps réel : crée ton compte gratuit en quelques secondes (ou avec Google) et fais de nouvelles rencontres partout en France.',
   footerText: 'Fait avec 💜 pour discuter librement',
   colorViolet: '#8b6cff',
   colorRose: '#ff5fa2',

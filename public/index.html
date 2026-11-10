@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d0a1a">
-  <title>The Paradise — Chat gratuit sans inscription</title>
-  <meta name="description" content="The Paradise : le chat gratuit en temps réel. Salons de discussion, messages privés, rencontres et amitié, avec ou sans inscription.">
+  <title>The Paradise — Chat gratuit en temps réel</title>
+  <meta name="description" content="The Paradise : le chat gratuit en temps réel. Salons de discussion, messages privés, rencontres et amitié. Inscription gratuite en quelques secondes, ou avec Google.">
   <link rel="icon" href="/favicon.png?v=3" type="image/png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
   <meta property="og:image" content="/img/logo.png">
@@ -31,7 +31,7 @@
       <div class="season-greet hidden" data-season-greeting></div>
       <div class="live"><span class="dot"></span><span id="onlineCount">…</span> <span id="onlineLabel">personnes connectées</span></div>
       <h1 data-site-rich="heroTitle">Discute, rencontre, <em>brille</em> sur The Paradise.</h1>
-      <p class="lead" data-site="heroText">Le chat gratuit et en temps réel : entre dans un salon en quelques secondes, avec ou sans inscription, et fais de nouvelles rencontres partout en France.</p>
+      <p class="lead" data-site="heroText">Le chat gratuit et en temps réel : crée ton compte gratuit en quelques secondes (ou avec Google) et fais de nouvelles rencontres partout en France.</p>
       <div class="stats">
         <div><b id="statMembers">–</b><span>membres</span></div>
         <div><b id="statRooms">–</b><span>salons</span></div>
@@ -43,31 +43,36 @@
     <div class="card exit-card hidden" id="exitCard"></div>
     <div class="card" id="authCard">
       <div class="tabs">
-        <button data-tab="guest" class="active">Invité</button>
+        <button data-tab="register" class="active">Inscription</button>
         <button data-tab="login">Connexion</button>
-        <button data-tab="register">Inscription</button>
       </div>
 
-      <form id="form-guest" data-endpoint="/api/guest">
-        <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required placeholder="Ton pseudo" autocomplete="nickname"></div>
+      <!-- Fin d'inscription après « Continuer avec Google » -->
+      <form id="form-google" data-endpoint="/api/register/google" class="hidden">
+        <div class="google-ok">✅ Compte Google reconnu ! Il ne reste qu'à choisir ton pseudo.</div>
+        <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required autocomplete="nickname"></div>
         <div class="row">
-          <div class="field"><label>Âge</label><input class="input" name="age" type="number" min="18" max="99" required placeholder="25"></div>
-          <div class="field"><label>Ville <span style="opacity:.6">(facultatif)</span></label><input class="input" name="city" maxlength="40" placeholder="Paris"></div>
+          <div class="field"><label>Âge</label><input class="input" name="age" type="number" min="18" max="99" required></div>
+          <div class="field"><label>Ville <span style="opacity:.6">(facultatif)</span></label><input class="input" name="city" maxlength="40"></div>
         </div>
         <div class="field"><label>Je suis</label><div class="gender-pick" data-name="gender"></div></div>
         <div class="error"></div>
-        <button class="btn btn-primary" style="width:100%">Entrer dans le chat ✨</button>
-        <small class="note">Sans inscription. En entrant, tu confirmes avoir l'âge minimum et accepter <a href="/reglement" target="_blank">le règlement</a>.</small>
+        <button class="btn btn-primary" style="width:100%">Terminer mon inscription ✨</button>
+        <small class="note">En t'inscrivant, tu confirmes avoir l'âge minimum et accepter <a href="/reglement" target="_blank">le règlement</a>.</small>
       </form>
 
       <form id="form-login" data-endpoint="/api/login" class="hidden">
+        <a class="btn google-btn hidden" href="/auth/google"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Continuer avec Google</a>
+        <div class="or-sep hidden"><span>ou</span></div>
         <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required autocomplete="username"></div>
         <div class="field"><label>Mot de passe</label><input class="input" name="password" type="password" required autocomplete="current-password"></div>
         <div class="error"></div>
         <button class="btn btn-primary" style="width:100%">Se connecter</button>
       </form>
 
-      <form id="form-register" data-endpoint="/api/register" class="hidden">
+      <form id="form-register" data-endpoint="/api/register">
+        <a class="btn google-btn hidden" href="/auth/google"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Continuer avec Google</a>
+        <div class="or-sep hidden"><span>ou</span></div>
         <div class="field"><label>Pseudo</label><input class="input" name="username" maxlength="20" required autocomplete="username"></div>
         <div class="field"><label>Mot de passe</label><input class="input" name="password" type="password" minlength="6" required autocomplete="new-password"></div>
         <div class="row">
@@ -153,6 +158,21 @@
       exited = true;
     }
   } catch (e) {}
+  // Retour de Google
+  try {
+    const q = new URLSearchParams(location.search), gs = q.get('google');
+    const showErr = t => { const e = document.querySelector('#form-register .error'); if (e) e.textContent = t; };
+    if (gs === 'finish') {
+      document.querySelectorAll('#authCard form').forEach(f => f.classList.add('hidden'));
+      document.querySelector('.tabs').classList.add('hidden');
+      const fg = document.getElementById('form-google'); fg.classList.remove('hidden');
+      fg.querySelector('[name=username]').value = q.get('name') || '';
+      exited = true;
+    } else if (gs === 'error') showErr('La connexion avec Google n\'a pas marché. Réessaie.');
+    else if (gs === 'off') showErr('La connexion avec Google n\'est pas encore activée sur le site.');
+    else if (gs === 'banned') showErr('Ce compte est sanctionné : tu ne peux pas te connecter.');
+    if (gs) history.replaceState(null, '', '/' + (gs === 'finish' ? '?google=finish' : ''));
+  } catch (e) {}
   // Déjà connecté ?
   if (!exited) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
   LC.api('/api/stats').then(s => {
@@ -161,8 +181,8 @@
     statMembers.textContent = s.members;
     statRooms.textContent = s.rooms;
     document.querySelectorAll('input[name=age]').forEach(i => i.min = s.minAge);
-    if (!s.guestsAllowed) document.querySelector('[data-tab=login]').click(), document.querySelector('[data-tab=guest]').classList.add('hidden');
-    if (!s.registrationOpen) document.querySelector('[data-tab=register]').classList.add('hidden');
+    if (!s.registrationOpen) { document.querySelector('[data-tab=register]').classList.add('hidden'); document.querySelector('[data-tab=login]').click(); }
+    if (s.googleLogin) document.querySelectorAll('.google-btn, .or-sep').forEach(e => e.classList.remove('hidden'));
   }).catch(() => {});
 </script>
 </body>

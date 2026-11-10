@@ -371,7 +371,6 @@ async function settings() {
   const modOn = el('input', { type: 'checkbox', checked: s.modBotEnabled !== '0' });
   const modWarn = el('input', { class: 'input', type: 'number', min: 1, max: 10, value: s.modBotWarnings || 3, style: 'max-width:100px' });
   const modMute = el('input', { class: 'input', type: 'number', min: 1, max: 1440, value: s.modBotMuteMinutes || 5, style: 'max-width:100px' });
-  const guests = el('input', { type: 'checkbox', checked: s.guestsAllowed === '1' });
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
   const voiceOn = el('input', { type: 'checkbox', checked: s.voiceEnabled === '1' });
@@ -394,7 +393,6 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '⚠️ Avertissements avant le muet (une insulte grave compte double)'), modWarn),
       el('div', { class: 'switch' }, el('span', {}, '🔇 Durée du premier muet en minutes (doublée à chaque récidive)'), modMute),
       el('div', { class: 'field' }, el('label', {}, '🚫 Mots interdits en plus (remplacés par des ***), séparés par des virgules'), words),
-      el('div', { class: 'switch' }, el('span', {}, '🎭 Autoriser la connexion en invité (sans inscription)'), guests),
       el('div', { class: 'switch' }, el('span', {}, '✍️ Inscriptions ouvertes'), reg),
       el('div', { class: 'switch' }, el('span', {}, '🔞 Âge minimum'), minAge),
       el('div', { class: 'switch' }, el('span', {}, '🎙️ Chat vocal activé'), voiceOn),
@@ -408,7 +406,7 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '⏳ Tout le monde peut créer un salon temporaire (même les invités)'), tempOn),
       el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
-        announcement: announcement.value, bannedWords: words.value, modBotEnabled: modOn.checked, modBotWarnings: modWarn.value, modBotMuteMinutes: modMute.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
+        announcement: announcement.value, bannedWords: words.value, modBotEnabled: modOn.checked, modBotWarnings: modWarn.value, modBotMuteMinutes: modMute.value, registrationOpen: reg.checked, minAge: minAge.value,
         shieldEnabled: shieldOnBox.checked, antiVpn: vpnSel.value, voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, micTimer: micTimer.checked, micStep: micStep.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
         tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked, mediaVerify: mediaBox.checked,
       } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')),

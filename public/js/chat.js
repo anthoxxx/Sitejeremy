@@ -638,6 +638,7 @@ function toggleUserMenu() {
     item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
+    state.me.googleOn && !state.me.googleLinked && !state.me.isGuest ? item('🔐', 'Relier mon compte Google', () => { location.href = '/auth/google'; }) : null,
     el('div', { class: 'um-sep' }),
     item('🚪', 'Se déconnecter', askLogout, 'danger'),
     el('div', { class: 'um-sig signature' }, '💻 Site créé par ', el('b', {}, 'Anthony'), ' · Développeur JS')].filter(Boolean));

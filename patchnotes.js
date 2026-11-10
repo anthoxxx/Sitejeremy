@@ -248,4 +248,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 18,
+    date: '2026-11-10',
+    title: 'Inscription avec Google 🔐',
+    added: [
+      'Bouton « Continuer avec Google » pour s\'inscrire et se connecter en un clic avec son compte Google',
+      'Les membres déjà inscrits peuvent relier leur compte Google (menu de mon compte → « Relier mon compte Google »)',
+    ],
+    changed: [],
+    removed: [
+      'Le mode invité : il faut maintenant créer un compte (gratuit, en quelques secondes)',
+    ],
+  },
 ];
