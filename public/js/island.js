@@ -38,7 +38,7 @@ const Island = (() => {
   const neonOf = p => (p.role === 'admin' || p.role === 'superadmin') ? '#ff2d55' : p.gender === 'f' ? '#ff4fd8' : p.gender === 'h' ? '#2fa8ff' : '#c3b8ff';
   let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
-  let lastKick = 0, root, cv, ctx, terrain, open = false, me = null, players = new Map(), cam = { x: 1200, y: 900 }, zoom = 1, target = null, keys = new Set(), lastSent = 0, raf = 0, last = 0;
+  let lowFx = false, lastKick = 0, root, cv, ctx, terrain, open = false, me = null, players = new Map(), cam = { x: 1200, y: 900 }, zoom = 1, target = null, keys = new Set(), lastSent = 0, raf = 0, last = 0;
   const imgs = new Map(), emotes = [], palms = [], deco = [], leaves = [];
   const img = src => { if (!src) return null; let i = imgs.get(src); if (!i) { i = new Image(); i.src = src; imgs.set(src, i); } return i.complete && i.naturalWidth ? i : null; };
 
@@ -365,6 +365,7 @@ const Island = (() => {
       { game: 'slot', icon: '🎰', label: 'Machine à sous', x: 270, y: 330, spread: 240 },
       { game: 'claw', icon: '🧸', label: 'Pince à peluches', x: 600, y: 345 },
       { game: 'darts', icon: '🎯', label: 'Fléchettes', x: 985, y: 385, spread: 60 },
+      { babyfoot: true, icon: '⚽', label: 'Babyfoot', x: 600, y: 618 },
       { action: 'play', icon: '🕹️', label: 'Jeux rétro', x: 200, y: 630, spread: 160 },
       { action: 'dance', icon: '💃', label: 'Danser' },
       { exit: true, icon: '🚪', label: 'Sortir', x: 600, y: 712 },
@@ -401,8 +402,9 @@ const Island = (() => {
     bath: { name: 'Baignoire', icon: '🛁', w: 190, h: 96, act: 'bath', spot: 'center' },
     arcade: { name: 'Borne d\'arcade', icon: '🕹️', w: 74, h: 120, act: 'play', spot: 'front' },
     painting: { name: 'Tableau', icon: '🖼️', w: 100, h: 76 },
+    babyfoot: { name: 'Babyfoot', icon: '⚽', w: 200, h: 112, act: 'babyfoot', spot: 'front' },
   };
-  const ACT_LABEL = { sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer' };
+  const ACT_LABEL = { sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot' };
   const DEFAULT_FURN = [
     { t: 'tv', x: 260, y: 140 }, { t: 'sofa', x: 280, y: 322 }, { t: 'rug', x: 540, y: 470 }, { t: 'kitchen', x: 870, y: 208 },
     { t: 'fridge', x: 1025, y: 153 }, { t: 'bed', x: 940, y: 555 }, { t: 'plant', x: 80, y: 262 }, { t: 'plant', x: 1060, y: 660 }, { t: 'lamp', x: 455, y: 200 },
@@ -418,7 +420,7 @@ const Island = (() => {
       if (!d?.act || seen.has(d.act + (d.act === 'sit' ? f.t : ''))) continue;
       seen.add(d.act + (d.act === 'sit' ? f.t : ''));
       const s = furnSpot(f);
-      out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined });
+      out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
     out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 550, y: 672 });
     return out;
@@ -449,10 +451,25 @@ const Island = (() => {
       case 'desk': ctx.fillStyle = '#9b6b3e'; ctx.fillRect(-w / 2, -h / 2, w, 46); ctx.fillRect(-w / 2 + 6, -h / 2 + 46, 10, 36); ctx.fillRect(w / 2 - 16, -h / 2 + 46, 10, 36); ctx.font = '30px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💻', 0, -h / 2 + 20); break;
       case 'bath': ctx.fillStyle = '#fff'; roundRect(-w / 2, -h / 2, w, h, 30); ctx.fill(); ctx.fillStyle = '#9fe0ff'; roundRect(-w / 2 + 12, -h / 2 + 12, w - 24, h - 24, 22); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(-60 + i * 24, -10 + Math.sin(t * 2 + i) * 6, 9, 0, 7); ctx.fill(); } break;
       case 'arcade': ctx.fillStyle = '#2a1248'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = RAINBOW[Math.floor(t * 3) % 6]; ctx.fillRect(-w / 2 + 8, -h / 2 + 12, w - 16, 40); ctx.fillStyle = '#ff2d55'; ctx.beginPath(); ctx.arc(-12, 10, 6, 0, 7); ctx.fill(); ctx.fillStyle = '#ffe600'; ctx.beginPath(); ctx.arc(12, 14, 6, 0, 7); ctx.fill(); break;
+      case 'babyfoot': drawBabyTable(0, 0, w, h, t); break;
       case 'painting': ctx.fillStyle = '#c9a24a'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = '#ffb0d0'; ctx.fillRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16); ctx.fillStyle = '#ff9500'; ctx.beginPath(); ctx.arc(14, -6, 12, 0, 7); ctx.fill(); ctx.fillStyle = '#2e9d57'; ctx.beginPath(); ctx.moveTo(-w / 2 + 8, h / 2 - 8); ctx.lineTo(-10, -4); ctx.lineTo(w / 2 - 8, h / 2 - 8); ctx.fill(); break;
     }
     ctx.restore();
     if (f.t === 'tv') drawScreen(t);
+  }
+  // Une table de babyfoot vue de dessus (dans l'arcade et dans les maisons)
+  function drawBabyTable(x, y, w, h, t) {
+    ctx.fillStyle = '#5a3a1c'; roundRect(x - w / 2, y - h / 2, w, h, 10); ctx.fill();
+    ctx.fillStyle = '#2e9d57'; ctx.fillRect(x - w / 2 + 12, y - h / 2 + 10, w - 24, h - 20);
+    ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y - h / 2 + 10); ctx.lineTo(x, y + h / 2 - 10); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const rx = x - w / 2 + 22 + i * (w - 44) / 7;
+      ctx.fillStyle = '#c0c6cc'; ctx.fillRect(rx - 1.5, y - h / 2 - 6, 3, h + 12);
+      ctx.fillStyle = [0, 1, 3, 5].includes(i) ? '#ff2d55' : '#2fa8ff';
+      const n = [1, 2, 3, 4, 4, 3, 2, 1][i];
+      for (let k = 0; k < n; k++) ctx.fillRect(rx - 4, y - h / 2 + 14 + (k + .5) * (h - 28) / n - 5 + Math.sin(t * 2 + i) * 3, 8, 10);
+    }
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + Math.sin(t * 1.3) * 40, y + Math.cos(t * 1.7) * 20, 4, 0, 7); ctx.fill();
   }
   function drawFlame(x, y, s, t) {
     ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -581,6 +598,9 @@ const Island = (() => {
     (bd?.darts || []).forEach((d, i) => ctx.fillText(`${i + 1}. ${d.username.slice(0, 11)} · ${d.score}`, 800, 88 + i * 22));
     if (!bd?.darts?.length) { ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillText('À toi de jouer !', 800, 110); }
     ctx.fillStyle = '#ff4fd8'; ctx.fillText(`🎰 Jackpots : ${bd?.jackpots || 0}`, 800, 206); ctx.fillStyle = '#38dce6'; ctx.fillText(`🧸 Peluches : ${bd?.prizes || 0}`, 800, 226);
+    drawBabyTable(600, 528, 220, 120, t);
+    const bfs = window.Babyfoot?.state('arcade');
+    if (bfs && bfs.phase !== 'lobby') neonText(`🔴 ${bfs.score.red} – ${bfs.score.blue} 🔵`, 600, 450, '#ffffff', 20);
     // bornes rétro
     for (const x of [100, 190, 280]) { ctx.fillStyle = '#2a1248'; ctx.fillRect(x - 34, 560, 68, 110); ctx.fillStyle = RAINBOW[(x / 90 + Math.floor(t * 3)) % 6 | 0]; ctx.fillRect(x - 26, 572, 52, 36); ctx.fillStyle = '#ff2d55'; ctx.beginPath(); ctx.arc(x - 10, 630, 6, 0, 7); ctx.fill(); }
     for (const x of [920, 1010, 1100]) { ctx.fillStyle = '#2a1248'; ctx.fillRect(x - 34, 560, 68, 110); ctx.fillStyle = RAINBOW[(x / 90 + Math.floor(t * 3) + 2) % 6 | 0]; ctx.fillRect(x - 26, 572, 52, 36); }
@@ -830,9 +850,15 @@ const Island = (() => {
   }
 
   // ---------- Boucle d'animation ----------
+  let lastDraw = 0;
   function frame(ts) {
     if (!open) return;
     raf = requestAnimationFrame(frame);
+    // quand une vidéo passe, on dessine 30 images par seconde (et sans effets lumineux sur téléphone) pour laisser YouTube respirer
+    const video = kind !== 'island' && !!media?.current;
+    lowFx = video || innerWidth < 700;
+    if (video && ts - lastDraw < 31) return;
+    lastDraw = ts;
     const t = ts / 1000, dt = Math.min(.05, (ts - last) / 1000 || 0); last = ts;
     const vw = cv.width / devicePixelRatio, vh = cv.height / devicePixelRatio;
     const sc = S();
@@ -933,6 +959,7 @@ const Island = (() => {
   // Arrivé à un endroit : on fait l'action
   function arrive(h, mine) {
     if (h.exit) return exitScene();
+    if (h.babyfoot) return window.Babyfoot?.open(scene);
     if (h.game) return socket.emit('inst_game', h.game);
     if (h.menu) return menuPanel();
     mine.action = h.action;
@@ -985,6 +1012,9 @@ const Island = (() => {
   let screenKey = '', screenPos = '';
   const elapsed = () => (media?.current ? Math.max(0, Math.floor((Date.now() + mediaOffset - media.current.startedAt) / 1000)) : 0);
   const ytSend = (func, args = []) => root?.querySelector('.isl-screen iframe')?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
+  // Le lecteur démarre toujours sans le son (les navigateurs l'autorisent partout, même sur téléphone),
+  // puis on remet le son dès qu'on a touché l'écran. On surveille le lecteur pour rester synchronisé.
+  let yt = { state: -1, time: 0, at: 0, muted: true, loadedAt: 0, errorSent: '' }, soundOk = false;
   function syncScreen() {
     const box = root.querySelector('.isl-screen');
     const c = kind !== 'island' ? media?.current : null;
@@ -992,23 +1022,49 @@ const Island = (() => {
     if (key === screenKey) return;
     screenKey = key; box.replaceChildren();
     if (!c) return box.classList.add('hidden');
-    const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${c.videoId}?autoplay=1&playsinline=1&rel=0&controls=${kind === 'cinema' ? 1 : 0}&enablejsapi=1&origin=${encodeURIComponent(location.origin)}&start=${elapsed()}${muted ? '&mute=1' : ''}`, allow: 'autoplay; encrypted-media; fullscreen', allowfullscreen: true, title: c.title });
-    f.addEventListener('load', () => { try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 'isl' }), '*'); } catch (e) {} });
-    box.append(f); box.classList.remove('hidden'); screenPos = '';
+    yt = { state: -1, time: 0, at: 0, muted: true, loadedAt: Date.now(), errorSent: '' };
+    const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${c.videoId}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&controls=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}&start=${elapsed()}`, allow: 'autoplay; encrypted-media; fullscreen; picture-in-picture', allowfullscreen: true, title: c.title });
+    const hello = () => { try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: 'isl' }), '*'); } catch (e) {} };
+    f.addEventListener('load', () => { hello(); setTimeout(hello, 800); });
+    const btn = el('button', { type: 'button', class: 'isl-unmute' + (muted ? ' hidden' : ''), onclick: e => { e.stopPropagation(); soundOk = true; muted = false; try { localStorage.setItem('islMute', '0'); } catch (err) {} soundOn(); btn.classList.add('hidden'); renderUI(); } }, '🔊 Toucher pour le son');
+    box.append(f, btn); box.classList.remove('hidden'); screenPos = '';
   }
+  function soundOn() { ytSend('unMute'); ytSend('setVolume', [100]); ytSend('playVideo'); }
+  // Toutes les 3 secondes : on relance si ça bloque, on rattrape le retard, on remet le son
+  setInterval(() => {
+    if (!open || !media?.current || !screenKey) return;
+    const want = elapsed(), playing = yt.state === 1, since = Date.now() - yt.loadedAt;
+    if ((yt.state === -1 || yt.state === 5 || yt.state === 2 && kind !== 'cinema') && since > 3500) ytSend('playVideo');
+    if (playing && yt.at) { const cur = yt.time + (Date.now() - yt.at) / 1000; if (Math.abs(cur - want) > 6 && (!media.current.duration || want < media.current.duration - 3)) ytSend('seekTo', [want, true]); }
+    if (playing && soundOk && !muted && yt.muted) soundOn();
+    const b = root.querySelector('.isl-unmute'); if (b) b.classList.toggle('hidden', muted || (soundOk && !yt.muted));
+  }, 3000);
+  ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (open && !muted && screenKey && !soundOk) { soundOk = true; setTimeout(soundOn, 50); } }, true));
   function placeScreen() {
     const r = screenRect(), box = root.querySelector('.isl-screen');
     if (!r || box.classList.contains('hidden')) return;
     const pos = [view.ox + r.x * view.z, view.oy + r.y * view.z, r.w * view.z, r.h * view.z].map(Math.round).join(',');
     if (pos === screenPos) return;
-    screenPos = pos; const [l, tp, w, h] = pos.split(',');
-    Object.assign(box.style, { left: l + 'px', top: tp + 'px', width: w + 'px', height: h + 'px' });
+    const [l, tp, w, h] = pos.split(','), [, , ow, oh] = screenPos.split(',');
+    // déplacer l'écran sans le redessiner (plus fluide sur téléphone)
+    if (ow !== w || oh !== h) Object.assign(box.style, { left: '0px', top: '0px', width: w + 'px', height: h + 'px' });
+    box.style.transform = `translate3d(${l}px,${tp}px,0)`;
+    screenPos = pos;
   }
   window.addEventListener('message', e => {
     if (!open || !/youtube(-nocookie)?\.com$/.test(new URL(e.origin || 'http://x').hostname)) return;
     let m; try { m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch (err) { return; }
-    if (m?.event === 'infoDelivery' && m.info?.playerState === 0 && media?.current) socket.emit('inst_ended', media.current.videoId);
-    if (m?.event === 'onError' && media?.current) toast('⚠️ Cette vidéo ne peut pas être lue sur le site : choisis-en une autre');
+    if (!m || !media?.current) return;
+    if (m.event === 'onReady') { if (soundOk && !muted) soundOn(); }
+    if (m.event === 'onStateChange') yt.state = m.info;
+    if (m.event === 'infoDelivery' && m.info) {
+      if (m.info.playerState != null) yt.state = m.info.playerState;
+      if (m.info.currentTime != null) { yt.time = m.info.currentTime; yt.at = Date.now(); }
+      if (m.info.muted != null) yt.muted = m.info.muted;
+    }
+    if (yt.state === 0) socket.emit('inst_ended', media.current.videoId);
+    // vidéo interdite sur les autres sites : on passe toute seule à la suivante
+    if (m.event === 'onError' && yt.errorSent !== media.current.videoId) { yt.errorSent = media.current.videoId; socket.emit('inst_error', media.current.videoId); toast('⚠️ Cette vidéo ne peut pas être lue sur le site : on passe à la suivante'); }
   });
 
   // ---------- Fenêtres : musique / film, maisons, réglages ----------
@@ -1103,7 +1159,7 @@ const Island = (() => {
     const acts = hots().map(h => el('button', { type: 'button', class: 'isl-act' + (h.exit ? ' exit' : ''), onclick: () => doHot(h) }, el('span', {}, h.icon), h.label));
     if (kind !== 'island' && screenRect()) acts.unshift(el('button', { type: 'button', class: 'isl-act media', onclick: () => mediaPanel() }, el('span', {}, kind === 'cinema' ? '🎬' : kind === 'house' ? '📺' : '🎵'), kind === 'cinema' ? 'Choisir un film' : kind === 'house' ? 'La télé' : 'Mettre un son'));
     if (kind !== 'island') acts.unshift(
-      el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} ytSend(muted ? 'mute' : 'unMute'); renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
+      el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
@@ -1139,6 +1195,9 @@ const Island = (() => {
           el('button', { class: 'btn btn-primary' }, '💬'))));
     document.body.append(root);
     cv = root.querySelector('canvas'); ctx = cv.getContext('2d');
+    // les halos néon coûtent cher : on peut les couper sans toucher au reste du dessin
+    const blur = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+    if (blur?.set) Object.defineProperty(ctx, 'shadowBlur', { get() { return blur.get.call(this); }, set(v) { blur.set.call(this, lowFx ? 0 : v); } });
     const pick = e => {
       const r = cv.getBoundingClientRect();
       const { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
@@ -1203,12 +1262,14 @@ const Island = (() => {
     if (!open) return;
     open = false; cancelAnimationFrame(raf); root.classList.add('hidden'); document.body.classList.remove('island-open');
     socket.emit('island_leave'); players.clear(); near = null; keys.clear(); target = null;
+    window.Babyfoot?.close();
     scene = 'island'; kind = 'island'; media = null; syncScreen(); root.querySelector('.isl-panel')?.remove();
   }
   // Le serveur m'envoie la pièce où je suis (à l'arrivée et à chaque changement de lieu)
   socket.on('island_scene', d => {
     if (!open || !d) return;
     const changed = d.scene !== scene;
+    if (changed) window.Babyfoot?.close();
     me = d.me; scene = d.scene; kind = d.kind; house = d.house; amb = d.amb || 0;
     players = new Map(d.players.map(p => [p.id, p]));
     if (d.media) { media = d.media; mediaOffset = (d.media.serverNow || Date.now()) - Date.now(); } else media = null;
@@ -1251,6 +1312,6 @@ const Island = (() => {
   socket.on('house_info', h => { if (open && kind === 'house') { house = h; if (!editing) renderUI(); else root.querySelector('.isl-title').textContent = `🏠 ${h.name}`; } });
   socket.on('connect', () => { if (open) { players.clear(); open = false; openIsland(); } });
   const openHouse = id => openIsland(() => socket.emit('house_enter', id, r => { if (r?.error) toast(r.error); else if (r?.ring) ringPanel(r.ownerId, r.owner); }));
-  return { open: openIsland, close, isOpen: () => open, openHouse, PLACES, };
+  return { open: openIsland, close, isOpen: () => open, openHouse, PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());

@@ -2265,3 +2265,29 @@ body.island-open { overflow: hidden; }
 .ring-card small { opacity: .75; }
 .ring-btns { display: flex; gap: 8px; width: 100%; justify-content: flex-end; }
 @keyframes ringShake { 0%,100% { transform: translateX(-50%) rotate(0); } 20% { transform: translateX(-50%) rotate(-3deg); } 40% { transform: translateX(-50%) rotate(3deg); } 60% { transform: translateX(-50%) rotate(-2deg); } 80% { transform: translateX(-50%) rotate(2deg); } }
+.isl-screen { left: 0; top: 0; will-change: transform; }
+.isl-unmute { position: absolute; left: 0; right: 0; margin: 0 auto; width: max-content; bottom: 10%; padding: 8px 14px; border-radius: 999px; border: 0; background: rgba(198,77,255,.92); color: #fff; font: 800 13px Outfit, sans-serif; cursor: pointer; box-shadow: 0 0 18px rgba(198,77,255,.6); animation: islBob 1.6s ease-in-out infinite; white-space: nowrap; }
+.isl-unmute.hidden { display: none; }
+
+/* ---------- Babyfoot ⚽ ---------- */
+.bf-stage { position: fixed; inset: 0; z-index: 950; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(5,3,15,.72); backdrop-filter: blur(3px); }
+.bf-stage.hidden { display: none; }
+.bf-card { width: min(920px, 100%); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 20px; background: rgba(14,8,34,.96); color: #fff; border: 1px solid rgba(255,255,255,.15); box-shadow: 0 0 40px rgba(46,157,87,.35); }
+.bf-head { display: flex; align-items: center; gap: 10px; }
+.bf-head b { font-family: Outfit, Inter, sans-serif; font-size: 18px; }
+.bf-score { flex: 1; text-align: center; font: 900 24px Outfit, Inter, sans-serif; }
+.bf-canvas { width: 100%; height: auto; border-radius: 12px; touch-action: none; cursor: ns-resize; display: block; }
+.bf-ctrl { display: flex; flex-direction: column; gap: 10px; }
+.bf-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bf-team { padding: 10px; border-radius: 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.bf-team.red { background: rgba(255,45,85,.14); border: 1px solid rgba(255,45,85,.45); }
+.bf-team.blue { background: rgba(47,168,255,.14); border: 1px solid rgba(47,168,255,.45); }
+.bf-pl { font-size: 14px; font-weight: 700; }
+.bf-pl.empty { opacity: .6; font-weight: 400; }
+.bf-play { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; text-align: center; }
+.bf-play small, .bf-lobby small { opacity: .75; }
+.bf-kick { font-size: 20px; padding: 14px 34px; border-radius: 999px; touch-action: none; }
+.bf-kick:active { transform: scale(.94); }
+.bf-lobby { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+@media (max-width: 600px) { .bf-card { padding: 8px; } .bf-score { font-size: 19px; } .bf-kick { width: 100%; } }
+.bf-canvas { width: min(100%, calc((100vh - 250px) * 1.663)); margin: 0 auto; }

@@ -311,4 +311,21 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 22,
+    date: '2026-11-10',
+    title: 'Le Babyfoot ⚽ et une vidéo YouTube plus fluide',
+    added: [
+      'Le Babyfoot ⚽ : un vrai babyfoot en direct dans la salle d\'Arcade, à 1 contre 1, à 2 contre 2 ou contre le robot 🤖',
+      'On glisse le doigt (ou la souris) sur le terrain pour bouger ses barres et on touche pour tirer ⚡ (au clavier : flèches et Espace)',
+      'À 2 dans une équipe, l\'un joue la défense et l\'autre l\'attaque. Le premier à 5 buts gagne 🏆',
+      'Un babyfoot à mettre dans sa maison (dans « 🛠️ Mes meubles ») pour jouer avec ses invités',
+    ],
+    changed: [
+      'Les vidéos YouTube de l\'Île démarrent toujours (sans le son au début), puis un bouton « 🔊 Toucher pour le son » remet le son',
+      'Une vidéo qui prend du retard se recale toute seule, et une vidéo bloquée se relance ou passe à la suivante',
+      'Les boutons de YouTube sont maintenant visibles sur tous les écrans, et l\'animation des pièces est plus légère pendant une vidéo',
+    ],
+    removed: [],
+  },
 ];

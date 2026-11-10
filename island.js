@@ -37,7 +37,7 @@ const MENU = ['☕', '🍵', '🥐', '🍰', '🍕', '🍔', '🍦', '🧋', '�
 const PRIZES = ['🧸', '🐶', '🦄', '🐱', '🐸', '🐼', '🐰', '🦊'];
 const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 // Les meubles qu'on peut placer chez soi
-const FURN = ['sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
+const FURN = ['babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
 // Ballon de plage (même calcul côté navigateur) : il roule, freine et rebondit sur les bords
 const BALL_BOX = [80, 250, 1120, 705];
 function ballAt(b, t) {
@@ -61,6 +61,19 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
   const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
+  // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
+  const Babyfoot = require('./babyfoot')({
+    emitScene: (...a) => emitScene(...a), inScene: sc => inScene(sc), bump: (...a) => bump(...a),
+    allowed: sc => {
+      if (sc === 'arcade') return true;
+      if (!sc.startsWith('house:')) return false;
+      const c = bfCache.get(sc);
+      if (c && now() - c.at < 5000) return c.ok;
+      const ok = (houseInfo(Number(sc.slice(6)))?.furniture || []).some(f => f.t === 'babyfoot');
+      bfCache.set(sc, { ok, at: now() }); return ok;
+    },
+  });
+  const bfCache = new Map();
   const balls = new Map(); // scene -> ballon de la piscine
   const ballOf = scene => { let b = balls.get(scene); if (!b) { b = { x: 600, y: 650, vx: 0, vy: 0, at: now() }; balls.set(scene, b); } return b; };
   const boards = new Map(); // scene -> meilleurs scores de la salle d'arcade (jusqu'au redémarrage)
@@ -153,6 +166,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   function move(p, scene, pos) {
     const old = p.scene;
     if (old && old !== scene) {
+      Babyfoot.leaveScene(p.id, old);
       for (const s of sockOf(p)) s.leave(roomOf(old));
       emitScene(old, 'island_left', { id: p.id });
       afterLeave(old);
@@ -177,6 +191,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     p.sockets.delete(sid);
     if (p.sockets.size) return;
     players.delete(uid);
+    Babyfoot.leaveScene(uid, p.scene);
     emitScene(p.scene, 'island_left', { id: uid });
     afterLeave(p.scene);
   }
@@ -189,6 +204,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
 
   function onConnection(socket, uid, currentUser) {
     let lastMove = 0, lastSay = 0, lastSearch = 0, lastAct = 0;
+    Babyfoot.onConnection(socket, uid, currentUser, () => players.get(uid)?.scene);
     const ack = (cb, v) => typeof cb === 'function' && cb(v);
     const me = () => players.get(uid);
     socket.on('island_join', cb => {
@@ -362,6 +378,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       }
       houseInfo(uid);
       db.prepare("INSERT INTO houses (user_id,furniture,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET furniture=excluded.furniture, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
+      bfCache.delete('house:' + uid);
       emitScene('house:' + uid, 'house_info', houseInfo(uid));
       ack(cb, { ok: true });
     });
@@ -488,6 +505,11 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const p = me();
       const m = p && media.get(p.scene);
       if (m?.current && m.current.videoId === videoId && now() - m.current.startedAt > 15000) nextMedia(p.scene);
+    });
+    socket.on('inst_error', videoId => {
+      const p = me();
+      const m = p && media.get(p.scene);
+      if (m?.current && m.current.videoId === videoId && now() - m.current.startedAt < 60000) nextMedia(p.scene);
     });
     socket.on('inst_unqueue', (id, cb) => {
       const p = me(), u = currentUser();
