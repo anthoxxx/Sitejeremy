@@ -255,6 +255,7 @@ module.exports = [
     added: [
       'Bouton « Continuer avec Google » pour s\'inscrire et se connecter en un clic avec son compte Google',
       'Les membres déjà inscrits peuvent relier leur compte Google (menu de mon compte → « Relier mon compte Google »)',
+      'Une vidéo de présentation du site sur la page d\'accueil, pour découvrir The Paradise avant de s\'inscrire 🎬',
     ],
     changed: [],
     removed: [

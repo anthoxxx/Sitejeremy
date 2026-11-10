@@ -41,6 +41,14 @@
 
     <div>
     <div class="card exit-card hidden" id="exitCard"></div>
+    <div class="card promo-video">
+      <div class="pv-head"><b>🎬 Découvre The Paradise</b><span>1 min 30 · avec le son 🔊</span></div>
+      <div class="pv-frame">
+        <video id="promoVideo" src="/video/presentation.mp4" poster="/video/presentation.jpg" controls playsinline preload="none"></video>
+        <button type="button" class="pv-play" id="promoPlay" aria-label="Lancer la vidéo de présentation">▶</button>
+      </div>
+      <small class="note">Salons en néon, jeux, émoticônes animées, espace Arc-en-ciel… tout ce qui t'attend après ton inscription ✨</small>
+    </div>
     <div class="card" id="authCard">
       <div class="tabs">
         <button data-tab="register" class="active">Inscription</button>
@@ -159,6 +167,14 @@
       exited = true;
     }
   } catch (e) {}
+  // Vidéo de présentation : gros bouton ▶ par-dessus l'image, la vidéo ne se charge qu'au clic
+  (() => {
+    const v = document.getElementById('promoVideo'), b = document.getElementById('promoPlay');
+    if (!v || !b) return;
+    b.onclick = () => { b.classList.add('hidden'); v.play().catch(() => {}); };
+    v.addEventListener('play', () => b.classList.add('hidden'));
+    v.addEventListener('ended', () => { b.classList.remove('hidden'); b.textContent = '↻'; document.querySelector('[data-tab=register]')?.click(); document.getElementById('authCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+  })();
   // Retour de Google
   try {
     const q = new URLSearchParams(location.search), gs = q.get('google');
