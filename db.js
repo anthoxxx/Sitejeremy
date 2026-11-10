@@ -257,6 +257,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS custom_emotes (
   owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   created_at INTEGER NOT NULL DEFAULT 0)`);
+// Bouclier anti-bots : adresses IP bloquées automatiquement (until = 0 → jusqu'à déblocage)
+db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (ip TEXT PRIMARY KEY, until INTEGER NOT NULL DEFAULT 0, reason TEXT NOT NULL DEFAULT '', accounts INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT 0)`);
 // Amis : une demande (pending) puis acceptée (accepted). from_id = celui qui a demandé
 db.exec(`CREATE TABLE IF NOT EXISTS friends (
   from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -398,6 +400,7 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 
 const defaults = {
+  shieldEnabled: '1',
   announcement: '',
   bannedWords: '',
   guestsAllowed: '1',

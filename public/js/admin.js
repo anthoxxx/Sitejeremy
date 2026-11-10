@@ -375,6 +375,7 @@ async function settings() {
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
   const voiceOn = el('input', { type: 'checkbox', checked: s.voiceEnabled === '1' });
+  const shieldOnBox = el('input', { type: 'checkbox', checked: s.shieldEnabled !== '0' });
   const voiceMax = el('input', { class: 'input', type: 'number', min: 2, max: 30, value: s.voiceMax || 10, style: 'max-width:100px' });
   const micTimer = el('input', { type: 'checkbox', checked: s.micTimer !== '0' });
   const micStep = el('input', { class: 'input', type: 'number', min: 1, max: 120, value: s.micStep || 10, style: 'max-width:100px' });
@@ -406,9 +407,35 @@ async function settings() {
       el('div', { class: 'switch' }, el('span', {}, '⏱️ Un salon temporaire vide se ferme après (minutes)'), tempMin),
       el('button', { class: 'btn btn-primary', style: 'margin-top:18px', onclick: () => run(() => api('/api/admin/settings', { method: 'PUT', body: {
         announcement: announcement.value, bannedWords: words.value, modBotEnabled: modOn.checked, modBotWarnings: modWarn.value, modBotMuteMinutes: modMute.value, guestsAllowed: guests.checked, registrationOpen: reg.checked, minAge: minAge.value,
-        voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, micTimer: micTimer.checked, micStep: micStep.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
+        shieldEnabled: shieldOnBox.checked, voiceEnabled: voiceOn.checked, voiceMax: voiceMax.value, micTimer: micTimer.checked, micStep: micStep.value, userRoomsEnabled: userRooms.checked, maxUserRooms: maxRooms.value,
         tempRoomsEnabled: tempOn.checked, tempRoomMinutes: tempMin.value, customsEnabled: customsOnBox.checked, mediaVerify: mediaBox.checked,
-      } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')));
+      } }), 'Réglages enregistrés') }, 'Enregistrer les réglages')),
+    shieldPanel(shieldOnBox));
+}
+
+// ---------- Bouclier anti-bots ----------
+function shieldPanel(toggle) {
+  const box = el('div', { class: 'panel shield-panel' });
+  const fmt = t => new Date(t).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  const load = async () => {
+    let d;
+    try { d = await api('/api/admin/shield'); } catch (e) { box.replaceChildren(el('p', { class: 'help' }, e.message)); return; }
+    const raid = d.raidUntil > Date.now();
+    box.replaceChildren(
+      el('h3', {}, '🛡️ Bouclier anti-bots'),
+      el('p', { class: 'help' }, 'Il bloque tout seul les attaques : trop de comptes créés depuis la même connexion (4 en 1 h), une vague de faux comptes sur tout le site (12 en 3 min → inscriptions fermées 15 min), plusieurs comptes tout neufs qui envoient le même message, ou plus de 6 comptes connectés en même temps depuis la même connexion. Les comptes de l\'équipe ne sont jamais bloqués.'),
+      el('div', { class: 'switch' }, el('span', {}, '🛡️ Bouclier activé (clique ensuite sur « Enregistrer les réglages »)'), toggle),
+      el('div', { class: 'shield-raid' + (raid ? ' on' : '') },
+        el('b', {}, raid ? `🚨 Mode anti-raid ACTIF : inscriptions fermées jusqu'à ${new Date(d.raidUntil).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '✅ Pas d\'attaque en cours'),
+        el('button', { class: 'btn btn-sm ' + (raid ? '' : 'btn-danger'), onclick: () => run(() => api('/api/admin/shield/raid', { method: 'POST', body: { on: !raid } }), raid ? 'Mode anti-raid arrêté' : 'Mode anti-raid activé (15 min)').then(load) }, raid ? 'Arrêter le mode anti-raid' : '🚨 Fermer les inscriptions 15 min')),
+      el('h4', {}, `🚫 Connexions bloquées (${d.blocked.length})`),
+      d.blocked.length ? el('div', { class: 'shield-list' }, ...d.blocked.map(r => el('div', { class: 'shield-row' },
+        el('div', {}, el('b', {}, r.ip), el('small', {}, `${r.reason} · ${r.accounts} compte(s) · le ${fmt(r.created_at)}${r.until ? ' · jusqu\'au ' + fmt(r.until) : ''}`)),
+        el('button', { class: 'btn btn-sm', onclick: () => { if (confirm(`Débloquer ${r.ip} ? Les comptes bloqués par le bouclier depuis cette connexion seront aussi débloqués.`)) run(() => api('/api/admin/shield/unblock', { method: 'POST', body: { ip: r.ip, unbanAccounts: true } }), 'Connexion débloquée').then(load); } }, '↺ Débloquer'))))
+        : el('p', { class: 'help' }, 'Aucune connexion bloquée pour le moment 👍'));
+  };
+  load();
+  return box;
 }
 
 // ---------- Site (super-admin) : tout le contenu modifiable ----------

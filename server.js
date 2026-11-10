@@ -220,9 +220,120 @@ function validateProfile({ gender, age }) {
   return null;
 }
 
+// =====================================================================
+// 🛡️ BOUCLIER ANTI-BOTS / ANTI-RAID : repère les vagues de faux comptes et les bloque tout seul
+// =====================================================================
+const SHIELD = { perIpSignups: 4, perIpWindow: 3600000, raidSignups: 12, raidWindow: 180000, raidMs: 15 * 60000,
+  ipBlockMs: 24 * 3600000, sameMsgAccounts: 3, sameMsgWindow: 60000, newAccountMs: 30 * 60000, perIpOnline: 6 };
+const shieldOn = () => getSettings().shieldEnabled !== '0';
+const signupLog = [];           // { ip, at, id }
+const recentNewMsgs = new Map(); // texte normalisé -> [{ uid, at, room, id }]
+let raidUntil = 0;
+const ipOf = req => String(req.ip || '').replace(/^::ffff:/, '');
+const socketIp = s => String((s.handshake.headers['x-forwarded-for'] || '').split(',')[0].trim() || s.handshake.address || '').replace(/^::ffff:/, '');
+const socketsOnIp = (e, ip) => [...e.sockets].some(sid => { const so = io.sockets.sockets.get(sid); return so && socketIp(so) === ip; });
+function ipBlocked(ip) {
+  if (!ip) return null;
+  const r = db.prepare('SELECT * FROM blocked_ips WHERE ip=?').get(ip);
+  if (r && r.until && r.until <= now()) { db.prepare('DELETE FROM blocked_ips WHERE ip=?').run(ip); return null; }
+  return r || null;
+}
+// Une connexion utilisée par un membre de l'équipe n'est jamais bloquée automatiquement
+const staffOnIp = ip => !!db.prepare("SELECT 1 FROM users WHERE signup_ip=? AND role IN ('moderator','admin','superadmin') LIMIT 1").get(ip) ||
+  [...online.values()].some(e => isStaff(e.user) && socketsOnIp(e, ip));
+function alertStaff(title, text) {
+  for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin')").all()) notify(a.id, { type: 'shield', icon: '🛡️', title, text });
+}
+function shieldBan(id) {
+  const u = getUser(id);
+  if (!u || isStaff(u) || u.banned) return false;
+  db.prepare("UPDATE users SET banned=1, ban_until=0, ban_kind='ban', ban_reason=? WHERE id=?").run('🛡️ Bloqué automatiquement par le bouclier anti-bots', id);
+  disconnectUser(id, 'banned', '🛡️ Activité suspecte : compte bloqué automatiquement');
+  return true;
+}
+// Bloque une connexion (IP) 24 h, bannit les comptes récents qui en viennent et les déconnecte
+function shieldBlock(ip, reason, extraIds = [], silent = false) {
+  if (!ip || staffOnIp(ip)) return 0;
+  const ids = new Set(extraIds);
+  for (const r of db.prepare("SELECT id FROM users WHERE signup_ip=? AND created_at>? AND role='user'").all(ip, now() - 6 * 3600000)) ids.add(r.id);
+  for (const e of online.values()) if (!isStaff(e.user) && socketsOnIp(e, ip)) ids.add(e.user.id);
+  let n = 0;
+  for (const id of ids) if (shieldBan(id)) n++;
+  db.prepare('INSERT OR REPLACE INTO blocked_ips (ip, until, reason, accounts, created_at) VALUES (?,?,?,?,?)').run(ip, now() + SHIELD.ipBlockMs, reason, n, now());
+  log(null, 'shield', `🛡️ Connexion ${ip} bloquée 24 h : ${reason} (${n} compte${n > 1 ? 's' : ''} bloqué${n > 1 ? 's' : ''})`, { ip });
+  if (!silent) alertStaff('Bouclier : une attaque de bots a été bloquée', `${reason} · ${n} compte${n > 1 ? 's' : ''} bloqué${n > 1 ? 's' : ''}. Détails dans Admin → Réglages → Bouclier.`);
+  return n;
+}
+// Contrôle avant une inscription ou une connexion invité
+function shieldGate(req) {
+  if (!shieldOn()) return null;
+  if (ipBlocked(ipOf(req))) return '🛡️ Accès bloqué : une activité suspecte a été détectée depuis ta connexion. Réessaie plus tard.';
+  if (raidUntil > now()) return `🛡️ Le site est protégé contre une attaque de bots : les nouvelles inscriptions reprennent dans ${Math.ceil((raidUntil - now()) / 60000)} min. Les membres peuvent se connecter normalement.`;
+  return null;
+}
+// Après chaque nouveau compte : trop de comptes depuis la même connexion, ou une vague sur tout le site ?
+function shieldAfterSignup(req, id) {
+  if (!shieldOn()) return;
+  const ip = ipOf(req), t = now();
+  signupLog.push({ ip, at: t, id });
+  while (signupLog.length && signupLog[0].at < t - SHIELD.perIpWindow) signupLog.shift();
+  const fromIp = signupLog.filter(x => x.ip === ip);
+  if (fromIp.length >= SHIELD.perIpSignups) shieldBlock(ip, `${fromIp.length} comptes créés en moins d'une heure depuis la même connexion`, fromIp.map(x => x.id));
+  const wave = signupLog.filter(x => x.at > t - SHIELD.raidWindow);
+  if (wave.length >= SHIELD.raidSignups && raidUntil < t) {
+    raidUntil = t + SHIELD.raidMs;
+    log(null, 'shield', `🛡️ Mode anti-raid activé : ${wave.length} comptes créés en 3 minutes. Inscriptions fermées 15 min.`);
+    alertStaff('Bouclier : vague de faux comptes détectée', `${wave.length} comptes en 3 minutes. Les inscriptions sont fermées 15 minutes. Tu peux l'arrêter dans Admin → Réglages → Bouclier.`);
+  }
+}
+// Le même message envoyé par plusieurs comptes tout neufs = des bots
+function shieldCheckMessage(u, room, content, msgId) {
+  if (!shieldOn() || isStaff(u) || now() - u.created_at > SHIELD.newAccountMs) return;
+  const key = String(content).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 120);
+  if (key.length < 4) return;
+  const t = now();
+  const list = (recentNewMsgs.get(key) || []).filter(x => x.at > t - SHIELD.sameMsgWindow);
+  list.push({ uid: u.id, at: t, room: room.slug, id: msgId });
+  recentNewMsgs.set(key, list);
+  if (recentNewMsgs.size > 2000) recentNewMsgs.delete(recentNewMsgs.keys().next().value);
+  const accounts = new Set(list.map(x => x.uid));
+  if (accounts.size < SHIELD.sameMsgAccounts) return;
+  for (const x of list) { db.prepare('DELETE FROM messages WHERE id=?').run(x.id); io.to('room:' + x.room).emit('message_deleted', { id: x.id }); }
+  const ips = new Set();
+  for (const id of accounts) {
+    const e = online.get(id);
+    if (e) for (const sid of e.sockets) { const so = io.sockets.sockets.get(sid); if (so) ips.add(socketIp(so)); }
+    const usr = getUser(id); if (usr?.signup_ip) ips.add(usr.signup_ip);
+  }
+  let n = 0;
+  for (const ip of ips) n += shieldBlock(ip, `${accounts.size} comptes tout neufs envoient le même message`, [...accounts], true);
+  for (const id of accounts) if (shieldBan(id)) n++;
+  alertStaff('Bouclier : une attaque de bots a été bloquée', `${accounts.size} comptes tout neufs envoyaient le même message : ${n} compte${n > 1 ? 's' : ''} et ${ips.size} connexion${ips.size > 1 ? 's' : ''} bloqué${n > 1 ? 's' : ''}, messages effacés. Détails dans Admin → Réglages → Bouclier.`);
+  recentNewMsgs.delete(key);
+  io.to('room:' + room.slug).emit('system', { room: room.slug, text: '🛡️ Le bouclier a bloqué une attaque de bots et effacé leurs messages.' });
+}
+// Admin : état du bouclier, connexions bloquées, mode anti-raid
+app.get('/api/admin/shield', auth, requireRole('admin'), (req, res) => {
+  const rows = db.prepare('SELECT * FROM blocked_ips ORDER BY created_at DESC LIMIT 100').all().filter(r => !r.until || r.until > now());
+  res.json({ enabled: shieldOn(), raidUntil: raidUntil > now() ? raidUntil : 0, blocked: rows });
+});
+app.post('/api/admin/shield/unblock', auth, requireRole('admin'), (req, res) => {
+  const ip = String(req.body.ip || '');
+  db.prepare('DELETE FROM blocked_ips WHERE ip=?').run(ip);
+  const unban = req.body.unbanAccounts ? db.prepare("UPDATE users SET banned=0, ban_reason='' WHERE signup_ip=? AND ban_reason LIKE '🛡️%'").run(ip).changes : 0;
+  log(req.user, 'shield', `🛡️ Connexion ${ip} débloquée${unban ? ` (${unban} compte(s) débloqué(s))` : ''}`);
+  res.json({ ok: true, unban });
+});
+app.post('/api/admin/shield/raid', auth, requireRole('admin'), (req, res) => {
+  raidUntil = req.body.on ? now() + SHIELD.raidMs : 0;
+  log(req.user, 'shield', req.body.on ? '🛡️ Mode anti-raid activé à la main (15 min)' : '🛡️ Mode anti-raid arrêté');
+  res.json({ raidUntil });
+});
+
 app.post('/api/register', (req, res) => {
   const s = getSettings();
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
+  { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
   if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   const password = String(req.body.password || '');
@@ -249,6 +360,7 @@ app.post('/api/register', (req, res) => {
     clean(req.body.city, 40), genderColor(req.body.gender), role, now(), now(), req.cookies.lc_dev, req.ip || '');
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
   log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
@@ -279,6 +391,7 @@ app.post('/api/login', (req, res) => {
 app.post('/api/guest', (req, res) => {
   const s = getSettings();
   if (s.guestsAllowed !== '1') return res.status(403).json({ error: "L'accès invité est désactivé, inscris-toi !" });
+  { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
   if (tooMany('guest:' + req.ip, 20)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
@@ -292,12 +405,13 @@ app.post('/api/guest', (req, res) => {
     if (banBlock(existing)) return res.status(403).json({ error: 'Ce pseudo est sanctionné : ' + banBlock(existing).replace(/^Tu es /, '') });
     deleteUserRecord(existing);
   }
-  const info = db.prepare(`INSERT INTO users (username,gender,age,city,color,is_guest,created_at,last_seen)
-    VALUES (?,?,?,?,?,1,?,?)`).run(
+  const info = db.prepare(`INSERT INTO users (username,gender,age,city,color,is_guest,created_at,last_seen,signup_ip)
+    VALUES (?,?,?,?,?,1,?,?,?)`).run(
     username, req.body.gender, parseInt(req.body.age, 10), clean(req.body.city, 40),
-    genderColor(req.body.gender), now(), now());
+    genderColor(req.body.gender), now(), now(), ipOf(req));
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  shieldAfterSignup(req, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
@@ -1934,6 +2048,7 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
+  if (b.shieldEnabled !== undefined) setSetting('shieldEnabled', b.shieldEnabled ? '1' : '0');
   if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(30, Math.max(2, parseInt(b.voiceMax, 10) || 10)));
   if (b.micTimer !== undefined) { setSetting('micTimer', b.micTimer ? '1' : '0'); for (const slug of voice.keys()) { const m = voice.get(slug); for (const p of m.values()) p.micUntil = 0; emitVoiceState(slug); } }
   if (b.micStep !== undefined) setSetting('micStep', Math.min(120, Math.max(1, parseInt(b.micStep, 10) || 10)));
@@ -2404,6 +2519,14 @@ io.use((socket, next) => {
   const u = userFromToken(token);
   if (!u) return next(new Error('unauthorized'));
   if (banBlock(u)) return next(new Error('banned'));
+  if (shieldOn() && !isStaff(u)) {
+    const ip = socketIp(socket);
+    if (ipBlocked(ip)) return next(new Error('banned'));
+    // Trop de comptes différents connectés en même temps depuis la même connexion
+    const same = new Set([u.id]);
+    for (const e of online.values()) if (!isStaff(e.user) && socketsOnIp(e, ip)) same.add(e.user.id);
+    if (same.size > SHIELD.perIpOnline) { shieldBlock(ip, `${same.size} comptes connectés en même temps depuis la même connexion`, [...same]); return next(new Error('banned')); }
+  }
   socket.data.userId = u.id;
   next();
 });
@@ -2506,6 +2629,7 @@ io.on('connection', socket => {
     if (staffOnly) return ack && ack({ ok: true });
     ack && ack({ ok: true });
     if (scanned.level) modBotStrike(u, room, scanned);
+    shieldCheckMessage(u, room, content, info.lastInsertRowid);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
     if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});
     if (Wheel.has(room.slug) && kind === 'text' && content.startsWith('!')) Wheel.command(u, content).catch(() => {});

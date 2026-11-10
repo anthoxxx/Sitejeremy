@@ -235,4 +235,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 17,
+    date: '2026-11-10',
+    title: 'Le bouclier anti-bots 🛡️',
+    added: [
+      'Un bouclier qui bloque tout seul les attaques de bots : trop de comptes créés depuis la même connexion, vague de faux comptes, bots qui envoient tous le même message',
+      'Pendant une attaque, les inscriptions se ferment 15 minutes ; les membres peuvent toujours se connecter',
+      'Les administrateurs sont prévenus tout de suite et peuvent tout voir et débloquer dans Admin → Réglages → Bouclier',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
