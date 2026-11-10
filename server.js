@@ -330,7 +330,86 @@ app.post('/api/admin/shield/raid', auth, requireRole('admin'), (req, res) => {
   res.json({ raidUntil });
 });
 
-app.post('/api/register', (req, res) => {
+// =====================================================================
+// 🕵️ ANTI-VPN : repère les VPN, proxys, réseau Tor et serveurs loués (d'où viennent la plupart des bots)
+// Mode « block » : les nouvelles inscriptions et les invités sont refusés ; les membres sont signalés à l'équipe.
+// Mode « flag » : personne n'est bloqué, l'équipe est seulement prévenue. Mode « off » : désactivé.
+// =====================================================================
+const vpnMode = () => (['off', 'flag', 'block'].includes(getSettings().antiVpn) ? getSettings().antiVpn : 'block');
+const isLocalIp = ip => !ip || /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd|fe80)/i.test(ip);
+let torExits = new Set(), torLoaded = 0;
+async function loadTor() {
+  if (now() - torLoaded < 6 * 3600000) return;
+  torLoaded = now();
+  try {
+    const r = await fetch('https://check.torproject.org/torbulkexitlist', { signal: AbortSignal.timeout(8000) });
+    if (r.ok) torExits = new Set((await r.text()).split(/\s+/).filter(x => /^[\d.:a-f]+$/i.test(x)));
+  } catch (e) {}
+}
+const vpnPending = new Map();
+// Renvoie { vpn: bool, kind, country, isp } ; en cas de panne du service, on laisse passer (vpn: false)
+async function checkVpn(ip) {
+  if (isLocalIp(ip)) return { vpn: false, kind: '' };
+  const c = db.prepare('SELECT * FROM ip_checks WHERE ip=?').get(ip);
+  if (c && now() - c.checked_at < 24 * 3600000) return { vpn: !!c.vpn, kind: c.kind, country: c.country, isp: c.isp };
+  if (vpnPending.has(ip)) return vpnPending.get(ip);
+  const job = (async () => {
+    loadTor().catch(() => {});
+    let res = { vpn: false, kind: '', country: '', isp: '' }, ok = false;
+    if (torExits.has(ip)) { res = { vpn: true, kind: 'Tor', country: '', isp: 'Réseau Tor' }; ok = true; }
+    else {
+      try {
+        const r = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,isp,org,proxy,hosting`, { signal: AbortSignal.timeout(5000) });
+        const d = await r.json();
+        if (d.status === 'success') {
+          ok = true;
+          res = { vpn: !!(d.proxy || d.hosting), kind: d.proxy ? 'VPN / proxy' : d.hosting ? 'Serveur loué (hébergeur)' : '', country: d.country || '', isp: d.isp || d.org || '' };
+        }
+      } catch (e) {}
+    }
+    if (ok) db.prepare('INSERT OR REPLACE INTO ip_checks (ip, vpn, kind, country, isp, checked_at) VALUES (?,?,?,?,?,?)').run(ip, res.vpn ? 1 : 0, res.kind, res.country, res.isp, now());
+    return res;
+  })();
+  vpnPending.set(ip, job);
+  try { return await job; } finally { vpnPending.delete(ip); }
+}
+// Avant une inscription ou un accès invité
+async function vpnGuard(req, res, next) {
+  try {
+    const mode = vpnMode(), ip = ipOf(req);
+    if (mode === 'off' || isLocalIp(ip)) return next();
+    const r = await checkVpn(ip);
+    if (!r.vpn) return next();
+    log(null, 'antivpn', `🕵️ ${mode === 'block' ? 'Inscription refusée' : 'Inscription'} depuis un ${r.kind} (${r.isp || '?'}${r.country ? ', ' + r.country : ''})`, { ip });
+    if (mode === 'block') return res.status(403).json({ error: '🕵️ Les VPN, proxys et réseaux cachés ne sont pas acceptés pour créer un compte sur The Paradise. Désactive ton VPN et réessaie.' });
+    req.vpnInfo = r;
+    next();
+  } catch (e) { next(); }
+}
+// Un membre se connecte avec un VPN : on prévient l'équipe (une fois par jour et par membre)
+async function vpnCheckSocket(u, ip) {
+  if (vpnMode() === 'off' || isStaff(u) || u.vpn_ok || isLocalIp(ip)) return;
+  const r = await checkVpn(ip);
+  if (!r.vpn || throttled('vpnseen:' + u.id, 24 * 3600000)) return;
+  log(u, 'antivpn', `🕵️ ${u.username} est connecté avec un ${r.kind} (${r.isp || '?'}${r.country ? ', ' + r.country : ''})`, { ip });
+  for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin')").all())
+    notify(a.id, { type: 'shield', icon: '🕵️', title: `${u.username} se connecte avec un ${r.kind}`, text: `${r.isp || 'Fournisseur inconnu'}${r.country ? ' · ' + r.country : ''}. Compte créé le ${new Date(u.created_at).toLocaleDateString('fr-FR')}.`, data: { userId: u.id } });
+  // Un compte tout neuf (moins d'1 h) en VPN pendant une attaque est très suspect : on le coupe en mode « block »
+  if (vpnMode() === 'block' && u.is_guest && now() - u.created_at < 3600000) disconnectUser(u.id, 'banned', '🕵️ Les VPN ne sont pas acceptés pour les invités');
+}
+app.get('/api/admin/antivpn', auth, requireRole('admin'), (req, res) => {
+  const rows = db.prepare('SELECT * FROM ip_checks WHERE vpn=1 ORDER BY checked_at DESC LIMIT 50').all();
+  res.json({ mode: vpnMode(), seen: rows });
+});
+app.post('/api/admin/users/:id/vpn-ok', auth, requireRole('admin'), (req, res) => {
+  const u = getUser(req.params.id);
+  if (!u) return res.status(404).json({ error: 'Membre introuvable' });
+  db.prepare('UPDATE users SET vpn_ok=? WHERE id=?').run(req.body.ok ? 1 : 0, u.id);
+  log(req.user, 'antivpn', `🕵️ ${u.username} ${req.body.ok ? 'peut' : 'ne peut plus'} utiliser un VPN`);
+  res.json({ ok: true });
+});
+
+app.post('/api/register', vpnGuard, (req, res) => {
   const s = getSettings();
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
@@ -388,7 +467,7 @@ app.post('/api/login', (req, res) => {
   res.json({ user: publicUser(u) });
 });
 
-app.post('/api/guest', (req, res) => {
+app.post('/api/guest', vpnGuard, (req, res) => {
   const s = getSettings();
   if (s.guestsAllowed !== '1') return res.status(403).json({ error: "L'accès invité est désactivé, inscris-toi !" });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
@@ -2049,6 +2128,7 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
   if (b.shieldEnabled !== undefined) setSetting('shieldEnabled', b.shieldEnabled ? '1' : '0');
+  if (b.antiVpn !== undefined && ['off', 'flag', 'block'].includes(b.antiVpn)) setSetting('antiVpn', b.antiVpn);
   if (b.voiceMax !== undefined) setSetting('voiceMax', Math.min(30, Math.max(2, parseInt(b.voiceMax, 10) || 10)));
   if (b.micTimer !== undefined) { setSetting('micTimer', b.micTimer ? '1' : '0'); for (const slug of voice.keys()) { const m = voice.get(slug); for (const p of m.values()) p.micUntil = 0; emitVoiceState(slug); } }
   if (b.micStep !== undefined) setSetting('micStep', Math.min(120, Math.max(1, parseInt(b.micStep, 10) || 10)));
@@ -2528,6 +2608,7 @@ io.use((socket, next) => {
     if (same.size > SHIELD.perIpOnline) { shieldBlock(ip, `${same.size} comptes connectés en même temps depuis la même connexion`, [...same]); return next(new Error('banned')); }
   }
   socket.data.userId = u.id;
+  vpnCheckSocket(u, socketIp(socket)).catch(() => {});
   next();
 });
 

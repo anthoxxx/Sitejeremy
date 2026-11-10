@@ -259,6 +259,9 @@ db.exec(`CREATE TABLE IF NOT EXISTS custom_emotes (
   created_at INTEGER NOT NULL DEFAULT 0)`);
 // Bouclier anti-bots : adresses IP bloquées automatiquement (until = 0 → jusqu'à déblocage)
 db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (ip TEXT PRIMARY KEY, until INTEGER NOT NULL DEFAULT 0, reason TEXT NOT NULL DEFAULT '', accounts INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL DEFAULT 0)`);
+// Anti-VPN : résultat des vérifications d'adresses IP (gardé 24 h)
+db.exec(`CREATE TABLE IF NOT EXISTS ip_checks (ip TEXT PRIMARY KEY, vpn INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '', isp TEXT NOT NULL DEFAULT '', checked_at INTEGER NOT NULL DEFAULT 0)`);
+addColumn('users', 'vpn_ok', 'INTEGER NOT NULL DEFAULT 0'); // membre autorisé à utiliser un VPN
 // Amis : une demande (pending) puis acceptée (accepted). from_id = celui qui a demandé
 db.exec(`CREATE TABLE IF NOT EXISTS friends (
   from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -401,6 +404,7 @@ db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='2
 
 const defaults = {
   shieldEnabled: '1',
+  antiVpn: 'block',
   announcement: '',
   bannedWords: '',
   guestsAllowed: '1',

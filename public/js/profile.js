@@ -93,6 +93,7 @@ async function openProfile(id) {
         el('div', { class: 'actions' },
           el('button', { class: 'btn btn-sm btn-danger', onclick: () => LC.sanctionModal(u, { toast, onDone: t => { if (t === 'kick' || t === 'ban') close(); } }) }, '🛡️ Sanctionner'),
           el('button', { class: 'btn btn-sm', onclick: () => modAction(`/api/admin/users/${u.id}/mute`, { minutes: 0 }, `${u.username} peut reparler (notifié)`) }, '🔊 Rendre la parole'),
+          LC.isAdminRole(state.me) ? el('button', { class: 'btn btn-sm', title: 'Pour un membre de confiance qui utilise un VPN : il ne sera plus signalé', onclick: () => modAction(`/api/admin/users/${u.id}/vpn-ok`, { ok: true }, `🕵️ ${u.username} peut utiliser un VPN`) }, '🕵️ Autoriser son VPN') : null,
           el('button', { class: 'btn btn-sm', onclick: () => { if (confirm(`Effacer la photo, la bannière, la bio et les infos de ${u.username} ?`)) modAction(`/api/admin/users/${u.id}/reset-profile`, {}, 'Profil réinitialisé (notifié)', close); } }, '🧹 Réinitialiser le profil'))) : null,
       el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:14px', onclick: () => close() }, 'Fermer')));
 }

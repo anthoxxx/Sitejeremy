@@ -243,6 +243,7 @@ module.exports = [
       'Un bouclier qui bloque tout seul les attaques de bots : trop de comptes créés depuis la même connexion, vague de faux comptes, bots qui envoient tous le même message',
       'Pendant une attaque, les inscriptions se ferment 15 minutes ; les membres peuvent toujours se connecter',
       'Les administrateurs sont prévenus tout de suite et peuvent tout voir et débloquer dans Admin → Réglages → Bouclier',
+      'Anti-VPN 🕵️ : les VPN, proxys, le réseau Tor et les serveurs loués ne peuvent plus créer de compte ni entrer en invité ; les membres en VPN sont signalés à l\'équipe',
     ],
     changed: [],
     removed: [],
