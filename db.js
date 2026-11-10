@@ -262,6 +262,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (ip TEXT PRIMARY KEY, until INTE
 // Anti-VPN : résultat des vérifications d'adresses IP (gardé 24 h)
 db.exec(`CREATE TABLE IF NOT EXISTS ip_checks (ip TEXT PRIMARY KEY, vpn INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '', isp TEXT NOT NULL DEFAULT '', checked_at INTEGER NOT NULL DEFAULT 0)`);
 db.exec(`CREATE TABLE IF NOT EXISTS houses (user_id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT '', theme TEXT NOT NULL DEFAULT 'cosy', access TEXT NOT NULL DEFAULT 'friends', updated_at INTEGER NOT NULL DEFAULT 0)`);
+addColumn('houses', 'furniture', "TEXT NOT NULL DEFAULT ''"); // les meubles placés par le propriétaire (JSON)
 addColumn('users', 'vpn_ok', 'INTEGER NOT NULL DEFAULT 0'); // membre autorisé à utiliser un VPN
 // Connexion avec Google
 addColumn('users', 'google_id', "TEXT NOT NULL DEFAULT ''");

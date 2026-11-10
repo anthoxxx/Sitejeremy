@@ -294,4 +294,21 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 21,
+    date: '2026-11-10',
+    title: "4 nouveaux lieux sur l'Île, la sonnette et les meubles 🛋️",
+    added: [
+      'Pool Party 🏊 : piscine où l\'on nage, plongeoir avec éclaboussures, transats pour bronzer, bar à cocktails, musique YouTube et un ballon de plage partagé qu\'on fait rouler en marchant dessus',
+      'Café Paradise ☕ : commande au comptoir (café, croissant, pizza, bubble tea…), tables pour s\'asseoir, on trinque 🥂, et un vrai piano 🎹 que tout le monde entend',
+      'L\'Arcade 🕹️ : machine à sous avec jackpot 🎰, fléchettes avec tableau des meilleurs scores 🎯, pince à peluches pour gagner un doudou 🧸 et bornes rétro',
+      'Le Feu de camp 🔥 : sous les étoiles, on s\'assoit sur les bûches, on grille des chamallows 🍡, on joue de la guitare 🎸 et on fait un vœu quand passe une étoile filante 🌠',
+      'La sonnette 🔔 : on sonne chez quelqu\'un, le propriétaire reçoit « Ding dong ! » et choisit d\'ouvrir ou non',
+      'Nouveau réglage pour sa maison : « Tout le monde sonne » et « Ne pas déranger » 🔕',
+      'Les meubles 🛠️ : dans ta maison, déplace tes meubles où tu veux, retourne-les, retire-les ou ajoutes-en (18 meubles : piano, aquarium, cheminée, baignoire, bibliothèque, borne d\'arcade…)',
+      'Chaque meuble sert à quelque chose : s\'asseoir, dormir, cuisiner, lire, prendre un bain, jouer du piano, regarder les poissons…',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
