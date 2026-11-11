@@ -376,4 +376,23 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 26,
+    date: '2026-11-11',
+    title: 'Les animaux 🐾, les quêtes 🎯 et la Voyante 🔮',
+    added: [
+      'Les animaux de compagnie 🐾 : adopte un chiot, un chaton, un lapin, un renard… ou un animal rare (panda, tigre, dragon, licorne, phénix) avec tes pièces',
+      'Ton animal te suit partout sur l\'Île du Paradise en trottinant derrière toi 🏝️',
+      'Nourris-le 🍖, joue avec lui 🎾, câline-le 💖 ou donne-lui une friandise 🍬 : il grandit (bébé → ado → adulte → légendaire ✨)',
+      'Il a son humeur : s\'il a faim ou s\'il s\'ennuie, il devient triste… et il te prévient !',
+      'Des accessoires pour ton animal : nœud, lunettes, chapeau, couronne, auréole…',
+      'Les quêtes du jour 🎯 : 3 nouvelles quêtes chaque jour (messages, jeux, Île, animal…), avec des pièces à gagner et 50 pièces bonus pour les 3',
+      'Les succès 🏆 : 24 succès à débloquer pour toujours (Noctambule 🦉, Roi du babyfoot ⚽, Ami des bêtes 🐾, Légende du Paradise 👑…), affichés sur ton profil',
+      'Les niveaux ⭐ : tout ce que tu fais te donne de l\'expérience, et chaque niveau gagné rapporte des pièces. Ton niveau est sur ton profil',
+      'La Voyante du Paradise 🔮 : Madame Paradisia t\'attend dans sa roulotte sur l\'Île (et dans le menu de ton compte)',
+      'Chez la Voyante : ton horoscope du jour, le tirage des 3 cartes du Paradise, ton âme sœur du jour parmi les connectés et le calcul de compatibilité amoureuse 💞',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

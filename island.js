@@ -57,10 +57,10 @@ const THEMES = ['cosy', 'ocean', 'rose', 'nuit', 'jungle', 'or'];
 const ACCESS = ['all', 'friends', 'bell', 'closed'];
 const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
 
-module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null }) {
+module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
-  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
+  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', pet: p.pet || null, item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
   const Babyfoot = require('./babyfoot')({
@@ -215,7 +215,8 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       let p = players.get(uid);
       if (!p) {
         const [x, y] = spawn();
-        p = { id: uid, x, y, scene: null, action: '', username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
+        track(uid, 'island');
+        p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
         players.set(uid, p);
         move(p, 'island', [x, y]);
       } else {
@@ -262,6 +263,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const p = me();
       if (!p || !EMOTES.includes(e)) return;
       emitScene(p.scene, 'island_emote', { id: uid, e });
+      track(uid, 'emote');
       bump(p.scene, 4);
     });
     // Actions : danser, boire un verre, s'asseoir, dormir, cuisiner, mixer…
@@ -275,7 +277,8 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       // l'action se fait là où l'on se trouve (on peut s'être placé juste avant)
       if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) && Math.hypot(pos.x - p.x, pos.y - p.y) < 90) { p.x = pos.x; p.y = pos.y; }
       p.action = a;
-      if (a === 'eat') { if (!MENU.includes(extra)) return; p.item = extra; p.itemAt = t; }
+      if (a === 'eat') { if (!MENU.includes(extra)) return; p.item = extra; p.itemAt = t; track(uid, 'cafe'); }
+      if (a === 'dance') track(uid, 'dance');
       emitScene(p.scene, 'island_action', { id: uid, action: a, x: Math.round(p.x), y: Math.round(p.y), item: a === 'eat' ? extra : undefined });
       if (a) bump(p.scene, a === 'dance' || a === 'dj' ? 6 : 3);
     });
@@ -286,6 +289,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     socket.on('inst_enter', (scene, cb) => {
       const p = me();
       if (!p || !PUBLIC.includes(scene)) return ack(cb, { error: 'Lieu inconnu' });
+      track(uid, 'visit_place');
       move(p, scene, ENTRY[scene].map(v => v + (Math.random() * 80 - 40)));
       ack(cb, { ok: true });
     });
@@ -304,6 +308,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       if (!canEnterHouse(u, ownerId)) return ack(cb, h.access === 'closed' ? { error: `🔕 ${h.owner} ne veut pas être dérangé` } : { ring: true, owner: h.owner, ownerId });
       if (ownerId !== uid && inScene('house:' + ownerId).length >= 25) return ack(cb, { error: 'La maison est pleine (25 personnes)' });
       move(p, 'house:' + ownerId, ENTRY.house.map(v => v + (Math.random() * 80 - 40)));
+      if (ownerId !== uid) track(uid, 'visit_house');
       if (ownerId !== uid && notify && !throttled(`house:${ownerId}:${uid}`, 10 * 60 * 1000))
         notify(ownerId, { type: 'house_visit', icon: '🏠', title: `${u.username} est ${u.gender === 'f' ? 'entrée' : 'entré'} dans ta maison`, text: 'Viens lui dire bonjour sur l\'Île du Paradise 🏝️', data: { ownerId, userId: uid } });
       ack(cb, { ok: true });
@@ -433,6 +438,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         bump(p.scene, win ? 10 : 2);
       } else return;
       p.action = g;
+      track(uid, 'arcade');
       emitScene(p.scene, 'inst_game', { id: uid, ...res, board: b });
     });
     // ---------- Le ballon de la piscine ----------
@@ -535,5 +541,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     mediaOf(scene).queue.push({ id: now() + 'dj', videoId: v.videoId, title: String(v.title || 'Musique').slice(0, 120), length: v.length || '', duration: v.duration || 0, userId: 0, username: v.username || '🎧 DJ Paradise' });
     nextMedia(scene);
   }
-  return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto };
+  // L'animal a changé (repas, accessoire…) : ceux qui sont à côté le voient tout de suite
+  function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet }); }
+  return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto, refreshPet };
 };

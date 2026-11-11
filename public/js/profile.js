@@ -29,6 +29,7 @@ function profileCard(u, opts = {}) {
       el('div', { class: 'pname' }, LC.name(u), ' ', LC.badge(u), (typeof state !== 'undefined' && (state.customs?.enabled || state.customs?.media) && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u) : u.avatar ? LC.photoBadge(u) : null),
       u.isBirthday ? el('div', { class: 'pbday' }, '🎉 C\'est son anniversaire aujourd\'hui ! 🎂') : null,
       u.statusEmoji || u.statusText ? el('div', { class: 'pstatus' }, `${u.statusEmoji || ''} ${u.statusText || ''}`.trim()) : null,
+      u.level ? el('div', { class: 'plevel' }, `⭐ Niveau ${u.level}`) : null,
       el('div', { class: 'pinfo' }, info, opts.online !== undefined ? el('span', {}, opts.online ? ' · 🟢 En ligne' : ' · ⚪ Hors ligne') : null),
       u.birthday ? el('div', { class: 'pinfo' }, `🎂 Anniversaire : ${u.birthday.day} ${LC.MONTHS[u.birthday.month - 1]}`) : null,
       el('div', { class: 'psection' }, el('h5', {}, 'À propos'), el('div', { class: 'pbio' }, u.bio || 'Aucune description pour l\'instant.')),
@@ -44,6 +45,8 @@ function profileCard(u, opts = {}) {
             ? el('a', { class: 'psocial', href: d.url(encodeURIComponent(h)), target: '_blank', rel: 'noopener noreferrer nofollow', style: `--s:${d.color}` }, label)
             : el('button', { class: 'psocial', style: `--s:${d.color}`, title: 'Copier', onclick: () => { navigator.clipboard?.writeText(h); toast(`📋 ${d.label} copié : ${h}`); } }, label);
         }))) : null,
+      opts.pet ? el('div', { class: 'psection' }, el('h5', {}, '🐾 Son animal'), el('div', { class: 'ppet' }, el('span', { class: 'ppet-ico stage-' + opts.pet.stage }, opts.pet.icon, opts.pet.accIcon ? el('i', {}, opts.pet.accIcon) : null), el('div', {}, el('b', {}, opts.pet.name), el('small', {}, `${opts.pet.speciesName} · ${opts.pet.stageName} · ${opts.pet.moodIcon} ${opts.pet.moodText}`)))) : null,
+      opts.progress?.achievements?.length ? el('div', { class: 'psection' }, el('h5', {}, `🏆 Succès (${opts.progress.achievements.length})`), el('div', { class: 'pach' }, ...opts.progress.achievements.map(a => el('span', { class: 'pach-i', title: `${a.name} : ${a.desc}` }, a.icon)))) : null,
       u.createdAt ? el('div', { class: 'psince' }, (u.isGuest ? 'Invité depuis le ' : 'Membre depuis le ') + new Date(u.createdAt).toLocaleDateString('fr-FR')) : null));
 }
 
@@ -64,7 +67,7 @@ async function openProfile(id) {
   const blocked = state.blocked.has(u.id);
   const staff = isStaff() && (state.me.role === 'superadmin' || LC.rank(state.me) > LC.rank(u));
   const close = profileModal(
-    profileCard(u, { online: data.online }),
+    profileCard(u, { online: data.online, pet: data.pet, progress: data.progress }),
     el('div', { class: 'pactions' },
       el('div', { class: 'actions' },
         u.isBirthday ? el('button', { class: 'btn btn-primary', style: 'flex-basis:100%', onclick: () => { close(); wishBirthday(u); } }, '🎂 Lui souhaiter un joyeux anniversaire') : null,

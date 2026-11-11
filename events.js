@@ -39,7 +39,7 @@ function themeFor(ts) {
   return ROTATION[week % ROTATION.length];
 }
 
-module.exports = function setupEvents({ io, db, getSettings, setSetting, notify, notifyLive, getOnline, earn, island, search, log = () => {} }) {
+module.exports = function setupEvents({ io, db, getSettings, setSetting, notify, notifyLive, getOnline, earn, track = () => {}, island, search, log = () => {} }) {
   const now = () => Date.now();
   const cfg = () => {
     const s = getSettings();
@@ -110,7 +110,7 @@ module.exports = function setupEvents({ io, db, getSettings, setSetting, notify,
       if (t - bonusAt >= 15 * 60000 && bonusCount < 6) {
         bonusAt = t; bonusCount++;
         const th = THEMES[live.theme];
-        for (const e of members()) earn(e.user.id, 10, `${th.icon} Bonus de la ${th.title}`, { boost: false });
+        for (const e of members()) { earn(e.user.id, 10, `${th.icon} Bonus de la ${th.title}`, { boost: false }); if (bonusCount === 1) track(e.user.id, 'party'); }
       }
       // 🎧 Le Paradise Club passe la musique du thème quand personne n'a rien mis
       if (island && search && t - lastDj > 30000 && island.mediaEmpty('club')) {

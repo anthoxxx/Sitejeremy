@@ -88,7 +88,7 @@ function publicUser(u) {
     age: u.show_age === 0 ? null : u.age, city: u.show_city === 0 ? '' : u.city,
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '',
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -420,6 +420,7 @@ app.post('/api/coins/daily', auth, (req, res) => {
   if (guestNo(req, res)) return;
   const r = Coins.claimDaily(req.user.id);
   if (r.error) return res.status(400).json(r);
+  track(req.user.id, 'daily');
   res.json({ ...r, ...Coins.shopOut(req.user.id) });
 });
 app.post('/api/coins/gift', auth, (req, res) => {
@@ -427,6 +428,7 @@ app.post('/api/coins/gift', auth, (req, res) => {
   if (tooMany('gift:' + req.user.id, 10, 600000)) return res.status(429).json({ error: 'Doucement avec les cadeaux !' });
   const r = Coins.gift(req.user.id, Number(req.body?.to), req.body?.amount, filterWords(clean(String(req.body?.message || ''), 120)));
   if (r.error) return res.status(400).json(r);
+  track(req.user.id, 'gift');
   res.json({ ok: true, coins: Coins.balance(req.user.id) });
 });
 app.get('/api/coins/top', auth, (req, res) => res.json({ top: Coins.top() }));
@@ -440,6 +442,25 @@ app.post('/api/admin/coins', auth, requireRole('admin'), (req, res) => {
   log(req.user, 'coins_admin', `${n > 0 ? '+' : ''}${n} pièces pour ${target.username}`);
   res.json({ ok: true, username: target.username, coins: Coins.balance(target.id) });
 });
+
+// ---------- 🎯 Quêtes, succès et niveaux ----------
+app.get('/api/progress', auth, (req, res) => { if (guestNo(req, res)) return; res.json(Progress.out(req.user.id)); });
+// ---------- 🐾 Les animaux ----------
+app.get('/api/pets', auth, (req, res) => res.json({ pet: Pets.get(req.user.id), species: Pets.SPECIES, accessories: Pets.ACCESSORIES, actions: Pets.ACTIONS, coins: Coins.balance(req.user.id) }));
+const petRoute = fn => (req, res) => {
+  if (guestNo(req, res)) return;
+  if (tooMany('pet:' + req.user.id, 60, 60000)) return res.status(429).json({ error: 'Doucement !' });
+  const r = fn(req.user.id, req.body || {});
+  if (r.error) return res.status(400).json(r);
+  res.json({ ...r, coins: Coins.balance(req.user.id) });
+};
+app.post('/api/pets/adopt', auth, petRoute((id, b) => Pets.adopt(id, String(b.species || ''), filterWords(clean(String(b.name || ''), 20)))));
+app.post('/api/pets/act', auth, petRoute((id, b) => Pets.act(id, String(b.action || ''))));
+app.post('/api/pets/accessory', auth, petRoute((id, b) => (b.buy ? Pets.buyAccessory(id, String(b.id || '')) : Pets.setAcc(id, b.id ? String(b.id) : ''))));
+app.post('/api/pets/rename', auth, petRoute((id, b) => Pets.rename(id, filterWords(clean(String(b.name || ''), 20)))));
+app.post('/api/pets/release', auth, petRoute(id => Pets.release(id)));
+// ---------- 🔮 La Voyante ----------
+app.post('/api/fortune/visit', auth, (req, res) => { if (!req.user.is_guest && !throttled('fortune:' + req.user.id + ':' + new Date().toDateString(), 86400000)) track(req.user.id, 'fortune'); res.json({ ok: true }); });
 
 // ---------- 🎉 Les soirées événements ----------
 app.get('/api/event', (req, res) => res.json(Events.stateOut())); // aussi pour la page d'accueil (sans être connecté)
@@ -1417,7 +1438,7 @@ app.get('/api/ice', auth, async (req, res) => {
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id) });
+  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id), progress: Progress.publicOf(u.id), pet: Pets.get(u.id) });
 });
 
 // ---------- Émoticônes créées à partir d'une photo ----------
@@ -2550,15 +2571,25 @@ const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, get
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
 // 💰 Les Paradise Coins (pendant une soirée, les jeux rapportent le double)
 const Coins = require('./coins')({ db, emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), getUser: id => getUser(id), multiplier: () => (Events.isLive() ? 2 : 1), log: (...a) => log(...a) });
-const reward = (...a) => Coins.earnCapped(...a);
+// 🎯 Quêtes, succès et niveaux
+const Progress = require('./progress')({ db, earn: (...a) => Coins.earn(...a), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a), getUser: id => getUser(id) });
+const track = (...a) => { try { Progress.track(...a); } catch (e) { console.error('progress', e.message); } };
+// 🐾 Les animaux de compagnie
+const Pets = require('./pets')({ db, coins: Coins, notify: (...a) => notify(...a), track, onChange: uid => Island.refreshPet(uid) });
+const reward = (id, key, ...rest) => {
+  // les jeux comptent aussi pour les quêtes du jour et les succès
+  const kind = /^win_/.test(key) ? 'game_win' : /^play_/.test(key) ? 'game' : key === 'bf_win' || key === 'bf_bot' ? 'babyfoot_win' : key === 'bf_play' ? 'babyfoot' : null;
+  if (kind) track(id, kind);
+  return Coins.earnCapped(id, key, ...rest);
+};
 const Wheel = require('./wheel')({ io, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const BlindTest = require('./blindtest')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Sommet = require('./sommet')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const MotDor = require('./motdor')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins });
+const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins, track, petOf: id => Pets.mini(id) });
 // 🎉 Les soirées événements
-const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
+const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2890,7 +2921,7 @@ io.on('connection', socket => {
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon, staff_only: staffOnly });
     if (staffOnly) emitToRoomAdmins(room.slug, 'message', { room: room.slug, ...msg });
     else io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
-    if (!u.is_guest) Coins.onMessage(uid);
+    if (!u.is_guest) { Coins.onMessage(uid); track(uid, 'message'); }
     // Les personnes mentionnées avec @pseudo reçoivent une notification
     const mentioned = [...new Set((content.match(/@([A-Za-z0-9_-]{3,20})/g) || []).map(x => x.slice(1).toLowerCase()))].slice(0, 5);
     for (const name of mentioned) {

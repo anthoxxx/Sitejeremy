@@ -637,6 +637,9 @@ function toggleUserMenu() {
   m.replaceChildren(...[
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
+    !state.me.isGuest ? item('🎯', 'Mes quêtes et mes succès', () => Progress.open()) : null,
+    !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
+    item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
     item('🎮', 'Mini-jeux', () => Hub.open()),
     item('🏝️', 'L\'Île du Paradise', () => Island.open(), 'mobile-only'),
     item('🏳️‍🌈', 'Espace Arc-en-ciel', () => $('prideBtn').click(), 'mobile-only'),
@@ -856,6 +859,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
   state.ghostAnon = !!ghostAnon;
   renderMe();
   window.Shop?.init();
+  if (!user.isGuest) window.Progress?.load();
   applyGhost(ghost);
   loadBirthdays();
   loadMutes();

@@ -33,6 +33,7 @@ const Island = (() => {
     { inst: 'cafe', label: 'Café Paradise', icon: '☕', x: 1310, y: 560, c: '#ffd76a', kind: 'cafeplace' },
     { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 470, y: 1200, c: '#ff4fd8', kind: 'arcadeplace' },
     { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 1010, y: 230, c: '#ff8a1f', kind: 'campplace' },
+    { inst: 'fortune', label: 'La Voyante', icon: '🔮', x: 1650, y: 260, c: '#c64dff', kind: 'fortuneplace' },
   ];
   const RAINBOW = ['#ff2d55', '#ff9500', '#ffe600', '#34ff6a', '#2fa8ff', '#c64dff'];
   // pendant une soirée, les lumières du club prennent les couleurs du thème
@@ -197,6 +198,15 @@ const Island = (() => {
       ctx.fillStyle = '#1a0b2e'; ctx.fillRect(-74, -50, 148, 80); ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.strokeRect(-74, -50, 148, 80);
       ctx.shadowBlur = 0; ctx.font = '28px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(['👾', '🎰', '🎯', '🧸'][Math.floor(t * 1.5) % 4], 0, -12);
       ctx.fillStyle = '#0c0616'; ctx.fillRect(-14, 4, 28, 26);
+    } else if (p.kind === 'fortuneplace') {
+      // la roulotte de la Voyante
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#4a1a6e'; roundRect(-74, -44, 148, 70, 14); ctx.fill();
+      ctx.fillStyle = '#7a2cb8'; ctx.beginPath(); ctx.moveTo(-82, -44); ctx.quadraticCurveTo(0, -96, 82, -44); ctx.fill();
+      for (let i = 0; i < 6; i++) { ctx.fillStyle = (i + Math.floor(t * 3)) % 2 ? '#ffd76a' : '#ff4fd8'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('✦', -60 + i * 24, -54 + Math.abs(i - 2.5) * 5); }
+      ctx.fillStyle = '#ffd76a'; ctx.fillRect(-18, -30, 36, 40); ctx.fillStyle = '#2a0a40'; ctx.fillRect(-14, -26, 28, 36);
+      const glow = 10 + Math.sin(t * 3) * 4; ctx.shadowColor = '#c64dff'; ctx.shadowBlur = glow * 2; ctx.fillStyle = '#d9a6ff'; ctx.beginPath(); ctx.arc(0, -8, 9, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+      for (const wx of [-48, 48]) { ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(wx, 28, 14, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.moveTo(wx - 14, 28); ctx.lineTo(wx + 14, 28); ctx.moveTo(wx, 14); ctx.lineTo(wx, 42); ctx.stroke(); }
     } else if (p.kind === 'campplace') {
       ctx.shadowBlur = 0; ctx.fillStyle = '#5a3216'; ctx.fillRect(-30, 10, 60, 10); drawFlame(0, 12, .35, t);
       ctx.font = '40px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⛺', -70, -4); ctx.fillText('⛺', 70, -4);
@@ -272,6 +282,24 @@ const Island = (() => {
       ctx.fillStyle = '#1a1030'; lines.forEach((l, i) => ctx.fillText(l, 0, by + 15 + i * 18));
       ctx.globalAlpha = 1;
     }
+    ctx.restore();
+  }
+  function drawPet(p, t, moving) {
+    const pet = p.pet, size = { bebe: 20, ado: 26, adulte: 32, legende: 36 }[pet.stage] || 24;
+    const hop = moving ? Math.abs(Math.sin(t * 14 + p.id)) * 7 : Math.abs(Math.sin(t * 2.5 + p.id)) * 2;
+    ctx.save(); ctx.translate(p.px, p.py);
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, 6, size * .45, size * .16, 0, 0, 7); ctx.fill();
+    if (pet.stage === 'legende') { ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 16; }
+    ctx.font = `${size}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    if ((p.px > p.dx) !== (p.petSide < 0)) ctx.scale(-1, 1);
+    ctx.fillText(pet.icon, 0, 4 - hop);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.save(); ctx.translate(p.px, p.py);
+    if (pet.acc) { ctx.font = `${Math.round(size * .55)}px "Noto Color Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(pet.acc, 0, 4 - hop - size * .78); }
+    if (pet.stage === 'legende' && Math.sin(t * 3 + p.id) > .6) { ctx.font = '12px sans-serif'; ctx.fillText('✨', size * .5, -size * .8); }
+    if (pet.mood === 'sad' || pet.mood === 'starving') { ctx.globalAlpha = .5 + .5 * Math.sin(t * 3); ctx.font = '13px sans-serif'; ctx.fillText(pet.mood === 'starving' ? '🍖' : '💧', size * .55, -size * .55); ctx.globalAlpha = 1; }
+    else if (pet.mood === 'happy' && (t + p.id) % 6 < .8) { ctx.font = '13px sans-serif'; ctx.fillText('💕', size * .55, -size * .7 - ((t + p.id) % 6) * 12); }
     ctx.restore();
   }
   function wrap(text, max) {
@@ -961,6 +989,16 @@ const Island = (() => {
       drawHots(t);
     }
     items.push(...[...players.values()].map(p => ({ y: (p.dy ?? p.y) + 20, d: () => drawPlayer(p, t) })));
+    // 🐾 chaque animal trottine derrière son maître
+    for (const p of players.values()) {
+      if (!p.pet || p.dx == null) continue;
+      const side = p.petSide || (p.petSide = p.id % 2 ? 1 : -1);
+      const tx = p.dx - side * 38, ty = p.dy + 14;
+      if (p.px == null) { p.px = tx; p.py = ty; }
+      const k = Math.min(1, dt * 4); p.px += (tx - p.px) * k; p.py += (ty - p.py) * k;
+      const moving = Math.hypot(tx - p.px, ty - p.py) > 3;
+      items.push({ y: p.py + 6, d: () => drawPet(p, t, moving) });
+    }
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
     if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
     drawFx(t);
@@ -1031,9 +1069,9 @@ const Island = (() => {
     if (!best) return card.classList.add('hidden');
     if (best.inst) {
       const txt = { club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma : regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
-        pool: ['Piscine, plongeoir, ballon et cocktails', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'] }[best.inst];
+        pool: ['Piscine, plongeoir, ballon et cocktails', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
       card.replaceChildren(el('div', {}, el('b', {}, `${best.icon} ${best.label}`), el('small', {}, txt[0])),
-        el('button', { class: 'btn btn-primary', onclick: () => (best.inst === 'houses' ? housesPanel() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
+        el('button', { class: 'btn btn-primary', onclick: () => (best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
     } else {
       const room = state.rooms.find(r => r.slug === best.slug);
       const n = (state.online || []).filter(u => u.room === best.slug && !u.ghost).length;
@@ -1198,6 +1236,7 @@ const Island = (() => {
       el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
+    acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Pets?.open() }, el('span', {}, players.get(me)?.pet?.icon || '🐾'), players.get(me)?.pet ? players.get(me).pet.name : 'Adopter un animal'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
     renderAmb();
   }
@@ -1319,6 +1358,7 @@ const Island = (() => {
     if (afterJoin) { const f = afterJoin; afterJoin = null; f(); }
   });
   socket.on('island_joined', p => { if (!open) return; players.set(p.id, p); count(); });
+  socket.on('island_pet', ({ id, pet }) => { const p = players.get(id); if (p) { p.pet = pet; if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
   socket.on('island_action', ({ id, action, x, y, item }) => {
