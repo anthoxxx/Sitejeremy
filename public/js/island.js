@@ -1312,7 +1312,7 @@ const Island = (() => {
     const drop = () => { drag = null; };
     cv.addEventListener('pointerup', drop); cv.addEventListener('pointercancel', drop);
     window.addEventListener('resize', resize);
-    document.addEventListener('keydown', e => { if (!open || /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) return; const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'd', 'q', 'w', 'z', 's'].includes(k)) { keys.add(k); e.preventDefault(); } if (k === 'Escape') { if (root.querySelector('.isl-panel')) root.querySelector('.isl-panel').remove(); else if (kind !== 'island') exitScene(); else close(); } });
+    document.addEventListener('keydown', e => { if (!open || /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) return; const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'd', 'q', 'w', 'z', 's'].includes(k)) { keys.add(k); e.preventDefault(); } if (k === 'Escape') { if (document.querySelector('.modal-back')) return; /* Échap ferme d'abord la fenêtre ouverte (Voyante, animal…) */ if (root.querySelector('.isl-panel')) root.querySelector('.isl-panel').remove(); else if (kind !== 'island') exitScene(); else close(); } });
     document.addEventListener('keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); });
     buildTerrain();
     const month = new Date().getMonth();
