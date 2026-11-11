@@ -88,7 +88,7 @@ function publicUser(u) {
     age: u.show_age === 0 ? null : u.age, city: u.show_city === 0 ? '' : u.city,
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none',
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '',
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -105,14 +105,14 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
   return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -398,6 +398,64 @@ async function vpnCheckSocket(u, ip) {
   // Un compte tout neuf (moins d'1 h) en VPN pendant une attaque est très suspect : on le coupe en mode « block »
   if (vpnMode() === 'block' && u.is_guest && now() - u.created_at < 3600000) disconnectUser(u.id, 'banned', '🕵️ Les VPN ne sont pas acceptés pour les invités');
 }
+// ---------- 💰 Paradise Coins et boutique ----------
+const guestNo = (req, res) => (req.user.is_guest ? res.status(403).json({ error: 'Inscris-toi pour avoir des pièces' }) : null);
+app.get('/api/shop', auth, (req, res) => { if (guestNo(req, res)) return; res.json(Coins.shopOut(req.user.id)); });
+app.post('/api/shop/buy', auth, (req, res) => {
+  if (guestNo(req, res)) return;
+  if (tooMany('shop:' + req.user.id, 30, 60000)) return res.status(429).json({ error: 'Doucement !' });
+  const r = Coins.buy(req.user.id, String(req.body?.id || ''));
+  if (r.error) return res.status(400).json(r);
+  refreshOnline(getUser(req.user.id));
+  res.json({ ...Coins.shopOut(req.user.id), bought: r.item, user: selfUser(getUser(req.user.id)) });
+});
+app.post('/api/shop/equip', auth, (req, res) => {
+  if (guestNo(req, res)) return;
+  const r = Coins.equip(req.user.id, req.body?.id ? String(req.body.id) : null, String(req.body?.slot || ''));
+  if (r.error) return res.status(400).json(r);
+  refreshOnline(getUser(req.user.id));
+  res.json({ ...Coins.shopOut(req.user.id), user: selfUser(getUser(req.user.id)) });
+});
+app.post('/api/coins/daily', auth, (req, res) => {
+  if (guestNo(req, res)) return;
+  const r = Coins.claimDaily(req.user.id);
+  if (r.error) return res.status(400).json(r);
+  res.json({ ...r, ...Coins.shopOut(req.user.id) });
+});
+app.post('/api/coins/gift', auth, (req, res) => {
+  if (guestNo(req, res)) return;
+  if (tooMany('gift:' + req.user.id, 10, 600000)) return res.status(429).json({ error: 'Doucement avec les cadeaux !' });
+  const r = Coins.gift(req.user.id, Number(req.body?.to), req.body?.amount, filterWords(clean(String(req.body?.message || ''), 120)));
+  if (r.error) return res.status(400).json(r);
+  res.json({ ok: true, coins: Coins.balance(req.user.id) });
+});
+app.get('/api/coins/top', auth, (req, res) => res.json({ top: Coins.top() }));
+// Un admin donne (ou retire) des pièces
+app.post('/api/admin/coins', auth, requireRole('admin'), (req, res) => {
+  const target = getUser(Number(req.body?.userId)) || db.prepare('SELECT * FROM users WHERE username=? COLLATE NOCASE').get(String(req.body?.username || ''));
+  const n = Math.round(Number(req.body?.amount));
+  if (!target || !Number.isFinite(n) || !n || Math.abs(n) > 100000) return res.status(400).json({ error: 'Membre ou montant invalide' });
+  if (n > 0) Coins.earn(target.id, n, `🎁 Cadeau de l'équipe The Paradise`, { boost: false });
+  else Coins.spend(target.id, Math.min(-n, Coins.balance(target.id)), '➖ Retiré par l\'équipe');
+  log(req.user, 'coins_admin', `${n > 0 ? '+' : ''}${n} pièces pour ${target.username}`);
+  res.json({ ok: true, username: target.username, coins: Coins.balance(target.id) });
+});
+
+// ---------- 🎉 Les soirées événements ----------
+app.get('/api/event', (req, res) => res.json(Events.stateOut())); // aussi pour la page d'accueil (sans être connecté)
+app.get('/api/admin/events', auth, requireRole('admin'), (req, res) => res.json(Events.adminOut()));
+app.post('/api/admin/events', auth, requireRole('admin'), (req, res) => {
+  const b = req.body || {};
+  let r;
+  if (b.action === 'start') r = Events.startNow(String(b.theme), b.minutes);
+  else if (b.action === 'plan') r = Events.planned(String(b.theme), Number(b.start), b.minutes);
+  else if (b.action === 'stop') r = Events.stop();
+  else return res.json(Events.setCfg(b));
+  if (r.error) return res.status(400).json(r);
+  log(req.user, 'event_admin', `Soirée : ${b.action}${b.theme ? ' ' + b.theme : ''}`);
+  res.json(Events.adminOut());
+});
+
 app.get('/api/admin/antivpn', auth, requireRole('admin'), (req, res) => {
   const rows = db.prepare('SELECT * FROM ip_checks WHERE vpn=1 ORDER BY checked_at DESC LIMIT 50').all();
   res.json({ mode: vpnMode(), seen: rows });
@@ -639,8 +697,8 @@ app.put('/api/me', auth, (req, res) => {
     // Si la personne change de genre et garde la couleur par défaut, la couleur suit le nouveau genre
     (() => { const c = hex(b.color, u.color); return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
     hex(b.accent, u.accent || '#ff5fa2'),
-    pick(b.nameEffect, NAME_EFFECTS, u.name_effect || 'none'),
-    pick(b.frame, FRAMES, u.avatar_frame || 'none'),
+    pick(b.nameEffect, [...NAME_EFFECTS, ...Coins.ownedValues(u.id, 'name')], u.name_effect || 'none'),
+    pick(b.frame, [...FRAMES, ...Coins.ownedValues(u.id, 'frame')], u.avatar_frame || 'none'),
     pick(b.bannerStyle, BANNER_STYLES, u.banner_style || 'aurora'),
     b.statusEmoji !== undefined ? clean(b.statusEmoji, 8) : u.status_emoji,
     b.statusText !== undefined ? filterWords(clean(b.statusText, 60)) : u.status_text,
@@ -2490,12 +2548,17 @@ const online = new Map();
 const recentLeave = new Map(); // userId -> { room, timer } : départ pas encore annoncé
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
-const Wheel = require('./wheel')({ io, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const BlindTest = require('./blindtest')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Sommet = require('./sommet')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Paroles = require('./paroles')({ io, db, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const MotDor = require('./motdor')({ io, db, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id) });
+// 💰 Les Paradise Coins (pendant une soirée, les jeux rapportent le double)
+const Coins = require('./coins')({ db, emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), getUser: id => getUser(id), multiplier: () => (Events.isLive() ? 2 : 1), log: (...a) => log(...a) });
+const reward = (...a) => Coins.earnCapped(...a);
+const Wheel = require('./wheel')({ io, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const BlindTest = require('./blindtest')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, catalogs: Jukebox.catalogs, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Sommet = require('./sommet')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Paroles = require('./paroles')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const MotDor = require('./motdor')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
+const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins });
+// 🎉 Les soirées événements
+const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 
 function onlineOut(entry) {
   return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
@@ -2779,7 +2842,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre
@@ -2793,6 +2856,8 @@ io.on('connection', socket => {
     if (prev !== room.slug && !entry.ghost && !silent && room.slug !== PATCH_SLUG && prev !== PATCH_SLUG) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
       socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
+      // 🎬 Entrée en scène achetée dans la boutique
+      if (u.shop_entry && !throttled(`entry:${uid}:${room.slug}`, 60000)) io.to('room:' + room.slug).emit('entry_fx', { room: room.slug, username: u.username, fx: u.shop_entry, color: u.color });
     }
     schedulePresence();
   });
@@ -2825,6 +2890,7 @@ io.on('connection', socket => {
     const msg = msgOut({ ...u, id: info.lastInsertRowid, user_id: uid, content, created_at: now(), kind, media, duration, anon, staff_only: staffOnly });
     if (staffOnly) emitToRoomAdmins(room.slug, 'message', { room: room.slug, ...msg });
     else io.to('room:' + room.slug).emit('message', { room: room.slug, ...msg });
+    if (!u.is_guest) Coins.onMessage(uid);
     // Les personnes mentionnées avec @pseudo reçoivent une notification
     const mentioned = [...new Set((content.match(/@([A-Za-z0-9_-]{3,20})/g) || []).map(x => x.slice(1).toLowerCase()))].slice(0, 5);
     for (const name of mentioned) {
@@ -2961,6 +3027,7 @@ io.on('connection', socket => {
   Paroles.onConnection(socket, uid, current);
   MotDor.onConnection(socket, uid, current);
   Island.onConnection(socket, uid, current);
+  Events.onConnection(socket);
 
   // ----- Mode fantôme (super-admin) -----
   socket.on('ghost', (on, ack) => {

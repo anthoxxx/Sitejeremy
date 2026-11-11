@@ -11,6 +11,10 @@ const SOCIAL_DEFS = {
 };
 const NAME_FX = [['none', 'Normal'], ['gradient', 'Dégradé'], ['glow', 'Néon'], ['rainbow', 'Arc-en-ciel'], ['gold', 'Or']];
 const FRAMES_UI = [['none', 'Aucun'], ['neon', 'Néon'], ['gold', 'Or'], ['rainbow', 'Arc-en-ciel'], ['fire', 'Feu'], ['ice', 'Glace']];
+// Les effets et cadres exclusifs achetés dans la boutique 💰
+const PREMIUM_FX = { galaxy: '🌌 Galaxie', fire: '🔥 En feu', ice: '❄️ Glacé', glitter: '✨ Paillettes', pulse: '💡 Néon pulsé', matrix: '💻 Hacker' };
+const PREMIUM_FRAMES = { diamond: '💎 Diamant', galaxy: '🌌 Galaxie', hearts: '💖 Cœurs', crown: '👑 Royal', electric: '⚡ Électrique', sakura: '🌸 Sakura' };
+const ownedOf = (prefix, names) => (state.me?.owned || []).filter(id => id.startsWith(prefix)).map(id => id.slice(prefix.length)).filter(v => names[v]).map(v => [v, names[v]]);
 const STATUS_EMOJIS = ['', '🎮', '🎧', '😴', '🔥', '💜', '😎', '🍕', '📚', '💼', '🏆', '🤔', '😂', '🌙', '✈️', '🎬'];
 const COLOR_SWATCHES = ['#8b6cff', '#ff5fa2', '#ffb547', '#33d6a6', '#4fb3ff', '#ff7a59', '#c86bff', '#f2e94e', '#ffffff', '#ff4d4d'];
 
@@ -213,9 +217,9 @@ function openMyProfile() {
         inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
         inp.dispatchEvent(new Event('input'));
       } }, '↺ Couleur par défaut (💙 homme · 🩷 femme · 💜 autre)'))),
-    f('✨ Effet du pseudo', choice(NAME_FX, 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
+    f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
-    f('⭕ Cadre de la photo', choice(FRAMES_UI, 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
+    f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...ownedOf('frame_', PREMIUM_FRAMES)], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
   // --- Onglet Infos ---
   const age = bind(el('input', { class: 'input', type: 'number', min: 13, max: 99, value: d.age || '' }), 'age', v => parseInt(v, 10) || '');

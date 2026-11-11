@@ -35,6 +35,8 @@ const Island = (() => {
     { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 1010, y: 230, c: '#ff8a1f', kind: 'campplace' },
   ];
   const RAINBOW = ['#ff2d55', '#ff9500', '#ffe600', '#34ff6a', '#2fa8ff', '#c64dff'];
+  // pendant une soirée, les lumières du club prennent les couleurs du thème
+  const PAL = () => { const c = window.EventState?.live?.colors; return c ? [...c, ...c] : RAINBOW; };
   const neonOf = p => (p.role === 'admin' || p.role === 'superadmin') ? '#ff2d55' : p.gender === 'f' ? '#ff4fd8' : p.gender === 'h' ? '#2fa8ff' : '#c3b8ff';
   let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -403,8 +405,14 @@ const Island = (() => {
     arcade: { name: 'Borne d\'arcade', icon: '🕹️', w: 74, h: 120, act: 'play', spot: 'front' },
     painting: { name: 'Tableau', icon: '🖼️', w: 100, h: 76 },
     babyfoot: { name: 'Babyfoot', icon: '⚽', w: 200, h: 112, act: 'babyfoot', spot: 'front' },
+    // 💰 meubles rares de la boutique
+    throne: { name: 'Trône royal', icon: '👑', w: 110, h: 130, act: 'sit', spot: 'front', rare: 'furn_throne' },
+    jacuzzi: { name: 'Jacuzzi', icon: '🫧', w: 200, h: 140, act: 'bath', spot: 'center', rare: 'furn_jacuzzi' },
+    djbooth: { name: 'Platines de DJ', icon: '🎧', w: 200, h: 90, act: 'dj', spot: 'front', rare: 'furn_djbooth' },
+    statue: { name: 'Statue en or', icon: '🗿', w: 80, h: 140, rare: 'furn_statue' },
+    neonsign: { name: 'Néon « Paradise »', icon: '💡', w: 220, h: 70, rare: 'furn_neonsign' },
   };
-  const ACT_LABEL = { sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot' };
+  const ACT_LABEL = { sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
   const DEFAULT_FURN = [
     { t: 'tv', x: 260, y: 140 }, { t: 'sofa', x: 280, y: 322 }, { t: 'rug', x: 540, y: 470 }, { t: 'kitchen', x: 870, y: 208 },
     { t: 'fridge', x: 1025, y: 153 }, { t: 'bed', x: 940, y: 555 }, { t: 'plant', x: 80, y: 262 }, { t: 'plant', x: 1060, y: 660 }, { t: 'lamp', x: 455, y: 200 },
@@ -430,7 +438,7 @@ const Island = (() => {
   function drawFurn(f, t, th) {
     const d = FURN[f.t];
     if (!d) return;
-    ctx.save(); ctx.translate(f.x, f.y); if (f.f) ctx.scale(-1, 1);
+    ctx.save(); ctx.translate(f.x, f.y); if (f.f && f.t !== 'neonsign' && f.t !== 'statue') ctx.scale(-1, 1);
     const w = d.w, h = d.h, A = th.accent;
     ctx.fillStyle = 'rgba(0,0,0,.14)'; if (!d.flat && f.t !== 'painting') { ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, 9, 0, 0, 7); ctx.fill(); }
     switch (f.t) {
@@ -452,6 +460,11 @@ const Island = (() => {
       case 'bath': ctx.fillStyle = '#fff'; roundRect(-w / 2, -h / 2, w, h, 30); ctx.fill(); ctx.fillStyle = '#9fe0ff'; roundRect(-w / 2 + 12, -h / 2 + 12, w - 24, h - 24, 22); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(-60 + i * 24, -10 + Math.sin(t * 2 + i) * 6, 9, 0, 7); ctx.fill(); } break;
       case 'arcade': ctx.fillStyle = '#2a1248'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = RAINBOW[Math.floor(t * 3) % 6]; ctx.fillRect(-w / 2 + 8, -h / 2 + 12, w - 16, 40); ctx.fillStyle = '#ff2d55'; ctx.beginPath(); ctx.arc(-12, 10, 6, 0, 7); ctx.fill(); ctx.fillStyle = '#ffe600'; ctx.beginPath(); ctx.arc(12, 14, 6, 0, 7); ctx.fill(); break;
       case 'babyfoot': drawBabyTable(0, 0, w, h, t); break;
+      case 'throne': ctx.fillStyle = '#d99a00'; roundRect(-w / 2, -h / 2, w, h, 16); ctx.fill(); ctx.fillStyle = '#b01e3a'; roundRect(-w / 2 + 14, -h / 2 + 26, w - 28, h - 40, 10); ctx.fill(); ctx.fillStyle = '#ffd76a'; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-30 + i * 30 - 12, -h / 2 + 6); ctx.lineTo(-30 + i * 30, -h / 2 - 16); ctx.lineTo(-30 + i * 30 + 12, -h / 2 + 6); ctx.fill(); } ctx.fillStyle = '#38dce6'; ctx.beginPath(); ctx.arc(0, -h / 2 + 14, 6, 0, 7); ctx.fill(); break;
+      case 'jacuzzi': ctx.fillStyle = '#e8e8ee'; ctx.beginPath(); ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#2fd0ff'; ctx.beginPath(); ctx.ellipse(0, 0, w / 2 - 14, h / 2 - 14, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.85)'; for (let i = 0; i < 10; i++) { const a = i * 2.4 + t * 2; ctx.beginPath(); ctx.arc(Math.cos(a) * (w / 3) * ((i % 3) / 3 + .3), Math.sin(a) * (h / 3) * ((i % 3) / 3 + .3), 4 + Math.abs(Math.sin(t * 3 + i)) * 4, 0, 7); ctx.fill(); } break;
+      case 'djbooth': ctx.fillStyle = '#1a0b2e'; roundRect(-w / 2, -h / 2, w, h, 10); ctx.fill(); ctx.strokeStyle = RAINBOW[Math.floor(t * 4) % 6]; ctx.lineWidth = 4; roundRect(-w / 2, -h / 2, w, h, 10); ctx.stroke(); for (const dx of [-55, 55]) { ctx.fillStyle = '#0b0614'; ctx.beginPath(); ctx.arc(dx, -4, 26, 0, 7); ctx.fill(); ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(dx, -4); ctx.lineTo(dx + Math.cos(t * 5) * 24, -4 + Math.sin(t * 5) * 24); ctx.stroke(); } ctx.font = '22px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🎧', 0, -4); break;
+      case 'statue': ctx.fillStyle = '#8a6a20'; ctx.fillRect(-w / 2, h / 2 - 26, w, 26); ctx.fillStyle = '#ffd76a'; ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 16 + Math.sin(t * 3) * 6; ctx.font = '86px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🗿', 0, -14); ctx.shadowBlur = 0; break;
+      case 'neonsign': { ctx.fillStyle = '#140a24'; roundRect(-w / 2, -h / 2, w, h, 12); ctx.fill(); const c = RAINBOW[Math.floor(t * 2) % 6]; ctx.shadowColor = c; ctx.shadowBlur = 18; ctx.fillStyle = c; ctx.font = '900 30px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('PARADISE', 0, 2); ctx.shadowBlur = 0; if (f.f) { /* le texte reste lisible même retourné */ } break; }
       case 'painting': ctx.fillStyle = '#c9a24a'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = '#ffb0d0'; ctx.fillRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16); ctx.fillStyle = '#ff9500'; ctx.beginPath(); ctx.arc(14, -6, 12, 0, 7); ctx.fill(); ctx.fillStyle = '#2e9d57'; ctx.beginPath(); ctx.moveTo(-w / 2 + 8, h / 2 - 8); ctx.lineTo(-10, -4); ctx.lineTo(w / 2 - 8, h / 2 - 8); ctx.fill(); break;
     }
     ctx.restore();
@@ -734,11 +747,12 @@ const Island = (() => {
     editing = false; sel = -1; drag = null; root.querySelector('.isl-panel')?.remove(); renderUI();
   }
   function furniturePanel() {
-    panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish', onclick: () => {
+    panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
+      if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
       if (draft.length >= 40) return toast('40 meubles au maximum');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
       const n = draft.length; draft.push({ t: k, x: 380 + (n * 97) % 360, y: 400 + (n * 53) % 180 }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
-    } }, el('span', {}, d.icon), d.name))));
+    } }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null))));
   }
   const furnDepth = f => f.y + (FURN[f.t]?.flat ? -999 : FURN[f.t]?.h / 2 || 0);
   function hitFurn(x, y) {
@@ -752,11 +766,12 @@ const Island = (() => {
   const toWorld = (sx, sy) => ({ x: (sx - view.ox) / view.z, y: (sy - view.oy) / view.z });
 
   function drawClub(t) {
+    const evx = !!window.EventState?.live;
     const hot = party > Date.now(), speed = hot ? 7 : media?.current ? 3 : 1, beat = .5 + .5 * Math.sin(t * (hot ? 14 : 8));
     ctx.fillStyle = '#100620'; ctx.fillRect(0, 0, 1200, 760);
     const wall = ctx.createLinearGradient(0, 0, 0, 290); wall.addColorStop(0, '#24103f'); wall.addColorStop(1, '#170a2b');
     ctx.fillStyle = wall; ctx.fillRect(0, 0, 1200, 290);
-    for (let i = 0; i < 3; i++) { ctx.strokeStyle = RAINBOW[(i * 2 + Math.floor(t * speed)) % 6]; ctx.lineWidth = 3; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 14; ctx.beginPath(); ctx.moveTo(0, 268 + i * 7); ctx.lineTo(1200, 268 + i * 7); ctx.stroke(); }
+    for (let i = 0; i < 3; i++) { ctx.strokeStyle = PAL()[(i * 2 + Math.floor(t * speed)) % PAL().length]; ctx.lineWidth = 3; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 14; ctx.beginPath(); ctx.moveTo(0, 268 + i * 7); ctx.lineTo(1200, 268 + i * 7); ctx.stroke(); }
     ctx.shadowBlur = 0;
     // étagères du bar
     ctx.fillStyle = '#2d1a10'; ctx.fillRect(60, 150, 200, 110);
@@ -764,7 +779,7 @@ const Island = (() => {
     // piste de danse lumineuse
     for (let i = 0; i < 9; i++) for (let j = 0; j < 5; j++) {
       ctx.globalAlpha = .25 + .55 * ((i + j + Math.floor(t * speed)) % 3 === 0 ? beat : .25);
-      ctx.fillStyle = RAINBOW[(i * 2 + j + Math.floor(t * speed)) % 6]; ctx.fillRect(330 + i * 60 + 2, 345 + j * 52 + 2, 56, 48);
+      ctx.fillStyle = PAL()[(i * 2 + j + Math.floor(t * speed)) % PAL().length]; ctx.fillRect(330 + i * 60 + 2, 345 + j * 52 + 2, 56, 48);
     }
     ctx.globalAlpha = 1;
     // cabine du DJ
@@ -777,7 +792,7 @@ const Island = (() => {
     ctx.fillStyle = '#7a1f5c'; ctx.fillRect(960, 330, 170, 40); ctx.fillRect(1090, 330, 40, 160); ctx.fillStyle = '#2a1440'; ctx.beginPath(); ctx.arc(1010, 440, 26, 0, 7); ctx.fill();
     // faisceaux lumineux
     ctx.save(); ctx.globalAlpha = hot ? .22 : .1;
-    [[100, 0], [1100, 0], [300, 0], [900, 0]].forEach(([lx, ly], k) => { ctx.save(); ctx.translate(lx, ly); ctx.rotate(Math.sin(t * (hot ? 2.4 : 1) + k) * .7 + (k % 2 ? .4 : -.4)); ctx.fillStyle = RAINBOW[(k + Math.floor(t * speed / 2)) % 6]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-70, 700); ctx.lineTo(70, 700); ctx.fill(); ctx.restore(); });
+    [[100, 0], [1100, 0], [300, 0], [900, 0]].forEach(([lx, ly], k) => { ctx.save(); ctx.translate(lx, ly); ctx.rotate(Math.sin(t * (hot ? 2.4 : 1) + k) * .7 + (k % 2 ? .4 : -.4)); ctx.fillStyle = PAL()[(k + Math.floor(t * speed / 2)) % PAL().length]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-70, 700); ctx.lineTo(70, 700); ctx.fill(); ctx.restore(); });
     ctx.restore();
     ctx.font = '40px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.save(); ctx.translate(250, 70); ctx.rotate(t); ctx.fillText('🪩', 0, 0); ctx.restore(); ctx.save(); ctx.translate(950, 70); ctx.rotate(-t); ctx.fillText('🪩', 0, 0); ctx.restore();
@@ -837,6 +852,25 @@ const Island = (() => {
       ctx.restore();
       ctx.font = '20px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(h.icon, h.x, h.y - 2);
     }
+  }
+  // 🎆 Feux d'artifice des soirées
+  let rockets = [], sparks = [], nextRocket = 0;
+  function drawFireworks(dt, vw, vh) {
+    const cols = window.EventState.live.colors.concat(['#ffffff']);
+    const tnow = performance.now();
+    if (tnow > nextRocket) { nextRocket = tnow + 700 + Math.random() * 900; rockets.push({ x: vw * (.1 + Math.random() * .8), y: vh, ty: vh * (.12 + Math.random() * .3), c: cols[Math.floor(Math.random() * cols.length)] }); }
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i]; r.y -= 520 * dt;
+      ctx.fillStyle = '#fff6c0'; ctx.fillRect(r.x - 2, r.y, 4, 16); ctx.globalAlpha = .4; ctx.fillRect(r.x - 1, r.y + 16, 2, 30); ctx.globalAlpha = 1;
+      if (r.y <= r.ty) { rockets.splice(i, 1); const n = 70; for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + Math.random() * .1, sp = 140 + Math.random() * 160; sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, c: Math.random() < .25 ? '#ffffff' : r.c }); } }
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 70 * dt; p.vx *= .975; p.vy *= .975; p.life -= dt * .55;
+      if (p.life <= 0) { sparks.splice(i, 1); continue; }
+      ctx.globalAlpha = Math.max(0, p.life); ctx.strokeStyle = p.c; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .06, p.y - p.vy * .06); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (sparks.length > 900) sparks.splice(0, sparks.length - 900);
   }
   // Confettis quand l'ambiance est à fond
   function drawConfetti(dt, vw, vh) {
@@ -945,14 +979,16 @@ const Island = (() => {
     if (kind === 'cinema' && media?.current) { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 560, 1200, 240); }
     ctx.restore();
     if (kind === 'island') {
-      const n = nightLevel();
+      const n = Math.max(nightLevel(), window.EventState?.live ? .6 : 0); // pendant une soirée, c'est la nuit pour voir les feux d'artifice
       if (n > 0) { ctx.fillStyle = `rgba(8,10,40,${n * .55})`; ctx.fillRect(0, 0, vw, vh); }
       for (const l of leaves) {
-        l.y += l.v * dt; l.x += Math.sin(t + l.p) * 20 * dt; if (l.y > vh + 20) { l.y = -20; l.x = Math.random() * vw; }
+        l.y += l.v * dt; l.x += Math.sin(t + l.p) * 20 * dt; if (l.y > vh + 20) { l.y = -20; l.x = Math.random() * vw; const em = window.EventState?.live?.emojis; if (em) l.e = em[Math.floor(Math.random() * em.length)]; }
         ctx.globalAlpha = .75; ctx.font = l.s + 'px sans-serif'; ctx.fillText(l.e, l.x, l.y); ctx.globalAlpha = 1;
       }
       nearPlace(mine);
     }
+    if (window.EventState?.live && ['island', 'pool', 'campfire'].includes(kind)) drawFireworks(dt, vw, vh);
+    if (window.EventState?.live && ['island', 'pool', 'campfire'].includes(kind)) { const ev = window.EventState.live; ctx.font = `900 ${vw < 600 ? 13 : 16}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const c = ev.colors[Math.floor(t * 2) % ev.colors.length]; ctx.shadowColor = c; ctx.shadowBlur = 14; ctx.fillStyle = '#fff'; ctx.fillText(`${ev.icon} ${ev.title} · 💰 x2`, vw / 2, vw < 600 ? 112 : 112); ctx.shadowBlur = 0; }
     drawConfetti(dt, vw, vh);
     placeScreen();
   }
@@ -1315,3 +1351,4 @@ const Island = (() => {
   return { open: openIsland, close, isOpen: () => open, openHouse, PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());
+window.Island = Island;

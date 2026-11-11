@@ -41,6 +41,7 @@
 
     <div>
     <div class="card exit-card hidden" id="exitCard"></div>
+    <div class="card home-event hidden" id="homeEvent"></div>
     <div class="card promo-video">
       <div class="pv-head"><b>🎬 Découvre The Paradise</b><span>1 min 30 · avec le son 🔊</span></div>
       <div class="pv-frame">
@@ -190,6 +191,26 @@
     else if (gs === 'banned') showErr('Ce compte est sanctionné : tu ne peux pas te connecter.');
     if (gs) history.replaceState(null, '', '/' + (gs === 'finish' ? '?google=finish' : ''));
   } catch (e) {}
+  // 🎉 La prochaine soirée (ou celle en cours) avec son compte à rebours
+  fetch('/api/event').then(r => r.json()).then(d => {
+    const box = document.getElementById('homeEvent'), ev = d.live || d.next;
+    if (!box || !ev) return;
+    const off = (d.serverNow || Date.now()) - Date.now();
+    box.style.setProperty('--ev1', ev.colors[0]); box.style.setProperty('--ev2', ev.colors[1]); box.style.setProperty('--ev3', ev.colors[2]);
+    box.classList.toggle('live', !!d.live);
+    const when = new Date(ev.start).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    const t = LC.el('div', { class: 'he-count' });
+    box.replaceChildren(LC.el('div', { class: 'he-icon' }, ev.icon), LC.el('div', { class: 'he-txt' },
+      LC.el('small', {}, d.live ? '🔴 EN CE MOMENT' : '🎉 PROCHAINE SOIRÉE'), LC.el('b', {}, ev.title), LC.el('span', {}, d.live ? 'Musique, feux d\'artifice et pièces x2 : inscris-toi et rejoins la fête !' : when), t));
+    box.classList.remove('hidden');
+    const tick = () => {
+      const target = d.live ? (ev.countdownTo && ev.countdownTo > Date.now() + off ? ev.countdownTo : ev.end) : ev.start;
+      const s = Math.max(0, Math.floor((target - Date.now() - off) / 1000));
+      const parts = [[Math.floor(s / 86400), 'j'], [Math.floor(s % 86400 / 3600), 'h'], [Math.floor(s % 3600 / 60), 'min'], [s % 60, 's']].filter((p, i) => p[0] || i > 0);
+      t.replaceChildren(...(d.live && !ev.countdownTo ? [LC.el('em', {}, 'Encore ')] : []), ...parts.map(([n, u]) => LC.el('span', {}, LC.el('b', {}, String(n).padStart(2, '0')), u)));
+    };
+    tick(); setInterval(tick, 1000);
+  }).catch(() => {});
   // Déjà connecté ?
   if (!exited) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
   LC.api('/api/stats').then(s => {

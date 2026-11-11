@@ -11,11 +11,12 @@ const SAFE = new Set([3, 7]); // index des paliers de sécurité (1 000 et 20 00
 const Q_MS = 45000, VOTE_MS = 15000, SUSPENSE_MS = 2600, RESULT_MS = 3500, OVER_MS = 9000;
 const fmt = n => n.toLocaleString('fr-FR');
 
-module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, notifyLive = () => {} }) {
+module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, notifyLive = () => {}, reward = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS sommet_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     best INTEGER NOT NULL DEFAULT 0, total INTEGER NOT NULL DEFAULT 0, tops INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
-  const save = (id, pts, top) => db.prepare(`INSERT INTO sommet_scores (user_id, best, total, tops, games) VALUES (?,?,?,?,1)
+  const save = (id, pts, top) => { reward(id, top ? 'win_sommet' : 'play_sommet', top ? 40 : 5, top ? '🏔️ Au sommet du Paradise !' : '🎮 Partie du Sommet'); return save0(id, pts, top); };
+  const save0 = (id, pts, top) => db.prepare(`INSERT INTO sommet_scores (user_id, best, total, tops, games) VALUES (?,?,?,?,1)
     ON CONFLICT(user_id) DO UPDATE SET best=MAX(best, excluded.best), total=total+excluded.total, tops=tops+excluded.tops, games=games+1`).run(id, pts, pts, top ? 1 : 0);
   const leaderboard = () => db.prepare('SELECT s.*, u.username, u.color FROM sommet_scores s JOIN users u ON u.id=s.user_id ORDER BY s.best DESC, s.total DESC LIMIT 5').all()
     .map(r => ({ id: r.user_id, username: r.username, color: r.color, best: r.best, tops: r.tops }));

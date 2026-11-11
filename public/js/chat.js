@@ -849,6 +849,7 @@ socket.on('hello', async ({ user, announcement, ghost, ghostAnon }) => {
   state.me = user;
   state.ghostAnon = !!ghostAnon;
   renderMe();
+  window.Shop?.init();
   applyGhost(ghost);
   loadBirthdays();
   loadMutes();

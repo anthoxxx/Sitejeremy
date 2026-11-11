@@ -225,8 +225,10 @@ window.LC = {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
     const nn = fx ? '' : LC.neonOf(u);
     const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
-    if (!u.isBirthday) return n;
-    return LC.el('span', { class: 'uname-wrap' }, n, LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂'));
+    // badge acheté dans la boutique 💰
+    const badge = u.shopBadge ? LC.el('span', { class: 'shop-badge', title: 'Badge de la boutique' }, u.shopBadge) : null;
+    if (!u.isBirthday && !badge) return n;
+    return LC.el('span', { class: 'uname-wrap' }, n, badge, u.isBirthday ? LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂') : null);
   },
   BANNERS: {
     aurora: 'linear-gradient(135deg,#8b6cff,#ff5fa2 60%,#ffb547)',

@@ -22,7 +22,7 @@ function figures(rod, v) {
 }
 const DIR = { red: 1, blue: -1 };
 
-module.exports = function setupBabyfoot({ emitScene, inScene, bump, allowed }) {
+module.exports = function setupBabyfoot({ emitScene, inScene, bump, allowed, reward = () => {} }) {
   const now = () => Date.now();
   const games = new Map(); // scene -> partie
   const fresh = () => ({
@@ -102,6 +102,10 @@ module.exports = function setupBabyfoot({ emitScene, inScene, bump, allowed }) {
     if (g.score[team] >= WIN) {
       g.phase = 'end'; g.winner = team; g.until = now() + 7000;
       g.msg = `🏆 Les ${team === 'red' ? 'Rouges 🔴' : 'Bleus 🔵'} gagnent ${g.score[team]} à ${g.score[other]} !`;
+      // 💰 Les gagnants gagnent des pièces (moins contre le robot), les perdants un petit quelque chose
+      const robot = !!g.bot;
+      for (const p of g.slots[team]) reward(p.id, robot ? 'bf_bot' : 'bf_win', robot ? 10 : 20, robot ? '⚽ Victoire au babyfoot contre le robot' : '⚽ Victoire au babyfoot', robot ? 3 : 8);
+      for (const p of g.slots[other]) reward(p.id, 'bf_play', 3, '⚽ Partie de babyfoot', 5);
       bump(scene, 25);
     } else { g.phase = 'goal'; g.until = now() + 1700; g.msg = `⚽ ${scorer} ${team === 'red' ? '🔴' : '🔵'}`; g.serveTo = other; }
     send(scene, g);

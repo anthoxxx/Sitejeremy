@@ -15,7 +15,7 @@ const SEGMENTS = [
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/Œ/g, 'OE').replace(/Æ/g, 'AE');
 const isLetter = c => c >= 'A' && c <= 'Z';
 
-module.exports = function setupWheel({ io, getOnline, notify = () => {}, notifyLive = () => {} }) {
+module.exports = function setupWheel({ io, getOnline, notify = () => {}, notifyLive = () => {}, reward = () => {} }) {
   const now = () => Date.now();
   let msgSeq = 1, timer = null, lastThemes = [], lastPuzzles = new Set();
   const g = {
@@ -97,6 +97,7 @@ module.exports = function setupWheel({ io, getOnline, notify = () => {}, notifyL
     const best = ranking[0];
     g.winner = best ? { id: best.id, username: best.username, total: best.total, final: true } : null;
     event(best ? `👑 ${best.username} gagne la partie avec ${best.total} points !` : 'Partie terminée');
+    ranking.forEach((p, i) => reward(p.id, i === 0 ? 'win_roue' : 'play_roue', i === 0 ? 30 : 5, i === 0 ? '🏆 Victoire à La Roue' : '🎮 Partie de La Roue'));
     ranking.forEach((p, i) => notify(p.id, { type: 'game', icon: i === 0 ? '👑' : '🎡', title: i === 0 ? `Tu as gagné La Roue du Paradise avec ${p.total} points !` : `La Roue du Paradise : tu finis ${i + 1}e avec ${p.total} points`, text: `Gagnant : ${best.username}`, data: { slug: SLUG } }));
     if (best) say(`👑 Fin de la partie ! ${ranking.map((p, i) => `${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${p.username} ${p.total}`).join(' · ')}. Clique sur « Nouvelle partie » pour rejouer !`);
     broadcast();

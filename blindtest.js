@@ -27,13 +27,18 @@ function close(guess, target) {
 }
 const artistsOf = a => [a, ...String(a).split(/\s*(?:&|,| et | x | feat\.? )\s*/i)].filter(x => norm(x).length >= 2);
 
-module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs, notify = () => {}, notifyLive = () => {} }) {
+module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs, notify = () => {}, notifyLive = () => {}, reward = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS bt_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     wins INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0, stars INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
-  const addScore = (id, f) => db.prepare(`INSERT INTO bt_scores (user_id, wins, points, stars, games) VALUES (?,?,?,?,?)
+  const addScore = (id, f) => {
+    db.prepare(`INSERT INTO bt_scores (user_id, wins, points, stars, games) VALUES (?,?,?,?,?)
     ON CONFLICT(user_id) DO UPDATE SET wins=wins+excluded.wins, points=points+excluded.points, stars=stars+excluded.stars, games=games+excluded.games`)
     .run(id, f.wins || 0, f.points || 0, f.stars || 0, f.games || 0);
+    // 💰 Paradise Coins
+    if (f.wins) reward(id, 'win_blindtest', 30, '🏆 Victoire au Grand Blind Test');
+    else if (f.games) reward(id, 'play_blindtest', 5, '🎮 Partie au Grand Blind Test');
+  };
   const leaderboard = () => db.prepare('SELECT s.*, u.username, u.color, u.avatar FROM bt_scores s JOIN users u ON u.id=s.user_id ORDER BY s.wins DESC, s.points DESC LIMIT 5').all()
     .map(r => ({ id: r.user_id, username: r.username, color: r.color, avatar: r.avatar, wins: r.wins, points: r.points, stars: r.stars }));
   const themes = catalogs.map(c => c.cat);

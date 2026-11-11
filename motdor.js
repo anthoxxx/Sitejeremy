@@ -23,13 +23,18 @@ function check(guess, word) {
   return res;
 }
 
-module.exports = function setupMotDor({ io, db, getOnline, notify = () => {}, notifyLive = () => {} }) {
+module.exports = function setupMotDor({ io, db, getOnline, notify = () => {}, notifyLive = () => {}, reward = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS motdor_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     wins INTEGER NOT NULL DEFAULT 0, points INTEGER NOT NULL DEFAULT 0, found INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
-  const addScore = (id, f) => db.prepare(`INSERT INTO motdor_scores (user_id, wins, points, found, games) VALUES (?,?,?,?,?)
+  const addScore = (id, f) => {
+    db.prepare(`INSERT INTO motdor_scores (user_id, wins, points, found, games) VALUES (?,?,?,?,?)
     ON CONFLICT(user_id) DO UPDATE SET wins=wins+excluded.wins, points=points+excluded.points, found=found+excluded.found, games=games+excluded.games`)
     .run(id, f.wins || 0, f.points || 0, f.found || 0, f.games || 0);
+    // 💰 Paradise Coins
+    if (f.wins) reward(id, 'win_motdor', 30, "🏆 Victoire au Mot d'Or");
+    else if (f.games) reward(id, 'play_motdor', 5, "🎮 Partie au Mot d'Or");
+  };
   const leaderboard = () => db.prepare('SELECT s.*, u.username, u.color FROM motdor_scores s JOIN users u ON u.id=s.user_id ORDER BY s.wins DESC, s.points DESC LIMIT 5').all()
     .map(r => ({ id: r.user_id, username: r.username, color: r.color, wins: r.wins, points: r.points, found: r.found }));
 

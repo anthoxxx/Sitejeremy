@@ -27,7 +27,7 @@ const ACTIONS = {
   island: ['dance'],
   club: ['dance', 'drink', 'dj', 'sit'],
   cinema: ['sit', 'popcorn'],
-  house: ['sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play'],
+  house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play'],
   pool: ['swim', 'dive', 'tan', 'drink', 'dance', 'sit'],
   cafe: ['sit', 'eat', 'piano', 'cheers', 'dance'],
   arcade: ['play', 'slot', 'darts', 'claw', 'dance'],
@@ -37,7 +37,8 @@ const MENU = ['☕', '🍵', '🥐', '🍰', '🍕', '🍔', '🍦', '🧋', '�
 const PRIZES = ['🧸', '🐶', '🦄', '🐱', '🐸', '🐼', '🐰', '🦊'];
 const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 // Les meubles qu'on peut placer chez soi
-const FURN = ['babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
+const RARE = ['throne', 'jacuzzi', 'djbooth', 'statue', 'neonsign']; // meubles rares de la boutique 💰
+const FURN = [...RARE, 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
 // Ballon de plage (même calcul côté navigateur) : il roule, freine et rebondit sur les bords
 const BALL_BOX = [80, 250, 1120, 705];
 function ballAt(b, t) {
@@ -56,13 +57,14 @@ const THEMES = ['cosy', 'ocean', 'rose', 'nuit', 'jungle', 'or'];
 const ACCESS = ['all', 'friends', 'bell', 'closed'];
 const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
 
-module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline }) {
+module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
   const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
   const Babyfoot = require('./babyfoot')({
+    reward: (id, key, n, why, max) => coins?.earnCapped(id, key, n, why, max),
     emitScene: (...a) => emitScene(...a), inScene: sc => inScene(sc), bump: (...a) => bump(...a),
     allowed: sc => {
       if (sc === 'arcade') return true;
@@ -371,6 +373,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const clean = [];
       for (const f of list) {
         if (!f || !FURN.includes(f.t)) continue;
+        if (RARE.includes(f.t) && !coins?.owns(uid, 'furn_' + f.t)) continue; // il faut l'avoir acheté
         const x = Math.round(Number(f.x)), y = Math.round(Number(f.y));
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
         if (f.t === 'tv' && clean.some(c => c.t === 'tv')) continue; // une seule télé
@@ -408,11 +411,16 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         if (pair) r = r.sort(() => Math.random() - .5);
         const win = jackpot ? 'jackpot' : new Set(r).size < 3 ? 'pair' : '';
         if (jackpot) b.jackpots++;
-        res = { g, r, win };
+        // 💰 On mise 5 pièces si on en a : jackpot = 50 pièces, une paire = 3 pièces
+        const bet = !!coins && coins.balance(uid) >= 5 && coins.spend(uid, 5, '🎰 Mise à la machine à sous');
+        const gain = bet ? (jackpot ? 50 : win === 'pair' ? 3 : 0) : 0;
+        if (gain) coins.earn(uid, gain, jackpot ? '🎰 JACKPOT à la machine à sous !' : '🎰 Une paire à la machine à sous', { boost: false });
+        res = { g, r, win, bet, gain };
         bump(p.scene, jackpot ? 40 : 3);
       } else if (g === 'darts') {
         const k = Math.random();
         const score = k < .06 ? 50 : k < .12 ? 0 : Math.max(1, Math.round(Math.random() * 20)) * (k < .3 ? 3 : k < .45 ? 2 : 1);
+        if (score === 50) coins?.earnCapped(uid, 'darts', 10, '🎯 En plein dans le mille !', 5);
         res = { g, score, ax: Math.random() * 2 - 1, ay: Math.random() * 2 - 1, bull: score === 50 };
         const best = b.darts.find(d => d.id === uid);
         if (!best) b.darts.push({ id: uid, username: u.username, score }); else if (score > best.score) best.score = score;
@@ -421,7 +429,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       } else if (g === 'claw') {
         const win = Math.random() < 0.28;
         res = { g, win, prize: win ? PRIZES[Math.floor(Math.random() * PRIZES.length)] : '' };
-        if (win) { p.prize = res.prize; b.prizes++; }
+        if (win) { p.prize = res.prize; b.prizes++; coins?.earnCapped(uid, 'claw', 8, `${res.prize} Peluche gagnée à la pince`, 5); }
         bump(p.scene, win ? 10 : 2);
       } else return;
       p.action = g;
@@ -520,5 +528,12 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       m.queue.splice(i, 1); sendMedia(p.scene); ack(cb, { ok: true });
     });
   }
-  return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null };
+  // Pour les soirées : le DJ du club met de la musique quand personne n'en a mis
+  const mediaEmpty = scene => { const m = media.get(scene); return inScene(scene).length > 0 && (!m || (!m.current && !m.queue.length)); };
+  function playAuto(scene, v) {
+    if (!mediaEmpty(scene) || !/^[\w-]{11}$/.test(v.videoId || '')) return;
+    mediaOf(scene).queue.push({ id: now() + 'dj', videoId: v.videoId, title: String(v.title || 'Musique').slice(0, 120), length: v.length || '', duration: v.duration || 0, userId: 0, username: v.username || '🎧 DJ Paradise' });
+    nextMedia(scene);
+  }
+  return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto };
 };

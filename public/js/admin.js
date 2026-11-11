@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, settings, site, emails, backups, logs };
+const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, fetes, settings, site, emails, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups', 'emails'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'fetes', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups', 'emails'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -443,6 +443,48 @@ async function emails() {
       el('p', { class: 'help' }, 'Les adresses viennent du formulaire d\'inscription (facultatif), du profil, ou du compte Google. ⚠️ = la même adresse est utilisée par plusieurs comptes (souvent la même personne).'),
       list));
   await load();
+}
+
+// ---------- 🎉 Soirées événements et 💰 Paradise Coins ----------
+async function fetes() {
+  let d = await api('/api/admin/events');
+  const fmt = ts => new Date(ts).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  const post = async body => { try { d = await api('/api/admin/events', { method: 'POST', body }); toast('✅ C\'est enregistré'); draw(); } catch (e) { toast('❌ ' + e.message); } };
+  const box = el('div');
+  function draw() {
+    const c = d.cfg, live = d.live;
+    const themeSel = () => el('select', { class: 'input' }, ...d.themes.map(t => el('option', { value: t.id }, `${t.icon} ${t.title}`)));
+    const auto = el('input', { type: 'checkbox', checked: c.auto });
+    const day = el('select', { class: 'input' }, ...d.days.map((n, i) => el('option', { value: i, selected: i === c.day }, n)));
+    const hour = el('input', { class: 'input', type: 'number', min: 0, max: 23, value: c.hour, style: 'max-width:90px' });
+    const dur = el('input', { class: 'input', type: 'number', min: 30, max: 360, step: 15, value: c.duration, style: 'max-width:110px' });
+    const nowTheme = themeSel(), nowDur = el('input', { class: 'input', type: 'number', min: 15, max: 360, step: 15, value: 120, style: 'max-width:110px' });
+    const planTheme = themeSel(), planAt = el('input', { class: 'input', type: 'datetime-local', style: 'max-width:240px' }), planDur = el('input', { class: 'input', type: 'number', min: 15, max: 360, step: 15, value: 180, style: 'max-width:110px' });
+    const who = el('input', { class: 'input', placeholder: 'Pseudo du membre', style: 'max-width:220px' }), amount = el('input', { class: 'input', type: 'number', value: 100, style: 'max-width:120px' });
+    box.replaceChildren(
+      el('div', { class: 'panel' }, el('h3', {}, live ? `🔴 En ce moment : ${live.icon} ${live.title}` : '🌙 Pas de soirée en ce moment'),
+        live ? el('p', { class: 'help' }, `Jusqu'à ${fmt(live.end)} · Les jeux rapportent le double de pièces et le Paradise Club passe la musique du thème.`) : null,
+        d.next ? el('p', { class: 'help' }, `Prochaine soirée : ${d.next.icon} ${d.next.title}, ${fmt(d.next.start)}`) : null,
+        live ? el('button', { class: 'btn btn-danger', onclick: () => confirm('Arrêter la soirée maintenant ?') && post({ action: 'stop' }) }, '⏹ Arrêter la soirée') : null),
+      el('div', { class: 'panel' }, el('h3', {}, '🚀 Lancer une soirée maintenant'),
+        el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' }, nowTheme, el('span', {}, 'pendant'), nowDur, el('span', {}, 'minutes'),
+          el('button', { class: 'btn btn-primary', onclick: () => confirm('Lancer la soirée tout de suite ? Tous les membres seront prévenus.') && post({ action: 'start', theme: nowTheme.value, minutes: Number(nowDur.value) }) }, '🎉 C\'est parti !'))),
+      el('div', { class: 'panel' }, el('h3', {}, '📅 Programmer une soirée spéciale'),
+        el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' }, planTheme, el('span', {}, 'le'), planAt, el('span', {}, 'pendant'), planDur, el('span', {}, 'minutes'),
+          el('button', { class: 'btn', onclick: () => { if (!planAt.value) return toast('Choisis la date et l\'heure'); post({ action: 'plan', theme: planTheme.value, start: new Date(planAt.value).getTime(), minutes: Number(planDur.value) }); } }, '📅 Programmer'))),
+      el('div', { class: 'panel' }, el('h3', {}, '🔁 La soirée de chaque semaine (automatique)'),
+        el('label', { class: 'row', style: 'gap:8px;align-items:center' }, auto, 'Lancer une soirée automatiquement chaque semaine'),
+        el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px' }, el('span', {}, 'Le'), day, el('span', {}, 'à'), hour, el('span', {}, 'h, pendant'), dur, el('span', {}, 'minutes'),
+          el('button', { class: 'btn btn-primary', onclick: () => post({ auto: auto.checked, day: Number(day.value), hour: Number(hour.value), duration: Number(dur.value) }) }, '💾 Enregistrer')),
+        el('p', { class: 'help' }, 'Le thème change chaque semaine (Années 80, Tropicale, Néon, Disco, Zouk & Afro, Blanche). Pour Halloween, la Saint-Valentin et Noël, le thème s\'adapte tout seul. Le 31 décembre, le Réveillon commence à 22 h avec le compte à rebours jusqu\'à minuit 🎆.'),
+        el('div', { class: 'ev-upcoming' }, ...(d.upcoming || []).map(e => el('div', { class: 'help' }, `${e.icon} ${e.title} · ${fmt(e.start)}`)))),
+      el('div', { class: 'panel' }, el('h3', {}, '💰 Donner ou retirer des Paradise Coins'),
+        el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' }, who, amount,
+          el('button', { class: 'btn btn-primary', onclick: async () => { try { const r = await api('/api/admin/coins', { method: 'POST', body: { username: who.value.trim(), amount: Number(amount.value) } }); toast(`✅ ${r.username} a maintenant ${r.coins} pièces`); } catch (e) { toast('❌ ' + e.message); } } }, 'Valider')),
+        el('p', { class: 'help' }, 'Un nombre positif donne des pièces (le membre est prévenu), un nombre négatif en retire. Pratique pour récompenser le gagnant d\'un concours !')));
+  }
+  page.replaceChildren(...header('🎉 Soirées & pièces', 'Les soirées événements de l\'Île du Paradise et les Paradise Coins 💰 des membres.'), box);
+  draw();
 }
 
 // ---------- Bouclier anti-bots ----------
