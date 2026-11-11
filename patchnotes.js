@@ -349,4 +349,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 24,
+    date: '2026-11-11',
+    title: 'Le site recadré sur téléphone 📱',
+    added: [],
+    changed: [
+      'Sur téléphone, le haut de l\'écran est moins chargé : 🏳️‍🌈 Arc-en-ciel, 🎮 Mini-jeux, 🏝️ l\'Île et 💰 la boutique sont aussi dans le menu de ton compte (touche ta photo en haut à droite)',
+      'Le compteur de pièces 💰 tient sur une seule ligne, et ta photo n\'est plus coupée',
+      'Les boutons 🌐 ✏️ 🗑 d\'un message apparaissent quand on touche le message : plus de grands trous entre les messages',
+      'Les petites bulles d\'information sont plus petites (2 au maximum à la fois)',
+      'La barre « Modération en ligne » se cache quand personne de l\'équipe n\'est connecté',
+      'Les plateaux des jeux prennent moins de place pour laisser voir le chat',
+      'Corrigé : le mot « null » qui s\'affichait dans la boutique et dans La Roue',
+    ],
+    removed: [],
+  },
 ];

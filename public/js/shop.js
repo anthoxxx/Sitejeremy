@@ -62,13 +62,13 @@ const Shop = (() => {
     const box = document.querySelector('.shop');
     if (!box || !data) return;
     const tabs = [['shop', '🛍️ Boutique'], ['daily', '🎁 Bonus du jour'], ['earn', '💡 Gagner'], ['gift', '💝 Offrir'], ['top', '🏆 Classement'], ['history', '📜 Historique']];
-    box.replaceChildren(
+    box.replaceChildren(...[
       el('div', { class: 'shop-head' },
         el('div', { class: 'shop-wallet' }, el('span', { class: 'shop-coin' }, '💰'), el('div', {}, el('b', {}, `${fmt(data.coins)} pièces`), el('small', {}, `${fmt(data.total)} gagnées depuis le début · ${data.rank}e du classement`))),
         el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
       window.EventState?.live ? el('div', { class: 'shop-boost' }, `${window.EventState.live.icon} C'est la ${window.EventState.live.title} : les jeux rapportent le DOUBLE de pièces !`) : null,
-      el('div', { class: 'shop-tabs' }, ...tabs.map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : '') + (k === 'daily' && !data.daily.claimed ? ' dot' : ''), onclick: () => { tab = k; render(); } }, l))),
-      el('div', { class: 'shop-body' }, ...({ shop: shopTab, daily: dailyTab, earn: earnTab, gift: giftTab, top: topTab, history: historyTab }[tab])()));
+      el('div', { class: 'shop-tabs' }, ...tabs.map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : '') + (k === 'daily' && !data.daily.claimed ? ' has-dot' : ''), onclick: () => { tab = k; render(); } }, l))),
+      el('div', { class: 'shop-body' }, ...({ shop: shopTab, daily: dailyTab, earn: earnTab, gift: giftTab, top: topTab, history: historyTab }[tab])())].filter(Boolean));
   }
   function preview(i) {
     const me = { ...state.me, frame: state.me.frame, nameEffect: state.me.nameEffect };

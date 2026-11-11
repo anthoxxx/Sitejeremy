@@ -7,6 +7,7 @@ const Team = {
     const staff = state.online.filter(u => ['moderator', 'admin', 'superadmin'].includes(u.role) && !u.ghost)
       .sort((a, b) => LC.rank(b) - LC.rank(a) || (b.modLevel || 0) - (a.modLevel || 0));
     bar.classList.remove('hidden');
+    bar.classList.toggle('tb-empty', !staff.length); // sur téléphone : la barre se cache quand personne n'est en ligne
     bar.onclick = () => Team.open();
     bar.replaceChildren(
       el('span', { class: 'tb-title' }, '🛡️', el('span', { class: 'lbl2' }, ' Modération en ligne'), ' :'),

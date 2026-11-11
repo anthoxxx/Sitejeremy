@@ -1,3 +1,8 @@
+// Sécurité d'affichage : un élément vide (null) ne doit jamais s'écrire « null » à l'écran
+for (const m of ['replaceChildren', 'append', 'prepend']) {
+  const orig = Element.prototype[m];
+  Element.prototype[m] = function (...items) { return orig.apply(this, items.filter(x => x != null && x !== false)); };
+}
 // Fonctions partagées
 (function () {
   try { const t = localStorage.getItem('lc_theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}

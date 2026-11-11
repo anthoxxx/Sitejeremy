@@ -635,6 +635,9 @@ function toggleUserMenu() {
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     item('🎮', 'Mini-jeux', () => Hub.open()),
+    item('🏝️', 'L\'Île du Paradise', () => Island.open(), 'mobile-only'),
+    item('🏳️‍🌈', 'Espace Arc-en-ciel', () => $('prideBtn').click(), 'mobile-only'),
+    !state.me.isGuest ? item('💰', 'Mes pièces et la boutique', () => Shop.open(), 'mobile-only') : null,
     item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
@@ -1141,3 +1144,13 @@ socket.on('verified_state', ({ verified, refused, voiceOk, camOk }) => {
     renderCustoms();
   });
 });
+
+// Sur téléphone : les boutons d'un message (🌐 traduire, ✏️ modifier, 🗑 supprimer) s'affichent quand on touche le message
+if (matchMedia('(hover: none)').matches) {
+  document.addEventListener('click', e => {
+    const m = e.target.closest('.msg');
+    if (e.target.closest('a, button, .avatar, .uname, img, video, audio, input, .msg-tools')) return;
+    document.querySelectorAll('.msg.tools-open').forEach(x => x !== m && x.classList.remove('tools-open'));
+    if (m && m.querySelector('.msg-tools')) m.classList.toggle('tools-open');
+  });
+}
