@@ -459,6 +459,15 @@ app.post('/api/pets/act', auth, petRoute((id, b) => Pets.act(id, String(b.action
 app.post('/api/pets/accessory', auth, petRoute((id, b) => (b.buy ? Pets.buyAccessory(id, String(b.id || '')) : Pets.setAcc(id, b.id ? String(b.id) : ''))));
 app.post('/api/pets/rename', auth, petRoute((id, b) => Pets.rename(id, filterWords(clean(String(b.name || ''), 20)))));
 app.post('/api/pets/release', auth, petRoute(id => Pets.release(id)));
+// ---------- 🧍 Mon personnage ----------
+app.get('/api/look', auth, (req, res) => res.json({ ...Looks.get(req.user.id), owned: Looks.owned(req.user.id) }));
+app.post('/api/look', auth, (req, res) => {
+  if (guestNo(req, res)) return;
+  if (tooMany('look:' + req.user.id, 30, 60000)) return res.status(429).json({ error: 'Doucement !' });
+  const r = Looks.save(req.user.id, req.body?.look, req.body?.mode);
+  if (r.error) return res.status(400).json(r);
+  res.json({ ...r, coins: Coins.balance(req.user.id) });
+});
 // ---------- 🔮 La Voyante ----------
 app.post('/api/fortune/visit', auth, (req, res) => { if (!req.user.is_guest && !throttled('fortune:' + req.user.id + ':' + new Date().toDateString(), 86400000)) track(req.user.id, 'fortune'); res.json({ ok: true }); });
 
@@ -2576,6 +2585,8 @@ const Progress = require('./progress')({ db, earn: (...a) => Coins.earn(...a), n
 const track = (...a) => { try { Progress.track(...a); } catch (e) { console.error('progress', e.message); } };
 // 🐾 Les animaux de compagnie
 const Pets = require('./pets')({ db, coins: Coins, notify: (...a) => notify(...a), track, onChange: uid => Island.refreshPet(uid) });
+// 🧍 Les personnages de l'Île
+const Looks = require('./looks')({ db, coins: Coins, onChange: uid => Island.refreshPet(uid) });
 const reward = (id, key, ...rest) => {
   // les jeux comptent aussi pour les quêtes du jour et les succès
   const kind = /^win_/.test(key) ? 'game_win' : /^play_/.test(key) ? 'game' : key === 'bf_win' || key === 'bf_bot' ? 'babyfoot_win' : key === 'bf_play' ? 'babyfoot' : null;
@@ -2587,7 +2598,7 @@ const BlindTest = require('./blindtest')({ io, db, reward, getOnline: () => onli
 const Sommet = require('./sommet')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const MotDor = require('./motdor')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins, track, petOf: id => Pets.mini(id) });
+const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins, track, petOf: id => Pets.mini(id), lookOf: id => Looks.get(id) });
 // 🎉 Les soirées événements
 const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 

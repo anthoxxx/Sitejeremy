@@ -638,6 +638,7 @@ function toggleUserMenu() {
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     !state.me.isGuest ? item('🎯', 'Mes quêtes et mes succès', () => Progress.open()) : null,
+    !state.me.isGuest ? item('🧍', 'Mon personnage de l\'Île', () => Look.open()) : null,
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
     item('🎮', 'Mini-jeux', () => Hub.open()),

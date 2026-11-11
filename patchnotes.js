@@ -395,4 +395,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 27,
+    date: '2026-11-11',
+    title: 'Ton personnage sur l\'Île 🧍',
+    added: [
+      'Sur l\'Île du Paradise, chacun a maintenant un vrai petit personnage qui marche, cligne des yeux, danse, s\'assoit…',
+      'L\'atelier « 🧍 Mon personnage » (menu de ton compte, ou bouton « Mon perso » sur l\'Île) : couleur de peau, 12 coiffures, couleur des cheveux, yeux, bouche, barbe, taches de rousseur, maquillage…',
+      'Les vêtements : t-shirt, chemise, sweat, veste, maillot, crop top, pull, robe, jean, short, jupe, jogging, baskets, bottes, talons… dans 12 couleurs',
+      'Les accessoires : casquette, bonnet, chapeau, lunettes, casque audio, nœud, fleur, oreilles de chat ou de lapin, cornes, auréole, couronne',
+      'Les pièces rares à acheter avec tes pièces 💰 : costume chic, robe de soirée, blouson en cuir, baskets dorées, ailes d\'ange, ailes de démon, ailes de papillon, cape de héros…',
+      'Un bouton « 🎲 Au hasard » pour avoir un personnage surprise',
+      'Tu préfères ta photo ? Tu peux choisir « 📷 Ma photo » pour garder la bulle avec ta photo de profil',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

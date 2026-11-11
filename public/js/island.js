@@ -241,10 +241,18 @@ const Island = (() => {
     if (dancing) ctx.rotate(Math.sin(t * 4.5 + p.id) * .22);
     if (act === 'sleep') ctx.rotate(-.5);
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 22, 18, 6, 0, 0, 7); ctx.fill();
+    let y = -14 - bob, r = 18;
+    if (p.mode !== 'photo' && window.Look) {
+      // 🧍 le personnage créé par le membre (il regarde dans le sens où il marche)
+      if (p.prevX != null && Math.abs(p.dx - p.prevX) > .3) p.dir = p.dx > p.prevX ? 1 : -1;
+      p.prevX = p.dx;
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = .55; ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(0, 22, 15, 5, 0, 0, 7); ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      const h = Look.draw(ctx, p.look, { t, walking: moving, dir: p.dir || 1, act, seed: p.id, id: p.id, gender: p.gender });
+      y = h.headY; r = 15;
+    } else {
     // petit corps
     ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-14, 20 - bob); ctx.quadraticCurveTo(0, -4 - bob, 14, 20 - bob); ctx.closePath(); ctx.fill();
     // tête = photo de profil dans un rond néon
-    const y = -14 - bob, r = 18;
     ctx.shadowColor = col; ctx.shadowBlur = 14;
     ctx.fillStyle = col; ctx.beginPath(); ctx.arc(0, y, r + 3, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     ctx.save(); ctx.beginPath(); ctx.arc(0, y, r, 0, 7); ctx.clip();
@@ -252,6 +260,7 @@ const Island = (() => {
     if (im) ctx.drawImage(im, -r, y - r, r * 2, r * 2);
     else { ctx.fillStyle = p.color || '#8b6cff'; ctx.fillRect(-r, y - r, r * 2, r * 2); ctx.fillStyle = '#fff'; ctx.font = '900 18px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText((p.username || '?')[0].toUpperCase(), 0, y + 1); }
     ctx.restore();
+    }
     // dans la piscine : on nage !
     if (inPool(p.dx, p.dy)) {
       ctx.fillStyle = 'rgba(30,170,230,.92)'; ctx.fillRect(-26, -2, 52, 30);
@@ -1239,6 +1248,7 @@ const Island = (() => {
       el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
+    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
     acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Pets?.open() }, el('span', {}, players.get(me)?.pet?.icon || '🐾'), players.get(me)?.pet ? players.get(me).pet.name : 'Adopter un animal'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
     renderAmb();
@@ -1361,7 +1371,7 @@ const Island = (() => {
     if (afterJoin) { const f = afterJoin; afterJoin = null; f(); }
   });
   socket.on('island_joined', p => { if (!open) return; players.set(p.id, p); count(); });
-  socket.on('island_pet', ({ id, pet }) => { const p = players.get(id); if (p) { p.pet = pet; if (id === me) renderUI(); } });
+  socket.on('island_pet', ({ id, pet, look, mode }) => { const p = players.get(id); if (p) { p.pet = pet; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
   socket.on('island_action', ({ id, action, x, y, item }) => {

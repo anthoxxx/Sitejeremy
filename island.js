@@ -57,10 +57,10 @@ const THEMES = ['cosy', 'ocean', 'rose', 'nuit', 'jungle', 'or'];
 const ACCESS = ['all', 'friends', 'bell', 'closed'];
 const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
 
-module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null }) {
+module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null, lookOf = () => ({ look: null, mode: 'look' }) }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
-  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', pet: p.pet || null, item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
+  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
   const Babyfoot = require('./babyfoot')({
@@ -216,7 +216,8 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       if (!p) {
         const [x, y] = spawn();
         track(uid, 'island');
-        p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
+        const lk = lookOf(uid);
+        p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), look: lk.look, mode: lk.mode, username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
         players.set(uid, p);
         move(p, 'island', [x, y]);
       } else {
@@ -542,6 +543,6 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     nextMedia(scene);
   }
   // L'animal a changé (repas, accessoire…) : ceux qui sont à côté le voient tout de suite
-  function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet }); }
+  function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); const lk = lookOf(uid); p.look = lk.look; p.mode = lk.mode; emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet, look: p.look, mode: p.mode }); }
   return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto, refreshPet };
 };
