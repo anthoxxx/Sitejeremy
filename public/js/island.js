@@ -285,10 +285,13 @@ const Island = (() => {
     ctx.restore();
   }
   function drawPet(p, t, moving) {
-    const pet = p.pet, size = { bebe: 20, ado: 26, adulte: 32, legende: 36 }[pet.stage] || 24;
+    const pet = p.pet, size = { bebe: 30, ado: 36, adulte: 42, legende: 48 }[pet.stage] || 34;
     const hop = moving ? Math.abs(Math.sin(t * 14 + p.id)) * 7 : Math.abs(Math.sin(t * 2.5 + p.id)) * 2;
-    ctx.save(); ctx.translate(p.px, p.py);
-    ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, 6, size * .45, size * .16, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(p.px, p.py); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 6, size * .45, size * .16, 0, 0, 7); ctx.fill();
+    // un petit halo pour bien voir l'animal
+    const halo = ctx.createRadialGradient(0, -size * .45 - hop, 2, 0, -size * .45 - hop, size * .8); halo.addColorStop(0, 'rgba(255,255,255,.45)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, -size * .45 - hop, size * .8, 0, 7); ctx.fill();
     if (pet.stage === 'legende') { ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 16; }
     ctx.font = `${size}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     if ((p.px > p.dx) !== (p.petSide < 0)) ctx.scale(-1, 1);
@@ -993,7 +996,7 @@ const Island = (() => {
     for (const p of players.values()) {
       if (!p.pet || p.dx == null) continue;
       const side = p.petSide || (p.petSide = p.id % 2 ? 1 : -1);
-      const tx = p.dx - side * 38, ty = p.dy + 14;
+      const tx = p.dx - side * 44, ty = p.dy + 16;
       if (p.px == null) { p.px = tx; p.py = ty; }
       const k = Math.min(1, dt * 4); p.px += (tx - p.px) * k; p.py += (ty - p.py) * k;
       const moving = Math.hypot(tx - p.px, ty - p.py) > 3;
