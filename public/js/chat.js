@@ -256,8 +256,11 @@ function updateReadonly() {
 }
 document.addEventListener('viewchange', updateReadonly);
 function joinRoom(slug) {
+  const fromRoom = state.view?.type === 'room' ? state.view.slug : (state.view ? 'pm' : null);
   socket.emit('join', slug, res => {
     if (res.error) return toast(res.error);
+    // 🌫️ un brouillard magique de la couleur du salon (pas au tout premier chargement)
+    if (fromRoom && fromRoom !== slug) window.RoomFog?.play(slug);
     state.view = { type: 'room', slug };
     typers.clear(); renderTyping();
     state.currentRoom = res.room;

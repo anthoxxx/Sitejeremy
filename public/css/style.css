@@ -2480,3 +2480,5 @@ body.event-live .logo .word { text-shadow: 0 0 10px var(--ev1), 0 0 20px var(--e
   .pa-title, .wh-title { font-size: 1rem; }
   .pa-logo { width: 30px; height: 30px; }
 }
+/* 🌫️ Le brouillard magique quand on change de salon */
+.room-fog { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 600; pointer-events: none; }

@@ -365,4 +365,15 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 25,
+    date: '2026-11-11',
+    title: 'Le brouillard magique 🌫️✨',
+    added: [
+      'Quand tu changes de salon, un brouillard magique tourbillonne et t\'emmène dans le nouveau salon, avec des étincelles',
+      'Le brouillard prend la couleur néon du salon : rouge pour le Général, rose pour Rencontres, bleu pour les salons d\'âge, vert pour Amitié, doré pour les jeux, arc-en-ciel pour le VIP et l\'Arc-en-ciel…',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
