@@ -2563,7 +2563,7 @@ admin.get('/logs', (req, res) => {
 app.use('/api/admin', admin);
 
 // Mini-jeux (scores, classements, parties à deux)
-const Games = require('./games')({ app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isVerified: u => isVerified(u), isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
+const Games = require('./games')({ onScore: (uid, game) => { track(uid, 'game'); if (game === 'cache') Coins.earnCapped(uid, 'cache', 15, '🔍 Objets cachés : tout trouvé !', 5); else Coins.earnCapped(uid, 'solo_' + game, 3, '🎮 Partie de mini-jeu', 5); }, app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isVerified: u => isVerified(u), isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
 app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 
 // Pages

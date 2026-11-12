@@ -7,6 +7,7 @@ const GAME_LIST = {
     { id: 'pendu', icon: '🔤', name: 'Pendu', desc: 'Devine les mots lettre par lettre', unit: 'mots', order: 'higher' },
     { id: 'taquin', icon: '🧩', name: 'Taquin', desc: 'Remets les chiffres dans l\'ordre', unit: 'coups', order: 'lower' },
     { id: 'reflexes', icon: '⚡', name: 'Réflexes', desc: 'Clique dès que l\'écran devient vert', unit: 'ms', order: 'lower' },
+    { id: 'cache', icon: '🔍', name: 'Objets cachés', desc: 'Retrouve tous les objets cachés dans la scène', unit: 's', order: 'lower' },
     { id: 'quiz', icon: '🧠', name: 'Quiz', desc: '10 questions de culture générale', unit: 'pts', order: 'higher' },
   ],
   multi: [
@@ -358,6 +359,78 @@ const SOLO_GAMES = {
     g.onCleanup(() => clearTimeout(timer));
     g.info('Essai 0/5');
     area.append(zone);
+  },
+
+  // 🔍 Objets cachés : retrouve les 10 objets dans une scène pleine de bazar
+  cache(area, g) {
+    const SCENES = [
+      { name: 'Le grenier', icon: '🏚️', sky: ['#4a2c17', '#2a160a'], floor: '#6b4423', pool: ['🧸', '📦', '🕯️', '🗝️', '📻', '🎻', '🪆', '🧶', '👒', '🕰️', '📚', '🎩', '🪞', '🧳', '🎈', '🪀', '🏺', '🔦', '🧦', '🪕', '🖼️', '🪑', '🧵', '📷'] },
+      { name: 'La plage', icon: '🏖️', sky: ['#7fd3ff', '#bdf0ff'], floor: '#f1d9a3', pool: ['🐚', '🦀', '⭐', '🏐', '🩴', '🕶️', '🍦', '⛱️', '🪣', '🐠', '🌴', '🥥', '🧴', '👙', '🏄', '🐢', '🦩', '🍉', '⚓', '🪁', '🎣', '🦞', '🌺', '🍹'] },
+      { name: 'La chambre', icon: '🛏️', sky: ['#ffd1e8', '#ffb6d5'], floor: '#c08a5a', pool: ['🧸', '💄', '👟', '🎧', '📱', '💍', '👗', '🎀', '🪥', '⏰', '📔', '🖍️', '🎮', '🕹️', '🧦', '👠', '💎', '🌸', '🍭', '🪮', '🎒', '📸', '🧁', '🪩'] },
+      { name: 'La cuisine', icon: '🍳', sky: ['#fff3d6', '#ffe0a8'], floor: '#d9dde4', pool: ['🍳', '🥐', '🧀', '🍕', '🥕', '🍋', '🍓', '🥄', '🔪', '🧂', '🥚', '🍯', '🫖', '☕', '🍞', '🥑', '🍩', '🧇', '🥛', '🍪', '🫑', '🧅', '🍒', '🥨'] },
+      { name: 'L\'espace', icon: '🚀', sky: ['#0b0b3a', '#2a0f48'], floor: '#1c1c2e', pool: ['🚀', '🛸', '🌍', '🌙', '⭐', '☄️', '🪐', '👽', '🛰️', '🔭', '👨‍🚀', '🌟', '💫', '🌌', '🤖', '📡', '🌞', '🧑‍🚀', '🌠', '🔋', '🧭', '🌑', '🛰', '🎆'] },
+      { name: 'Le jardin', icon: '🌳', sky: ['#9fe0ff', '#d8f5c8'], floor: '#5fbf6a', pool: ['🌻', '🐝', '🐞', '🦋', '🐌', '🍄', '🌷', '🐸', '🪺', '🐿️', '🌹', '🪴', '🧺', '🍎', '🐛', '🌼', '🦔', '🐦', '🪨', '🍐', '🥕', '🪱', '🐇', '🌵'] },
+    ];
+    const sc = SCENES[rand(SCENES.length)];
+    const mobile = (area.clientWidth || 360) < 600;
+    const W = mobile ? 520 : 900, H = mobile ? 700 : 560, N = mobile ? 52 : 74, TARGETS = 10;
+    const cv = el('canvas', { class: 'hid-cv', width: W * 2, height: H * 2 });
+    const ctx = cv.getContext('2d'); ctx.scale(2, 2);
+    // on place le bazar : les objets à trouver sont uniques, les autres peuvent se répéter
+    const pool = sc.pool, targets = [...pool].sort(() => Math.random() - .5).slice(0, TARGETS);
+    const decoys = pool.filter(e => !targets.includes(e));
+    const items = [];
+    const place = (e, isTarget) => {
+      for (let k = 0; k < 40; k++) {
+        const s = isTarget ? 26 + rand(12) : 22 + rand(26), x = 20 + Math.random() * (W - 40), y = 30 + Math.random() * (H - 50);
+        if (isTarget && items.some(o => o.target && Math.hypot(o.x - x, o.y - y) < 55)) continue;
+        items.push({ e, x, y, s, r: (Math.random() - .5) * 1.2, a: isTarget ? .82 + Math.random() * .18 : 1, target: isTarget, found: false });
+        return;
+      }
+    };
+    for (let i = 0; i < N - TARGETS; i++) place(decoys[rand(decoys.length)], false);
+    targets.forEach(e => place(e, true));
+    items.sort(() => Math.random() - .5); // les objets à trouver se cachent un peu sous les autres
+    const stars = Array.from({ length: 40 }, () => [Math.random() * W, Math.random() * H, Math.random() * 1.5 + .5]);
+    let start = performance.now(), penalty = 0, done = false, marks = [], hint = null, raf = 0;
+    const chips = el('div', { class: 'hid-list' });
+    const drawList = () => chips.replaceChildren(...targets.map(e => { const f = items.find(o => o.e === e && o.target).found; return el('span', { class: 'hid-chip' + (f ? ' ok' : '') }, e, f ? ' ✓' : ''); }));
+    const bg = () => {
+      ctx.fillStyle = (() => { const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, sc.sky[0]); gr.addColorStop(1, sc.sky[1]); return gr; })(); ctx.fillRect(0, 0, W, H);
+      if (sc.name === 'L\'espace') { ctx.fillStyle = '#fff'; for (const [x, y, r] of stars) { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); } }
+      else { ctx.fillStyle = sc.floor; ctx.fillRect(0, H * .62, W, H * .38); ctx.fillStyle = 'rgba(0,0,0,.08)'; for (let x = 0; x < W; x += 60) ctx.fillRect(x, H * .62, 2, H * .38); }
+      if (sc.name === 'La plage') { ctx.fillStyle = '#1fb7d6'; ctx.fillRect(0, H * .45, W, H * .17); }
+      if (sc.name === 'Le grenier') { ctx.fillStyle = 'rgba(255,230,160,.12)'; ctx.beginPath(); ctx.moveTo(W * .6, 0); ctx.lineTo(W * .3, H); ctx.lineTo(W * .7, H); ctx.lineTo(W * .75, 0); ctx.fill(); }
+    };
+    const draw = now => {
+      bg();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000000'; // couleur pleine : sinon les émojis prennent la transparence du décor
+      for (const o of items) { if (o.found) continue; ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.r); ctx.globalAlpha = o.a; ctx.font = `${o.s}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; ctx.fillText(o.e, 0, 0); ctx.restore(); }
+      // cercles des objets trouvés, croix des erreurs
+      marks = marks.filter(m => now - m.at < (m.ok ? 900 : 700));
+      for (const m of marks) { const k = (now - m.at) / (m.ok ? 900 : 700); ctx.globalAlpha = 1 - k; ctx.strokeStyle = m.ok ? '#2bff88' : '#ff2d55'; ctx.lineWidth = 4; ctx.beginPath(); if (m.ok) ctx.arc(m.x, m.y, 18 + k * 20, 0, 7); else { ctx.moveTo(m.x - 12, m.y - 12); ctx.lineTo(m.x + 12, m.y + 12); ctx.moveTo(m.x + 12, m.y - 12); ctx.lineTo(m.x - 12, m.y + 12); } ctx.stroke(); ctx.globalAlpha = 1; if (!m.ok) { ctx.fillStyle = '#ff2d55'; ctx.font = '900 16px Outfit, sans-serif'; ctx.fillText('+5 s', m.x, m.y - 26 - k * 10); } }
+      if (hint && now - hint.at < 2200) { const k = (now - hint.at) / 2200; ctx.strokeStyle = `rgba(255,215,106,${1 - k})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(hint.x, hint.y, 70 - k * 40, 0, 7); ctx.stroke(); }
+      if (!done) g.info(`${sc.icon} ${sc.name} · ${items.filter(o => o.target && o.found).length}/${TARGETS} · ⏱ ${Math.floor((now - start) / 1000) + penalty} s`);
+      raf = requestAnimationFrame(draw);
+    };
+    cv.addEventListener('pointerdown', e => {
+      if (done) return;
+      const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H, now = performance.now();
+      const hit = [...items].reverse().find(o => o.target && !o.found && Math.hypot(o.x - x, o.y - y) < o.s * .62 + 6);
+      if (hit) {
+        hit.found = true; marks.push({ x: hit.x, y: hit.y, ok: true, at: now }); drawList();
+        if (items.every(o => !o.target || o.found)) {
+          done = true; const secs = Math.floor((now - start) / 1000) + penalty;
+          LC.confetti(['🔍', '⭐', '🎉']); setTimeout(() => g.end(secs, secs < 60 ? 'Œil de lynx ! 🐱' : secs < 120 ? 'Bravo, tout trouvé ! 🔍' : 'Tout trouvé !'), 600);
+        }
+      } else { penalty += 5; marks.push({ x, y, ok: false, at: now }); }
+    });
+    const hintBtn = el('button', { class: 'btn btn-sm', onclick: () => { const o = items.find(o => o.target && !o.found); if (!o || done) return; penalty += 15; hint = { x: o.x, y: o.y, at: performance.now() }; } }, '💡 Un indice (+15 s)');
+    drawList();
+    area.append(el('div', { class: 'hid-wrap' }, el('div', { class: 'hid-top' }, el('b', {}, 'Retrouve ces objets :'), hintBtn), chips, cv));
+    raf = requestAnimationFrame(draw);
+    g.onCleanup(() => cancelAnimationFrame(raf));
   },
 
   // 🧠 Quiz solo

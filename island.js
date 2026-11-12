@@ -27,7 +27,7 @@ const ACTIONS = {
   island: ['dance'],
   club: ['dance', 'drink', 'dj', 'sit'],
   cinema: ['sit', 'popcorn'],
-  house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play'],
+  house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play', 'coffee', 'mirror', 'dress'],
   pool: ['swim', 'dive', 'tan', 'drink', 'dance', 'sit'],
   cafe: ['sit', 'eat', 'piano', 'cheers', 'dance'],
   arcade: ['play', 'slot', 'darts', 'claw', 'dance'],
@@ -38,7 +38,9 @@ const PRIZES = ['🧸', '🐶', '🦄', '🐱', '🐸', '🐼', '🐰', '🦊'];
 const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 // Les meubles qu'on peut placer chez soi
 const RARE = ['throne', 'jacuzzi', 'djbooth', 'statue', 'neonsign']; // meubles rares de la boutique 💰
-const FURN = [...RARE, 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
+const NEONS = ['neon_coeur', 'neon_etoile', 'neon_love', 'neon_tube', 'neon_vague', 'neon_palmier', 'neon_lune', 'neon_eclair', 'neon_bouche', 'neon_cadre'];
+const HOUSE_STYLES = ['cosy', 'moderne', 'chalet', 'plage', 'chateau', 'loft', 'japon'];
+const FURN = [...RARE, ...NEONS, 'chair', 'nightstand', 'coffee', 'wardrobe', 'mirror', 'vanity', 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
 // Ballon de plage (même calcul côté navigateur) : il roule, freine et rebondit sur les bords
 const BALL_BOX = [80, 250, 1120, 705];
 function ballAt(b, t) {
@@ -60,7 +62,7 @@ const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|s
 module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null, lookOf = () => ({ look: null, mode: 'look' }) }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
-  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
+  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', floor: p.floor || 0, pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
   const Babyfoot = require('./babyfoot')({
@@ -86,20 +88,24 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   const emitScene = (scene, ev, data) => io.to(roomOf(scene)).emit(ev, data);
 
   // ---------- Les maisons ----------
+  // Une seule fois : les maisons réglées « amis » par défaut passent en « on sonne » (la sonnette marche pour tout le monde)
+  try { db.exec("ALTER TABLE houses ADD COLUMN style TEXT NOT NULL DEFAULT 'cosy'"); } catch (e) {}
+  try { db.exec('ALTER TABLE houses ADD COLUMN floors INTEGER NOT NULL DEFAULT 1'); } catch (e) {}
+  try { if (!db.prepare("SELECT 1 FROM settings WHERE key='houseBellFix'").get()) { db.prepare("UPDATE houses SET access='bell' WHERE access='friends'").run(); db.prepare("INSERT INTO settings (key,value) VALUES ('houseBellFix','1')").run(); } } catch (e) {}
   const houseRow = uid => db.prepare('SELECT * FROM houses WHERE user_id=?').get(uid);
   function houseInfo(uid) {
     const u = getUser(uid);
     if (!u) return null;
-    const h = houseRow(uid) || { name: '', theme: 'cosy', access: 'friends', furniture: '' };
+    const h = houseRow(uid) || { name: '', theme: 'cosy', access: 'bell', furniture: '' };
     let furniture = null; try { furniture = h.furniture ? JSON.parse(h.furniture) : null; } catch (e) {}
-    return { ownerId: uid, owner: u.username, ownerGender: u.gender, ownerColor: u.color, ownerAvatar: u.avatar || '', name: h.name || `La maison de ${u.username}`, theme: THEMES.includes(h.theme) ? h.theme : 'cosy', access: ACCESS.includes(h.access) ? h.access : 'friends', visitors: inScene('house:' + uid).length, furniture };
+    return { ownerId: uid, owner: u.username, ownerGender: u.gender, ownerColor: u.color, ownerAvatar: u.avatar || '', name: h.name || `La maison de ${u.username}`, theme: THEMES.includes(h.theme) ? h.theme : 'cosy', access: ACCESS.includes(h.access) ? h.access : 'bell', visitors: inScene('house:' + uid).length, furniture, style: HOUSE_STYLES.includes(h.style) ? h.style : 'cosy', floors: h.floors === 2 ? 2 : 1 };
   }
   // Ceux à qui le propriétaire a ouvert la porte (valable 3 heures)
   const passes = new Map(); // ownerId -> Map(visitorId -> expiration)
   const rings = new Map(); // ownerId -> Map(visitorId -> heure)
   const hasPass = (ownerId, uid) => (passes.get(ownerId)?.get(uid) || 0) > now();
   function canEnterHouse(user, ownerId) {
-    if (user.id === ownerId || isStaff(user)) return true;
+    if (user.id === ownerId) return true; // même les admins sonnent à la porte 🔔
     const h = houseInfo(ownerId);
     if (!h) return false;
     if (hasPass(ownerId, user.id)) return true;
@@ -173,7 +179,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       emitScene(old, 'island_left', { id: p.id });
       afterLeave(old);
     }
-    p.scene = scene; p.action = '';
+    p.scene = scene; p.action = ''; p.floor = 0;
     [p.x, p.y] = pos;
     for (const s of sockOf(p)) s.join(roomOf(scene));
     if (old !== scene) {
@@ -334,13 +340,40 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const h = houseInfo(uid);
       const name = s.name != null ? (modScan ? modScan(String(s.name).replace(/\s+/g, ' ').trim().slice(0, 40)).text : String(s.name).slice(0, 40)) : h.name;
       const theme = THEMES.includes(s.theme) ? s.theme : h.theme, access = ACCESS.includes(s.access) ? s.access : h.access;
-      db.prepare('INSERT INTO houses (user_id,name,theme,access,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name, theme=excluded.theme, access=excluded.access, updated_at=excluded.updated_at').run(uid, name, theme, access, now());
+      const style = HOUSE_STYLES.includes(s.style) ? s.style : h.style, floors = Number(s.floors) === 2 ? 2 : Number(s.floors) === 1 ? 1 : h.floors;
+      db.prepare('INSERT INTO houses (user_id,name,theme,access,style,floors,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name, theme=excluded.theme, access=excluded.access, style=excluded.style, floors=excluded.floors, updated_at=excluded.updated_at').run(uid, name, theme, access, style, floors, now());
+      // plus d'étage : ceux qui étaient en haut redescendent
+      if (floors === 1) for (const q of inScene('house:' + uid)) if (q.floor) { q.floor = 0; emitScene('house:' + uid, 'island_floor', { id: q.id, floor: 0 }); }
       if (access === 'closed') passes.delete(uid);
       const scene = 'house:' + uid, info = houseInfo(uid);
       emitScene(scene, 'house_info', info);
       // Ceux qui n'ont plus le droit d'être là repartent sur l'île
       for (const p of inScene(scene)) { const v = getUser(p.id); if (v && !canEnterHouse(v, uid)) sendHome(p, `🔒 ${u.username} a fermé sa maison`); }
       ack(cb, { ok: true, house: info });
+    });
+    // 🎆 Un feu d'artifice pour toute l'Île (30 pièces)
+    let lastFw = 0;
+    socket.on('island_fw', cb => {
+      const p = me(), u = currentUser();
+      if (!p || !u || !['island', 'pool', 'campfire'].includes(p.scene)) return ack(cb, { error: 'Le feu d\'artifice se lance dehors 🎆' });
+      if (now() - lastFw < 30000) return ack(cb, { error: 'Attends un peu avant d\'en relancer un 🎆' });
+      if (coins && !coins.spend(uid, 30, '🎆 Feu d\'artifice sur l\'Île')) return ack(cb, { error: 'Il te faut 30 pièces 💰' });
+      lastFw = now();
+      const pal = [['#ff2d55', '#ffd34d', '#2fa8ff'], ['#ff4fd8', '#c64dff', '#38dce6'], ['#2bff88', '#ffd34d', '#ff8a1f'], ['#ffffff', '#ffd76a', '#ff2d55']][Math.floor(Math.random() * 4)];
+      for (const sc of ['island', 'pool', 'campfire']) emitScene(sc, 'island_fw', { by: u.username, colors: pal });
+      bump(p.scene, 20);
+      ack(cb, { ok: true });
+    });
+    // 🪜 Monter à l'étage / descendre
+    socket.on('house_floor', floor => {
+      const p = me();
+      if (!p || !p.scene.startsWith('house:')) return;
+      const h = houseInfo(Number(p.scene.slice(6)));
+      const f = floor === 1 && h?.floors === 2 ? 1 : 0;
+      if ((p.floor || 0) === f) return;
+      p.floor = f; p.action = ''; p.x = 150; p.y = 300;
+      emitScene(p.scene, 'island_floor', { id: uid, floor: f });
+      emitScene(p.scene, 'island_move', { id: uid, x: 150, y: 300 });
     });
     // 🔔 La sonnette : on sonne, le propriétaire ouvre (ou pas)
     socket.on('house_ring', (ownerId, cb) => {
@@ -375,7 +408,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     });
     // 🛋️ Placer ses meubles où l'on veut
     socket.on('house_furniture', (list, cb) => {
-      if (!Array.isArray(list) || list.length > 40) return ack(cb, { error: '40 meubles au maximum' });
+      if (!Array.isArray(list) || list.length > 80) return ack(cb, { error: '80 meubles au maximum (40 par étage)' });
       const clean = [];
       for (const f of list) {
         if (!f || !FURN.includes(f.t)) continue;
@@ -383,10 +416,12 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         const x = Math.round(Number(f.x)), y = Math.round(Number(f.y));
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
         if (f.t === 'tv' && clean.some(c => c.t === 'tv')) continue; // une seule télé
-        clean.push({ t: f.t, x: Math.max(0, Math.min(1100, x)), y: Math.max(0, Math.min(720, y)), f: f.f ? 1 : 0 });
+        const item = { t: f.t, x: Math.max(0, Math.min(1100, x)), y: Math.max(0, Math.min(720, y)), f: f.f ? 1 : 0, l: f.l === 1 ? 1 : 0 };
+        if (NEONS.includes(f.t) && /^#[0-9a-f]{6}$/i.test(String(f.c || ''))) item.c = String(f.c).toLowerCase();
+        clean.push(item);
       }
       houseInfo(uid);
-      db.prepare("INSERT INTO houses (user_id,furniture,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET furniture=excluded.furniture, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
+      db.prepare("INSERT INTO houses (user_id,furniture,access,updated_at) VALUES (?,?,'bell',?) ON CONFLICT(user_id) DO UPDATE SET furniture=excluded.furniture, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
       bfCache.delete('house:' + uid);
       emitScene('house:' + uid, 'house_info', houseInfo(uid));
       ack(cb, { ok: true });

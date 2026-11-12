@@ -74,6 +74,7 @@ const SOLO = {
   taquin: { order: 'lower', max: 9999 },     // coups
   reflexes: { order: 'lower', max: 5000 },   // millisecondes
   quiz: { order: 'higher', max: 200 },       // points
+  cache: { order: 'lower', max: 3600 },      // secondes pour trouver tous les objets cachés
 };
 const MULTI = ['morpion', 'quatre', 'chifoumi', 'frappe', 'quizduel'];
 
@@ -178,7 +179,7 @@ function quatreWin(b, r, c, p) {
   return null;
 }
 
-module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isVerified, isMutedBy, visibleOnline, log, tooMany }) {
+module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isVerified, isMutedBy, visibleOnline, log, tooMany, onScore = () => {} }) {
   const now = () => Date.now();
   const games = new Map();   // id -> partie en cours
   const invites = new Map(); // id -> invitation en attente
@@ -201,6 +202,7 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
     db.prepare(`INSERT INTO game_scores (user_id,game,best,played,updated_at) VALUES (?,?,?,1,?)
       ON CONFLICT(user_id,game) DO UPDATE SET best=CASE WHEN ? THEN excluded.best ELSE best END, played=played+1, updated_at=excluded.updated_at`)
       .run(req.user.id, req.body.game, score, now(), better ? 1 : 0);
+    try { onScore(req.user.id, req.body.game, score, better); } catch (e) {}
     res.json({ best: better ? score : cur.best, record: better });
   });
   app.get('/api/games/me', auth, (req, res) => {

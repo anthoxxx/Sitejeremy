@@ -6,7 +6,11 @@ const SPECIES = {
   chiot: { name: 'Chiot', icon: '🐶', price: 0 }, chaton: { name: 'Chaton', icon: '🐱', price: 0 }, lapin: { name: 'Lapin', icon: '🐰', price: 0 },
   hamster: { name: 'Hamster', icon: '🐹', price: 0 }, renard: { name: 'Renard', icon: '🦊', price: 0 }, pingouin: { name: 'Pingouin', icon: '🐧', price: 0 },
   panda: { name: 'Panda', icon: '🐼', price: 150 }, koala: { name: 'Koala', icon: '🐨', price: 150 }, tigre: { name: 'Tigre', icon: '🐯', price: 300 },
-  dragon: { name: 'Dragon', icon: '🐉', price: 600 }, licorne: { name: 'Licorne', icon: '🦄', price: 800 }, phoenix: { name: 'Phénix', icon: '🐦‍🔥', price: 1200 },
+  dragon: { name: 'Dragon', icon: '🐉', price: 600 },
+  // 🐲 les Paradimon (créatures originales du Paradise, dessinées par le site)
+  flamichou: { name: 'Flamichou', icon: '🦊', price: 100, creature: true }, bulloo: { name: 'Bulloo', icon: '💧', price: 100, creature: true }, feuillou: { name: 'Feuillou', icon: '🌿', price: 100, creature: true },
+  voltis: { name: 'Voltis', icon: '⚡', price: 150, creature: true }, nuagelle: { name: 'Nuagelle', icon: '☁️', price: 250, creature: true }, rocaillou: { name: 'Rocaillou', icon: '🪨', price: 250, creature: true },
+  lunacorne: { name: 'Lunacorne', icon: '🌙', price: 500, creature: true }, cristalis: { name: 'Cristalis', icon: '💎', price: 550, creature: true }, draconeau: { name: 'Draconeau', icon: '🐲', price: 700, creature: true }, licorne: { name: 'Licorne', icon: '🦄', price: 800 }, phoenix: { name: 'Phénix', icon: '🐦‍🔥', price: 1200 },
 };
 const ACCESSORIES = {
   noeud: { name: 'Nœud', icon: '🎀', price: 40 }, fleur: { name: 'Fleur', icon: '🌸', price: 40 }, casquette: { name: 'Casquette', icon: '🧢', price: 60 },
@@ -48,7 +52,7 @@ module.exports = function setupPets({ db, coins, notify, track, onChange = () =>
     };
   }
   // Version courte pour l'Île (le petit animal qui suit son maître)
-  const mini = uid => { const r = row(uid); if (!r) return null; const o = out(r); return { icon: o.icon, stage: o.stage, acc: o.accIcon, name: o.name, mood: o.mood }; };
+  const mini = uid => { const r = row(uid); if (!r) return null; const o = out(r); return { icon: o.icon, species: o.species, creature: !!SPECIES[o.species]?.creature, stage: o.stage, acc: o.accIcon, name: o.name, mood: o.mood }; };
 
   function adopt(uid, species, name) {
     if (row(uid)) return { error: 'Tu as déjà un animal 🐾' };

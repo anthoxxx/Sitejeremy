@@ -411,4 +411,23 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 28,
+    date: '2026-11-12',
+    title: 'Les Paradimon 🐲, les objets cachés 🔍, les vrais meubles 🛋️ et une Île encore plus belle ✨',
+    added: [
+      'Les Paradimon 🐲 : 9 créatures inventées pour The Paradise (Flamichou, Bulloo, Feuillou, Voltis, Nuagelle, Rocaillou, Lunacorne, Cristalis, Draconeau). Sur l\'Île, tu peux être une créature (« 🧍 Mon perso » → « 🐲 Une créature ») ou en adopter une comme animal',
+      'Le jeu des objets cachés 🔍 (Mini-jeux, ou dans l\'Arcade de l\'Île) : retrouve les 10 objets cachés dans le grenier, la plage, la chambre, la cuisine, le jardin ou l\'espace, le plus vite possible',
+      'De vrais meubles : lit avec couette et oreillers, chaises, canapé moelleux, cafetière, armoire, miroir, coiffeuse, table de chevet, cuisine équipée, baignoire, bibliothèque…',
+      '10 néons à mettre chez toi (cœur, étoile, « Love », vague, palmier, lune, éclair, bisou, tube, cadre) dans 11 couleurs (bouton « 🎨 Couleur du néon »)',
+      'Ton personnage fait tout pour de vrai : il se couche dans le lit sous la couette, s\'assoit sur la chaise et le canapé, prend son bain dans la mousse, tient sa tasse de café, sa poêle, son livre…',
+      'Les styles de maison : Villa moderne, Chalet, Maison de plage, Château, Loft néon, Maison japonaise… et la maison avec un étage et un escalier (⚙️ Ma maison)',
+      'L\'Île plus belle : lampadaires néon, guirlandes lumineuses, fontaine, bateaux, dauphins, montgolfière, papillons, lucioles et contour néon la nuit',
+      'Le bouton « 🎆 Feu d\'artifice » : lance un feu d\'artifice que toute l\'Île voit (30 pièces). La nuit, il y en a aussi un tous les quarts d\'heure',
+    ],
+    changed: [
+      'La sonnette 🔔 : tout le monde sonne maintenant avant d\'entrer chez quelqu\'un (même l\'équipe du site), sauf si le propriétaire a choisi « Tout le monde entre »',
+    ],
+    removed: [],
+  },
 ];

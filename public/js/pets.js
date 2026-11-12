@@ -2,6 +2,14 @@
 const Pets = (() => {
   let data = null, close = null, pickSpecies = 'chiot';
   const fmt = n => Number(n || 0).toLocaleString('fr-FR');
+  // L'image de l'animal : un émoji, ou une créature Paradimon dessinée
+  function petArt(species, icon, size, small) {
+    if (!window.Look?.CREATURES?.[species]) return el('span', { class: small ? '' : 'pet-emoji' }, icon);
+    const c = el('canvas', { class: 'pet-cv', width: size * 2, height: size * 2, style: `width:${size}px;height:${size}px` });
+    let raf = 0; const loop = ts => { if (!document.body.contains(c)) return cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); const k = size * 2 / 64; g.setTransform(k, 0, 0, k, c.width / 2, c.height * .72); Look.drawCreature(g, species, { t: ts / 1000, seed: 3 }); };
+    raf = requestAnimationFrame(loop);
+    return c;
+  }
   async function open() {
     if (state.me?.isGuest) return toast('Inscris-toi pour adopter un animal 🐾');
     if (close) close();
@@ -24,7 +32,7 @@ const Pets = (() => {
     box.replaceChildren(
       el('div', { class: 'shop-head' }, el('div', {}, el('b', { class: 'pet-title' }, `🐾 ${p.name}`), el('small', {}, `${p.speciesName} · ${p.stageName} · né le ${new Date(p.bornAt).toLocaleDateString('fr-FR')}`)), el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
       el('div', { class: 'pet-stage-box mood-' + p.mood },
-        el('div', { class: 'pet-big stage-' + p.stage, onclick: () => act('hug') }, el('span', { class: 'pet-emoji' }, p.icon), p.accIcon ? el('span', { class: 'pet-acc' }, p.accIcon) : null),
+        el('div', { class: 'pet-big stage-' + p.stage, onclick: () => act('hug') }, petArt(p.species, p.icon, 110), p.accIcon ? el('span', { class: 'pet-acc' }, p.accIcon) : null),
         el('div', { class: 'pet-mood' }, `${p.moodIcon} ${p.name} ${p.moodText}`)),
       el('div', { class: 'pet-stats' }, bar('🍖 Ventre', p.food, 'food'), bar('💖 Bonheur', p.joy, 'joy'),
         p.nextAt ? el('div', { class: 'pet-stat' }, el('small', {}, `🌱 Vers « ${p.nextName} »`), el('div', { class: 'prog-bar' }, el('i', { style: `width:${Math.min(100, Math.round(p.xp * 100 / p.nextAt))}%` })), el('b', {}, `${p.xp}/${p.nextAt}`)) : el('div', { class: 'pet-stat' }, el('small', {}, '✨ Ton animal est légendaire !'))),
@@ -67,7 +75,7 @@ const Pets = (() => {
         el('div', { class: 'shop-head' }, el('div', {}, el('b', { class: 'pet-title' }, '🐾 Adopte ton animal'), el('small', {}, 'Il te suivra partout sur l\'Île du Paradise')), el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
         el('div', { class: 'shop-body' },
           el('div', { class: 'pet-choose' }, ...Object.entries(data.species).map(([k, s]) => el('button', { type: 'button', class: 'pet-choice' + (pickSpecies === k ? ' on' : ''), onclick: () => { pickSpecies = k; draw(); } },
-            el('span', {}, s.icon), el('b', {}, s.name), el('small', {}, s.price ? `${fmt(s.price)} 💰` : 'Gratuit')))),
+            petArt(k, s.icon, 52, true), el('b', {}, s.name), el('small', {}, s.price ? `${fmt(s.price)} 💰` : 'Gratuit')))),
           el('label', {}, 'Comment veux-tu l\'appeler ?'), name,
           el('button', { class: 'btn btn-primary daily-btn', onclick: async () => {
             const r = await post('/api/pets/adopt', { species: pickSpecies, name: name.value });

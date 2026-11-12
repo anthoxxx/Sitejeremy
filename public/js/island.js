@@ -46,6 +46,7 @@ const Island = (() => {
   const img = src => { if (!src) return null; let i = imgs.get(src); if (!i) { i = new Image(); i.src = src; imgs.set(src, i); } return i.complete && i.naturalWidth ? i : null; };
 
   // ---------- Le décor fixe (dessiné une seule fois) ----------
+  window.Decor?.setNight(() => nightLevel());
   function buildTerrain() {
     terrain = document.createElement('canvas'); terrain.width = W; terrain.height = H;
     const g = terrain.getContext('2d');
@@ -181,10 +182,8 @@ const Island = (() => {
       ctx.fillStyle = '#1b0508'; ctx.fillRect(-20, 0, 40, 32); ctx.fillStyle = '#c21e3a'; ctx.fillRect(-66, -30, 30, 40); ctx.fillRect(36, -30, 30, 40);
     } else if (p.kind === 'houses') {
       ctx.shadowBlur = 0;
-      [[-62, 8, '#ff8fb1', '#7a3b5c'], [62, 8, '#9fd8ff', '#2a5c8a'], [0, -22, '#ffe3a0', '#8a5a2b']].forEach(([hx, hy, wall, roof]) => {
-        ctx.fillStyle = wall; ctx.fillRect(hx - 30, hy - 18, 60, 40); ctx.fillStyle = roof; ctx.beginPath(); ctx.moveTo(hx - 38, hy - 18); ctx.lineTo(hx, hy - 46); ctx.lineTo(hx + 38, hy - 18); ctx.fill();
-        ctx.fillStyle = nightLevel() > .4 ? '#ffe28a' : '#ffffff'; ctx.fillRect(hx - 20, hy - 8, 12, 10); ctx.fillStyle = '#5a3a1c'; ctx.fillRect(hx + 4, hy + 2, 12, 20);
-      });
+      // le quartier : des maisons de tous les styles, certaines avec un étage
+      if (window.Decor) { Decor.facade(ctx, 'chalet', 1, '#ff8a1f', -92, 28, .62); Decor.facade(ctx, 'moderne', 2, '#38dce6', 0, 10, .62); Decor.facade(ctx, 'plage', 1, '#2fa8ff', 92, 28, .62); Decor.facade(ctx, 'japon', 2, '#ff2d55', -46, -34, .5); Decor.facade(ctx, 'chateau', 2, '#c64dff', 52, -36, .46); }
     } else if (p.kind === 'poolplace') {
       ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; roundRect(-84, -40, 168, 80, 22); ctx.fill();
       ctx.fillStyle = '#2fd0ff'; roundRect(-74, -30, 148, 60, 18); ctx.fill();
@@ -237,9 +236,10 @@ const Island = (() => {
     const act = moving ? '' : p.action;
     const dancing = act === 'dance' || act === 'dj';
     const bob = moving ? Math.abs(Math.sin(t * 12)) * 5 : dancing ? Math.abs(Math.sin(t * 9 + p.id)) * 9 : act === 'sit' ? (kind === 'cinema' ? 16 : 8) : act === 'sleep' ? -6 : Math.sin(t * 2 + p.id) * 1.2;
-    ctx.save(); ctx.translate(p.dx, p.dy);
+    const pose = p.pose;
+    ctx.save(); ctx.translate(pose ? pose.x : p.dx, pose ? pose.y : p.dy);
     if (dancing) ctx.rotate(Math.sin(t * 4.5 + p.id) * .22);
-    if (act === 'sleep') ctx.rotate(-.5);
+    if (act === 'sleep' && !pose) ctx.rotate(-.5);
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 22, 18, 6, 0, 0, 7); ctx.fill();
     let y = -14 - bob, r = 18;
     if (p.mode !== 'photo' && window.Look) {
@@ -247,8 +247,11 @@ const Island = (() => {
       if (p.prevX != null && Math.abs(p.dx - p.prevX) > .3) p.dir = p.dx > p.prevX ? 1 : -1;
       p.prevX = p.dx;
       ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = .55; ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(0, 22, 15, 5, 0, 0, 7); ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-      const h = Look.draw(ctx, p.look, { t, walking: moving, dir: p.dir || 1, act, seed: p.id, id: p.id, gender: p.gender });
+      const h = p.mode === 'creature' && Look.drawCreature ? Look.drawCreature(ctx, p.look?.creature, { t, walking: moving, dir: p.dir || 1, act, seed: p.id }) : Look.draw(ctx, p.look, { t, walking: moving, dir: p.dir || 1, act, seed: p.id, id: p.id, gender: p.gender });
       y = h.headY; r = 15;
+      // 🛏️ dans le lit : la couette par-dessus · 🛁 dans le bain : l'eau et la mousse
+      if (pose?.type === 'lie') { const d = pose.d, A = (THEME[house?.theme] || THEME.cosy).accent; ctx.fillStyle = A; roundRect(-d.w / 2 + 8, -12, d.w - 16, d.h - 52, 12); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(-d.w / 2 + 8, -12, d.w - 16, 12, 6); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '16px sans-serif'; ctx.fillText('💤', 22, -48 - ((t * 20) % 20)); }
+      if (pose?.type === 'soak') { const d = pose.d; ctx.fillStyle = 'rgba(80,190,255,.88)'; ctx.beginPath(); ctx.ellipse(0, 4, d.w / 2 - 16, 18, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.95)'; for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(-34 + i * 10, -6 + Math.sin(t * 3 + i) * 3, 5 + (i % 3) * 2, 0, 7); ctx.fill(); } }
     } else {
     // petit corps
     ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-14, 20 - bob); ctx.quadraticCurveTo(0, -4 - bob, 14, 20 - bob); ctx.closePath(); ctx.fill();
@@ -304,7 +307,8 @@ const Island = (() => {
     if (pet.stage === 'legende') { ctx.shadowColor = '#ffd76a'; ctx.shadowBlur = 16; }
     ctx.font = `${size}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     if ((p.px > p.dx) !== (p.petSide < 0)) ctx.scale(-1, 1);
-    ctx.fillText(pet.icon, 0, 4 - hop);
+    if (pet.creature && window.Look?.drawCreature) { const k = size / 46; ctx.save(); ctx.translate(0, 4 - hop - 20 * k); ctx.scale(k, k); Look.drawCreature(ctx, pet.species, { t, walking: moving, seed: p.id + 7 }); ctx.restore(); }
+    else { ctx.fillStyle = '#000'; ctx.fillText(pet.icon, 0, 4 - hop); }
     ctx.shadowBlur = 0;
     ctx.restore();
     ctx.save(); ctx.translate(p.px, p.py);
@@ -313,6 +317,23 @@ const Island = (() => {
     if (pet.mood === 'sad' || pet.mood === 'starving') { ctx.globalAlpha = .5 + .5 * Math.sin(t * 3); ctx.font = '13px sans-serif'; ctx.fillText(pet.mood === 'starving' ? '🍖' : '💧', size * .55, -size * .55); ctx.globalAlpha = 1; }
     else if (pet.mood === 'happy' && (t + p.id) % 6 < .8) { ctx.font = '13px sans-serif'; ctx.fillText('💕', size * .55, -size * .7 - ((t + p.id) % 6) * 12); }
     ctx.restore();
+  }
+  // Le personnage utilise vraiment le meuble : couché dans le lit, assis sur la chaise, dans le bain…
+  const SEAT_Y = { sofa: d => -d.h / 2 + 36, armchair: d => -d.h / 2 + d.h * .42, throne: d => -d.h / 2 + d.h * .42, chair: d => d.h * .05 - 10 };
+  function poseOf(p) {
+    if (kind !== 'house' || p.moving || !p.action) return null;
+    let best = null, bd = 140;
+    for (const f of furn()) {
+      const d = FURN[f.t]; if (!d || d.act !== p.action) continue;
+      const s = furnSpot(f), dist = Math.hypot(s.x - p.dx, s.y - p.dy);
+      if (dist < bd) { bd = dist; best = { f, d }; }
+    }
+    if (!best) return null;
+    const { f, d } = best, z = f.y + d.h / 2 + 2;
+    if (p.action === 'sleep' && (f.t === 'bed')) return { type: 'lie', x: f.x, y: f.y - d.h / 2 + 62, z, d };
+    if (p.action === 'bath') return { type: 'soak', x: f.x, y: f.y - 4, z, d };
+    if (p.action === 'sit' && SEAT_Y[f.t]) return { type: 'seat', x: f.x, y: f.y + SEAT_Y[f.t](d), z, d };
+    return null;
   }
   function wrap(text, max) {
     const words = text.split(' '), out = []; let line = '';
@@ -406,6 +427,7 @@ const Island = (() => {
     arcade: [
       { game: 'slot', icon: '🎰', label: 'Machine à sous', x: 270, y: 330, spread: 240 },
       { game: 'claw', icon: '🧸', label: 'Pince à peluches', x: 600, y: 345 },
+      { hidden: true, icon: '🔍', label: 'Objets cachés' },
       { game: 'darts', icon: '🎯', label: 'Fléchettes', x: 985, y: 385, spread: 60 },
       { babyfoot: true, icon: '⚽', label: 'Babyfoot', x: 600, y: 618 },
       { action: 'play', icon: '🕹️', label: 'Jeux rétro', x: 200, y: 630, spread: 160 },
@@ -452,13 +474,16 @@ const Island = (() => {
     statue: { name: 'Statue en or', icon: '🗿', w: 80, h: 140, rare: 'furn_statue' },
     neonsign: { name: 'Néon « Paradise »', icon: '💡', w: 220, h: 70, rare: 'furn_neonsign' },
   };
-  const ACT_LABEL = { sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
+  Object.assign(FURN, window.Decor?.FURN || {});
+  const ACT_LABEL = { coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
   const DEFAULT_FURN = [
     { t: 'tv', x: 260, y: 140 }, { t: 'sofa', x: 280, y: 322 }, { t: 'rug', x: 540, y: 470 }, { t: 'kitchen', x: 870, y: 208 },
     { t: 'fridge', x: 1025, y: 153 }, { t: 'bed', x: 940, y: 555 }, { t: 'plant', x: 80, y: 262 }, { t: 'plant', x: 1060, y: 660 }, { t: 'lamp', x: 455, y: 200 },
   ];
   let editing = false, draft = [], sel = -1, drag = null;
-  const furn = () => (editing ? draft : house?.furniture || DEFAULT_FURN);
+  let floorNow = 0;
+  const furnAll = () => (editing ? draft : house?.furniture || DEFAULT_FURN);
+  const furn = () => furnAll().filter(f => (f.l || 0) === floorNow);
   const clampWalk = (x, y) => ({ x: Math.max(75, Math.min(1025, x)), y: Math.max(262, Math.min(668, y)) });
   const furnSpot = f => { const d = FURN[f.t]; return d.spot === 'center' ? clampWalk(f.x, f.y) : clampWalk(f.x, f.y + d.h / 2 + 14); };
   function houseHots() {
@@ -470,7 +495,8 @@ const Island = (() => {
       const s = furnSpot(f);
       out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
-    out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 550, y: 672 });
+    if (house?.floors === 2) out.unshift({ stairs: true, icon: floorNow ? '⬇️' : '⬆️', label: floorNow ? 'Descendre' : 'Monter à l\'étage', x: 140, y: 282 });
+    if (!floorNow) out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 550, y: 672 });
     return out;
   }
   const hots = () => (kind === 'house' ? houseHots() : HOTS[kind]);
@@ -480,7 +506,8 @@ const Island = (() => {
     if (!d) return;
     ctx.save(); ctx.translate(f.x, f.y); if (f.f && f.t !== 'neonsign' && f.t !== 'statue') ctx.scale(-1, 1);
     const w = d.w, h = d.h, A = th.accent;
-    ctx.fillStyle = 'rgba(0,0,0,.14)'; if (!d.flat && f.t !== 'painting') { ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, 9, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; if (!d.flat && !d.neon && f.t !== 'painting') { ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, 9, 0, 0, 7); ctx.fill(); }
+    if (window.Decor && Decor.draw(ctx, f, d, t, A, nightLevel())) { ctx.restore(); if (f.t === 'tv') drawScreen(t); return; }
     switch (f.t) {
       case 'sofa': ctx.fillStyle = A; roundRect(-w / 2 + 10, -h / 2, w - 20, 40, 12); ctx.fill(); roundRect(-w / 2, -h / 2 + 12, 30, h - 12, 10); ctx.fill(); roundRect(w / 2 - 30, -h / 2 + 12, 30, h - 12, 10); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.28)'; roundRect(-w / 2 + 30, -h / 2 + 38, w - 60, 30, 8); ctx.fill(); break;
       case 'armchair': ctx.fillStyle = A; roundRect(-w / 2, -h / 2, w, h, 14); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.3)'; roundRect(-w / 2 + 12, -h / 2 + 22, w - 24, h - 30, 8); ctx.fill(); break;
@@ -791,12 +818,12 @@ const Island = (() => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
       if (draft.length >= 40) return toast('40 meubles au maximum');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
-      const n = draft.length; draft.push({ t: k, x: 380 + (n * 97) % 360, y: 400 + (n * 53) % 180 }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
+      const n = draft.length; draft.push({ t: k, x: 380 + (n * 97) % 360, y: d.neon ? 120 + (n * 31) % 80 : 400 + (n * 53) % 180, l: floorNow, ...(d.neon ? { c: Decor.NEON[n % Decor.NEON.length] } : {}) }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
     } }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null))));
   }
   const furnDepth = f => f.y + (FURN[f.t]?.flat ? -999 : FURN[f.t]?.h / 2 || 0);
   function hitFurn(x, y) {
-    const order = draft.map((f, i) => i).sort((a, b) => furnDepth(draft[b]) - furnDepth(draft[a]));
+    const order = draft.map((f, i) => i).filter(i => (draft[i].l || 0) === floorNow).sort((a, b) => furnDepth(draft[b]) - furnDepth(draft[a]));
     return order.find(i => { const f = draft[i], d = FURN[f.t]; return Math.abs(x - f.x) < d.w / 2 + 6 && Math.abs(y - f.y) < d.h / 2 + 6; }) ?? -1;
   }
 
@@ -854,17 +881,11 @@ const Island = (() => {
   }
   function drawHouse(t) {
     const th = THEME[house?.theme] || THEME.cosy;
-    ctx.fillStyle = th.wall; ctx.fillRect(0, 0, 1100, 250);
-    ctx.fillStyle = th.floor; ctx.fillRect(0, 250, 1100, 470);
-    ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 2; for (let y = 280; y < 720; y += 34) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1100, y); ctx.stroke(); }
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(0, 244, 1100, 8);
-    // fenêtre : le ciel suit l'heure
     const n = nightLevel();
-    ctx.fillStyle = mix('#8fd8ff', '#0b1640', n); ctx.fillRect(520, 50, 180, 120); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.strokeRect(520, 50, 180, 120); ctx.beginPath(); ctx.moveTo(610, 50); ctx.lineTo(610, 170); ctx.moveTo(520, 110); ctx.lineTo(700, 110); ctx.stroke();
-    ctx.font = '26px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n > .4 ? '🌙' : '☀️', 660, 80);
+    if (window.Decor) Decor.room(ctx, t, { style: house?.style, floors: house?.floors || 1, accent: th.accent, wall: th.wall, floor: th.floor }, floorNow, n, mix);
     // nom de la maison et porte
     neonText(house?.name || 'Ma maison', 860, 120 - 70, th.accent, 22);
-    ctx.fillStyle = '#5a3a1c'; ctx.fillRect(500, 690, 100, 30);
+    if (!floorNow) { ctx.fillStyle = '#5a3a1c'; ctx.fillRect(500, 690, 100, 30); }
   }
   function neonText(text, x, y, col, size) {
     ctx.font = `900 ${size}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -893,10 +914,102 @@ const Island = (() => {
       ctx.font = '20px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(h.icon, h.x, h.y - 2);
     }
   }
+  // ======================================================================
+  //  ✨ L'Île en plus beau : lampadaires néon, guirlandes, fontaine, bateaux, dauphins, montgolfière, lucioles
+  // ======================================================================
+  const FOUNTAIN = { x: 1050, y: 1010 };
+  const LAMP_COLORS = ['#ff2d55', '#ff4fd8', '#c64dff', '#2fa8ff', '#38dce6', '#2bff88', '#ffd34d', '#ff8a1f'];
+  const lamps = [];
+  for (const [i, p] of PLACES.entries()) {
+    if (p.slug === 'general') continue;
+    const cx = (1200 + p.x) / 2 + (p.y - 800) * .15, cy = (860 + p.y) / 2 - (p.x - 1200) * .1;
+    for (const k of [.42, .76]) {
+      const x = (1 - k) * (1 - k) * 1200 + 2 * (1 - k) * k * cx + k * k * p.x, y = (1 - k) * (1 - k) * 860 + 2 * (1 - k) * k * cy + k * k * (p.y + 40);
+      if (Math.hypot(x - FOUNTAIN.x, y - FOUNTAIN.y) < 80 || PLACES.some(q => Math.hypot(q.x - x, q.y - y) < 70)) continue;
+      lamps.push({ x: x + 26, y, c: LAMP_COLORS[(i * 2 + (k > .5 ? 1 : 0)) % LAMP_COLORS.length] });
+    }
+  }
+  const boats = [{ a: 0, sp: .03, r: 1.12, e: '⛵' }, { a: 2.4, sp: -.022, r: 1.18, e: '🛥️' }, { a: 4.3, sp: .018, r: 1.24, e: '🚤' }];
+  const flies = Array.from({ length: 40 }, () => ({ x: 400 + Math.random() * 1600, y: 300 + Math.random() * 1000, p: Math.random() * 6 }));
+  let dolphin = { at: 0, x: 0, y: 0 };
+  function drawSea(t) {
+    // bateaux qui font le tour de l'île
+    for (const b of boats) {
+      const a = b.a + t * b.sp, x = 1200 + Math.cos(a) * 1080 * b.r, y = 800 + Math.sin(a) * 700 * b.r;
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(x - Math.sign(b.sp) * 30, y + 14, 26, 4, 0, 0, 7); ctx.fill();
+      ctx.save(); ctx.translate(x, y + Math.sin(t * 2 + b.a) * 3); if (Math.cos(a) * b.sp > 0) ctx.scale(-1, 1);
+      ctx.font = '46px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.e, 0, 0); ctx.restore();
+    }
+    // un dauphin qui saute de temps en temps
+    const now = performance.now();
+    if (now - dolphin.at > 9000) { const a = Math.random() * Math.PI * 2; dolphin = { at: now, x: 1200 + Math.cos(a) * 1180, y: 800 + Math.sin(a) * 790 }; }
+    const k = (now - dolphin.at) / 1600;
+    if (k < 1) { ctx.save(); ctx.translate(dolphin.x + k * 120, dolphin.y - Math.sin(k * Math.PI) * 70); ctx.rotate(-.9 + k * 1.8); ctx.font = '44px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🐬', 0, 0); ctx.restore(); if (k > .85) { ctx.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(dolphin.x + 120 + (i - 3) * 8, dolphin.y - 4 - (i % 2) * 6, 3, 0, 7); ctx.fill(); } } }
+  }
+  function drawCoast(t, n) {
+    // la nuit, le contour de l'île s'allume en néon arc-en-ciel
+    if (n < .2) return;
+    const c = LAMP_COLORS[Math.floor(t / 2) % LAMP_COLORS.length];
+    ctx.save(); ctx.globalAlpha = Math.min(1, n * 1.4); ctx.strokeStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 24; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.ellipse(1200, 800, 1080 * Math.sqrt(.93) + 4, 700 * Math.sqrt(.93) + 4, 0, 0, 7); ctx.stroke(); ctx.restore();
+  }
+  function drawLights(t, n) {
+    // guirlande lumineuse autour de la grande place
+    const pts = []; for (let i = 0; i <= 10; i++) { const a = Math.PI * .1 + i * Math.PI * .08; pts.push([1200 + Math.cos(a) * 235, 870 + Math.sin(a) * 150]); }
+    ctx.strokeStyle = 'rgba(40,30,30,.6)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1], mx = (ax + bx) / 2, my = (ay + by) / 2 + 16;
+      ctx.beginPath(); ctx.moveTo(ax, ay - 40); ctx.quadraticCurveTo(mx, my - 40, bx, by - 40); ctx.stroke();
+      for (let k = 1; k < 5; k++) { const q = k / 5, x = (1 - q) * (1 - q) * ax + 2 * (1 - q) * q * mx + q * q * bx, y = (1 - q) * (1 - q) * (ay - 40) + 2 * (1 - q) * q * (my - 40) + q * q * (by - 40); const c = LAMP_COLORS[(i * 4 + k + Math.floor(t * 3)) % LAMP_COLORS.length]; ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 6 + n * 12; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fill(); }
+    }
+    ctx.shadowBlur = 0;
+    for (const [x, y] of pts) { ctx.fillStyle = '#5a3a1c'; ctx.fillRect(x - 2, y - 42, 4, 42); }
+  }
+  function drawLamp(l, t, n) {
+    const flick = Math.sin(t * 19 + l.x) > .985 ? .4 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(l.x, l.y + 2, 10, 3, 0, 0, 7); ctx.fill();
+    const glow = ctx.createRadialGradient(l.x, l.y - 52, 2, l.x, l.y - 52, 40 + n * 50); glow.addColorStop(0, l.c + 'aa'); glow.addColorStop(1, l.c + '00');
+    ctx.globalAlpha = (.35 + n * .65) * flick; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(l.x, l.y - 52, 40 + n * 50, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#2a2a32'; ctx.fillRect(l.x - 2, l.y - 50, 4, 52); ctx.fillRect(l.x - 6, l.y - 2, 12, 4);
+    ctx.fillStyle = l.c; ctx.shadowColor = l.c; ctx.shadowBlur = 16 * flick; ctx.beginPath(); ctx.arc(l.x, l.y - 54, 6, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#2a2a32'; ctx.beginPath(); ctx.moveTo(l.x - 8, l.y - 58); ctx.lineTo(l.x + 8, l.y - 58); ctx.lineTo(l.x, l.y - 66); ctx.fill();
+  }
+  function drawFountain(t, n) {
+    const { x, y } = FOUNTAIN;
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y + 26, 80, 18, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d8dde6'; ctx.beginPath(); ctx.ellipse(x, y + 10, 76, 24, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2fd0ff'; ctx.beginPath(); ctx.ellipse(x, y + 6, 66, 18, 0, 0, 7); ctx.fill();
+    const c = LAMP_COLORS[Math.floor(t * 1.5) % LAMP_COLORS.length];
+    ctx.strokeStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 10 + n * 16; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y + 10, 76, 24, 0, 0, 7); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#c0c6cc'; ctx.fillRect(x - 6, y - 40, 12, 46); ctx.beginPath(); ctx.ellipse(x, y - 40, 26, 8, 0, 0, 7); ctx.fill();
+    // les jets d'eau
+    for (let i = 0; i < 26; i++) { const q = ((t * .9 + i / 26) % 1), a = i / 26 * Math.PI * 2; ctx.globalAlpha = 1 - q; ctx.fillStyle = n > .3 ? c : '#e8fbff'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * q * 50, y - 44 - Math.sin(q * Math.PI) * 50 + q * 44 + Math.sin(a) * q * 10, 2.6, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+  function drawSky(t, n, x0, y0, x1, y1) {
+    // une montgolfière qui traverse le ciel
+    const bx = 400 + ((t * 18) % 2000), by = 260 + Math.sin(t * .4) * 40;
+    if (bx > x0 - 80 && bx < x1 + 80) { ctx.font = '64px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🎈', bx, by); ctx.font = '26px "Noto Color Emoji", sans-serif'; ctx.fillText('🧺', bx, by + 46); }
+    // les lucioles la nuit, les papillons le jour
+    for (const f of flies) {
+      const x = f.x + Math.sin(t * .7 + f.p) * 30, y = f.y + Math.cos(t * .9 + f.p) * 20;
+      if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+      if (n > .3) { ctx.globalAlpha = .4 + .6 * Math.abs(Math.sin(t * 3 + f.p)); ctx.fillStyle = '#fff6a0'; ctx.shadowColor = '#fff6a0'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 7); ctx.fill(); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
+      else if (f.p > 4.5) { ctx.font = '18px "Noto Color Emoji", sans-serif'; ctx.fillText('🦋', x, y); }
+    }
+  }
+  // 🎆 Les feux d'artifice : pendant les soirées, la nuit de temps en temps, ou quand quelqu'un en lance un
+  let fwUntil = 0, fwColors = null, fwBy = '';
+  function fireworksNow(n) {
+    if (window.EventState?.live) return window.EventState.live.colors;
+    if (fwUntil > Date.now()) return fwColors;
+    const d = new Date(); if (n >= .6 && d.getMinutes() % 15 === 0 && d.getSeconds() < 40) return LAMP_COLORS; // la nuit, toutes les 15 minutes
+    return null;
+  }
   // 🎆 Feux d'artifice des soirées
   let rockets = [], sparks = [], nextRocket = 0;
-  function drawFireworks(dt, vw, vh) {
-    const cols = window.EventState.live.colors.concat(['#ffffff']);
+  function drawFireworks(dt, vw, vh, palette) {
+    const cols = palette.concat(['#ffffff']);
     const tnow = performance.now();
     if (tnow > nextRocket) { nextRocket = tnow + 700 + Math.random() * 900; rockets.push({ x: vw * (.1 + Math.random() * .8), y: vh, ty: vh * (.12 + Math.random() * .3), c: cols[Math.floor(Math.random() * cols.length)] }); }
     for (let i = rockets.length - 1; i >= 0; i--) {
@@ -984,7 +1097,11 @@ const Island = (() => {
     if (kind === 'island') {
       const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20;
       drawWater(t, x0, y0, x1, y1);
+      const nn = Math.max(nightLevel(), window.EventState?.live ? .6 : 0);
+      drawSea(t);
       ctx.drawImage(terrain, 0, 0);
+      drawCoast(t, nn); drawLights(t, nn);
+      items.push(...lamps.filter(l => l.x > x0 - 60 && l.x < x1 + 60 && l.y > y0 - 20 && l.y < y1 + 80).map(l => ({ y: l.y, d: () => drawLamp(l, t, nn) })), { y: FOUNTAIN.y + 26, d: () => drawFountain(t, nn) });
       const counts = {};
       for (const u of state.online || []) if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1;
       items.push(...palms.filter(p => p.x > x0 - 80 && p.x < x1 + 80 && p.y > y0 && p.y < y1 + 120).map(p => ({ y: p.y, d: () => drawPalm(p, t) })),
@@ -993,17 +1110,18 @@ const Island = (() => {
       ({ club: drawClub, cinema: drawCinema, house: drawHouse, pool: drawPool, cafe: drawCafe, arcade: drawArcade, campfire: drawCamp })[kind](t);
       if (kind === 'house') {
         const th = THEME[house?.theme] || THEME.cosy, list = furn();
-        list.filter(f => FURN[f.t]?.flat).forEach(f => drawFurn(f, t, th));
-        items.push(...list.filter(f => !FURN[f.t]?.flat).map(f => ({ y: f.y + FURN[f.t].h / 2, d: () => drawFurn(f, t, th) })));
-        if (editing) for (const [i, f] of list.entries()) { const d = FURN[f.t]; ctx.save(); ctx.strokeStyle = i === sel ? '#ffd34d' : 'rgba(255,255,255,.5)'; ctx.lineWidth = i === sel ? 4 : 2; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
+        list.filter(f => FURN[f.t]?.flat || FURN[f.t]?.neon).forEach(f => drawFurn(f, t, th));
+        items.push(...list.filter(f => !FURN[f.t]?.flat && !FURN[f.t]?.neon).map(f => ({ y: f.y + FURN[f.t].h / 2, d: () => drawFurn(f, t, th) })));
+        if (editing) for (const [i, f] of draft.entries()) { if ((f.l || 0) !== floorNow) continue; const d = FURN[f.t]; ctx.save(); ctx.strokeStyle = i === sel ? '#ffd34d' : 'rgba(255,255,255,.5)'; ctx.lineWidth = i === sel ? 4 : 2; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
       } else drawScreen(t);
       if (kind === 'pool') items.push({ y: ball ? ballAt(ball, Date.now()).y + 10 : 0, d: () => drawBall(t) });
       drawHots(t);
     }
-    items.push(...[...players.values()].map(p => ({ y: (p.dy ?? p.y) + 20, d: () => drawPlayer(p, t) })));
+    const here = p => kind !== 'house' || (p.floor || 0) === floorNow;
+    items.push(...[...players.values()].filter(here).map(p => { p.pose = poseOf(p); return { y: p.pose ? p.pose.z : (p.dy ?? p.y) + 20, d: () => drawPlayer(p, t) }; }));
     // 🐾 chaque animal trottine derrière son maître
     for (const p of players.values()) {
-      if (!p.pet || p.dx == null) continue;
+      if (!p.pet || p.dx == null || !here(p)) continue;
       const side = p.petSide || (p.petSide = p.id % 2 ? 1 : -1);
       const tx = p.dx - side * 44, ty = p.dy + 16;
       if (p.px == null) { p.px = tx; p.py = ty; }
@@ -1012,6 +1130,7 @@ const Island = (() => {
       items.push({ y: p.py + 6, d: () => drawPet(p, t, moving) });
     }
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
+    if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
     if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
     drawFx(t);
     // shooter dans le ballon en marchant dessus
@@ -1037,7 +1156,8 @@ const Island = (() => {
       }
       nearPlace(mine);
     }
-    if (window.EventState?.live && ['island', 'pool', 'campfire'].includes(kind)) drawFireworks(dt, vw, vh);
+    { const pal = ['island', 'pool', 'campfire'].includes(kind) ? fireworksNow(nightLevel()) : null; if (pal) drawFireworks(dt, vw, vh, pal); }
+    if (fwUntil > Date.now() && fwBy && kind === 'island') { ctx.font = `900 ${vw < 600 ? 14 : 18}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.shadowColor = fwColors[0]; ctx.shadowBlur = 14; ctx.fillText(`🎆 Feu d'artifice offert par ${fwBy} !`, vw / 2, vw < 600 ? 140 : 140); ctx.shadowBlur = 0; }
     if (window.EventState?.live && ['island', 'pool', 'campfire'].includes(kind)) { const ev = window.EventState.live; ctx.font = `900 ${vw < 600 ? 13 : 16}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const c = ev.colors[Math.floor(t * 2) % ev.colors.length]; ctx.shadowColor = c; ctx.shadowBlur = 14; ctx.fillStyle = '#fff'; ctx.fillText(`${ev.icon} ${ev.title} · 💰 x2`, vw / 2, vw < 600 ? 112 : 112); ctx.shadowBlur = 0; }
     drawConfetti(dt, vw, vh);
     placeScreen();
@@ -1046,6 +1166,8 @@ const Island = (() => {
   function arrive(h, mine) {
     if (h.exit) return exitScene();
     if (h.babyfoot) return window.Babyfoot?.open(scene);
+    if (h.hidden) { Hub.open(); return Solo.start('cache'); }
+    if (h.stairs) return socket.emit('house_floor', floorNow ? 0 : 1);
     if (h.game) return socket.emit('inst_game', h.game);
     if (h.menu) return menuPanel();
     mine.action = h.action;
@@ -1058,6 +1180,7 @@ const Island = (() => {
     if (!mine) return;
     if (h.exit) return exitScene();
     if (editing) return;
+    if (h.hidden) { Hub.open(); return Solo.start('cache'); }
     if (h.ball) { if (ball) { const b = ballAt(ball, Date.now()); target = { x: b.x, y: b.y }; } return; }
     if (h.x == null && !h.seat) { mine.action = h.action; return socket.emit('island_action', h.action, { x: mine.x, y: mine.y }); }
     let x = h.x, y = h.y;
@@ -1200,28 +1323,36 @@ const Island = (() => {
       const enter = id => socket.emit('house_enter', id, r => { if (r?.error) return toast(r.error); if (r?.ring) return ringPanel(r.ownerId, r.owner); root.querySelector('.isl-panel')?.remove(); });
       const lock = h => ({ all: '🔓 Ouverte à tous', friends: '👥 Amis (les autres sonnent)', bell: '🔔 On sonne pour entrer', closed: '🔕 Ne pas déranger' })[h.access] || '';
       panel('🏠 Les Maisons du Paradise',
-        el('div', { class: 'isl-house mine' }, el('div', {}, el('b', {}, `🏡 ${d.mine.name}`), el('small', {}, `${THEME[d.mine.theme]?.name || ''} · ${lock(d.mine)}${d.mine.visitors ? ` · 🟢 ${d.mine.visitors} dedans` : ''}`)),
+        el('div', { class: 'isl-house mine' }, facadeCanvas(d.mine), el('div', {}, el('b', {}, `🏡 ${d.mine.name}`), el('small', {}, `${THEME[d.mine.theme]?.name || ''} · ${lock(d.mine)}${d.mine.visitors ? ` · 🟢 ${d.mine.visitors} dedans` : ''}`)),
           el('button', { class: 'btn btn-primary', onclick: () => enter(state.me.id) }, 'Entrer chez moi')),
         el('small', { class: 'isl-sub' }, 'Les maisons de tes amis et celles où il y a du monde :'),
         ...(d.list.length ? d.list.map(h => el('div', { class: 'isl-house' + (h.canEnter ? '' : ' locked') },
-          LC.avatar({ username: h.owner, avatar: h.ownerAvatar, color: h.ownerColor }),
+          facadeCanvas(h),
           el('div', {}, el('b', {}, h.name), el('small', {}, `${h.friend ? '🤝 Ton ami · ' : ''}${lock(h)}${h.visitors ? ` · 🟢 ${h.visitors} dedans` : ''}`)),
           h.canEnter ? el('button', { class: 'btn btn-sm btn-primary', onclick: () => enter(h.ownerId) }, 'Entrer')
             : h.access === 'closed' ? el('button', { class: 'btn btn-sm', onclick: () => toast(`🔕 ${h.owner} ne veut pas être dérangé`) }, '🔕')
             : el('button', { class: 'btn btn-sm btn-primary', onclick: () => ring(h.ownerId) }, '🔔 Sonner'))) : [el('div', { class: 'isl-wait' }, 'Ajoute des amis pour visiter leurs maisons 🤝')]));
     });
   }
+  // Petite image de la façade de la maison (style et étage)
+  function facadeCanvas(h) {
+    const c = el('canvas', { class: 'isl-facade', width: 120, height: 104 }); const g = c.getContext('2d');
+    const save = ctx; ctx = g; try { Decor.facade(g, h.style, h.floors || 1, (THEME[h.theme] || THEME.cosy).accent, 60, 98, h.floors === 2 ? .78 : .95); } finally { ctx = save; }
+    return c;
+  }
   function houseSettings() {
     if (!house || house.ownerId !== state.me.id) return;
-    let theme = house.theme, access = house.access;
+    let theme = house.theme, access = house.access, style = house.style || 'cosy', floors = house.floors || 1;
     const name = el('input', { class: 'input', maxlength: 40, value: house.name });
     const chips = (list, get, set) => el('div', { class: 'isl-chips' }, ...list.map(([v, l]) => el('button', { type: 'button', class: 'isl-chip' + (get() === v ? ' on' : ''), onclick: e => { set(v); e.target.parentNode.querySelectorAll('.isl-chip').forEach(b => b.classList.toggle('on', b === e.target)); } }, l)));
     const visitors = [...players.values()].filter(p => p.id !== me);
     panel('⚙️ Ma maison',
       el('label', {}, 'Le nom de ma maison'), name,
-      el('label', {}, 'La déco'), chips(Object.entries(THEME).map(([k, v]) => [k, v.name]), () => theme, v => (theme = v)),
+      el('label', {}, 'Le style de la maison'), chips(Object.entries(Decor.STYLES).map(([k, v]) => [k, `${v.icon} ${v.name}`]), () => style, v => (style = v)),
+      el('label', {}, 'Les étages'), chips([[1, '🏠 Plain-pied'], [2, '🏘️ Avec un étage (escalier)']], () => floors, v => (floors = v)),
+      el('label', {}, 'Les couleurs'), chips(Object.entries(THEME).map(([k, v]) => [k, v.name]), () => theme, v => (theme = v)),
       el('label', {}, 'Qui peut entrer ?'), chips([['all', '🔓 Tout le monde entre'], ['friends', '👥 Mes amis entrent, les autres sonnent'], ['bell', '🔔 Tout le monde sonne'], ['closed', '🔕 Ne pas déranger']], () => access, v => (access = v)),
-      el('button', { class: 'btn btn-primary', onclick: () => socket.emit('house_settings', { name: name.value, theme, access }, r => { if (r?.error) return toast(r.error); toast('✅ Maison enregistrée'); root.querySelector('.isl-panel')?.remove(); }) }, '💾 Enregistrer'),
+      el('button', { class: 'btn btn-primary', onclick: () => socket.emit('house_settings', { name: name.value, theme, access, style, floors }, r => { if (r?.error) return toast(r.error); toast('✅ Maison enregistrée'); root.querySelector('.isl-panel')?.remove(); }) }, '💾 Enregistrer'),
       visitors.length ? el('label', {}, 'Chez moi en ce moment') : null,
       ...visitors.map(v => el('div', { class: 'isl-qi' }, el('span', {}, v.username), el('button', { class: 'btn btn-sm btn-danger', onclick: e => socket.emit('house_kick', v.id, r => { if (r?.error) return toast(r.error); e.target.closest('.isl-qi').remove(); }) }, '🚪 Faire sortir'))));
   }
@@ -1238,6 +1369,7 @@ const Island = (() => {
       root.querySelector('.isl-actions').replaceChildren(
         el('button', { type: 'button', class: 'isl-act media', onclick: () => furniturePanel() }, el('span', {}, '➕'), 'Ajouter un meuble'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) draft[sel].f = draft[sel].f ? 0 : 1; else toast('Touche d\'abord un meuble'); } }, el('span', {}, '↔️'), 'Retourner'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => { const f = draft[sel]; if (!f || !FURN[f.t]?.neon) return toast('Touche d\'abord un néon 💡'); const L = Decor.NEON; f.c = L[(L.indexOf(f.c) + 1) % L.length]; } }, el('span', {}, '🎨'), 'Couleur du néon'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) { draft.splice(sel, 1); sel = -1; } else toast('Touche d\'abord un meuble'); } }, el('span', {}, '🗑️'), 'Retirer'),
         el('button', { type: 'button', class: 'isl-act exit', onclick: () => stopEdit(true) }, el('span', {}, '💾'), 'Enregistrer'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => stopEdit(false) }, el('span', {}, '✖'), 'Annuler'));
@@ -1250,6 +1382,7 @@ const Island = (() => {
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
+    if (kind === 'island' || kind === 'pool' || kind === 'campfire') acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (!confirm('Lancer un feu d\'artifice pour toute l\'Île ? (30 pièces 💰)')) return; socket.emit('island_fw', r => r?.error && toast(r.error)); } }, el('span', {}, '🎆'), 'Feu d\'artifice'));
     acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Pets?.open() }, el('span', {}, players.get(me)?.pet?.icon || '🐾'), players.get(me)?.pet ? players.get(me).pet.name : 'Adopter un animal'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
     requestAnimationFrame(arrows);
@@ -1377,6 +1510,12 @@ const Island = (() => {
     scene = 'island'; kind = 'island'; media = null; syncScreen(); root.querySelector('.isl-panel')?.remove();
   }
   // Le serveur m'envoie la pièce où je suis (à l'arrivée et à chaque changement de lieu)
+  socket.on('island_fw', d => { if (!open) return; fwUntil = Date.now() + 25000; fwColors = d.colors; fwBy = d.by; });
+  socket.on('island_floor', ({ id, floor }) => {
+    const p = players.get(id); if (!p) return;
+    p.floor = floor; p.action = '';
+    if (id === me) { floorNow = floor; target = null; const s = floor ? { x: 150, y: 300 } : { x: 150, y: 300 }; p.x = p.dx = s.x; p.y = p.dy = s.y; renderUI(); toast(floor ? '⬆️ Tu es à l\'étage' : '⬇️ Tu es au rez-de-chaussée'); }
+  });
   socket.on('island_scene', d => {
     if (!open || !d) return;
     const changed = d.scene !== scene;
@@ -1385,6 +1524,7 @@ const Island = (() => {
     players = new Map(d.players.map(p => [p.id, p]));
     if (d.media) { media = d.media; mediaOffset = (d.media.serverNow || Date.now()) - Date.now(); } else media = null;
     const m = players.get(me); if (m) { cam.x = m.x; cam.y = m.y; }
+    floorNow = m?.floor || 0;
     target = null; near = null; confetti = []; fx = []; editing = false; sel = -1;
     ball = d.ball ? { ...d.ball, at: d.ball.at - ((d.ball.serverNow || Date.now()) - Date.now()) } : null;
     arcadeBoard = d.board || null;
