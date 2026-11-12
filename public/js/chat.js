@@ -644,7 +644,7 @@ function toggleUserMenu() {
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
     item('🎮', 'Mini-jeux', () => Hub.open()),
-    item('🏝️', 'L\'Île du Paradise', () => Island.open(), 'mobile-only'),
+    item('🏙️', 'La Ville du Paradise', () => Island.open(), 'mobile-only'),
     item('🏳️‍🌈', 'Espace Arc-en-ciel', () => $('prideBtn').click(), 'mobile-only'),
     !state.me.isGuest ? item('💰', 'Mes pièces et la boutique', () => Shop.open(), 'mobile-only') : null,
     item('🛡️', 'Équipe de modération', () => Team.open()),

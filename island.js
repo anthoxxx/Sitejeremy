@@ -8,7 +8,7 @@
 
 // Taille et zone où l'on peut marcher pour chaque type de lieu (même formules côté navigateur)
 const SCENES = {
-  island: { W: 2400, H: 1600, walk: (x, y) => { const dx = (x - 1200) / 1080, dy = (y - 800) / 700; return dx * dx + dy * dy < 0.93; } },
+  island: { W: 2400, H: 1600, walk: (x, y) => x > 70 && x < 2330 && y > 150 && y < 1540 }, // la ville du Paradise
   club: { W: 1200, H: 760, walk: (x, y) => x > 60 && x < 1140 && y > 290 && y < 720 },
   cinema: { W: 1200, H: 800, walk: (x, y) => x > 60 && x < 1140 && y > 575 && y < 770 },
   // la grande maison : 4 pièces séparées par des murs avec des portes (même formule côté navigateur)
@@ -27,7 +27,7 @@ const PUBLIC = ['club', 'cinema', 'pool', 'cafe', 'arcade', 'campfire'];
 const kindOf = scene => (scene.startsWith('house:') ? 'house' : scene);
 // Où l'on arrive en entrant, et où l'on ressort sur l'île
 const ENTRY = { club: [600, 690], cinema: [600, 740], house: [460, 1010], pool: [600, 690], cafe: [550, 650], arcade: [600, 690], campfire: [600, 690] };
-const DOORS = { club: [850, 710], cinema: [1360, 1055], house: [590, 710], pool: [1900, 700], cafe: [1060, 705], arcade: [590, 1045], campfire: [1200, 1395] };
+const DOORS = { club: [850, 710], cinema: [1360, 1055], house: [590, 710], pool: [1900, 700], cafe: [1060, 705], arcade: [590, 1045], campfire: [2050, 1370] };
 // Actions possibles dans chaque lieu
 const ACTIONS = {
   island: ['dance'],

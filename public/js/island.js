@@ -3,7 +3,8 @@
 // et on entre dans un salon en s'approchant de son bâtiment. Tout est dessiné par le navigateur.
 const Island = (() => {
   const W = 2400, H = 1600;
-  const onLand = (x, y) => { const dx = (x - 1200) / 1080, dy = (y - 800) / 700; return dx * dx + dy * dy < 0.93; };
+  // 🏙️ la ville : un grand rectangle de rues et de quartiers (même formule côté serveur)
+  const onLand = (x, y) => x > 70 && x < 2330 && y > 150 && y < 1540;
   // Les lieux de l'île (un par salon) : position, icône, couleur néon, forme du bâtiment
   const PLACES = [
     { slug: 'general', label: 'Général', icon: '✨', x: 1200, y: 680, c: '#ff2d55', kind: 'tiki', big: true },
@@ -32,7 +33,7 @@ const Island = (() => {
     { inst: 'pool', label: 'Pool Party', icon: '🏊', x: 1900, y: 620, c: '#38dce6', kind: 'poolplace' },
     { inst: 'cafe', label: 'Café Paradise', icon: '☕', x: 1060, y: 635, c: '#ffd76a', kind: 'cafeplace' },
     { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 590, y: 975, c: '#ff4fd8', kind: 'arcadeplace' },
-    { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 1200, y: 1440, c: '#ff8a1f', kind: 'campplace' },
+    { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 2050, y: 1300, c: '#ff8a1f', kind: 'campplace' },
     { inst: 'fortune', label: 'La Voyante', icon: '🔮', x: 1050, y: 360, c: '#c64dff', kind: 'fortuneplace' },
   ];
   const RAINBOW = ['#ff2d55', '#ff9500', '#ffe600', '#34ff6a', '#2fa8ff', '#c64dff'];
@@ -48,24 +49,23 @@ const Island = (() => {
   // ---------- Le décor fixe (dessiné une seule fois) ----------
   window.Decor?.setNight(() => nightLevel());
   // ---------- La ville du Paradise : avenues, trottoirs, passages piétons, grande place, parcs et plage ----------
-  const STREETS_Y = [480, 800, 1120], STREETS_X = [700, 1200, 1700], PLAZA = { x: 1200, y: 820, r: 150 };
-  const TOWERS = [[560, 370, '#2fa8ff', 3], [1840, 380, '#ff4fd8', 4], [2090, 600, '#38dce6', 3], [2070, 990, '#ffd34d', 4], [560, 1265, '#c64dff', 3], [1790, 1265, '#2bff88', 4], [1170, 1120, '#ff8a1f', 0]].filter(t => t[3]);
+  const STREETS_Y = [200, 480, 800, 1120, 1450], STREETS_X = [150, 700, 1200, 1700, 2250], PLAZA = { x: 1200, y: 820, r: 150 };
+  const shops = [];
+  const SHOP_TYPES = [['Boulangerie', '🥖', '#ffd34d'], ['Pizzeria', '🍕', '#ff2d55'], ['Pharmacie', '💊', '#2bff88'], ['Hôtel', '🏨', '#c64dff'], ['Banque', '🏦', '#38dce6'], ['Fleuriste', '💐', '#ff4fd8'], ['Sushi', '🍣', '#ff8a1f'], ['Coiffeur', '💇', '#ff4fd8'], ['Burger', '🍔', '#ffd34d'], ['Glacier', '🍦', '#38dce6'], ['Boutique', '👗', '#c64dff'], ['Salle de sport', '🏋️', '#2fa8ff'], ['Bar', '🍸', '#ff2d55'], ['Hôpital', '🏥', '#ffffff'], ['Poste', '📮', '#ffd34d'], ['Librairie', '📚', '#2bff88'], ['Supermarché', '🛒', '#2fa8ff'], ['Bijouterie', '💍', '#ffd76a']];
+  const TOWERS = [[560, 370, '#2fa8ff', 3], [1840, 380, '#ff4fd8', 4], [2090, 600, '#38dce6', 3], [2070, 990, '#ffd34d', 4], [560, 1265, '#c64dff', 3], [1790, 1265, '#2bff88', 4], [300, 380, '#ff8a1f', 5], [2100, 380, '#c64dff', 5], [300, 1300, '#38dce6', 4], [1170, 1120, '#ff8a1f', 0]].filter(t => t[3]);
   function buildTerrain() {
     terrain = document.createElement('canvas'); terrain.width = W; terrain.height = H;
     const g = terrain.getContext('2d');
-    const R1 = Math.sqrt(.93), land = (k = 1) => { g.beginPath(); g.ellipse(1200, 800, 1080 * R1 * k, 700 * R1 * k, 0, 0, Math.PI * 2); };
-    // la plage tout autour
-    const sand = g.createRadialGradient(1200, 800, 600, 1200, 800, 1150); sand.addColorStop(0, '#ffe9b5'); sand.addColorStop(1, '#f7d88e');
-    g.fillStyle = sand; land(); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 10; land(1.006); g.stroke();
-    // la ville (pelouse claire) avec un petit muret
-    g.save(); land(.9); g.clip();
-    g.fillStyle = '#9be38a'; g.fillRect(0, 0, W, H);
-    seed = 5; for (let i = 0; i < 220; i++) { g.fillStyle = `rgba(60,170,80,${.08 + rnd() * .12})`; g.beginPath(); g.ellipse(250 + rnd() * 1900, 200 + rnd() * 1200, 20 + rnd() * 50, 10 + rnd() * 25, rnd() * 3, 0, 7); g.fill(); }
+    const land = () => { g.beginPath(); g.rect(40, 120, W - 80, H - 150); };
+    // le béton de la ville tout autour, puis les pâtés de maisons (pelouse claire)
+    g.fillStyle = '#c3c7d0'; g.fillRect(0, 0, W, H);
+    g.save(); land(); g.clip();
+    g.fillStyle = '#a3e48f'; g.fillRect(0, 0, W, H);
+    seed = 5; for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(60,170,80,${.08 + rnd() * .12})`; g.beginPath(); g.ellipse(80 + rnd() * 2240, 140 + rnd() * 1400, 20 + rnd() * 50, 10 + rnd() * 25, rnd() * 3, 0, 7); g.fill(); }
     // trottoirs puis routes
     const road = (w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt';
-      for (const y of STREETS_Y) { g.beginPath(); g.moveTo(y === 800 ? 330 : 0, y); g.lineTo(y === 800 ? 2090 : W, y); g.stroke(); }
-      for (const x of STREETS_X) { g.beginPath(); g.moveTo(x, x === 1200 ? 330 : 0); g.lineTo(x, x === 1200 ? 1400 : H); g.stroke(); } };
+      for (const y of STREETS_Y) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      for (const x of STREETS_X) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } };
     road(104, '#d9dce3'); road(100, '#c7cbd4');
     g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1; // dalles du trottoir
     road(70, '#41465a');
@@ -96,18 +96,32 @@ const Island = (() => {
       else { g.fillStyle = '#7fb36a'; g.beginPath(); g.ellipse(x, y, 14, 8, 0, 0, 7); g.fill(); }
     }
     g.restore();
-    g.strokeStyle = '#ffffff'; g.lineWidth = 6; land(.9); g.stroke(); // le muret de la promenade
-    // le ponton de la Vérification
-    g.fillStyle = '#9b6b3e'; g.fillRect(70, 785, 190, 30); for (let i = 0; i < 9; i++) { g.fillStyle = '#7d522c'; g.fillRect(78 + i * 20, 785, 4, 30); }
-    // palmiers sur la plage
-    seed = 33;
-    for (let i = 0; i < 90; i++) {
-      const a = rnd() * Math.PI * 2, r = .915 + rnd() * .04;
-      const x = 1200 + Math.cos(a) * 1080 * R1 * r, y = 800 + Math.sin(a) * 700 * R1 * r;
-      if (PLACES.some(p => Math.hypot(p.x - x, p.y - y) < 120)) continue;
-      palms.push({ x, y, s: .75 + rnd() * .4, p: rnd() * 6 });
-    }
+    g.strokeStyle = '#8a90a0'; g.lineWidth = 8; land(); g.stroke(); // le bord de la ville
+    // 🏪 les boutiques et les immeubles qui remplissent les quartiers
+    seed = 77; shops.length = 0;
+    const free = (x, y) => onLand(x, y - 60) && !PLACES.some(p => Math.abs(p.x - x) < 130 && Math.abs(p.y - y) < 120) && !TOWERS.some(t => Math.abs(t[0] - x) < 110 && Math.abs(t[1] - y) < 120)
+      && !STREETS_Y.some(sy => y > sy - 40 && y < sy + 150) && !STREETS_X.some(sx => Math.abs(sx - x) < 110) && Math.hypot(x - PLAZA.x, y - PLAZA.y) > PLAZA.r + 110 && !shops.some(o => Math.abs(o.x - x) < 120 && Math.abs(o.y - y) < 110);
+    for (let i = 0; i < 900 && shops.length < 46; i++) { const x = 100 + rnd() * 2200, y = 200 + rnd() * 1330; if (free(x, y)) shops.push({ x, y, k: Math.floor(rnd() * SHOP_TYPES.length), h: rnd() }); }
     palms.sort((a, b) => a.y - b.y);
+  }
+  // 🏪 une boutique ou un immeuble avec son enseigne néon
+  function drawShop(o, t, n) {
+    const [name, icon, c] = SHOP_TYPES[o.k], w = 120, hgt = o.h > .55 ? 120 + Math.round(o.h * 60) : 78, x = o.x, y = o.y;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x + 8, y + 4, w * .58, 10, 0, 0, 7); ctx.fill();
+    const wall = ['#f4e4c8', '#e6eef7', '#f7d6e2', '#dfe9d8', '#ece2f7', '#fbe7c6'][o.k % 6];
+    ctx.fillStyle = wall; ctx.fillRect(x - w / 2, y - hgt, w, hgt);
+    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(x + w / 2 - 14, y - hgt, 14, hgt);
+    if (hgt > 90) for (let f = 0; f < Math.floor((hgt - 78) / 26); f++) for (let k = 0; k < 3; k++) { ctx.fillStyle = (f + k + o.k) % 4 ? (n > .2 ? '#ffe28a' : '#9fd8ff') : '#5a6080'; ctx.fillRect(x - w / 2 + 14 + k * 34, y - hgt + 12 + f * 26, 22, 14); }
+    ctx.fillStyle = '#9fd8ff'; ctx.fillRect(x - w / 2 + 10, y - 44, 40, 34); ctx.fillRect(x + 12, y - 44, 40, 34);
+    ctx.fillStyle = '#ffffff55'; ctx.fillRect(x - w / 2 + 14, y - 42, 8, 30);
+    ctx.fillStyle = '#5a3a1c'; ctx.fillRect(x - 10, y - 34, 20, 34);
+    // l'auvent rayé et l'enseigne
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#ffffff' : c; ctx.fillRect(x - w / 2 + i * w / 6, y - 56, w / 6, 12); }
+    ctx.fillStyle = '#1a1030'; roundRect(x - w / 2 + 6, y - hgt - 26, w - 12, 26, 8); ctx.fill();
+    const flick = Math.sin(t * 17 + x) > .985 ? .4 : 1;
+    ctx.font = '900 13px Outfit, Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = c; ctx.shadowBlur = 12 * flick; ctx.fillStyle = c; ctx.fillText(`${icon} ${name}`, x, y - hgt - 13); ctx.shadowBlur = 0;
+    ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.globalAlpha = flick; roundRect(x - w / 2 + 6, y - hgt - 26, w - 12, 26, 8); ctx.stroke(); ctx.globalAlpha = 1;
   }
   // 🏙️ les tours de la ville, avec leurs fenêtres allumées et un toit en néon
   function drawTower(tw, t, n) {
@@ -123,7 +137,7 @@ const Island = (() => {
   }
   // 🚗 les voitures qui roulent dans les rues
   const CARS = ['🚗', '🚕', '🚙', '🏎️', '🚌', '🛵', '🚓'];
-  const cars = Array.from({ length: 14 }, (_, i) => ({ h: i % 2 === 0, line: i % 3, sp: (60 + (i * 37) % 70) * (i % 4 < 2 ? 1 : -1), off: (i * 433) % 2400, e: CARS[i % CARS.length] }));
+  const cars = Array.from({ length: 22 }, (_, i) => ({ h: i % 2 === 0, line: i % 5, sp: (60 + (i * 37) % 70) * (i % 4 < 2 ? 1 : -1), off: (i * 433) % 2400, e: CARS[i % CARS.length] }));
   function drawCars(t) {
     ctx.font = '30px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
     for (const c of cars) {
@@ -132,7 +146,6 @@ const Island = (() => {
       let x, y;
       if (c.h) { y = STREETS_Y[c.line] + lane; x = pos; } else { x = STREETS_X[c.line] - lane; y = 100 + pos * .58; }
       if (!onLand(x, y) || Math.hypot(x - PLAZA.x, y - PLAZA.y) < PLAZA.r + 30) continue;
-      if (c.h && STREETS_Y[c.line] === 800 && (x < 340 || x > 2080)) continue;
       ctx.save(); ctx.translate(x, y); if (c.h ? c.sp < 0 : false) ctx.scale(-1, 1); if (!c.h) ctx.rotate(c.sp > 0 ? Math.PI / 2 : -Math.PI / 2); if (!c.h && c.sp > 0) ctx.scale(1, -1);
       ctx.fillText(c.e, 0, 0); ctx.restore();
     }
@@ -153,18 +166,7 @@ const Island = (() => {
   }
 
   // ---------- Dessins animés ----------
-  function drawWater(t, x0, y0, x1, y1) {
-    const night = nightLevel();
-    const sea = ctx.createLinearGradient(0, y0, 0, y1);
-    sea.addColorStop(0, mix('#29c6ec', '#1a4a8a', night * .6)); sea.addColorStop(1, mix('#1494d0', '#123a78', night * .6));
-    ctx.fillStyle = sea; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-    ctx.strokeStyle = `rgba(255,255,255,${.18 - night * .1})`; ctx.lineWidth = 3;
-    for (let y = Math.floor(y0 / 60) * 60; y < y1; y += 60) {
-      ctx.beginPath();
-      for (let x = x0; x < x1; x += 30) { const yy = y + Math.sin(x * .02 + t * 1.6 + y) * 6; x === x0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy); }
-      ctx.stroke();
-    }
-  }
+  function drawWater(t, x0, y0, x1, y1) { ctx.fillStyle = '#c3c7d0'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
   function drawPalm(p, t) {
     const sway = Math.sin(t * 1.2 + p.p) * .08;
     ctx.save(); ctx.translate(p.x, p.y); ctx.scale(p.s, p.s);
@@ -296,6 +298,7 @@ const Island = (() => {
     const bob = moving ? Math.abs(Math.sin(t * 12)) * 5 : dancing ? Math.abs(Math.sin(t * 9 + p.id)) * 9 : act === 'sit' ? (kind === 'cinema' ? 16 : 8) : act === 'sleep' ? -6 : Math.sin(t * 2 + p.id) * 1.2;
     const pose = p.pose;
     ctx.save(); ctx.translate(pose ? pose.x : p.dx, pose ? pose.y : p.dy); if (pose?.r) ctx.rotate(pose.r);
+    if (kind === 'house') ctx.scale(1.75, 1.75); // dans les maisons, les personnages sont à la taille des meubles
     if (dancing) ctx.rotate(Math.sin(t * 4.5 + p.id) * .22);
     if (act === 'sleep' && !pose) ctx.rotate(-.5);
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 22, 18, 6, 0, 0, 7); ctx.fill();
@@ -356,7 +359,7 @@ const Island = (() => {
     ctx.restore();
   }
   function drawPet(p, t, moving) {
-    const pet = p.pet, size = { bebe: 30, ado: 36, adulte: 42, legende: 48 }[pet.stage] || 34;
+    const pet = p.pet, size = ({ bebe: 30, ado: 36, adulte: 42, legende: 48 }[pet.stage] || 34) * (kind === 'house' ? 1.6 : 1);
     const hop = moving ? Math.abs(Math.sin(t * 14 + p.id)) * 7 : Math.abs(Math.sin(t * 2.5 + p.id)) * 2;
     ctx.save(); ctx.translate(p.px, p.py); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 6, size * .45, size * .16, 0, 0, 7); ctx.fill();
@@ -564,7 +567,7 @@ const Island = (() => {
     { t: 'kitchen', x: 1250, y: 740 }, { t: 'fridge', x: 1640, y: 760 }, { t: 'coffee', x: 1450, y: 740 }, { t: 'table', x: 1300, y: 950 }, { t: 'chair', x: 1170, y: 960 }, { t: 'chair', x: 1430, y: 960, f: 1 },
   ];
   let editing = false, draft = [], sel = -1, drag = null;
-  let floorNow = 0;
+  let floorNow = 0, houseZoom = 1, camEdit = { x: 900, y: 600 };
   const furnAll = () => (editing ? draft : house?.furniture || DEFAULT_FURN);
   const furn = () => furnAll().filter(f => (f.l || 0) === floorNow);
   const clampWalk = (x, y) => { if (houseWalk(x, y)) return { x, y }; for (let r = 8; r < 140; r += 8) for (let a = 0; a < 6.28; a += .4) { const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (houseWalk(px, py)) return { x: px, y: py }; } return { x: Math.max(60, Math.min(1740, x)), y: Math.max(245, Math.min(1065, y)) }; };
@@ -889,9 +892,9 @@ const Island = (() => {
   // ---------- 🛠️ Placer ses meubles ----------
   function startEdit() {
     if (kind !== 'house' || house?.ownerId !== state.me.id) return;
-    editing = true; draft = (house.furniture || DEFAULT_FURN).map(f => ({ ...f })); sel = -1;
+    editing = true; draft = (house.furniture || DEFAULT_FURN).map(f => ({ ...f })); sel = -1; camEdit = { x: cam.x, y: cam.y };
     root.querySelector('.isl-panel')?.remove(); renderUI();
-    toast('🛠️ Fais glisser tes meubles avec le doigt ou la souris');
+    toast('🛠️ Fais glisser tes meubles · fais glisser le sol pour te déplacer dans la maison · ＋ − pour zoomer');
   }
   function stopEdit(save) {
     if (save) socket.emit('house_furniture', draft, r => { if (r?.error) return toast(r.error); toast('✅ Tes meubles sont en place !'); });
@@ -1008,8 +1011,8 @@ const Island = (() => {
   const LAMP_COLORS = ['#ff2d55', '#ff4fd8', '#c64dff', '#2fa8ff', '#38dce6', '#2bff88', '#ffd34d', '#ff8a1f'];
   const lamps = [];
   { let k = 0;
-    for (const y of STREETS_Y) for (let x = 120; x < 2300; x += 150) for (const side of [-58, 58]) { const ly = y + side; if (onLand(x, ly) && Math.hypot((x - 1200) / 1080, (ly - 800) / 700) < .86 && !STREETS_X.some(sx => Math.abs(sx - x) < 70) && Math.hypot(x - PLAZA.x, ly - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - x, p.y - ly) < 75)) lamps.push({ x, y: ly + (side > 0 ? 8 : 0), c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); }
-    for (const x of STREETS_X) for (let y = 130; y < 1500; y += 150) for (const side of [-58, 58]) { const lx = x + side; if (onLand(lx, y) && Math.hypot((lx - 1200) / 1080, (y - 800) / 700) < .86 && !STREETS_Y.some(sy => Math.abs(sy - y) < 70) && Math.hypot(lx - PLAZA.x, y - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - lx, p.y - y) < 75)) lamps.push({ x: lx, y, c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); } }
+    for (const y of STREETS_Y) for (let x = 120; x < 2300; x += 150) for (const side of [-58, 58]) { const ly = y + side; if (onLand(x, ly) && !STREETS_X.some(sx => Math.abs(sx - x) < 70) && Math.hypot(x - PLAZA.x, ly - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - x, p.y - ly) < 75)) lamps.push({ x, y: ly + (side > 0 ? 8 : 0), c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); }
+    for (const x of STREETS_X) for (let y = 130; y < 1500; y += 150) for (const side of [-58, 58]) { const lx = x + side; if (onLand(lx, y) && !STREETS_Y.some(sy => Math.abs(sy - y) < 70) && Math.hypot(lx - PLAZA.x, y - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - lx, p.y - y) < 75)) lamps.push({ x: lx, y, c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); } }
   const boats = [{ a: 0, sp: .03, r: 1.12, e: '⛵' }, { a: 2.4, sp: -.022, r: 1.18, e: '🛥️' }, { a: 4.3, sp: .018, r: 1.24, e: '🚤' }];
   const flies = Array.from({ length: 40 }, () => ({ x: 400 + Math.random() * 1600, y: 300 + Math.random() * 1000, p: Math.random() * 6 }));
   let dolphin = { at: 0, x: 0, y: 0 };
@@ -1169,13 +1172,15 @@ const Island = (() => {
       // sur téléphone, la pièce est plus grande que l'écran : la caméra suit le personnage (l'écran vidéo reste toujours entier)
       const top = 60, bottom = vw < 600 ? 190 : 170, avail = vh - top - bottom;
       const fit = Math.min(vw / sc.W, avail / sc.H);
-      const z = editing ? fit : kind === 'house' ? Math.max(fit, Math.min(vw / 980, avail / 620)) : Math.max(fit, Math.min(avail / sc.H, vw / ((screenRect()?.w || 460) + 40)));
-      const ox = sc.W * z <= vw ? (vw - sc.W * z) / 2 : Math.min(0, Math.max(vw - sc.W * z, vw / 2 - cam.x * z));
-      const oy = sc.H * z <= avail ? top + (avail - sc.H * z) / 2 : Math.min(top, Math.max(top + avail - sc.H * z, top + avail / 2 - cam.y * z));
+      // dans la maison : on voit en grand (même en rangeant ses meubles), et sur téléphone encore plus près
+      const z = kind === 'house' ? Math.max(fit, (vw < 600 ? Math.min(vw / 560, avail / 520) : Math.min(vw / 980, avail / 620)) * houseZoom) : editing ? fit : Math.max(fit, Math.min(avail / sc.H, vw / ((screenRect()?.w || 460) + 40)));
+      const C = kind === 'house' && editing ? camEdit : cam;
+      const ox = sc.W * z <= vw ? (vw - sc.W * z) / 2 : Math.min(0, Math.max(vw - sc.W * z, vw / 2 - C.x * z));
+      const oy = sc.H * z <= avail ? top + (avail - sc.H * z) / 2 : Math.min(top, Math.max(top + avail - sc.H * z, top + avail / 2 - C.y * z));
       view = { z, ox, oy };
     }
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.fillStyle = kind === 'island' ? '#0a7fb8' : '#07040d'; ctx.fillRect(0, 0, vw, vh);
+    ctx.fillStyle = kind === 'island' ? '#c3c7d0' : '#07040d'; ctx.fillRect(0, 0, vw, vh);
     ctx.save();
     ctx.translate(view.ox, view.oy); ctx.scale(view.z, view.z);
     const items = [];
@@ -1183,10 +1188,10 @@ const Island = (() => {
       const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20;
       drawWater(t, x0, y0, x1, y1);
       const nn = Math.max(nightLevel(), window.EventState?.live ? .6 : 0);
-      drawSea(t);
       ctx.drawImage(terrain, 0, 0);
-      drawCoast(t, nn); drawLights(t, nn);
+      drawLights(t, nn);
       drawCars(t);
+      items.push(...shops.filter(o => o.x > x0 - 100 && o.x < x1 + 100 && o.y > y0 - 20 && o.y < y1 + 220).map(o => ({ y: o.y, d: () => drawShop(o, t, nn) })));
       items.push(...TOWERS.map(tw => ({ y: tw[1], d: () => drawTower(tw, t, nn) })), ...ARCHES.map(a => ({ y: a[1] + 40, d: () => drawArch(a, t, nn) })));
       items.push(...lamps.filter(l => l.x > x0 - 60 && l.x < x1 + 60 && l.y > y0 - 20 && l.y < y1 + 80).map(l => ({ y: l.y, d: () => drawLamp(l, t, nn) })), { y: FOUNTAIN.y + 26, d: () => drawFountain(t, nn) });
       const counts = {};
@@ -1205,12 +1210,12 @@ const Island = (() => {
       drawHots(t);
     }
     const here = p => kind !== 'house' || (p.floor || 0) === floorNow;
-    items.push(...[...players.values()].filter(here).map(p => { p.pose = poseOf(p); return { y: p.pose ? p.pose.z : (p.dy ?? p.y) + 20, d: () => drawPlayer(p, t) }; }));
+    items.push(...[...players.values()].filter(here).map(p => { p.pose = poseOf(p); return { y: p.pose ? p.pose.z : (p.dy ?? p.y) + (kind === 'house' ? 40 : 20), d: () => drawPlayer(p, t) }; }));
     // 🐾 chaque animal trottine derrière son maître
     for (const p of players.values()) {
       if (!p.pet || p.dx == null || !here(p)) continue;
       const side = p.petSide || (p.petSide = p.id % 2 ? 1 : -1);
-      const tx = p.dx - side * 44, ty = p.dy + 16;
+      const tx = p.dx - side * (kind === 'house' ? 70 : 44), ty = p.dy + 16;
       if (p.px == null) { p.px = tx; p.py = ty; }
       const k = Math.min(1, dt * 4); p.px += (tx - p.px) * k; p.py += (ty - p.py) * k;
       const moving = Math.hypot(tx - p.px, ty - p.py) > 3;
@@ -1446,10 +1451,10 @@ const Island = (() => {
 
   // ---------- La barre du haut et les boutons d'action ----------
   function renderUI() {
-    const titles = { island: '🏝️ L\'Île du Paradise', club: '🪩 Paradise Club', cinema: '🎬 Ciné Paradise', house: `🏠 ${house?.name || 'Maison'}`, pool: '🏊 Pool Party', cafe: '☕ Café Paradise', arcade: '🕹️ L\'Arcade', campfire: '🔥 Le Feu de camp' };
+    const titles = { island: '🏙️ La Ville du Paradise', club: '🪩 Paradise Club', cinema: '🎬 Ciné Paradise', house: `🏠 ${house?.name || 'Maison'}`, pool: '🏊 Pool Party', cafe: '☕ Café Paradise', arcade: '🕹️ L\'Arcade', campfire: '🔥 Le Feu de camp' };
     root.querySelector('.isl-title').textContent = titles[kind];
     root.classList.toggle('inside', kind !== 'island');
-    root.querySelector('.isl-zoom').classList.toggle('hidden', kind !== 'island');
+    root.querySelector('.isl-zoom').classList.toggle('hidden', kind !== 'island' && kind !== 'house');
     root.querySelector('.isl-amb').classList.toggle('hidden', kind === 'island');
     if (editing) {
       requestAnimationFrame(arrows);
@@ -1498,12 +1503,12 @@ const Island = (() => {
       el('canvas', { class: 'isl-canvas' }),
       el('div', { class: 'isl-screen hidden' }),
       el('div', { class: 'isl-top' },
-        el('b', { class: 'isl-title' }, '🏝️ L\'Île du Paradise'), el('span', { class: 'isl-count' }),
+        el('b', { class: 'isl-title' }, '🏙️ La Ville du Paradise'), el('span', { class: 'isl-count' }),
         el('div', { class: 'isl-amb hidden', title: 'La jauge d\'ambiance : elle monte quand ça danse, parle et s\'amuse !' }, el('span', {}, '🔥'), el('div', { class: 'isl-gauge' }, el('i')), el('small', {}, '0%')),
         el('span', { style: 'flex:1' }),
         el('span', { class: 'isl-zoom' },
-          el('button', { class: 'btn btn-sm', title: 'Dézoomer', onclick: () => { zoom = Math.max(.45, zoom - .15); } }, '－'),
-          el('button', { class: 'btn btn-sm', title: 'Zoomer', onclick: () => { zoom = Math.min(1.6, zoom + .15); } }, '＋')),
+          el('button', { class: 'btn btn-sm', title: 'Dézoomer', onclick: () => { if (kind === 'house') houseZoom = Math.max(.5, houseZoom - .15); else zoom = Math.max(.45, zoom - .15); } }, '－'),
+          el('button', { class: 'btn btn-sm', title: 'Zoomer', onclick: () => { if (kind === 'house') houseZoom = Math.min(2.2, houseZoom + .15); else zoom = Math.min(1.6, zoom + .15); } }, '＋')),
         el('button', { class: 'btn btn-sm btn-danger', title: 'Quitter l\'île', onclick: () => close() }, '✕')),
       el('div', { class: 'isl-hint' }, '👆 Touche le sol pour marcher · approche-toi d\'un lieu pour y entrer'),
       el('div', { class: 'isl-enter hidden' }),
@@ -1531,6 +1536,7 @@ const Island = (() => {
         if (prev && FURN[prev.t]) { const hp = rotHandle(prev); if (Math.hypot(hp.x - x, hp.y - y) < 26) { drag = { id: e.pointerId, rotate: true }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} return; } }
         sel = hitFurn(x, y);
         if (sel >= 0) { drag = { id: e.pointerId, dx: x - draft[sel].x, dy: y - draft[sel].y }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} }
+        else { drag = { id: e.pointerId, pan: true, sx: e.clientX, sy: e.clientY, cx: camEdit.x, cy: camEdit.y }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} }
         return;
       }
       if (kind !== 'island') {
@@ -1566,6 +1572,7 @@ const Island = (() => {
     bar.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
     window.addEventListener('resize', arrows);
     cv.addEventListener('pointermove', e => {
+      if (editing && drag?.pan && e.pointerId === drag.id) { camEdit.x = Math.max(0, Math.min(1800, drag.cx - (e.clientX - drag.sx) / view.z)); camEdit.y = Math.max(0, Math.min(1100, drag.cy - (e.clientY - drag.sy) / view.z)); return; }
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
       if (drag.rotate) { const f = draft[sel], a = Math.atan2(x - f.x, -(y - f.y)); f.r = Math.round(a / (Math.PI / 36)) * (Math.PI / 36); return; }

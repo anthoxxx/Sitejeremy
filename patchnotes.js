@@ -478,4 +478,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 32,
+    date: '2026-11-12',
+    title: 'Adieu l\'île, bienvenue dans la Ville du Paradise 🏙️',
+    added: [
+      'L\'île est remplacée par une vraie ville : plus de mer ni de plage, mais des rues partout, un grand boulevard tout autour, des carrefours et des passages piétons',
+      'Des boutiques avec leurs enseignes néon (boulangerie, pizzeria, pharmacie, hôtel, banque, fleuriste, sushi, bar, hôpital, supermarché…) et des immeubles aux fenêtres allumées',
+      'Plus de voitures dans toutes les rues 🚗, des tours néon dans chaque quartier, et le feu de camp dans son parc',
+      'Dans ta maison : les boutons ＋ et − pour zoomer, et en rangeant tes meubles tu peux faire glisser le sol avec le doigt pour aller d\'une pièce à l\'autre',
+    ],
+    changed: [
+      'Dans les maisons, tout est affiché en grand (même en rangeant ses meubles) et les personnages sont à la taille des meubles',
+    ],
+    removed: [],
+  },
 ];
