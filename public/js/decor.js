@@ -9,6 +9,9 @@ const Decor = (() => {
   // Les nouveaux meubles (ajoutés à ceux de l'Île). seat = on s'assoit dessus ; lie = on se couche dedans ; soak = on se baigne dedans
   const FURN = {
     chair: { name: 'Chaise', icon: '🪑', w: 58, h: 90, act: 'sit', spot: 'seat' },
+    sink: { name: 'Lavabo', icon: '🚰', w: 70, h: 84, act: 'wash', spot: 'front' },
+    toilet: { name: 'WC', icon: '🚽', w: 58, h: 78, act: 'sit', spot: 'seat' },
+    shower: { name: 'Douche', icon: '🚿', w: 120, h: 160, act: 'shower', spot: 'center' },
     nightstand: { name: 'Table de chevet', icon: '🕯️', w: 60, h: 64 },
     coffee: { name: 'Cafetière', icon: '☕', w: 70, h: 86, act: 'coffee', spot: 'front' },
     wardrobe: { name: 'Armoire', icon: '🚪', w: 130, h: 176, act: 'dress', spot: 'front' },
@@ -183,6 +186,26 @@ const Decor = (() => {
         g.fillStyle = 'rgba(255,255,255,.92)'; for (let i = 0; i < 12; i++) { const a = i * 2.4 + t * 1.5; g.beginPath(); g.arc(Math.cos(a) * w * .3 * ((i % 3) / 3 + .4), Math.sin(a) * h * .22 * ((i % 3) / 3 + .4), 5 + Math.abs(Math.sin(t * 3 + i)) * 5, 0, 7); g.fill(); }
         return true;
       }
+      case 'sink': {
+        wood(g, -w / 2, -6, w, h / 2 + 6, '#efe6d8', 4); g.fillStyle = '#9aa3b2'; g.fillRect(-4, 10, 8, 3);
+        g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(0, -10, w / 2 - 2, 14, 0, 0, 7); g.fill(); g.fillStyle = '#cfe9ff'; g.beginPath(); g.ellipse(0, -10, w / 2 - 10, 9, 0, 0, 7); g.fill();
+        metal(g, -3, -34, 6, 20, 2); metal(g, -3, -36, 16, 5, 2);
+        g.fillStyle = lin(g, 0, -h / 2 - 30, 0, -h / 2, [[0, '#e8f6ff'], [1, '#bcd8f0']]); roundRect(g, -w / 2 + 6, -h / 2 - 34, w - 12, 36, 8); g.fill(); g.strokeStyle = '#c0c6cc'; g.lineWidth = 3; g.stroke();
+        return true;
+      }
+      case 'toilet': {
+        g.fillStyle = lin(g, 0, -h / 2, 0, h / 2, [[0, '#ffffff'], [1, '#dfe4ec']]); roundRect(g, -w / 2 + 4, -h / 2, w - 8, 26, 6); g.fill();
+        g.beginPath(); g.ellipse(0, 10, w / 2, h / 2 - 12, 0, 0, 7); g.fill(); g.fillStyle = '#e6ebf2'; g.beginPath(); g.ellipse(0, 12, w / 2 - 8, h / 2 - 22, 0, 0, 7); g.fill();
+        g.fillStyle = '#c0c6cc'; g.fillRect(w / 2 - 16, -h / 2 + 8, 8, 4);
+        return true;
+      }
+      case 'shower': {
+        g.fillStyle = '#e8eef5'; g.fillRect(-w / 2, -h / 2, w, h); g.strokeStyle = 'rgba(0,0,0,.06)'; g.lineWidth = 1; for (let x = -w / 2; x < w / 2; x += 20) for (let y = -h / 2; y < h / 2; y += 20) g.strokeRect(x, y, 20, 20);
+        g.fillStyle = 'rgba(160,220,255,.28)'; g.fillRect(-w / 2, -h / 2, w, h); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 4; g.strokeRect(-w / 2, -h / 2, w, h);
+        g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(-w / 2 + 14, -h / 2 + 10); g.lineTo(-w / 2 + 34, -h / 2 + 50); g.stroke();
+        metal(g, -6, -h / 2 + 2, 12, 10, 4); g.fillStyle = '#9aa3b2'; g.beginPath(); g.arc(0, h / 2 - 16, 6, 0, 7); g.fill();
+        return true;
+      }
       case 'plant': {
         g.fillStyle = lin(g, -16, 0, 16, 0, [[0, '#b5562b'], [.5, '#e07a4f'], [1, '#a04a22']]); g.beginPath(); g.moveTo(-18, 2); g.lineTo(18, 2); g.lineTo(13, h / 2); g.lineTo(-13, h / 2); g.closePath(); g.fill(); g.fillStyle = '#8a3a18'; g.fillRect(-19, 0, 38, 5);
         const sway = Math.sin(t * 1.5 + f.x) * .06;
@@ -261,6 +284,47 @@ const Decor = (() => {
     }
   }
 
+  // ---------- 🏠 La grande maison : chambre, salle de bain, salon et cuisine ----------
+  function bigHouse(g, t, hs, floor, night, mix) {
+    const st = STYLES[hs.style] ? hs.style : 'cosy', A = hs.accent, W = 1800, H = 1100;
+    const WALL = { cosy: hs.wall, moderne: '#eef1f6', chalet: '#b57a45', plage: '#dff4fb', chateau: '#c9c2b4', loft: '#3a3a44', japon: '#f4ead2' }[st];
+    const MAIN = { cosy: hs.floor, moderne: '#d9dde4', chalet: '#8a5a2b', plage: '#e8d3a8', chateau: '#9a8f80', loft: '#5a5a64', japon: '#d8c690' }[st];
+    // le mur du fond, avec ses fenêtres (le ciel suit l'heure)
+    g.fillStyle = WALL; g.fillRect(0, 0, W, 200);
+    if (st === 'chalet') for (let y = 0; y < 200; y += 25) wood(g, 0, y, W, 23, '#a86b3a', 2);
+    if (st === 'loft') { g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; for (let y = 0; y < 200; y += 22) for (let x = (y / 22) % 2 ? -30 : 0; x < W; x += 60) g.strokeRect(x, y, 60, 22); }
+    if (st === 'japon') { g.strokeStyle = '#6b4423'; g.lineWidth = 3; for (let x = 0; x <= W; x += 100) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 200); g.stroke(); } }
+    const sky = mix('#8fd8ff', '#1a3a8a', night * .7);
+    for (const wx of [260, 640, 1150, 1520]) {
+      g.fillStyle = sky; g.fillRect(wx - 80, 40, 160, 110); g.strokeStyle = st === 'loft' ? '#1c1c24' : '#ffffff'; g.lineWidth = 6; g.strokeRect(wx - 80, 40, 160, 110);
+      g.beginPath(); g.moveTo(wx, 40); g.lineTo(wx, 150); g.moveTo(wx - 80, 95); g.lineTo(wx + 80, 95); g.stroke();
+      g.fillStyle = shade(A, .9); g.fillRect(wx - 96, 32, 18, 128); g.fillRect(wx + 78, 32, 18, 128); // rideaux
+    }
+    g.font = '26px "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000'; g.fillText(night > .4 ? '🌙' : '☀️', 680, 70);
+    if (st === 'loft') { const c = NEON[Math.floor(t / 3) % NEON.length]; g.strokeStyle = c; g.shadowColor = c; g.shadowBlur = 16; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 196); g.lineTo(W, 196); g.stroke(); g.shadowBlur = 0; }
+    // les sols de chaque pièce
+    const room = (x, y, w, h, draw) => { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); draw(x, y, w, h); g.restore(); };
+    room(0, 200, 900, 450, (x, y, w, h) => { g.fillStyle = '#c99566'; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(80,40,10,.15)'; g.lineWidth = 2; for (let yy = y; yy < y + h; yy += 30) { g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); for (let xx = ((yy / 30) % 3) * 80; xx < w; xx += 240) { g.beginPath(); g.moveTo(x + xx, yy); g.lineTo(x + xx, yy + 30); g.stroke(); } } g.fillStyle = shade(A, 1.2) + '55'; g.beginPath(); g.ellipse(300, 470, 230, 120, 0, 0, 7); g.fill(); });
+    room(900, 200, 900, 450, (x, y, w, h) => { for (let yy = y; yy < y + h; yy += 40) for (let xx = x; xx < x + w; xx += 40) { g.fillStyle = ((xx + yy) / 40) % 2 ? '#e6f4fb' : '#cfe7f3'; g.fillRect(xx, yy, 40, 40); } });
+    room(0, 650, 900, 450, (x, y, w, h) => { g.fillStyle = MAIN; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 2; for (let yy = y; yy < y + h; yy += 34) { g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); } });
+    room(900, 650, 900, 450, (x, y, w, h) => { for (let yy = y; yy < y + h; yy += 50) for (let xx = x; xx < x + w; xx += 50) { g.fillStyle = ((xx + yy) / 50) % 2 ? '#f4f1ea' : '#3a3f4b'; g.fillRect(xx, yy, 50, 50); } });
+    // les murs entre les pièces (avec les portes)
+    const wallH = (x0, x1, y) => { g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x0, y + 10, x1 - x0, 10); g.fillStyle = shade(WALL, .82); g.fillRect(x0, y - 12, x1 - x0, 24); g.fillStyle = shade(WALL, 1.1); g.fillRect(x0, y - 12, x1 - x0, 6); };
+    const wallV = (x, y0, y1) => { g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x + 10, y0, 10, y1 - y0); g.fillStyle = shade(WALL, .82); g.fillRect(x - 12, y0, 24, y1 - y0); g.fillStyle = shade(WALL, 1.1); g.fillRect(x - 12, y0, 6, y1 - y0); };
+    wallV(900, 200, 424); wallV(900, 536, 638); wallV(900, 662, 824); wallV(900, 936, H);
+    wallH(0, 404, 650); wallH(516, 888, 650); wallH(912, 1284, 650); wallH(1396, W, 650);
+    // les encadrements de portes
+    g.fillStyle = '#8a5a2b'; for (const [x, y, v] of [[900, 424, 1], [900, 536, 1], [900, 824, 1], [900, 936, 1], [404, 650, 0], [516, 650, 0], [1284, 650, 0], [1396, 650, 0]]) { if (v) g.fillRect(x - 14, y - 4, 28, 8); else g.fillRect(x - 4, y - 14, 8, 28); }
+    // le contour de la maison et la porte d'entrée (en bas du salon)
+    g.fillStyle = shade(WALL, .7); g.fillRect(0, 200, 14, H - 200); g.fillRect(W - 14, 200, 14, H - 200); g.fillRect(0, H - 14, 404, 14); g.fillRect(516, H - 14, W - 516, 14);
+    if (!floor) { g.fillStyle = '#5a3a1c'; g.fillRect(404, H - 16, 112, 16); g.fillStyle = '#c0392b'; roundRect(g, 410, H - 60, 100, 40, 8); g.fill(); g.fillStyle = '#ffd34d'; g.font = '700 14px Outfit, sans-serif'; g.fillText('Bienvenue', 460, H - 40); }
+    // le nom des pièces
+    const label = (txt, x, y) => { g.font = '800 18px Outfit, sans-serif'; const tw = g.measureText(txt).width + 24; g.fillStyle = 'rgba(20,12,40,.55)'; roundRect(g, x - tw / 2, y - 15, tw, 30, 15); g.fill(); g.fillStyle = '#ffffff'; g.fillText(txt, x, y); };
+    label(floor ? '🛏️ Chambre d\'amis' : '🛏️ Chambre', 120, 225); label('🛁 Salle de bain', 1680, 225); label(floor ? '🎮 Salle de jeux' : '🛋️ Salon', 820, 680); label(floor ? '🎨 Atelier' : '🍳 Cuisine', 1700, 680);
+    // l'escalier (maison à étage)
+    if (hs.floors === 2) { g.save(); g.translate(40, 0); for (let i = 0; i < 7; i++) wood(g, 0, 186 - i * 26, 150 - i * 8, 22, floor ? '#6b4423' : '#8a5a2b', 2); g.restore(); g.font = '900 16px Outfit, sans-serif'; g.fillStyle = '#ffffff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 4; const lab = floor ? '⬇️ Rez-de-chaussée' : '⬆️ Étage'; g.strokeText(lab, 120, 18); g.fillText(lab, 120, 18); }
+  }
+
   // ---------- Les façades (aperçu dans la liste des maisons, et le quartier sur l'Île) ----------
   function facade(g, style, floors, A, x, y, s = 1) {
     const st = STYLES[style] ? style : 'cosy';
@@ -291,6 +355,6 @@ const Decor = (() => {
   let nightFn = () => 0;
   const night = () => nightFn();
   const mix2 = (n, a, b) => (n > .4 ? b : a);
-  return { NEON, STYLES, FURN, draw, room, facade, setNight: f => { nightFn = f; } };
+  return { NEON, STYLES, FURN, draw, room, bigHouse, facade, setNight: f => { nightFn = f; } };
 })();
 window.Decor = Decor;

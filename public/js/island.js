@@ -295,7 +295,7 @@ const Island = (() => {
     const dancing = act === 'dance' || act === 'dj';
     const bob = moving ? Math.abs(Math.sin(t * 12)) * 5 : dancing ? Math.abs(Math.sin(t * 9 + p.id)) * 9 : act === 'sit' ? (kind === 'cinema' ? 16 : 8) : act === 'sleep' ? -6 : Math.sin(t * 2 + p.id) * 1.2;
     const pose = p.pose;
-    ctx.save(); ctx.translate(pose ? pose.x : p.dx, pose ? pose.y : p.dy);
+    ctx.save(); ctx.translate(pose ? pose.x : p.dx, pose ? pose.y : p.dy); if (pose?.r) ctx.rotate(pose.r);
     if (dancing) ctx.rotate(Math.sin(t * 4.5 + p.id) * .22);
     if (act === 'sleep' && !pose) ctx.rotate(-.5);
     ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, 22, 18, 6, 0, 0, 7); ctx.fill();
@@ -309,6 +309,7 @@ const Island = (() => {
       y = h.headY; r = 15;
       // 🛏️ dans le lit : la couette par-dessus · 🛁 dans le bain : l'eau et la mousse
       if (pose?.type === 'lie') { const d = pose.d, A = (THEME[house?.theme] || THEME.cosy).accent; ctx.fillStyle = A; roundRect(-d.w / 2 + 8, -12, d.w - 16, d.h - 52, 12); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(-d.w / 2 + 8, -12, d.w - 16, 12, 6); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '16px sans-serif'; ctx.fillText('💤', 22, -48 - ((t * 20) % 20)); }
+      if (pose?.type === 'shower') { ctx.strokeStyle = 'rgba(160,220,255,.85)'; ctx.lineWidth = 2; for (let i = 0; i < 14; i++) { const k = (t * 2 + i / 14) % 1, x = -30 + (i * 37) % 60; ctx.beginPath(); ctx.moveTo(x, -70 + k * 90); ctx.lineTo(x, -62 + k * 90); ctx.stroke(); } ctx.fillStyle = 'rgba(255,255,255,.85)'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(-14 + i * 10, -34 + Math.sin(t * 4 + i) * 3, 4, 0, 7); ctx.fill(); } }
       if (pose?.type === 'soak') { const d = pose.d; ctx.fillStyle = 'rgba(80,190,255,.88)'; ctx.beginPath(); ctx.ellipse(0, 4, d.w / 2 - 16, 18, 0, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.95)'; for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(-34 + i * 10, -6 + Math.sin(t * 3 + i) * 3, 5 + (i % 3) * 2, 0, 7); ctx.fill(); } }
     } else {
     // petit corps
@@ -377,7 +378,7 @@ const Island = (() => {
     ctx.restore();
   }
   // Le personnage utilise vraiment le meuble : couché dans le lit, assis sur la chaise, dans le bain…
-  const SEAT_Y = { sofa: d => -d.h / 2 + 36, armchair: d => -d.h / 2 + d.h * .42, throne: d => -d.h / 2 + d.h * .42, chair: d => d.h * .05 - 10 };
+  const SEAT_Y = { toilet: d => -d.h / 2 + 30, sofa: d => -d.h / 2 + 36, armchair: d => -d.h / 2 + d.h * .42, throne: d => -d.h / 2 + d.h * .42, chair: d => d.h * .05 - 10 };
   function poseOf(p) {
     if (kind !== 'house' || p.moving || !p.action) return null;
     let best = null, bd = 140;
@@ -387,10 +388,11 @@ const Island = (() => {
       if (dist < bd) { bd = dist; best = { f, d }; }
     }
     if (!best) return null;
-    const { f, d } = best, z = f.y + d.h / 2 + 2;
-    if (p.action === 'sleep' && (f.t === 'bed')) return { type: 'lie', x: f.x, y: f.y - d.h / 2 + 62, z, d };
-    if (p.action === 'bath') return { type: 'soak', x: f.x, y: f.y - 4, z, d };
-    if (p.action === 'sit' && SEAT_Y[f.t]) return { type: 'seat', x: f.x, y: f.y + SEAT_Y[f.t](d), z, d };
+    const { f, d } = best, z = f.y + d.h / 2 + 2, r = f.r || 0, at = (ox, oy) => { const o = rot(ox, oy, r); return { x: f.x + o.x, y: f.y + o.y }; };
+    if (p.action === 'sleep' && (f.t === 'bed')) return { type: 'lie', ...at(0, -d.h / 2 + 62), r, z, d };
+    if (p.action === 'bath' && f.t !== 'shower') return { type: 'soak', ...at(0, -4), r, z, d };
+    if (p.action === 'shower') return { type: 'shower', ...at(0, 8), r: 0, z, d };
+    if (p.action === 'sit' && SEAT_Y[f.t]) return { type: 'seat', ...at(0, SEAT_Y[f.t](d)), r, z, d };
     return null;
   }
   function wrap(text, max) {
@@ -410,11 +412,28 @@ const Island = (() => {
   // ======================================================================
   //  Les lieux virtuels : 🪩 boîte de nuit, 🎬 cinéma, 🏠 maisons
   // ======================================================================
+  // 🏠 La grande maison : 4 pièces (chambre, salle de bain, salon, cuisine) séparées par des murs avec des portes
+  const HOUSE_DOORS = { v1: [900, 480], v2: [900, 880], h1: [460, 650], h2: [1340, 650] };
+  const houseWalk = (x, y) => {
+    if (x < 40 || x > 1760 || y < 230 || y > 1080) return false;
+    if (Math.abs(x - 900) < 20 && !(Math.abs(y - 480) < 56 || Math.abs(y - 880) < 56)) return false;
+    if (Math.abs(y - 650) < 20 && !(Math.abs(x - 460) < 56 || Math.abs(x - 1340) < 56)) return false;
+    return true;
+  };
+  const houseRoom = (x, y) => (y < 650 ? 0 : 2) + (x < 900 ? 0 : 1); // 0 chambre · 1 salle de bain · 2 salon · 3 cuisine
+  const ROOM_LINKS = { 0: { 1: 'v1', 2: 'h1' }, 1: { 0: 'v1', 3: 'h2' }, 2: { 0: 'h1', 3: 'v2' }, 3: { 1: 'h2', 2: 'v2' } };
+  function housePath(ax, ay, bx, by) {
+    const a = houseRoom(ax, ay), b = houseRoom(bx, by), pt = k => ({ x: HOUSE_DOORS[k][0], y: HOUSE_DOORS[k][1] });
+    if (a === b) return [];
+    if (ROOM_LINKS[a][b]) return [pt(ROOM_LINKS[a][b])];
+    const mid = Object.keys(ROOM_LINKS[a]).map(Number).find(m => ROOM_LINKS[m][b]);
+    return [pt(ROOM_LINKS[a][mid]), pt(ROOM_LINKS[mid][b])];
+  }
   const SCENES = {
     island: { W, H, walk: onLand },
     club: { W: 1200, H: 760, walk: (x, y) => x > 60 && x < 1140 && y > 290 && y < 720, screen: { x: 400, y: 28, w: 400, h: 225 } },
     cinema: { W: 1200, H: 800, walk: (x, y) => x > 60 && x < 1140 && y > 575 && y < 770, screen: { x: 200, y: 30, w: 800, h: 450 } },
-    house: { W: 1100, H: 720, walk: (x, y) => x > 60 && x < 1040 && y > 250 && y < 680, screen: { x: 110, y: 52, w: 300, h: 169 } },
+    house: { W: 1800, H: 1100, walk: houseWalk, screen: { x: 110, y: 52, w: 300, h: 169 } },
   };
   const SEATS = []; for (const sy of [612, 672, 732]) for (let sx = 140; sx <= 1060; sx += 70) if (Math.abs(sx - 600) > 40) SEATS.push({ x: sx, y: sy });
   // Les endroits où l'on peut faire quelque chose
@@ -533,17 +552,24 @@ const Island = (() => {
     neonsign: { name: 'Néon « Paradise »', icon: '💡', w: 220, h: 70, rare: 'furn_neonsign' },
   };
   Object.assign(FURN, window.Decor?.FURN || {});
-  const ACT_LABEL = { coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
+  const ACT_LABEL = { wash: 'Se laver les mains', shower: 'Prendre une douche', coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
   const DEFAULT_FURN = [
-    { t: 'tv', x: 260, y: 140 }, { t: 'sofa', x: 280, y: 322 }, { t: 'rug', x: 540, y: 470 }, { t: 'kitchen', x: 870, y: 208 },
-    { t: 'fridge', x: 1025, y: 153 }, { t: 'bed', x: 940, y: 555 }, { t: 'plant', x: 80, y: 262 }, { t: 'plant', x: 1060, y: 660 }, { t: 'lamp', x: 455, y: 200 },
+    // 🛏️ la chambre
+    { t: 'bed', x: 300, y: 430 }, { t: 'nightstand', x: 160, y: 380 }, { t: 'wardrobe', x: 760, y: 300 }, { t: 'lamp', x: 460, y: 290 }, { t: 'mirror', x: 620, y: 300 }, { t: 'plant', x: 820, y: 580 },
+    // 🛁 la salle de bain
+    { t: 'bath', x: 1160, y: 430 }, { t: 'shower', x: 1650, y: 330 }, { t: 'sink', x: 1420, y: 290 }, { t: 'toilet', x: 1500, y: 560 }, { t: 'plant', x: 960, y: 580 },
+    // 🛋️ le salon
+    { t: 'tv', x: 420, y: 790 }, { t: 'sofa', x: 420, y: 990 }, { t: 'rug', x: 420, y: 920 }, { t: 'armchair', x: 760, y: 950 }, { t: 'plant', x: 70, y: 720 }, { t: 'lamp', x: 820, y: 760 }, { t: 'shelf', x: 120, y: 950 },
+    // 🍳 la cuisine
+    { t: 'kitchen', x: 1250, y: 740 }, { t: 'fridge', x: 1640, y: 760 }, { t: 'coffee', x: 1450, y: 740 }, { t: 'table', x: 1300, y: 950 }, { t: 'chair', x: 1170, y: 960 }, { t: 'chair', x: 1430, y: 960, f: 1 },
   ];
   let editing = false, draft = [], sel = -1, drag = null;
   let floorNow = 0;
   const furnAll = () => (editing ? draft : house?.furniture || DEFAULT_FURN);
   const furn = () => furnAll().filter(f => (f.l || 0) === floorNow);
-  const clampWalk = (x, y) => ({ x: Math.max(75, Math.min(1025, x)), y: Math.max(262, Math.min(668, y)) });
-  const furnSpot = f => { const d = FURN[f.t]; return d.spot === 'center' ? clampWalk(f.x, f.y) : clampWalk(f.x, f.y + d.h / 2 + 14); };
+  const clampWalk = (x, y) => { if (houseWalk(x, y)) return { x, y }; for (let r = 8; r < 140; r += 8) for (let a = 0; a < 6.28; a += .4) { const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (houseWalk(px, py)) return { x: px, y: py }; } return { x: Math.max(60, Math.min(1740, x)), y: Math.max(245, Math.min(1065, y)) }; };
+  const rot = (x, y, r) => (r ? { x: x * Math.cos(r) - y * Math.sin(r), y: x * Math.sin(r) + y * Math.cos(r) } : { x, y });
+  const furnSpot = f => { const d = FURN[f.t]; if (d.spot === 'center') return clampWalk(f.x, f.y); const o = rot(0, d.h / 2 + 14, f.r || 0); return clampWalk(f.x + o.x, f.y + o.y); };
   function houseHots() {
     const seen = new Set(), out = [];
     for (const f of furn()) {
@@ -553,8 +579,8 @@ const Island = (() => {
       const s = furnSpot(f);
       out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
-    if (house?.floors === 2) out.unshift({ stairs: true, icon: floorNow ? '⬇️' : '⬆️', label: floorNow ? 'Descendre' : 'Monter à l\'étage', x: 140, y: 282 });
-    if (!floorNow) out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 550, y: 672 });
+    if (house?.floors === 2) out.unshift({ stairs: true, icon: floorNow ? '⬇️' : '⬆️', label: floorNow ? 'Descendre' : 'Monter à l\'étage', x: 130, y: 250 });
+    if (!floorNow) out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 460, y: 1068 });
     return out;
   }
   const hots = () => (kind === 'house' ? houseHots() : HOTS[kind]);
@@ -562,7 +588,7 @@ const Island = (() => {
   function drawFurn(f, t, th) {
     const d = FURN[f.t];
     if (!d) return;
-    ctx.save(); ctx.translate(f.x, f.y); if (f.f && f.t !== 'neonsign' && f.t !== 'statue') ctx.scale(-1, 1);
+    ctx.save(); ctx.translate(f.x, f.y); if (f.r && f.t !== 'tv') ctx.rotate(f.r); if (f.f && f.t !== 'neonsign' && f.t !== 'statue') ctx.scale(-1, 1);
     const w = d.w, h = d.h, A = th.accent;
     ctx.fillStyle = 'rgba(0,0,0,.14)'; if (!d.flat && !d.neon && f.t !== 'painting') { ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, 9, 0, 0, 7); ctx.fill(); }
     if (window.Decor && Decor.draw(ctx, f, d, t, A, nightLevel())) { ctx.restore(); if (f.t === 'tv') drawScreen(t); return; }
@@ -876,13 +902,16 @@ const Island = (() => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
       if (draft.length >= 40) return toast('40 meubles au maximum');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
-      const n = draft.length; draft.push({ t: k, x: 380 + (n * 97) % 360, y: d.neon ? 120 + (n * 31) % 80 : 400 + (n * 53) % 180, l: floorNow, ...(d.neon ? { c: Decor.NEON[n % Decor.NEON.length] } : {}) }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
+      const n = draft.length, me0 = players.get(me) || { x: 460, y: 900 }; draft.push({ t: k, x: Math.round(me0.x + (n % 3 - 1) * 60), y: d.neon ? 110 + (n * 31) % 70 : Math.round(Math.max(260, me0.y - 90)), l: floorNow, ...(d.neon ? { c: Decor.NEON[n % Decor.NEON.length] } : {}) }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
     } }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null))));
   }
+  // la poignée ronde au-dessus du meuble sélectionné : on la fait tourner pour pivoter le meuble
+  const rotHandle = f => { const d = FURN[f.t], o = rot(0, -d.h / 2 - 34, f.r || 0); return { x: f.x + o.x, y: f.y + o.y }; };
+  function turn(dir) { const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); if (f.t === 'tv') return toast('📺 La télé reste droite'); f.r = Math.round(((f.r || 0) + dir * Math.PI / 12) * 1000) / 1000; if (f.r > Math.PI) f.r -= Math.PI * 2; if (f.r < -Math.PI) f.r += Math.PI * 2; }
   const furnDepth = f => f.y + (FURN[f.t]?.flat ? -999 : FURN[f.t]?.h / 2 || 0);
   function hitFurn(x, y) {
     const order = draft.map((f, i) => i).filter(i => (draft[i].l || 0) === floorNow).sort((a, b) => furnDepth(draft[b]) - furnDepth(draft[a]));
-    return order.find(i => { const f = draft[i], d = FURN[f.t]; return Math.abs(x - f.x) < d.w / 2 + 6 && Math.abs(y - f.y) < d.h / 2 + 6; }) ?? -1;
+    return order.find(i => { const f = draft[i], d = FURN[f.t], q = rot(x - f.x, y - f.y, -(f.r || 0)); return Math.abs(q.x) < d.w / 2 + 6 && Math.abs(q.y) < d.h / 2 + 6; }) ?? -1;
   }
 
   let scene = 'island', kind = 'island', house = null, media = null, mediaOffset = 0, amb = 0, party = 0, view = { z: 1, ox: 0, oy: 0 }, confetti = [], muted = false;
@@ -940,10 +969,10 @@ const Island = (() => {
   function drawHouse(t) {
     const th = THEME[house?.theme] || THEME.cosy;
     const n = nightLevel();
-    if (window.Decor) Decor.room(ctx, t, { style: house?.style, floors: house?.floors || 1, accent: th.accent, wall: th.wall, floor: th.floor }, floorNow, n, mix);
+    if (window.Decor) Decor.bigHouse(ctx, t, { style: house?.style, floors: house?.floors || 1, accent: th.accent, wall: th.wall, floor: th.floor }, floorNow, n, mix);
     // nom de la maison et porte
-    neonText(house?.name || 'Ma maison', 860, 120 - 70, th.accent, 22);
-    if (!floorNow) { ctx.fillStyle = '#5a3a1c'; ctx.fillRect(500, 690, 100, 30); }
+    neonText(house?.name || 'Ma maison', 900, 40, th.accent, 30);
+
   }
   function neonText(text, x, y, col, size) {
     ctx.font = `900 ${size}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1110,8 +1139,10 @@ const Island = (() => {
       if (keys.has('ArrowUp') || keys.has('w') || keys.has('z')) vy--; if (keys.has('ArrowDown') || keys.has('s')) vy++;
       if (vx || vy) target = null;
       if (target) {
-        const dx = target.x - mine.x, dy = target.y - mine.y, d = Math.hypot(dx, dy);
-        if (d < 6) { const hot = target.hot; target = null; if (hot) arrive(hot, mine); } else { vx = dx / d; vy = dy / d; }
+        if (kind === 'house' && !target.path) target.path = housePath(mine.x, mine.y, target.x, target.y);
+        const tp = target.path?.length ? target.path[0] : target;
+        const dx = tp.x - mine.x, dy = tp.y - mine.y, d = Math.hypot(dx, dy);
+        if (d < 6) { if (target.path?.length) target.path.shift(); else { const hot = target.hot; target = null; if (hot) arrive(hot, mine); } } else { vx = dx / d; vy = dy / d; }
       }
       const len = Math.hypot(vx, vy);
       mine.moving = len > 0;
@@ -1138,9 +1169,10 @@ const Island = (() => {
       // sur téléphone, la pièce est plus grande que l'écran : la caméra suit le personnage (l'écran vidéo reste toujours entier)
       const top = 60, bottom = vw < 600 ? 190 : 170, avail = vh - top - bottom;
       const fit = Math.min(vw / sc.W, avail / sc.H);
-      const z = editing ? fit : Math.max(fit, Math.min(avail / sc.H, vw / ((screenRect()?.w || 460) + 40)));
+      const z = editing ? fit : kind === 'house' ? Math.max(fit, Math.min(vw / 980, avail / 620)) : Math.max(fit, Math.min(avail / sc.H, vw / ((screenRect()?.w || 460) + 40)));
       const ox = sc.W * z <= vw ? (vw - sc.W * z) / 2 : Math.min(0, Math.max(vw - sc.W * z, vw / 2 - cam.x * z));
-      view = { z, ox, oy: top + Math.max(0, avail - sc.H * z) / 2 };
+      const oy = sc.H * z <= avail ? top + (avail - sc.H * z) / 2 : Math.min(top, Math.max(top + avail - sc.H * z, top + avail / 2 - cam.y * z));
+      view = { z, ox, oy };
     }
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.fillStyle = kind === 'island' ? '#0a7fb8' : '#07040d'; ctx.fillRect(0, 0, vw, vh);
@@ -1167,7 +1199,7 @@ const Island = (() => {
         const th = THEME[house?.theme] || THEME.cosy, list = furn();
         list.filter(f => FURN[f.t]?.flat || FURN[f.t]?.neon).forEach(f => drawFurn(f, t, th));
         items.push(...list.filter(f => !FURN[f.t]?.flat && !FURN[f.t]?.neon).map(f => ({ y: f.y + FURN[f.t].h / 2, d: () => drawFurn(f, t, th) })));
-        if (editing) for (const [i, f] of draft.entries()) { if ((f.l || 0) !== floorNow) continue; const d = FURN[f.t]; ctx.save(); ctx.strokeStyle = i === sel ? '#ffd34d' : 'rgba(255,255,255,.5)'; ctx.lineWidth = i === sel ? 4 : 2; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
+        if (editing) for (const [i, f] of draft.entries()) { if ((f.l || 0) !== floorNow || i === sel) continue; const d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
       } else drawScreen(t);
       if (kind === 'pool') items.push({ y: ball ? ballAt(ball, Date.now()).y + 10 : 0, d: () => drawBall(t) });
       drawHots(t);
@@ -1186,7 +1218,7 @@ const Island = (() => {
     }
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
     if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
-    if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(f.x - d.w / 2 - 4, f.y - d.h / 2 - 4, d.w + 8, d.h + 8); ctx.restore(); }
+    if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.setLineDash([]); if (f.t !== 'tv') { ctx.beginPath(); ctx.moveTo(0, -d.h / 2 - 4); ctx.lineTo(0, -d.h / 2 - 22); ctx.stroke(); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -d.h / 2 - 34, 13, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1404'; ctx.font = '900 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⟳', 0, -d.h / 2 - 33); } ctx.restore(); }
     drawFx(t);
     // shooter dans le ballon en marchant dessus
     if (kind === 'pool' && ball && mine?.moving && ts - lastKick > 350) { const b = ballAt(ball, Date.now()); if (Math.hypot(b.x - mine.x, b.y - mine.y) < 46) { lastKick = ts; socket.emit('inst_kick'); } }
@@ -1423,6 +1455,8 @@ const Island = (() => {
       requestAnimationFrame(arrows);
       root.querySelector('.isl-actions').replaceChildren(
         el('button', { type: 'button', class: 'isl-act media', onclick: () => furniturePanel() }, el('span', {}, '➕'), 'Ajouter un meuble'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(-1) }, el('span', {}, '⟲'), 'Tourner'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(1) }, el('span', {}, '⟳'), 'Tourner'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) draft[sel].f = draft[sel].f ? 0 : 1; else toast('Touche d\'abord un meuble'); } }, el('span', {}, '↔️'), 'Retourner'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { const f = draft[sel]; if (!f || !FURN[f.t]?.neon) return toast('Touche d\'abord un néon 💡'); const L = Decor.NEON; f.c = L[(L.indexOf(f.c) + 1) % L.length]; } }, el('span', {}, '🎨'), 'Couleur du néon'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) { draft.splice(sel, 1); sel = -1; } else toast('Touche d\'abord un meuble'); } }, el('span', {}, '🗑️'), 'Retirer'),
@@ -1493,6 +1527,8 @@ const Island = (() => {
       root.querySelector('.isl-hint').classList.add('gone');
       root.querySelector('.isl-panel')?.remove();
       if (editing) {
+        const prev = draft[sel];
+        if (prev && FURN[prev.t]) { const hp = rotHandle(prev); if (Math.hypot(hp.x - x, hp.y - y) < 26) { drag = { id: e.pointerId, rotate: true }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} return; } }
         sel = hitFurn(x, y);
         if (sel >= 0) { drag = { id: e.pointerId, dx: x - draft[sel].x, dy: y - draft[sel].y }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} }
         return;
@@ -1508,6 +1544,7 @@ const Island = (() => {
         if (seat) return (target = { x: seat.x, y: seat.y, hot: hots().find(h => h.seat) });
         const sc = S();
         if (sc.walk(x, y)) target = { x, y };
+        else if (kind === 'house') { let best = null; for (let r = 10; r < 120 && !best; r += 10) for (let a = 0; a < 6.28; a += .5) if (sc.walk(x + Math.cos(a) * r, y + Math.sin(a) * r)) { best = { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r }; break; } target = best || { x: Math.max(60, Math.min(1740, x)), y: Math.max(245, Math.min(1065, y)) }; }
         else target = { x: Math.max(sc === SCENES.club ? 70 : 70, Math.min(sc.W - 70, x)), y: Math.max(sc === SCENES.cinema ? 585 : sc === SCENES.club ? 300 : 260, Math.min(sc.H - (kind === 'cinema' ? 35 : 45), y)) };
         return;
       }
@@ -1531,7 +1568,8 @@ const Island = (() => {
     cv.addEventListener('pointermove', e => {
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
-      draft[sel].x = Math.round(Math.max(0, Math.min(1100, x - drag.dx)) / 5) * 5; draft[sel].y = Math.round(Math.max(0, Math.min(720, y - drag.dy)) / 5) * 5;
+      if (drag.rotate) { const f = draft[sel], a = Math.atan2(x - f.x, -(y - f.y)); f.r = Math.round(a / (Math.PI / 36)) * (Math.PI / 36); return; }
+      draft[sel].x = Math.round(Math.max(0, Math.min(1800, x - drag.dx)) / 5) * 5; draft[sel].y = Math.round(Math.max(0, Math.min(1100, y - drag.dy)) / 5) * 5;
     });
     const drop = () => { drag = null; };
     cv.addEventListener('pointerup', drop); cv.addEventListener('pointercancel', drop);

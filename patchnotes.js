@@ -461,4 +461,21 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 31,
+    date: '2026-11-12',
+    title: 'Des maisons bien plus grandes, avec de vraies pièces 🏠',
+    added: [
+      'Ta maison est maintenant bien plus grande, avec 4 vraies pièces séparées par des murs et des portes : 🛏️ la chambre, 🛁 la salle de bain, 🛋️ le salon et 🍳 la cuisine',
+      'Ton personnage passe tout seul par les portes pour aller d\'une pièce à l\'autre',
+      'Chaque pièce a son sol : parquet dans la chambre, carrelage dans la salle de bain, damier dans la cuisine',
+      'De nouveaux meubles de salle de bain : 🚰 lavabo avec miroir, 🚽 WC et 🚿 douche (ton personnage se douche pour de vrai)',
+      'Fais pivoter tes meubles comme tu veux 🔄 : dans « 🛠️ Mes meubles », attrape la poignée ronde au-dessus du meuble et fais-la tourner, ou utilise les boutons ⟲ ⟳',
+      'Les meubles tournés s\'utilisent toujours : tu peux dormir dans un lit en travers ou t\'asseoir sur une chaise tournée',
+    ],
+    changed: [
+      'Les meubles déjà placés ont été répartis dans la nouvelle grande maison : pense à les ranger dans les bonnes pièces 😉',
+    ],
+    removed: [],
+  },
 ];
