@@ -28,7 +28,7 @@ const Progress = (() => {
         el('div', { class: 'prog-lvl' }, el('span', {}, '⭐'), el('b', {}, data.level)),
         el('div', { class: 'prog-xp' }, el('b', {}, `Niveau ${data.level}`), el('div', { class: 'prog-bar' }, el('i', { style: `width:${pct}%` })), el('small', {}, `${data.into} / ${data.need} XP pour le niveau ${data.level + 1}`)),
         el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
-      el('div', { class: 'shop-tabs' }, ...[['quests', '🎯 Quêtes du jour'], ['ach', `🏆 Succès ${data.unlocked}/${data.total}`], ['how', '💡 Gagner de l\'XP']].map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; render(); } }, l))),
+      el('div', { class: 'shop-tabs' }, ...[['quests', '🎯 Quêtes du jour'], ['ach', `🏅 Badges ${data.unlocked}/${data.total}`], ['how', '💡 Gagner de l\'XP']].map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; render(); } }, l))),
       el('div', { class: 'shop-body' }, ...(tab === 'quests' ? quests() : tab === 'ach' ? achievements() : how())));
   }
   function quests() {
@@ -44,10 +44,19 @@ const Progress = (() => {
   }
   function achievements() {
     const list = [...data.achievements].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0));
-    return [el('div', { class: 'ach-grid' }, ...list.map(a => el('div', { class: 'ach' + (a.unlocked ? ' on' : '') },
+    const shown = new Set(data.shown || []);
+    const toggle = async a => {
+      const ids = [...shown]; if (shown.has(a.id)) ids.splice(ids.indexOf(a.id), 1); else { if (ids.length >= 6) return toast('6 badges maximum sous ton pseudo'); ids.push(a.id); }
+      try { const r = await api('/api/badges/show', { method: 'POST', body: { ids } }); data.shown = r.shown; render(); } catch (e) { toast(e.message); }
+    };
+    const mine = list.filter(a => shown.has(a.id)).map(a => ({ i: a.icon, n: a.name, d: a.desc }));
+    return [el('div', { class: 'badge-preview' }, el('small', {}, 'Sous ton pseudo :'), el('div', {}, LC.name(state.me), LC.badgesRow(mine) || el('small', { style: 'opacity:.6' }, ' aucun badge affiché'))),
+      el('small', { class: 'shop-desc' }, 'Fais des choses sur le site pour gagner des badges 🏅 Touche « 📌 » pour choisir les 6 badges affichés sous ton pseudo.'),
+      el('div', { class: 'ach-grid' }, ...list.map(a => el('div', { class: 'ach' + (a.unlocked ? ' on' : '') },
       el('span', { class: 'ach-ico' }, a.unlocked ? a.icon : '🔒'), el('b', {}, a.name), el('small', {}, a.desc),
       a.unlocked ? el('small', { class: 'ach-date' }, `✅ ${new Date(a.unlocked).toLocaleDateString('fr-FR')}`) : el('div', { class: 'prog-bar' }, el('i', { style: `width:${Math.round(a.progress * 100 / a.goal)}%` })),
-      el('small', { class: 'ach-gain' }, `+${a.coins} 💰`))))];
+      el('small', { class: 'ach-gain' }, `+${a.coins} 💰`),
+      a.unlocked ? el('button', { class: 'btn btn-sm' + (shown.has(a.id) ? ' btn-primary' : ''), onclick: () => toggle(a) }, shown.has(a.id) ? '📌 Affiché' : '📌 Afficher') : null)))];
   }
   function how() {
     return [el('div', { class: 'earn' }, ...[
@@ -62,7 +71,7 @@ const Progress = (() => {
   socket.on('progress', d => { if (data) { Object.assign(data, d); if (close) render(); } });
   socket.on('quest', d => { const q = data?.quests.find(x => x.id === d.id); if (q) { q.progress = d.progress; q.done = d.done; badge(); if (close) render(); } });
   socket.on('quest_done', q => { toast(`🎯 Quête réussie : ${q.text} · +${q.coins} 💰`, () => open('quests')); LC.confetti(['🎯', '💰', '✨']); });
-  socket.on('achievement', a => { celebrate(a.icon, 'Succès débloqué !', a.name, a.desc); load().then(() => close && render()); });
+  socket.on('achievement', a => { celebrate(a.icon, '🏅 Nouveau badge !', a.name, a.desc + ' · il apparaît sous ton pseudo'); load().then(() => close && render()); });
   socket.on('level_up', d => celebrate('⭐', `Niveau ${d.level} !`, 'Tu montes de niveau', `+${d.gift} pièces 💰`));
   function celebrate(icon, title, name, desc) {
     document.querySelector('.celebrate')?.remove();

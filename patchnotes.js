@@ -430,4 +430,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 29,
+    date: '2026-11-12',
+    title: 'Les badges sous le pseudo 🏅',
+    added: [
+      'Les badges 🏅 : une petite rangée de badges s\'affiche maintenant sous ton pseudo, dans les messages et dans la liste des connectés',
+      'À chaque fois que tu fais quelque chose sur le site, un badge apparaît (avec une grosse annonce et des confettis 🎉) et il s\'ajoute tout de suite sous ton pseudo',
+      'De nouveaux badges : 🧍 Habitant du Paradise, 🏗️ Bâtisseur (créer un salon permanent), ⏳ Animateur (salon temporaire), 📸 Photogénique, ✅ Membre vérifié, 🤝 Premier ami, 👥 Populaire, 💌 Premier message privé, 🎙️ Au micro, 🧑‍🎨 Styliste, 🛋️ Décorateur, 🛍️ Premier achat',
+      '36 badges en tout, avec ceux des jeux, de l\'Île, des animaux, des quêtes et des niveaux',
+      'Choisis les 6 badges affichés sous ton pseudo avec « 📌 Afficher » (menu de ton compte → 🎯 Mes quêtes et mes badges)',
+      'Touche un badge sous un pseudo pour savoir ce qu\'il veut dire',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

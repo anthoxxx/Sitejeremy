@@ -81,6 +81,7 @@ function isBirthday(u) {
   return u.birth_day === 29 && u.birth_month === 2 && !leap && t.d === 28 && t.m === 2;
 }
 
+let badgesOf = () => []; // 🏅 remplacé plus bas par les vrais badges
 function publicUser(u) {
   if (!u) return null;
   return {
@@ -88,6 +89,7 @@ function publicUser(u) {
     age: u.show_age === 0 ? null : u.age, city: u.show_city === 0 ? '' : u.city,
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
+    badges: u.is_guest ? [] : badgesOf(u.id),
     nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
@@ -112,7 +114,7 @@ function adminUser(u) {
   return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -406,6 +408,7 @@ app.post('/api/shop/buy', auth, (req, res) => {
   if (tooMany('shop:' + req.user.id, 30, 60000)) return res.status(429).json({ error: 'Doucement !' });
   const r = Coins.buy(req.user.id, String(req.body?.id || ''));
   if (r.error) return res.status(400).json(r);
+  track(req.user.id, 'shop');
   refreshOnline(getUser(req.user.id));
   res.json({ ...Coins.shopOut(req.user.id), bought: r.item, user: selfUser(getUser(req.user.id)) });
 });
@@ -445,6 +448,7 @@ app.post('/api/admin/coins', auth, requireRole('admin'), (req, res) => {
 
 // ---------- 🎯 Quêtes, succès et niveaux ----------
 app.get('/api/progress', auth, (req, res) => { if (guestNo(req, res)) return; res.json(Progress.out(req.user.id)); });
+app.post('/api/badges/show', auth, (req, res) => { if (guestNo(req, res)) return; res.json(Progress.setShown(req.user.id, req.body?.ids)); });
 // ---------- 🐾 Les animaux ----------
 app.get('/api/pets', auth, (req, res) => res.json({ pet: Pets.get(req.user.id), species: Pets.SPECIES, accessories: Pets.ACCESSORIES, actions: Pets.ACTIONS, coins: Coins.balance(req.user.id) }));
 const petRoute = fn => (req, res) => {
@@ -466,6 +470,7 @@ app.post('/api/look', auth, (req, res) => {
   if (tooMany('look:' + req.user.id, 30, 60000)) return res.status(429).json({ error: 'Doucement !' });
   const r = Looks.save(req.user.id, req.body?.look, req.body?.mode);
   if (r.error) return res.status(400).json(r);
+  track(req.user.id, 'look');
   res.json({ ...r, coins: Coins.balance(req.user.id) });
 });
 // ---------- 🔮 La Voyante ----------
@@ -780,6 +785,7 @@ app.post('/api/me/image/:kind', auth, (req, res) => {
   }
   removeUpload(req.user[kind]);
   db.prepare(`UPDATE users SET ${kind}=?${kind === 'avatar' ? ', avatar_ok=1' : ''} WHERE id=?`).run(saved.url, req.user.id);
+  if (kind === 'avatar') track(req.user.id, 'photo');
   log(req.user, 'profile_update', kind === 'avatar' ? 'Nouvelle photo de profil' : 'Nouvelle bannière de profil', { data: { image: saved.url } });
   const updated = getUser(req.user.id);
   refreshOnline(updated);
@@ -991,6 +997,7 @@ app.post('/api/rooms', auth, (req, res) => {
   const info = db.prepare(`INSERT INTO rooms (slug,name,description,icon,sort,members_only,owner_id,is_private,created_at)
     VALUES (?,?,?,?,100,0,?,?,?)`).run(slug, name, clean(req.body.description, 120), clean(req.body.icon, 4) || '🏠', req.user.id, req.body.isPrivate ? 1 : 0, now());
   log(req.user, 'room_create', name + ' (salon membre)');
+  track(req.user.id, 'room_create');
   roomsChanged();
   res.json({ room: roomOut(getRoom(info.lastInsertRowid)) });
 });
@@ -1012,6 +1019,7 @@ function createTempRoom(req, res) {
   const info = db.prepare(`INSERT INTO rooms (slug,name,description,icon,sort,members_only,owner_id,is_private,created_at,temporary,empty_since)
     VALUES (?,?,?,?,200,0,?,?,?,1,?)`).run(slug, name, clean(req.body.description, 120), clean(req.body.icon, 4) || '⏳', req.user.id, req.body.isPrivate ? 1 : 0, now(), now());
   log(req.user, 'room_create', `${name} (salon temporaire)`);
+  track(req.user.id, 'temp_room');
   roomsChanged();
   res.json({ room: roomOut(getRoom(info.lastInsertRowid)) });
 }
@@ -1566,6 +1574,7 @@ app.post('/api/friends/:id', auth, (req, res) => {
   if (st === 'sent') return res.json({ status: st });
   if (st === 'received') { // il m'avait déjà demandé : on devient amis
     db.prepare("UPDATE friends SET status='accepted' WHERE from_id=? AND to_id=?").run(other.id, me.id);
+    track(me.id, 'friend'); track(other.id, 'friend');
     notify(other.id, { type: 'friend', icon: '🤝', title: `${me.username} a accepté ta demande d'ami`, data: { userId: me.id } });
     friendsChanged(me.id, other.id);
     return res.json({ status: 'friends' });
@@ -1579,6 +1588,7 @@ app.post('/api/friends/:id/accept', auth, (req, res) => {
   const me = req.user, otherId = parseInt(req.params.id, 10);
   const r = db.prepare("UPDATE friends SET status='accepted' WHERE from_id=? AND to_id=? AND status='pending'").run(otherId, me.id);
   if (!r.changes) return res.status(404).json({ error: 'Demande introuvable' });
+  track(me.id, 'friend'); track(otherId, 'friend');
   notify(otherId, { type: 'friend', icon: '🤝', title: `${me.username} a accepté ta demande d'ami`, data: { userId: me.id } });
   friendsChanged(me.id, otherId);
   res.json({ status: 'friends' });
@@ -1796,6 +1806,7 @@ app.post('/api/customs/verify/:id', auth, (req, res) => {
   else return res.status(400).json({ error: 'Que faut-il valider ?' });
   const verified = voice && cam;
   db.prepare('UPDATE users SET voice_ok=?, cam_ok=?, verified=?, refused=? WHERE id=?').run(voice ? 1 : 0, cam ? 1 : 0, verified ? 1 : 0, refused, target.id);
+  if (verified) Progress.award(target.id, 'verified');
   const label = `🎙️ voix ${voice ? '✅' : '—'} · 📷 caméra ${cam ? '✅' : '—'}`;
   log(req.user, verified ? 'verify' : 'unverify', `${target.username} : ${what === 'refuse' ? 'refusé à la douane ❌' : what === 'reset' ? 'badges retirés, renvoyé à la douane' : label}${verified && !wasVerified ? ' → accepté' : ''}`);
   const updated = getUser(target.id);
@@ -2287,6 +2298,7 @@ admin.post('/photos/:id', (req, res) => {
   if (approve) {
     removeUpload(target.avatar);
     db.prepare("UPDATE users SET avatar=?, avatar_pending='', avatar_ok=1 WHERE id=?").run(target.avatar_pending, target.id);
+    track(target.id, 'photo');
     notify(target.id, { type: 'photo', icon: '✅', title: 'Ta photo de profil est vérifiée ✓', text: 'Elle est maintenant visible par tout le monde, avec le badge V.' });
   } else {
     removeUpload(target.avatar_pending);
@@ -2581,7 +2593,8 @@ const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVe
 // 💰 Les Paradise Coins (pendant une soirée, les jeux rapportent le double)
 const Coins = require('./coins')({ db, emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), getUser: id => getUser(id), multiplier: () => (Events.isLive() ? 2 : 1), log: (...a) => log(...a) });
 // 🎯 Quêtes, succès et niveaux
-const Progress = require('./progress')({ db, earn: (...a) => Coins.earn(...a), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a), getUser: id => getUser(id) });
+const Progress = require('./progress')({ db, earn: (...a) => Coins.earn(...a), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a), getUser: id => getUser(id), onBadge: uid => { const u = getUser(uid); if (u) refreshOnline(u); io.emit('badges', { userId: uid, badges: Progress.shown(uid) }); } });
+badgesOf = uid => { try { return Progress.shown(uid); } catch (e) { return []; } };
 const track = (...a) => { try { Progress.track(...a); } catch (e) { console.error('progress', e.message); } };
 // 🐾 Les animaux de compagnie
 const Pets = require('./pets')({ db, coins: Coins, notify: (...a) => notify(...a), track, onChange: uid => Island.refreshPet(uid) });
@@ -2852,6 +2865,7 @@ io.on('connection', socket => {
     online.set(uid, entry);
   }
   const firstSocket = !entry.sockets.size;
+  if (firstSocket && !entry.user.is_guest) setTimeout(() => { Progress.award(uid, 'member'); if (isVerified(entry.user)) Progress.award(uid, 'verified'); if (entry.user.avatar) Progress.award(uid, 'photo'); }, 4000);
   entry.sockets.add(socket.id);
   if (isSuper(entry.user)) socket.join('supers');
   // Les amis en ligne sont prévenus quand tu arrives (une fois par heure au maximum)
@@ -3051,6 +3065,7 @@ io.on('connection', socket => {
     emitToUser(target.id, 'pm', { ...m, fromUser: publicUser(u) });
     emitToUser(uid, 'pm', { ...m, fromUser: publicUser(u) });
     if (!throttled(`pm:${uid}:${target.id}`, 60000)) notify(target.id, { type: 'pm', icon: '💌', title: `${u.username} t'a envoyé un message privé`, text: content.slice(0, 120), data: { userId: uid } });
+    if (!getUser(uid)?.is_guest) track(uid, 'pm');
     ack && ack({ ok: true, message: m });
   });
 
@@ -3221,6 +3236,7 @@ io.on('connection', socket => {
     voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen, micSince: listen ? 0 : now(), micUntil: 0 });
     log(u, 'voice_join', listen ? `Écoute le vocal du salon ${room.name} 🎧` : `A rejoint le vocal du salon ${room.name}`);
     voiceOf.set(socket.id, slug);
+    if (!listen) track(uid, 'voice');
     ack && ack({ peers, camBlocked: camBlocksOf(uid) });
     emitVoiceState(slug);
     emitCamBlockedMe(socket.id);

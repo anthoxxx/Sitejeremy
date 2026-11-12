@@ -328,6 +328,7 @@ function addRoomMessage(m, live = true) {
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
+      m.anon ? null : LC.badgesRow(m.badges),
       ...messageBody(m),
       m.staffOnly ? el('div', { class: 'staff-only-bar' }, el('span', {}, '🔒 Visible seulement par les administrateurs'),
         m.userId === state.me.id || isSuperMe() ? el('button', { class: 'btn btn-sm', onclick: () => socket.emit('message_reveal', { id: m.id }, r => r?.error ? toast(r.error) : toast('👁 Ton message est maintenant visible par tout le monde')) }, '👁 Montrer mon message') : null) : null),
@@ -560,6 +561,7 @@ function renderUsers() {
       av,
       el('div', { class: 'meta' },
         el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        LC.badgesRow(u.badges, true),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,
@@ -637,7 +639,7 @@ function toggleUserMenu() {
   m.replaceChildren(...[
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     item('✏️', 'Personnaliser mon profil', openMyProfile),
-    !state.me.isGuest ? item('🎯', 'Mes quêtes et mes succès', () => Progress.open()) : null,
+    !state.me.isGuest ? item('🎯', 'Mes quêtes et mes badges', () => Progress.open()) : null,
     !state.me.isGuest ? item('🧍', 'Mon personnage de l\'Île', () => Look.open()) : null,
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
@@ -1162,3 +1164,14 @@ if (matchMedia('(hover: none)').matches) {
     if (m && m.querySelector('.msg-tools')) m.classList.toggle('tools-open');
   });
 }
+
+// 🏅 Un membre gagne un badge : il apparaît tout de suite sous son pseudo, partout
+socket.on('badges', ({ userId, badges }) => {
+  const u = (state.online || []).find(x => x.id === userId); if (u) u.badges = badges;
+  document.querySelectorAll(`.msg .who[data-uid="${userId}"]`).forEach(w => {
+    const body = w.closest('.body'); if (!body) return;
+    body.querySelector(':scope > .ubadges')?.remove();
+    const row = LC.badgesRow(badges); if (row) { row.classList.add('fresh'); body.children[0].after(row); }
+  });
+  if (u) renderUsers();
+});

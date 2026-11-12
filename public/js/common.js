@@ -312,6 +312,11 @@ window.LC = {
         } }, 'Appliquer la sanction'))));
     document.body.append(back);
   },
+  // 🏅 La petite rangée de badges sous le pseudo
+  badgesRow(list, small) {
+    if (!list || !list.length) return null;
+    return LC.el('div', { class: 'ubadges' + (small ? ' sm' : '') }, ...list.map((b, i) => LC.el('span', { class: 'ubadge', style: `animation-delay:${i * .12}s`, title: `${b.n} : ${b.d}`, onclick: e => { e.stopPropagation(); typeof toast === 'function' && toast(`${b.i} ${b.n} · ${b.d}`); } }, b.i)));
+  },
   badge(u) {
     if (u.role === 'moderation') return LC.el('span', { class: 'badge moderator' }, 'Équipe');
     if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');

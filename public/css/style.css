@@ -2662,3 +2662,14 @@ body.island-open .ring-card { z-index: 1004; }
 .isl-facade { width: 60px; height: 52px; flex: none; }
 .pet-cv { display: block; }
 body.island-open .games-hub { z-index: 975; }
+/* 🏅 Les badges sous le pseudo */
+.ubadges { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 3px; }
+.ubadge { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 13px; line-height: 1; cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), rgba(198,77,255,.25) 60%, rgba(40,20,70,.6)); border: 1px solid rgba(255,215,106,.55); box-shadow: 0 0 6px rgba(198,77,255,.45); animation: ubPop .5s ease both; }
+.ubadge:hover { transform: scale(1.25); box-shadow: 0 0 12px rgba(255,215,106,.8); }
+.ubadges.sm .ubadge { width: 18px; height: 18px; font-size: 11px; }
+.ubadges.fresh .ubadge:last-child { animation: ubNew 1.4s ease; }
+@keyframes ubPop { from { transform: scale(0); opacity: 0; } }
+@keyframes ubNew { 0% { transform: scale(0) rotate(-90deg); } 50% { transform: scale(1.7) rotate(10deg); box-shadow: 0 0 20px #ffd76a; } 100% { transform: scale(1); } }
+.badge-preview { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 14px; background: rgba(255,215,106,.08); border: 1px solid rgba(255,215,106,.35); }
+.badge-preview small { opacity: .75; }

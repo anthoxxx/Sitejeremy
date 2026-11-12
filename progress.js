@@ -19,6 +19,18 @@ const QUESTS = [
   { id: 'daily', kind: 'daily', goal: 1, coins: 5, xp: 15, icon: '🎁', text: 'Prends ton bonus du jour' },
 ];
 const ACHIEVEMENTS = [
+  { id: 'member', kind: 'member', goal: 1, icon: '🧍', name: 'Habitant du Paradise', desc: 'Inscrit sur The Paradise', coins: 10 },
+  { id: 'room', kind: 'room_create', goal: 1, icon: '🏗️', name: 'Bâtisseur', desc: 'Crée un salon permanent', coins: 50 },
+  { id: 'temproom', kind: 'temp_room', goal: 1, icon: '⏳', name: 'Animateur', desc: 'Crée un salon temporaire', coins: 20 },
+  { id: 'photo', kind: 'photo', goal: 1, icon: '📸', name: 'Photogénique', desc: 'Mets une photo de profil', coins: 20 },
+  { id: 'verified', kind: 'verified', goal: 1, icon: '✅', name: 'Membre vérifié', desc: 'Validé par l\'équipe à la douane', coins: 40 },
+  { id: 'friend1', kind: 'friend', goal: 1, icon: '🤝', name: 'Premier ami', desc: 'Ton premier ami sur le site', coins: 20 },
+  { id: 'friend10', kind: 'friend', goal: 10, icon: '👥', name: 'Populaire', desc: '10 amis', coins: 100 },
+  { id: 'pm1', kind: 'pm', goal: 1, icon: '💌', name: 'Premier message privé', desc: 'Envoie un message privé', coins: 10 },
+  { id: 'voice', kind: 'voice', goal: 1, icon: '🎙️', name: 'Au micro', desc: 'Va dans le vocal d\'un salon', coins: 20 },
+  { id: 'look', kind: 'look', goal: 1, icon: '🧑‍🎨', name: 'Styliste', desc: 'Crée ton personnage de l\'Île', coins: 20 },
+  { id: 'deco', kind: 'house_deco', goal: 1, icon: '🛋️', name: 'Décorateur', desc: 'Place tes meubles chez toi', coins: 20 },
+  { id: 'shop1', kind: 'shop', goal: 1, icon: '🛍️', name: 'Premier achat', desc: 'Achète quelque chose dans la boutique', coins: 15 },
   { id: 'msg100', kind: 'message', goal: 100, icon: '💬', name: 'Bavard', desc: '100 messages envoyés', coins: 50 },
   { id: 'msg1000', kind: 'message', goal: 1000, icon: '🗣️', name: 'Pipelette légendaire', desc: '1 000 messages envoyés', coins: 300 },
   { id: 'night', kind: 'night', goal: 1, icon: '🦉', name: 'Noctambule', desc: 'Un message entre 2 h et 5 h du matin', coins: 30 },
@@ -45,20 +57,39 @@ const ACHIEVEMENTS = [
   { id: 'lvl25', kind: 'level', goal: 25, icon: '👑', name: 'Légende du Paradise', desc: 'Atteins le niveau 25', coins: 600 },
 ];
 // Expérience gagnée pour chaque chose qu'on fait
-const XP = { message: 1, game: 5, game_win: 25, babyfoot: 8, babyfoot_win: 15, island: 5, visit_place: 3, visit_house: 8, dance: 1, cafe: 3, pet: 2, pet_adopt: 20, fortune: 5, arcade: 1, emote: 0, daily: 10, party: 20, gift: 5, night: 0 };
-const XP_CAP = { message: 120, dance: 20, arcade: 30, pet: 30, visit_place: 30 }; // XP maximum par jour pour ces actions
+const XP = { room_create: 20, temp_room: 5, photo: 10, verified: 20, friend: 5, pm: 1, voice: 5, look: 10, house_deco: 5, shop: 5, member: 5, message: 1, game: 5, game_win: 25, babyfoot: 8, babyfoot_win: 15, island: 5, visit_place: 3, visit_house: 8, dance: 1, cafe: 3, pet: 2, pet_adopt: 20, fortune: 5, arcade: 1, emote: 0, daily: 10, party: 20, gift: 5, night: 0 };
+const XP_CAP = { pm: 20, voice: 15, message: 120, dance: 20, arcade: 30, pet: 30, visit_place: 30 }; // XP maximum par jour pour ces actions
 // Niveau : il faut 100 XP pour passer au niveau 2, puis 50 de plus à chaque niveau
 const levelOf = xp => { let lvl = 1, need = 100, rest = xp; while (rest >= need) { rest -= need; lvl++; need += 50; } return { level: lvl, into: rest, need }; };
 const parisDay = (ts = Date.now()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts);
 const parisHour = (ts = Date.now()) => +new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', hourCycle: 'h23' }).format(ts);
 const hash = s => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 
-module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser }) {
+module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser, onBadge = () => {} }) {
   const now = () => Date.now();
   db.exec(`CREATE TABLE IF NOT EXISTS user_stats (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, kind))`);
   db.exec(`CREATE TABLE IF NOT EXISTS user_quests (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, quest TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, quest))`);
   db.exec(`CREATE TABLE IF NOT EXISTS user_achievements (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, id TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, id))`);
   try { db.exec("ALTER TABLE users ADD COLUMN xp INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+  try { db.exec("ALTER TABLE users ADD COLUMN badges_show TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  // 🏅 Les badges affichés sous le pseudo (6 au maximum) : ceux choisis par le membre, sinon les derniers gagnés
+  const shownCache = new Map();
+  function shown(uid) {
+    if (shownCache.has(uid)) return shownCache.get(uid);
+    const got = db.prepare('SELECT id FROM user_achievements WHERE user_id=? ORDER BY created_at DESC').all(uid).map(r => r.id);
+    let pick = null; try { pick = JSON.parse(getUser(uid)?.badges_show || 'null'); } catch (e) {}
+    const ids = Array.isArray(pick) ? pick.filter(id => got.includes(id)) : got.slice(0, 6);
+    const out = ids.slice(0, 6).map(id => ACHIEVEMENTS.find(a => a.id === id)).filter(Boolean).map(a => ({ i: a.icon, n: a.name, d: a.desc }));
+    shownCache.set(uid, out); if (shownCache.size > 5000) shownCache.clear();
+    return out;
+  }
+  function setShown(uid, ids) {
+    const got = new Set(db.prepare('SELECT id FROM user_achievements WHERE user_id=?').all(uid).map(r => r.id));
+    const list = (Array.isArray(ids) ? ids : []).map(String).filter(id => got.has(id)).slice(0, 6);
+    db.prepare('UPDATE users SET badges_show=? WHERE id=?').run(JSON.stringify(list), uid);
+    shownCache.delete(uid); onBadge(uid);
+    return { ok: true, shown: list };
+  }
 
   // Les 3 quêtes du jour (toujours les mêmes pour une personne et un jour donnés)
   function questsOf(uid, day = parisDay()) {
@@ -97,8 +128,9 @@ module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser 
     for (const a of ACHIEVEMENTS.filter(a => a.kind === kind && total >= a.goal)) {
       const r = db.prepare('INSERT OR IGNORE INTO user_achievements (user_id,id,created_at) VALUES (?,?,?)').run(uid, a.id, now());
       if (!r.changes) continue;
-      earn(uid, a.coins, `🏆 Succès débloqué : ${a.name}`, { boost: false });
-      notify(uid, { type: 'achievement', icon: a.icon, title: `Succès débloqué : ${a.name} ${a.icon}`, text: `${a.desc} · +${a.coins} pièces 💰`, important: true });
+      shownCache.delete(uid); setTimeout(() => onBadge(uid), 0);
+      earn(uid, a.coins, `🏅 Nouveau badge : ${a.name}`, { boost: false });
+      notify(uid, { type: 'achievement', icon: a.icon, title: `Nouveau badge : ${a.name} ${a.icon}`, text: `${a.desc} · +${a.coins} pièces 💰`, important: true });
       emitToUser(uid, 'achievement', { ...a });
       addXp(uid, 40, 'achievement');
     }
@@ -142,6 +174,7 @@ module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser 
       ...levelOf(u.xp || 0), xp: u.xp || 0,
       quests: questsOf(uid, day).map(q => ({ ...q, progress: rows.get(q.id)?.progress || 0, done: !!rows.get(q.id)?.done })),
       achievements: ACHIEVEMENTS.map(a => ({ ...a, unlocked: got.get(a.id) || 0, progress: Math.min(a.goal, stats[a.kind] || 0) })),
+      shown: (() => { let p = null; try { p = JSON.parse(u.badges_show || 'null'); } catch (e) {} return Array.isArray(p) ? p : [...got.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(e => e[0]); })(),
       unlocked: got.size, total: ACHIEVEMENTS.length,
     };
   }
@@ -151,6 +184,8 @@ module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser 
     const ach = db.prepare('SELECT id FROM user_achievements WHERE user_id=? ORDER BY created_at DESC').all(uid).map(r => ACHIEVEMENTS.find(a => a.id === r.id)).filter(Boolean);
     return { level: levelOf(u?.xp || 0).level, achievements: ach.map(a => ({ id: a.id, icon: a.icon, name: a.name, desc: a.desc })) };
   };
-  return { track, out, publicOf, levelOf, ACHIEVEMENTS, QUESTS };
+  // un badge donné une seule fois (ex. « Habitant du Paradise » à la connexion)
+  const award = (uid, kind) => { const u = getUser(uid); if (!u || u.is_guest) return; if (!db.prepare('SELECT 1 FROM user_stats WHERE user_id=? AND kind=?').get(uid, kind)) bump(uid, kind, 1, true); };
+  return { track, out, publicOf, levelOf, shown, setShown, award, ACHIEVEMENTS, QUESTS };
 };
 module.exports.levelOf = levelOf;

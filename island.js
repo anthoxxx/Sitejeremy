@@ -424,6 +424,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       db.prepare("INSERT INTO houses (user_id,furniture,access,updated_at) VALUES (?,?,'bell',?) ON CONFLICT(user_id) DO UPDATE SET furniture=excluded.furniture, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
       bfCache.delete('house:' + uid);
       emitScene('house:' + uid, 'house_info', houseInfo(uid));
+      track(uid, 'house_deco');
       ack(cb, { ok: true });
     });
     socket.on('house_kick', (targetId, cb) => {
