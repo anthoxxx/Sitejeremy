@@ -1234,6 +1234,7 @@ const Island = (() => {
     root.querySelector('.isl-zoom').classList.toggle('hidden', kind !== 'island');
     root.querySelector('.isl-amb').classList.toggle('hidden', kind === 'island');
     if (editing) {
+      requestAnimationFrame(arrows);
       root.querySelector('.isl-actions').replaceChildren(
         el('button', { type: 'button', class: 'isl-act media', onclick: () => furniturePanel() }, el('span', {}, '➕'), 'Ajouter un meuble'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) draft[sel].f = draft[sel].f ? 0 : 1; else toast('Touche d\'abord un meuble'); } }, el('span', {}, '↔️'), 'Retourner'),
@@ -1251,8 +1252,17 @@ const Island = (() => {
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
     acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Pets?.open() }, el('span', {}, players.get(me)?.pet?.icon || '🐾'), players.get(me)?.pet ? players.get(me).pet.name : 'Adopter un animal'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
+    requestAnimationFrame(arrows);
     renderAmb();
   }
+  // La barre de boutons trop longue : flèches ‹ › et molette de la souris pour la faire défiler (sur ordinateur)
+  function arrows() {
+    const bar = root?.querySelector('.isl-actions'); if (!bar) return;
+    const over = bar.scrollWidth > bar.clientWidth + 2;
+    root.querySelector('.isl-arrow.left').classList.toggle('hidden', !over || bar.scrollLeft < 4);
+    root.querySelector('.isl-arrow.right').classList.toggle('hidden', !over || bar.scrollLeft + bar.clientWidth > bar.scrollWidth - 4);
+  }
+  function scrollActs(dir) { const bar = root.querySelector('.isl-actions'); bar.scrollBy({ left: dir * Math.max(160, bar.clientWidth * .7), behavior: 'smooth' }); setTimeout(arrows, 400); }
   function renderAmb() {
     const b = root.querySelector('.isl-amb');
     b.querySelector('i').style.width = amb + '%';
@@ -1276,7 +1286,10 @@ const Island = (() => {
       el('div', { class: 'isl-hint' }, '👆 Touche le sol pour marcher · approche-toi d\'un lieu pour y entrer'),
       el('div', { class: 'isl-enter hidden' }),
       el('div', { class: 'isl-bottom' },
-        el('div', { class: 'isl-actions' }),
+        el('div', { class: 'isl-actwrap' },
+          el('button', { type: 'button', class: 'isl-arrow left hidden', 'aria-label': 'Boutons précédents', onclick: () => scrollActs(-1) }, '‹'),
+          el('div', { class: 'isl-actions', onscroll: () => arrows() }),
+          el('button', { type: 'button', class: 'isl-arrow right hidden', 'aria-label': 'Boutons suivants', onclick: () => scrollActs(1) }, '›')),
         el('div', { class: 'isl-emotes' }, ...['👋', '❤️', '😂', '🎉', '🔥', '😍'].map(e => el('button', { type: 'button', onclick: () => socket.emit('island_emote', e) }, e))),
         el('form', { class: 'isl-say', onsubmit: e => { e.preventDefault(); const i = e.target.querySelector('input'); const v = i.value.trim(); if (!v) return; socket.emit('island_say', v, r => r?.error && toast(r.error)); i.value = ''; } },
           el('input', { class: 'input', maxlength: 120, placeholder: 'Dire quelque chose à côté de moi…', autocomplete: 'off' }),
@@ -1317,6 +1330,16 @@ const Island = (() => {
       else { let tx = x, ty = y; for (let k = 0; k < 40 && !onLand(tx, ty); k++) { tx += (1200 - tx) * .05; ty += (800 - ty) * .05; } target = { x: tx, y: ty }; }
     };
     cv.addEventListener('pointerdown', pick);
+    // molette de la souris sur la barre : elle défile de gauche à droite
+    const bar = root.querySelector('.isl-actions');
+    bar.addEventListener('wheel', e => { if (bar.scrollWidth <= bar.clientWidth) return; e.preventDefault(); bar.scrollLeft += (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX); arrows(); }, { passive: false });
+    // et on peut aussi la faire glisser avec la souris
+    let dragX = null, startLeft = 0, moved = false;
+    bar.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; dragX = e.clientX; startLeft = bar.scrollLeft; moved = false; });
+    window.addEventListener('pointermove', e => { if (dragX == null) return; const dx = e.clientX - dragX; if (Math.abs(dx) > 5) moved = true; bar.scrollLeft = startLeft - dx; arrows(); });
+    window.addEventListener('pointerup', () => { dragX = null; });
+    bar.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+    window.addEventListener('resize', arrows);
     cv.addEventListener('pointermove', e => {
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);

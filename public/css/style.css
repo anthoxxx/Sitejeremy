@@ -2641,3 +2641,14 @@ body.island-open .ring-card { z-index: 1004; }
   .look-tabs .shop-tab { font-size: .78rem; padding: 5px 9px; }
   .look-foot .btn-primary { width: 100%; }
 }
+/* La barre de boutons de l'Île : flèches ‹ › pour la faire défiler sur ordinateur */
+.isl-actwrap { position: relative; display: flex; align-items: center; gap: 4px; max-width: 100%; }
+.isl-actwrap .isl-actions { flex: 1; min-width: 0; scroll-behavior: smooth; }
+.isl-arrow { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.3); background: rgba(198,77,255,.85); color: #fff; font: 900 22px/1 Outfit, sans-serif; cursor: pointer; display: grid; place-items: center; box-shadow: 0 0 12px rgba(198,77,255,.6); z-index: 1; }
+.isl-arrow.hidden { visibility: hidden; }
+.isl-arrow:hover { background: #c64dff; transform: scale(1.08); }
+@media (hover: hover) and (pointer: fine) { .isl-actions { cursor: grab; } .isl-actions:active { cursor: grabbing; } }
+@media (max-width: 600px) { .isl-arrow { width: 28px; height: 28px; font-size: 18px; } }
+.isl-actions { justify-content: flex-start !important; }
+.isl-actions > :first-child { margin-left: auto; }
+.isl-actions > :last-child { margin-right: auto; }
