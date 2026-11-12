@@ -21,7 +21,7 @@ const PUBLIC = ['club', 'cinema', 'pool', 'cafe', 'arcade', 'campfire'];
 const kindOf = scene => (scene.startsWith('house:') ? 'house' : scene);
 // Où l'on arrive en entrant, et où l'on ressort sur l'île
 const ENTRY = { club: [600, 690], cinema: [600, 740], house: [550, 650], pool: [600, 690], cafe: [550, 650], arcade: [600, 690], campfire: [600, 690] };
-const DOORS = { club: [1000, 720], cinema: [1380, 1080], house: [760, 960], pool: [2000, 470], cafe: [1310, 640], arcade: [480, 1260], campfire: [1010, 300] };
+const DOORS = { club: [850, 710], cinema: [1360, 1055], house: [590, 710], pool: [1900, 700], cafe: [1060, 705], arcade: [590, 1045], campfire: [1200, 1395] };
 // Actions possibles dans chaque lieu
 const ACTIONS = {
   island: ['dance'],

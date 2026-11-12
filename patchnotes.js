@@ -445,4 +445,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 30,
+    date: '2026-11-12',
+    title: 'L\'Île devient une vraie ville néon 🏙️',
+    added: [
+      'Une nouvelle carte : l\'Île du Paradise est maintenant une vraie ville, avec ses avenues, ses trottoirs, ses carrefours et ses passages piétons',
+      'La grande place ronde au centre, avec sa fontaine illuminée et ses guirlandes, juste devant le Général',
+      'Des quartiers bien rangés : les salons de rencontre en haut, les sorties (club, café, VIP) au centre, la musique et le cinéma en dessous, le quartier doré des jeux en bas',
+      'Des tours avec leurs fenêtres allumées et un toit en néon, des voitures qui roulent dans les rues 🚗, des arches néon arc-en-ciel au-dessus des avenues 🌈',
+      'Des lampadaires néon de toutes les couleurs le long de toutes les rues, des parcs avec des arbres et des fleurs, et la plage avec ses palmiers tout autour',
+    ],
+    changed: [
+      'L\'Île est beaucoup plus claire, même la nuit ☀️',
+    ],
+    removed: [],
+  },
 ];

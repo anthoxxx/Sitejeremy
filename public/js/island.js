@@ -6,34 +6,34 @@ const Island = (() => {
   const onLand = (x, y) => { const dx = (x - 1200) / 1080, dy = (y - 800) / 700; return dx * dx + dy * dy < 0.93; };
   // Les lieux de l'île (un par salon) : position, icône, couleur néon, forme du bâtiment
   const PLACES = [
-    { slug: 'general', label: 'Général', icon: '✨', x: 1200, y: 830, c: '#ff2d55', kind: 'tiki', big: true },
-    { slug: 'douane', label: 'Vérification', icon: '🛂', x: 340, y: 800, c: '#ffffff', kind: 'hut' },
-    { slug: 'patchnote', label: 'Patch note', icon: '📝', x: 2110, y: 760, c: '#7a5cff', kind: 'lighthouse' },
-    { slug: 'fierte', label: 'Arc-en-ciel', icon: '🏳️‍🌈', x: 1240, y: 300, c: 'rainbow', kind: 'arch' },
-    { slug: 'rencontres', label: 'Rencontres', icon: '💞', x: 870, y: 470, c: '#ff4fd8', kind: 'garden' },
-    { slug: 'amitie', label: 'Amitié', icon: '🤝', x: 590, y: 570, c: '#2bff88', kind: 'hut' },
-    { slug: '18-25', label: '18 – 25 ans', icon: '🎧', x: 1530, y: 430, c: '#2fa8ff', kind: 'house' },
-    { slug: '25-40', label: '26 – 40 ans', icon: '🍷', x: 1800, y: 540, c: '#2fa8ff', kind: 'house' },
-    { slug: '40-plus', label: '40 ans et +', icon: '🌙', x: 1960, y: 960, c: '#2fa8ff', kind: 'house' },
-    { slug: 'membres', label: 'Salon VIP', icon: '💎', x: 1580, y: 780, c: 'rainbow', kind: 'villa' },
-    { slug: 'gaming', label: 'Jeux vidéo', icon: '🎮', x: 560, y: 1050, c: '#b8c0d0', kind: 'house' },
-    { slug: 'musique', label: 'Musique', icon: '🎵', x: 860, y: 1170, c: '#ff8a1f', kind: 'club' },
-    { slug: 'karaoke', label: 'Karaoké', icon: '🎤', x: 1130, y: 1270, c: '#ff8a1f', kind: 'stage' },
-    { slug: 'tv', label: 'TV du monde', icon: '📺', x: 1420, y: 1250, c: '#e8e8f0', kind: 'house' },
-    { slug: 'roue', label: 'La Roue', icon: '🎡', x: 1690, y: 1110, c: 'gold', kind: 'kiosk' },
-    { slug: 'blindtest', label: 'Blind Test', icon: '🎩', x: 1860, y: 1170, c: 'gold', kind: 'kiosk' },
-    { slug: 'sommet', label: 'Le Sommet', icon: '🏔️', x: 2010, y: 1110, c: 'gold', kind: 'kiosk' },
-    { slug: 'paroles', label: "Paroles d'Or", icon: '🎤', x: 1740, y: 1300, c: 'gold', kind: 'kiosk' },
-    { slug: 'motdor', label: "Mot d'Or", icon: '✨', x: 1900, y: 1265, c: 'gold', kind: 'kiosk' },
+    { slug: 'general', label: 'Général', icon: '✨', x: 1200, y: 680, c: '#ff2d55', kind: 'tiki', big: true },
+    { slug: 'douane', label: 'Vérification', icon: '🛂', x: 300, y: 800, c: '#ffffff', kind: 'hut' },
+    { slug: 'patchnote', label: 'Patch note', icon: '📝', x: 2150, y: 790, c: '#7a5cff', kind: 'lighthouse' },
+    { slug: 'fierte', label: 'Arc-en-ciel', icon: '🏳️‍🌈', x: 1200, y: 290, c: 'rainbow', kind: 'arch' },
+    { slug: 'rencontres', label: 'Rencontres', icon: '💞', x: 860, y: 360, c: '#ff4fd8', kind: 'garden' },
+    { slug: 'amitie', label: 'Amitié', icon: '🤝', x: 370, y: 640, c: '#2bff88', kind: 'hut' },
+    { slug: '18-25', label: '18 – 25 ans', icon: '🎧', x: 1350, y: 360, c: '#2fa8ff', kind: 'house' },
+    { slug: '25-40', label: '26 – 40 ans', icon: '🍷', x: 1560, y: 360, c: '#2fa8ff', kind: 'house' },
+    { slug: '40-plus', label: '40 ans et +', icon: '🌙', x: 1570, y: 640, c: '#2fa8ff', kind: 'house' },
+    { slug: 'membres', label: 'Salon VIP', icon: '💎', x: 1360, y: 640, c: 'rainbow', kind: 'villa' },
+    { slug: 'gaming', label: 'Jeux vidéo', icon: '🎮', x: 370, y: 970, c: '#b8c0d0', kind: 'house' },
+    { slug: 'musique', label: 'Musique', icon: '🎵', x: 850, y: 980, c: '#ff8a1f', kind: 'club' },
+    { slug: 'karaoke', label: 'Karaoké', icon: '🎤', x: 1060, y: 985, c: '#ff8a1f', kind: 'stage' },
+    { slug: 'tv', label: 'TV du monde', icon: '📺', x: 1570, y: 985, c: '#e8e8f0', kind: 'house' },
+    { slug: 'roue', label: 'La Roue', icon: '🎡', x: 1900, y: 960, c: 'gold', kind: 'kiosk' },
+    { slug: 'blindtest', label: 'Blind Test', icon: '🎩', x: 1560, y: 1270, c: 'gold', kind: 'kiosk' },
+    { slug: 'sommet', label: 'Le Sommet', icon: '🏔️', x: 850, y: 1270, c: 'gold', kind: 'kiosk' },
+    { slug: 'paroles', label: "Paroles d'Or", icon: '🎤', x: 1050, y: 1270, c: 'gold', kind: 'kiosk' },
+    { slug: 'motdor', label: "Mot d'Or", icon: '✨', x: 1350, y: 1270, c: 'gold', kind: 'kiosk' },
     // Les lieux virtuels où l'on entre vraiment
-    { inst: 'club', label: 'Paradise Club', icon: '🪩', x: 1000, y: 640, c: '#c64dff', kind: 'nightclub' },
-    { inst: 'cinema', label: 'Ciné Paradise', icon: '🎬', x: 1380, y: 1010, c: '#ff2d55', kind: 'cinema' },
-    { inst: 'houses', label: 'Les Maisons', icon: '🏠', x: 760, y: 880, c: '#ffd34d', kind: 'houses' },
-    { inst: 'pool', label: 'Pool Party', icon: '🏊', x: 2010, y: 400, c: '#38dce6', kind: 'poolplace' },
-    { inst: 'cafe', label: 'Café Paradise', icon: '☕', x: 1310, y: 560, c: '#ffd76a', kind: 'cafeplace' },
-    { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 470, y: 1200, c: '#ff4fd8', kind: 'arcadeplace' },
-    { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 1010, y: 230, c: '#ff8a1f', kind: 'campplace' },
-    { inst: 'fortune', label: 'La Voyante', icon: '🔮', x: 1650, y: 260, c: '#c64dff', kind: 'fortuneplace' },
+    { inst: 'club', label: 'Paradise Club', icon: '🪩', x: 850, y: 640, c: '#c64dff', kind: 'nightclub' },
+    { inst: 'cinema', label: 'Ciné Paradise', icon: '🎬', x: 1360, y: 985, c: '#ff2d55', kind: 'cinema' },
+    { inst: 'houses', label: 'Les Maisons', icon: '🏠', x: 590, y: 640, c: '#ffd34d', kind: 'houses' },
+    { inst: 'pool', label: 'Pool Party', icon: '🏊', x: 1900, y: 620, c: '#38dce6', kind: 'poolplace' },
+    { inst: 'cafe', label: 'Café Paradise', icon: '☕', x: 1060, y: 635, c: '#ffd76a', kind: 'cafeplace' },
+    { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 590, y: 975, c: '#ff4fd8', kind: 'arcadeplace' },
+    { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 1200, y: 1440, c: '#ff8a1f', kind: 'campplace' },
+    { inst: 'fortune', label: 'La Voyante', icon: '🔮', x: 1050, y: 360, c: '#c64dff', kind: 'fortuneplace' },
   ];
   const RAINBOW = ['#ff2d55', '#ff9500', '#ffe600', '#34ff6a', '#2fa8ff', '#c64dff'];
   // pendant une soirée, les lumières du club prennent les couleurs du thème
@@ -47,58 +47,116 @@ const Island = (() => {
 
   // ---------- Le décor fixe (dessiné une seule fois) ----------
   window.Decor?.setNight(() => nightLevel());
+  // ---------- La ville du Paradise : avenues, trottoirs, passages piétons, grande place, parcs et plage ----------
+  const STREETS_Y = [480, 800, 1120], STREETS_X = [700, 1200, 1700], PLAZA = { x: 1200, y: 820, r: 150 };
+  const TOWERS = [[560, 370, '#2fa8ff', 3], [1840, 380, '#ff4fd8', 4], [2090, 600, '#38dce6', 3], [2070, 990, '#ffd34d', 4], [560, 1265, '#c64dff', 3], [1790, 1265, '#2bff88', 4], [1170, 1120, '#ff8a1f', 0]].filter(t => t[3]);
   function buildTerrain() {
     terrain = document.createElement('canvas'); terrain.width = W; terrain.height = H;
     const g = terrain.getContext('2d');
-    // sable
-    const sand = g.createRadialGradient(1200, 800, 300, 1200, 800, 1150);
-    sand.addColorStop(0, '#f6dca0'); sand.addColorStop(1, '#e7c27a');
-    g.fillStyle = sand; g.beginPath(); g.ellipse(1200, 800, 1080 * Math.sqrt(.93), 700 * Math.sqrt(.93), 0, 0, Math.PI * 2); g.fill();
-    // écume
-    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 10; g.beginPath(); g.ellipse(1200, 800, 1080 * Math.sqrt(.93) + 6, 700 * Math.sqrt(.93) + 6, 0, 0, Math.PI * 2); g.stroke();
-    // herbe au centre, avec des bords irréguliers
-    g.fillStyle = '#5fbf6a';
-    g.beginPath();
-    for (let a = 0; a <= Math.PI * 2 + .01; a += .05) {
-      const r = 1 + .05 * Math.sin(a * 7) + .03 * Math.sin(a * 13);
-      const x = 1200 + Math.cos(a) * 880 * r, y = 800 + Math.sin(a) * 540 * r;
-      a ? g.lineTo(x, y) : g.moveTo(x, y);
+    const R1 = Math.sqrt(.93), land = (k = 1) => { g.beginPath(); g.ellipse(1200, 800, 1080 * R1 * k, 700 * R1 * k, 0, 0, Math.PI * 2); };
+    // la plage tout autour
+    const sand = g.createRadialGradient(1200, 800, 600, 1200, 800, 1150); sand.addColorStop(0, '#ffe9b5'); sand.addColorStop(1, '#f7d88e');
+    g.fillStyle = sand; land(); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 10; land(1.006); g.stroke();
+    // la ville (pelouse claire) avec un petit muret
+    g.save(); land(.9); g.clip();
+    g.fillStyle = '#9be38a'; g.fillRect(0, 0, W, H);
+    seed = 5; for (let i = 0; i < 220; i++) { g.fillStyle = `rgba(60,170,80,${.08 + rnd() * .12})`; g.beginPath(); g.ellipse(250 + rnd() * 1900, 200 + rnd() * 1200, 20 + rnd() * 50, 10 + rnd() * 25, rnd() * 3, 0, 7); g.fill(); }
+    // trottoirs puis routes
+    const road = (w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt';
+      for (const y of STREETS_Y) { g.beginPath(); g.moveTo(y === 800 ? 330 : 0, y); g.lineTo(y === 800 ? 2090 : W, y); g.stroke(); }
+      for (const x of STREETS_X) { g.beginPath(); g.moveTo(x, x === 1200 ? 330 : 0); g.lineTo(x, x === 1200 ? 1400 : H); g.stroke(); } };
+    road(104, '#d9dce3'); road(100, '#c7cbd4');
+    g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1; // dalles du trottoir
+    road(70, '#41465a');
+    g.save(); g.setLineDash([26, 22]); road(4, '#ffd34d'); g.restore();
+    // bandes blanches au bord des routes
+    for (const y of STREETS_Y) for (const d of [-31, 31]) { g.fillStyle = 'rgba(255,255,255,.65)'; g.fillRect(0, y + d - 1, W, 2); }
+    for (const x of STREETS_X) for (const d of [-31, 31]) { g.fillStyle = 'rgba(255,255,255,.65)'; g.fillRect(x + d - 1, 0, 2, H); }
+    // carrefours et passages piétons
+    for (const x of STREETS_X) for (const y of STREETS_Y) {
+      g.fillStyle = '#41465a'; g.fillRect(x - 35, y - 35, 70, 70);
+      g.fillStyle = '#ffffff';
+      for (let k = -28; k <= 28; k += 11) { g.fillRect(x + k - 3, y - 52, 6, 16); g.fillRect(x + k - 3, y + 36, 6, 16); g.fillRect(x - 52, y + k - 3, 16, 6); g.fillRect(x + 36, y + k - 3, 16, 6); }
     }
-    g.fill();
-    // taches d'herbe plus foncée
-    seed = 5;
-    for (let i = 0; i < 160; i++) { const x = 400 + rnd() * 1600, y = 330 + rnd() * 940; if (!onLand(x, y)) continue; g.fillStyle = `rgba(40,140,70,${.15 + rnd() * .2})`; g.beginPath(); g.ellipse(x, y, 20 + rnd() * 60, 12 + rnd() * 30, rnd() * 3, 0, Math.PI * 2); g.fill(); }
-    // chemins de sable : de la grande place vers chaque lieu
-    g.strokeStyle = '#ecd29a'; g.lineCap = 'round'; g.lineWidth = 34;
-    for (const p of PLACES) { if (p.slug === 'general') continue; g.beginPath(); g.moveTo(1200, 860); g.quadraticCurveTo((1200 + p.x) / 2 + (p.y - 800) * .15, (860 + p.y) / 2 - (p.x - 1200) * .1, p.x, p.y + 40); g.stroke(); }
-    g.strokeStyle = 'rgba(180,140,80,.25)'; g.lineWidth = 3; g.setLineDash([2, 14]);
-    for (const p of PLACES) { if (p.slug === 'general') continue; g.beginPath(); g.moveTo(1200, 860); g.quadraticCurveTo((1200 + p.x) / 2 + (p.y - 800) * .15, (860 + p.y) / 2 - (p.x - 1200) * .1, p.x, p.y + 40); g.stroke(); }
-    g.setLineDash([]);
-    // grande place ronde
-    g.fillStyle = '#ecd29a'; g.beginPath(); g.ellipse(1200, 870, 190, 120, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 4; g.beginPath(); g.ellipse(1200, 870, 190, 120, 0, 0, Math.PI * 2); g.stroke();
+    // la grande place ronde (carrelage) avec sa fontaine
+    g.fillStyle = '#f3e4ee'; g.beginPath(); g.arc(PLAZA.x, PLAZA.y, PLAZA.r + 18, 0, 7); g.fill();
+    for (let r = PLAZA.r; r > 20; r -= 22) { g.strokeStyle = r % 44 ? 'rgba(255,79,216,.25)' : 'rgba(56,220,230,.25)'; g.lineWidth = 8; g.beginPath(); g.arc(PLAZA.x, PLAZA.y, r, 0, 7); g.stroke(); }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(PLAZA.x, PLAZA.y); g.lineTo(PLAZA.x + Math.cos(a) * (PLAZA.r + 18), PLAZA.y + Math.sin(a) * (PLAZA.r + 18)); g.stroke(); }
+    g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.beginPath(); g.arc(PLAZA.x, PLAZA.y, PLAZA.r + 18, 0, 7); g.stroke();
+    // les arbres des parcs
+    seed = 21;
+    const busy = (x, y, d) => PLACES.some(p => Math.hypot(p.x - x, p.y - y) < d) || TOWERS.some(t => Math.hypot(t[0] - x, t[1] - y) < 90) || STREETS_Y.some(sy => Math.abs(sy - y) < 70) || STREETS_X.some(sx => Math.abs(sx - x) < 70) || Math.hypot(x - PLAZA.x, y - PLAZA.y) < PLAZA.r + 50;
+    for (let i = 0; i < 420; i++) {
+      const x = 260 + rnd() * 1880, y = 210 + rnd() * 1180;
+      if (!onLand(x, y) || busy(x, y, 120)) continue;
+      const f = rnd();
+      if (f < .45) { g.fillStyle = 'rgba(0,0,0,.15)'; g.beginPath(); g.ellipse(x + 6, y + 10, 18, 7, 0, 0, 7); g.fill(); const c = ['#3cb96a', '#2e9d57', '#52c97a'][Math.floor(rnd() * 3)]; g.fillStyle = c; g.beginPath(); g.arc(x, y - 6, 16, 0, 7); g.arc(x - 10, y, 12, 0, 7); g.arc(x + 10, y, 12, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(x - 5, y - 12, 6, 0, 7); g.fill(); }
+      else if (f < .8) { g.fillStyle = ['#ff5fa2', '#ffe600', '#ffffff', '#c64dff', '#ff9500', '#38dce6'][Math.floor(rnd() * 6)]; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(x + Math.cos(k * 1.26) * 4, y + Math.sin(k * 1.26) * 4, 3, 0, 7); g.fill(); } g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
+      else { g.fillStyle = '#7fb36a'; g.beginPath(); g.ellipse(x, y, 14, 8, 0, 0, 7); g.fill(); }
+    }
+    g.restore();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 6; land(.9); g.stroke(); // le muret de la promenade
     // le ponton de la Vérification
     g.fillStyle = '#9b6b3e'; g.fillRect(70, 785, 190, 30); for (let i = 0; i < 9; i++) { g.fillStyle = '#7d522c'; g.fillRect(78 + i * 20, 785, 4, 30); }
-    // fleurs et cailloux
-    seed = 21;
-    for (let i = 0; i < 260; i++) { const x = 300 + rnd() * 1800, y = 250 + rnd() * 1100; if (!onLand(x, y) || PLACES.some(p => Math.hypot(p.x - x, p.y - y) < 110)) continue; deco.push({ x, y, t: rnd() < .75 ? 'f' : 'r', c: ['#ff5fa2', '#ffe600', '#ffffff', '#c64dff', '#ff9500'][Math.floor(rnd() * 5)] }); }
-    for (const d of deco) { if (d.t === 'f') { g.fillStyle = d.c; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(d.x + Math.cos(k * 1.26) * 4, d.y + Math.sin(k * 1.26) * 4, 3, 0, 7); g.fill(); } g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(d.x, d.y, 2.4, 0, 7); g.fill(); } else { g.fillStyle = '#a7a39b'; g.beginPath(); g.ellipse(d.x, d.y, 9, 6, 0, 0, 7); g.fill(); } }
-    // palmiers (dessinés à chaque image pour bouger avec le vent)
+    // palmiers sur la plage
     seed = 33;
-    for (let i = 0; i < 70; i++) {
-      const a = rnd() * Math.PI * 2, r = .72 + rnd() * .22;
-      const x = 1200 + Math.cos(a) * 1080 * Math.sqrt(.93) * r, y = 800 + Math.sin(a) * 700 * Math.sqrt(.93) * r;
+    for (let i = 0; i < 90; i++) {
+      const a = rnd() * Math.PI * 2, r = .915 + rnd() * .04;
+      const x = 1200 + Math.cos(a) * 1080 * R1 * r, y = 800 + Math.sin(a) * 700 * R1 * r;
       if (PLACES.some(p => Math.hypot(p.x - x, p.y - y) < 120)) continue;
-      palms.push({ x, y, s: .8 + rnd() * .5, p: rnd() * 6 });
+      palms.push({ x, y, s: .75 + rnd() * .4, p: rnd() * 6 });
     }
     palms.sort((a, b) => a.y - b.y);
+  }
+  // 🏙️ les tours de la ville, avec leurs fenêtres allumées et un toit en néon
+  function drawTower(tw, t, n) {
+    const [x, y, c, floors] = tw, w = 76, hgt = 40 + floors * 34;
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x + 8, y + 6, w * .6, 12, 0, 0, 7); ctx.fill();
+    const gr = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0); gr.addColorStop(0, '#3a3f5a'); gr.addColorStop(.5, '#5a6080'); gr.addColorStop(1, '#2a2e44');
+    ctx.fillStyle = gr; ctx.fillRect(x - w / 2, y - hgt, w, hgt);
+    for (let f = 0; f < floors * 2; f++) for (let k = 0; k < 3; k++) { const on = (f * 7 + k * 3 + Math.floor(t / 4)) % 5 > 0; ctx.fillStyle = on ? (n > .2 ? '#ffe28a' : '#bfe8ff') : '#2a2e44'; ctx.fillRect(x - w / 2 + 10 + k * 22, y - hgt + 12 + f * 16, 14, 9); }
+    ctx.fillStyle = '#20243a'; ctx.fillRect(x - 10, y - 22, 20, 22);
+    ctx.strokeStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 16; ctx.lineWidth = 4; ctx.strokeRect(x - w / 2, y - hgt, w, hgt); ctx.beginPath(); ctx.moveTo(x - w / 2 - 6, y - hgt); ctx.lineTo(x + w / 2 + 6, y - hgt); ctx.stroke();
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y - hgt - 14, 5 + Math.sin(t * 4 + x) * 1.5, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#2a2e44'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y - hgt); ctx.lineTo(x, y - hgt - 10); ctx.stroke();
+  }
+  // 🚗 les voitures qui roulent dans les rues
+  const CARS = ['🚗', '🚕', '🚙', '🏎️', '🚌', '🛵', '🚓'];
+  const cars = Array.from({ length: 14 }, (_, i) => ({ h: i % 2 === 0, line: i % 3, sp: (60 + (i * 37) % 70) * (i % 4 < 2 ? 1 : -1), off: (i * 433) % 2400, e: CARS[i % CARS.length] }));
+  function drawCars(t) {
+    ctx.font = '30px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    for (const c of cars) {
+      const lane = c.sp > 0 ? 14 : -14;
+      let pos = ((c.off + t * c.sp) % 2400 + 2400) % 2400;
+      let x, y;
+      if (c.h) { y = STREETS_Y[c.line] + lane; x = pos; } else { x = STREETS_X[c.line] - lane; y = 100 + pos * .58; }
+      if (!onLand(x, y) || Math.hypot(x - PLAZA.x, y - PLAZA.y) < PLAZA.r + 30) continue;
+      if (c.h && STREETS_Y[c.line] === 800 && (x < 340 || x > 2080)) continue;
+      ctx.save(); ctx.translate(x, y); if (c.h ? c.sp < 0 : false) ctx.scale(-1, 1); if (!c.h) ctx.rotate(c.sp > 0 ? Math.PI / 2 : -Math.PI / 2); if (!c.h && c.sp > 0) ctx.scale(1, -1);
+      ctx.fillText(c.e, 0, 0); ctx.restore();
+    }
+  }
+  // 🌈 les arches néon au-dessus des avenues
+  const ARCHES = [[1200, 410], [1200, 1225], [700, 300], [1700, 300], [700, 1300], [1700, 1300]];
+  function drawArch(a, t, n) {
+    const [x, y] = a, vert = true, span = 62;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = '#2a2e44'; if (vert) { ctx.fillRect(-span - 4, -60, 8, 62); ctx.fillRect(span - 4, -60, 8, 62); } else { ctx.fillRect(-4, -span - 60, 8, 62); ctx.fillRect(-4, span - 60, 8, 62); }
+    const cols = LAMP_COLORS;
+    for (let i = 0; i < 4; i++) {
+      const c = cols[(i + Math.floor(t * 2)) % cols.length]; ctx.strokeStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 10 + n * 10; ctx.lineWidth = 4; ctx.beginPath();
+      if (vert) ctx.arc(0, -40, span - i * 8, Math.PI * 1.05, Math.PI * 1.95); else { ctx.moveTo(-2, -span - 40 + i * 8); ctx.quadraticCurveTo(-60 + i * 6, -40, -2, span - 40 - i * 8); }
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0; ctx.restore();
   }
 
   // ---------- Dessins animés ----------
   function drawWater(t, x0, y0, x1, y1) {
     const night = nightLevel();
     const sea = ctx.createLinearGradient(0, y0, 0, y1);
-    sea.addColorStop(0, mix('#19b5d8', '#08243f', night)); sea.addColorStop(1, mix('#0a7fb8', '#04142a', night));
+    sea.addColorStop(0, mix('#29c6ec', '#1a4a8a', night * .6)); sea.addColorStop(1, mix('#1494d0', '#123a78', night * .6));
     ctx.fillStyle = sea; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
     ctx.strokeStyle = `rgba(255,255,255,${.18 - night * .1})`; ctx.lineWidth = 3;
     for (let y = Math.floor(y0 / 60) * 60; y < y1; y += 60) {
@@ -917,18 +975,12 @@ const Island = (() => {
   // ======================================================================
   //  ✨ L'Île en plus beau : lampadaires néon, guirlandes, fontaine, bateaux, dauphins, montgolfière, lucioles
   // ======================================================================
-  const FOUNTAIN = { x: 1050, y: 1010 };
+  const FOUNTAIN = { x: 1200, y: 830 };
   const LAMP_COLORS = ['#ff2d55', '#ff4fd8', '#c64dff', '#2fa8ff', '#38dce6', '#2bff88', '#ffd34d', '#ff8a1f'];
   const lamps = [];
-  for (const [i, p] of PLACES.entries()) {
-    if (p.slug === 'general') continue;
-    const cx = (1200 + p.x) / 2 + (p.y - 800) * .15, cy = (860 + p.y) / 2 - (p.x - 1200) * .1;
-    for (const k of [.42, .76]) {
-      const x = (1 - k) * (1 - k) * 1200 + 2 * (1 - k) * k * cx + k * k * p.x, y = (1 - k) * (1 - k) * 860 + 2 * (1 - k) * k * cy + k * k * (p.y + 40);
-      if (Math.hypot(x - FOUNTAIN.x, y - FOUNTAIN.y) < 80 || PLACES.some(q => Math.hypot(q.x - x, q.y - y) < 70)) continue;
-      lamps.push({ x: x + 26, y, c: LAMP_COLORS[(i * 2 + (k > .5 ? 1 : 0)) % LAMP_COLORS.length] });
-    }
-  }
+  { let k = 0;
+    for (const y of STREETS_Y) for (let x = 120; x < 2300; x += 150) for (const side of [-58, 58]) { const ly = y + side; if (onLand(x, ly) && Math.hypot((x - 1200) / 1080, (ly - 800) / 700) < .86 && !STREETS_X.some(sx => Math.abs(sx - x) < 70) && Math.hypot(x - PLAZA.x, ly - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - x, p.y - ly) < 75)) lamps.push({ x, y: ly + (side > 0 ? 8 : 0), c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); }
+    for (const x of STREETS_X) for (let y = 130; y < 1500; y += 150) for (const side of [-58, 58]) { const lx = x + side; if (onLand(lx, y) && Math.hypot((lx - 1200) / 1080, (y - 800) / 700) < .86 && !STREETS_Y.some(sy => Math.abs(sy - y) < 70) && Math.hypot(lx - PLAZA.x, y - PLAZA.y) > PLAZA.r + 40 && !PLACES.some(p => Math.hypot(p.x - lx, p.y - y) < 75)) lamps.push({ x: lx, y, c: LAMP_COLORS[k++ % LAMP_COLORS.length] }); } }
   const boats = [{ a: 0, sp: .03, r: 1.12, e: '⛵' }, { a: 2.4, sp: -.022, r: 1.18, e: '🛥️' }, { a: 4.3, sp: .018, r: 1.24, e: '🚤' }];
   const flies = Array.from({ length: 40 }, () => ({ x: 400 + Math.random() * 1600, y: 300 + Math.random() * 1000, p: Math.random() * 6 }));
   let dolphin = { at: 0, x: 0, y: 0 };
@@ -955,7 +1007,7 @@ const Island = (() => {
   }
   function drawLights(t, n) {
     // guirlande lumineuse autour de la grande place
-    const pts = []; for (let i = 0; i <= 10; i++) { const a = Math.PI * .1 + i * Math.PI * .08; pts.push([1200 + Math.cos(a) * 235, 870 + Math.sin(a) * 150]); }
+    const pts = []; for (let i = 0; i <= 16; i++) { const a = i * Math.PI * 2 / 16 + .2; pts.push([PLAZA.x + Math.cos(a) * (PLAZA.r + 30), PLAZA.y + Math.sin(a) * (PLAZA.r + 30) * .9]); }
     ctx.strokeStyle = 'rgba(40,30,30,.6)'; ctx.lineWidth = 1.5;
     for (let i = 0; i < pts.length - 1; i++) {
       const [ax, ay] = pts[i], [bx, by] = pts[i + 1], mx = (ax + bx) / 2, my = (ay + by) / 2 + 16;
@@ -968,8 +1020,9 @@ const Island = (() => {
   function drawLamp(l, t, n) {
     const flick = Math.sin(t * 19 + l.x) > .985 ? .4 : 1;
     ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(l.x, l.y + 2, 10, 3, 0, 0, 7); ctx.fill();
-    const glow = ctx.createRadialGradient(l.x, l.y - 52, 2, l.x, l.y - 52, 40 + n * 50); glow.addColorStop(0, l.c + 'aa'); glow.addColorStop(1, l.c + '00');
-    ctx.globalAlpha = (.35 + n * .65) * flick; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(l.x, l.y - 52, 40 + n * 50, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    const gr = 22 + n * 22, glow = ctx.createRadialGradient(l.x, l.y - 52, 2, l.x, l.y - 52, gr); glow.addColorStop(0, l.c + 'aa'); glow.addColorStop(1, l.c + '00');
+    ctx.globalAlpha = (.3 + n * .4) * flick; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(l.x, l.y - 52, gr, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = l.c + '33'; ctx.beginPath(); ctx.ellipse(l.x, l.y + 2, 16 + n * 10, 5 + n * 3, 0, 0, 7); ctx.fill(); // la lumière au sol
     ctx.fillStyle = '#2a2a32'; ctx.fillRect(l.x - 2, l.y - 50, 4, 52); ctx.fillRect(l.x - 6, l.y - 2, 12, 4);
     ctx.fillStyle = l.c; ctx.shadowColor = l.c; ctx.shadowBlur = 16 * flick; ctx.beginPath(); ctx.arc(l.x, l.y - 54, 6, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = '#2a2a32'; ctx.beginPath(); ctx.moveTo(l.x - 8, l.y - 58); ctx.lineTo(l.x + 8, l.y - 58); ctx.lineTo(l.x, l.y - 66); ctx.fill();
@@ -1101,6 +1154,8 @@ const Island = (() => {
       drawSea(t);
       ctx.drawImage(terrain, 0, 0);
       drawCoast(t, nn); drawLights(t, nn);
+      drawCars(t);
+      items.push(...TOWERS.map(tw => ({ y: tw[1], d: () => drawTower(tw, t, nn) })), ...ARCHES.map(a => ({ y: a[1] + 40, d: () => drawArch(a, t, nn) })));
       items.push(...lamps.filter(l => l.x > x0 - 60 && l.x < x1 + 60 && l.y > y0 - 20 && l.y < y1 + 80).map(l => ({ y: l.y, d: () => drawLamp(l, t, nn) })), { y: FOUNTAIN.y + 26, d: () => drawFountain(t, nn) });
       const counts = {};
       for (const u of state.online || []) if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1;
@@ -1148,8 +1203,8 @@ const Island = (() => {
     if (kind === 'cinema' && media?.current) { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 560, 1200, 240); }
     ctx.restore();
     if (kind === 'island') {
-      const n = Math.max(nightLevel(), window.EventState?.live ? .6 : 0); // pendant une soirée, c'est la nuit pour voir les feux d'artifice
-      if (n > 0) { ctx.fillStyle = `rgba(8,10,40,${n * .55})`; ctx.fillRect(0, 0, vw, vh); }
+      const n = Math.max(nightLevel(), window.EventState?.live ? .5 : 0); // pendant une soirée, c'est la nuit pour voir les feux d'artifice
+      if (n > 0) { ctx.fillStyle = `rgba(20,16,70,${n * .26})`; ctx.fillRect(0, 0, vw, vh); } // l'Île reste bien claire même la nuit
       for (const l of leaves) {
         l.y += l.v * dt; l.x += Math.sin(t + l.p) * 20 * dt; if (l.y > vh + 20) { l.y = -20; l.x = Math.random() * vw; const em = window.EventState?.live?.emojis; if (em) l.e = em[Math.floor(Math.random() * em.length)]; }
         ctx.globalAlpha = .75; ctx.font = l.s + 'px sans-serif'; ctx.fillText(l.e, l.x, l.y); ctx.globalAlpha = 1;
