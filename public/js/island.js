@@ -146,7 +146,9 @@ const Island = (() => {
       let x, y;
       if (c.h) { y = STREETS_Y[c.line] + lane; x = pos; } else { x = STREETS_X[c.line] - lane; y = 100 + pos * .58; }
       if (!onLand(x, y) || Math.hypot(x - PLAZA.x, y - PLAZA.y) < PLAZA.r + 30) continue;
-      ctx.save(); ctx.translate(x, y); if (c.h ? c.sp < 0 : false) ctx.scale(-1, 1); if (!c.h) ctx.rotate(c.sp > 0 ? Math.PI / 2 : -Math.PI / 2); if (!c.h && c.sp > 0) ctx.scale(1, -1);
+      ctx.save(); ctx.translate(x, y);
+      // les émojis de voiture regardent vers la gauche : on les tourne pour qu'elles avancent nez devant
+      if (c.h) { if (c.sp > 0) ctx.scale(-1, 1); } else ctx.rotate(c.sp > 0 ? -Math.PI / 2 : Math.PI / 2);
       ctx.fillText(c.e, 0, 0); ctx.restore();
     }
   }
