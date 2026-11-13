@@ -22,7 +22,7 @@ const Phone = (() => {
 
   // ---------- Le téléphone ----------
   function build() {
-    root = el('div', { class: 'phone hidden', onclick: e => { if (e.target === root) close(); } },
+    root = el('div', { class: 'phone hidden', onclick: e => { if (e.target === root && !document.body.classList.contains('island-open')) close(); } },
       el('div', { class: 'ph-device' },
         el('div', { class: 'ph-status' }, el('b', { class: 'ph-time' }, time()), el('span', { class: 'ph-notch' }), el('span', { class: 'ph-icons' }, '📶 🔋')),
         screen = el('div', { class: 'ph-screen' }),
@@ -59,7 +59,7 @@ const Phone = (() => {
     snap: { icon: '👻', name: 'Snap', c: '#ffe600', open: () => go(snapHome, '👻 Snap', [el('button', { class: 'ph-mini', onclick: () => go(camera, '') }, '📷')]), badge: () => snapsUnread },
     camera: { icon: '📷', name: 'Appareil photo', c: '#9aa3b2', open: () => go(camera, '') },
     contacts: { icon: '👥', name: 'Contacts', c: '#ff8a1f', open: () => go(contacts, '👥 Contacts') },
-    city: { icon: '🏙️', name: 'Ville', c: '#c64dff', open: () => { close(); window.Island?.open(); } },
+    city: { icon: '🏙️', name: 'Ville', c: '#c64dff', open: () => { window.Island?.open(); home(); } },
     games: { icon: '🎮', name: 'Jeux', c: '#ff2d55', open: () => { close(); Hub.open(); } },
     shop: { icon: '💰', name: 'Boutique', c: '#ffd34d', open: () => { close(); window.Shop?.open(); } },
     quests: { icon: '🎯', name: 'Quêtes', c: '#38dce6', open: () => { close(); window.Progress?.open(); } },
@@ -85,7 +85,8 @@ const Phone = (() => {
   async function refreshBadges() {
     try { const d = await api('/api/phone/badge'); snapsUnread = d.snaps; } catch (e) {}
     pmUnread = [...(state.convs?.values?.() || [])].reduce((s, c) => s + (c.unread || 0), 0);
-    const b = $('phoneBtn'); if (b) { const n = snapsUnread + pmUnread; b.querySelector('.notif-count').textContent = n; b.querySelector('.notif-count').classList.toggle('hidden', !n); }
+    const n = snapsUnread + pmUnread;
+    for (const b of [$('phoneBtn'), document.querySelector('.isl-phone')]) { const c = b?.querySelector('.notif-count'); if (c) { c.textContent = n; c.classList.toggle('hidden', !n); } }
     if (isOpen() && !stack.length) home();
   }
 

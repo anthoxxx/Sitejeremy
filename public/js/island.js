@@ -1506,6 +1506,7 @@ const Island = (() => {
         el('b', { class: 'isl-title' }, '🏙️ La Ville du Paradise'), el('span', { class: 'isl-count' }),
         el('div', { class: 'isl-amb hidden', title: 'La jauge d\'ambiance : elle monte quand ça danse, parle et s\'amuse !' }, el('span', {}, '🔥'), el('div', { class: 'isl-gauge' }, el('i')), el('small', {}, '0%')),
         el('span', { style: 'flex:1' }),
+        el('button', { class: 'btn btn-sm isl-phone', title: 'Mon téléphone', onclick: () => (window.Phone?.isOpen() ? Phone.close() : Phone.open()) }, '📱', el('span', { class: 'notif-count hidden' })),
         el('span', { class: 'isl-zoom' },
           el('button', { class: 'btn btn-sm', title: 'Dézoomer', onclick: () => { if (kind === 'house') houseZoom = Math.max(.5, houseZoom - .15); else zoom = Math.max(.45, zoom - .15); } }, '－'),
           el('button', { class: 'btn btn-sm', title: 'Zoomer', onclick: () => { if (kind === 'house') houseZoom = Math.min(2.2, houseZoom + .15); else zoom = Math.min(1.6, zoom + .15); } }, '＋')),
@@ -1597,6 +1598,7 @@ const Island = (() => {
     afterJoin = typeof then === 'function' ? then : null;
     if (open) { if (afterJoin) { afterJoin(); afterJoin = null; } return; }
     root.classList.remove('hidden'); open = true; document.body.classList.add('island-open');
+    setTimeout(() => window.Phone?.refreshBadges(), 300);
     resize();
     setTimeout(() => root.querySelector('.isl-hint')?.classList.add('gone'), 7000);
     socket.emit('island_join');

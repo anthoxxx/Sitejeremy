@@ -2805,3 +2805,10 @@ body.island-open .call-screen, body.phone-open .call-screen { z-index: 1006; }
 }
 @media (max-width: 760px) { .app-header #islandBtn { display: none !important; } } /* la Ville reste dans le menu et dans le téléphone 📱 */
 .ph-device.light .ph-status { color: #111; text-shadow: none; }
+/* 📱 Le téléphone dans la Ville : on continue à marcher et à jouer à côté (sur ordinateur) */
+body.island-open .phone { background: none; pointer-events: none; }
+body.island-open .phone .ph-device { pointer-events: auto; }
+.isl-phone { position: relative; font-size: 16px; }
+.isl-phone .notif-count { position: absolute; top: -6px; right: -6px; }
+@media (max-width: 600px) { body.island-open .phone { pointer-events: auto; } }
+@media (min-width: 601px) { body.island-open .phone { padding-top: 62px; padding-bottom: 8px; } body.island-open .ph-device { height: min(740px, calc(100vh - 74px)); } }

@@ -510,4 +510,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 34,
+    date: '2026-11-13',
+    title: 'Le téléphone dans la Ville 📱🏙️',
+    added: [
+      'Un bouton 📱 dans la Ville (et dans les maisons, le club, le café…) pour sortir ton téléphone n\'importe où',
+      'Sur ordinateur, tu peux continuer à marcher, danser et parler dans la Ville pendant que ton téléphone est ouvert',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
