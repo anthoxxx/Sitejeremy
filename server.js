@@ -463,6 +463,20 @@ app.post('/api/pets/act', auth, petRoute((id, b) => Pets.act(id, String(b.action
 app.post('/api/pets/accessory', auth, petRoute((id, b) => (b.buy ? Pets.buyAccessory(id, String(b.id || '')) : Pets.setAcc(id, b.id ? String(b.id) : ''))));
 app.post('/api/pets/rename', auth, petRoute((id, b) => Pets.rename(id, filterWords(clean(String(b.name || ''), 20)))));
 app.post('/api/pets/release', auth, petRoute(id => Pets.release(id)));
+// ---------- 📱 Le téléphone : Snaps et Stories ----------
+const Phone = require('./phone')({ db, uploadDir, getUser: id => getUser(id), publicUser: u => publicUser(u), emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), isBlocked: (a, b) => isBlocked(a, b),
+  areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', friendsOf: id => db.prepare("SELECT CASE WHEN from_id=? THEN to_id ELSE from_id END AS id FROM friends WHERE (from_id=? OR to_id=?) AND status='accepted'").all(id, id, id).map(r => r.id),
+  track: (...a) => track(...a), modScan: t => filterWords(t) });
+const phoneRoute = fn => (req, res) => { if (guestNo(req, res)) return; if (tooMany('phone:' + req.user.id, 120, 60000)) return res.status(429).json({ error: 'Doucement !' }); const r = fn(req.user.id, req.body || {}, req); if (r?.error) return res.status(400).json(r); res.json(r); };
+app.get('/api/phone/snaps', auth, phoneRoute(id => ({ people: Phone.inbox(id) })));
+app.post('/api/phone/snaps', auth, phoneRoute((id, b) => Phone.send(id, b.to, String(b.url || ''), b.caption, b.seconds)));
+app.post('/api/phone/snaps/:sid/open', auth, phoneRoute((id, b, req) => Phone.open(id, req.params.sid)));
+app.get('/api/phone/stories', auth, phoneRoute(id => ({ stories: Phone.stories(id) })));
+app.post('/api/phone/stories', auth, phoneRoute((id, b) => Phone.addStory(id, String(b.url || ''), b.caption)));
+app.post('/api/phone/stories/:sid/view', auth, phoneRoute((id, b, req) => Phone.viewStory(id, req.params.sid)));
+app.delete('/api/phone/stories/:sid', auth, phoneRoute((id, b, req) => Phone.delStory(id, req.params.sid)));
+app.get('/api/phone/badge', auth, (req, res) => res.json({ snaps: req.user.is_guest ? 0 : Phone.unread(req.user.id) }));
+
 // ---------- 🧍 Mon personnage ----------
 app.get('/api/look', auth, (req, res) => res.json({ ...Looks.get(req.user.id), owned: Looks.owned(req.user.id) }));
 app.post('/api/look', auth, (req, res) => {

@@ -493,4 +493,21 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 33,
+    date: '2026-11-13',
+    title: 'Ton téléphone virtuel 📱',
+    added: [
+      'Un vrai téléphone sur le site (bouton 📱 en haut, ou menu de ton compte), avec son écran d\'accueil, l\'heure, les applis et un fond d\'écran au choix',
+      '💬 Messages : toutes tes conversations privées, avec les photos, comme sur un vrai téléphone',
+      '📞 Téléphone : appelle tes amis en audio ou en vidéo, la liste des personnes en ligne et l\'historique de tes appels',
+      '👻 Snap : prends une photo avec ta caméra (ou ta galerie), ajoute un texte et un filtre (Vif, N&B, Vintage, Néon, Soleil), choisis le temps (3 s, 5 s, 10 s ou ∞) et envoie-la à tes amis : elle disparaît après avoir été vue !',
+      '📖 Les stories : publie une photo pour tous tes amis pendant 24 h, et vois qui l\'a regardée',
+      '🔥 Les flammes : envoyez-vous un snap chaque jour pour faire grandir votre flamme',
+      '👥 Contacts, 📷 Appareil photo, ⚙️ Réglages, et des raccourcis vers la Ville, les jeux, la boutique, les quêtes, ton animal et la Voyante',
+      'De nouveaux badges : 👻 Premier snap, 📸 Accro au Snap et 📖 Première story',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
