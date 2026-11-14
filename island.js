@@ -70,6 +70,15 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
   const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', floor: p.floor || 0, pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
+  // 💤 Ceux qui se déconnectent restent dans la Ville (endormis) à l'endroit où ils étaient
+  db.exec('CREATE TABLE IF NOT EXISTS island_spots (user_id INTEGER PRIMARY KEY, x REAL NOT NULL, y REAL NOT NULL, at INTEGER NOT NULL)');
+  const spotOf = uid => db.prepare('SELECT x, y FROM island_spots WHERE user_id=?').get(uid);
+  function offlineOut(r) {
+    const u = getUser(r.user_id); if (!u || u.banned) return null;
+    const lk = lookOf(r.user_id);
+    return { id: u.id, x: Math.round(r.x), y: Math.round(r.y), offline: true, since: r.at, username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, look: lk.look, mode: lk.mode, pet: petOf(u.id), action: '' };
+  }
+  const offlineList = () => db.prepare('SELECT * FROM island_spots WHERE at>? ORDER BY at DESC LIMIT 60').all(now() - 7 * 86400000).filter(r => !players.has(r.user_id)).map(offlineOut).filter(Boolean).slice(0, 40);
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
   const Babyfoot = require('./babyfoot')({
     reward: (id, key, n, why, max) => coins?.earnCapped(id, key, n, why, max),
@@ -172,7 +181,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   // ---------- Changer de lieu ----------
   function sceneState(scene, uid) {
     return {
-      me: uid, scene, kind: kindOf(scene), players: inScene(scene).map(out),
+      me: uid, scene, kind: kindOf(scene), players: inScene(scene).map(out), offline: scene === 'island' ? offlineList() : [],
       media: scene === 'island' ? null : { scene, ...mediaOut(scene) },
       amb: scene === 'island' ? null : Math.round((amb.get(scene) || { v: 10 }).v),
       house: kindOf(scene) === 'house' ? houseInfo(Number(scene.slice(6))) : null,
@@ -210,6 +219,10 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     players.delete(uid);
     Babyfoot.leaveScene(uid, p.scene);
     emitScene(p.scene, 'island_left', { id: uid });
+    // il reste dans la Ville, endormi, là où il était (ou devant le lieu où il se trouvait)
+    const pos = p.scene === 'island' ? [p.x, p.y] : DOORS[kindOf(p.scene)] || [p.x, p.y];
+    db.prepare('INSERT INTO island_spots (user_id,x,y,at) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET x=excluded.x, y=excluded.y, at=excluded.at').run(uid, pos[0], pos[1], now());
+    const off = offlineOut({ user_id: uid, x: pos[0], y: pos[1], at: now() }); if (off) emitScene('island', 'island_offline', off);
     afterLeave(p.scene);
   }
   // Renvoyer quelqu'un sur l'île (maison fermée, expulsé…)
@@ -229,7 +242,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       if (!u) return;
       let p = players.get(uid);
       if (!p) {
-        const [x, y] = spawn();
+        const sp = spotOf(uid), [x, y] = sp && SCENES.island.walk(sp.x, sp.y) ? [sp.x, sp.y] : spawn(); // on se réveille là où on s'était endormi
         track(uid, 'island');
         const lk = lookOf(uid);
         p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), look: lk.look, mode: lk.mode, username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };

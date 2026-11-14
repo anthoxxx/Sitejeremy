@@ -550,7 +550,12 @@ function renderUsers() {
   const rank = u => 3 - LC.rank(u);
   users.sort((a, b) => rank(a) - rank(b) || a.username.localeCompare(b.username));
   const roomName = slug => state.rooms.find(r => r.slug === slug)?.name || '';
-  if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'));
+  // 💤 les membres déconnectés récemment, grisés en dessous
+  const onIds = new Set(state.online.map(u => u.id));
+  const away = (state.filter && state.filter !== 'all' && state.filter !== 'f' && state.filter !== 'h') ? [] : (state.recent || []).filter(u => !onIds.has(u.id) && !state.blocked.has(u.id) && (!q || u.username.toLowerCase().includes(q)) && (state.filter !== 'f' && state.filter !== 'h' || u.gender === state.filter));
+  const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away', 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
+  if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
     const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
@@ -567,7 +572,7 @@ function renderUsers() {
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.camOk ? ' on' : ''), title: u.camOk ? 'Caméra validée (cliquer pour retirer)' : 'Valider la caméra', onclick: e => { e.stopPropagation(); setBadge(u, 'cam', !u.camOk); } }, '📷') : null,
       toCheck && state.customs?.enabled && !u.refused ? el('button', { class: 'btn btn-sm verify-btn refuse', title: 'Refuser : aucun rôle, pas d\'accès', onclick: e => { e.stopPropagation(); verifyUser(u, false, true); } }, '❌') : null);
-  }));
+  }), ...awayRows);
 }
 $('userSearch').oninput = renderUsers;
 $('genderFilter').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -1176,3 +1181,7 @@ socket.on('badges', ({ userId, badges }) => {
   });
   if (u) renderUsers();
 });
+
+// 💤 la liste des membres déconnectés récemment (mise à jour chaque minute)
+async function loadRecent() { try { state.recent = (await api('/api/users/recent')).users; renderUsers(); } catch (e) {} }
+setTimeout(loadRecent, 2500); setInterval(loadRecent, 60000);

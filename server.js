@@ -1466,6 +1466,11 @@ app.get('/api/ice', auth, async (req, res) => {
   res.json({ iceServers, relay: iceServers.length > 1 });
 });
 
+// 💤 Les membres venus ces dernières 24 h mais déconnectés (affichés grisés dans la liste)
+app.get('/api/users/recent', auth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM users WHERE is_guest=0 AND banned=0 AND last_seen>? ORDER BY last_seen DESC LIMIT 60').all(now() - 86400000);
+  res.json({ users: rows.filter(u => !online.has(u.id) && u.id !== req.user.id).slice(0, 30).map(u => ({ ...publicUser(u), lastSeen: u.last_seen })) });
+});
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });

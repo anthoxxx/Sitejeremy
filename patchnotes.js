@@ -521,4 +521,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 35,
+    date: '2026-11-14',
+    title: 'Les déconnectés restent là 💤 et le téléphone plus pratique 📱',
+    added: [
+      'Quand quelqu\'un se déconnecte, il reste dans la Ville à l\'endroit où il était, grisé avec « 💤 déconnecté » : quand il revient, il repart de là',
+      'Dans la liste des connectés, une nouvelle section « 💤 Déconnectés » montre en gris les membres venus ces dernières 24 h',
+      'Le bouton « 📱 Retour au téléphone » : après avoir ouvert une appli du téléphone (Jeux, Boutique, Quêtes, Voyante…), un seul clic te ramène sur ton téléphone',
+    ],
+    changed: [
+      'Sur téléphone, l\'appli 🏙️ Ville du téléphone t\'emmène directement en ville (plus besoin de fermer le téléphone)',
+    ],
+    removed: [],
+  },
 ];

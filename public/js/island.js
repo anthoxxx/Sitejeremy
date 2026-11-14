@@ -42,6 +42,7 @@ const Island = (() => {
   const neonOf = p => (p.role === 'admin' || p.role === 'superadmin') ? '#ff2d55' : p.gender === 'f' ? '#ff4fd8' : p.gender === 'h' ? '#2fa8ff' : '#c3b8ff';
   let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
+  const offline = new Map(); // 💤 les membres déconnectés qui dorment dans la Ville
   let lowFx = false, lastKick = 0, root, cv, ctx, terrain, open = false, me = null, players = new Map(), cam = { x: 1200, y: 900 }, zoom = 1, target = null, keys = new Set(), lastSent = 0, raf = 0, last = 0;
   const imgs = new Map(), emotes = [], palms = [], deco = [], leaves = [];
   const img = src => { if (!src) return null; let i = imgs.get(src); if (!i) { i = new Image(); i.src = src; imgs.set(src, i); } return i.complete && i.naturalWidth ? i : null; };
@@ -293,7 +294,13 @@ const Island = (() => {
     ctx.restore();
   }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // 💤 les déconnectés : grisés et un peu transparents
   function drawPlayer(p, t) {
+    if (!p.offline) return drawPlayer0(p, t);
+    ctx.save(); ctx.globalAlpha = .6; ctx.filter = 'grayscale(1)';
+    try { drawPlayer0(p, t); } finally { ctx.restore(); }
+  }
+  function drawPlayer0(p, t) {
     const col = neonOf(p), moving = p.moving;
     const act = moving ? '' : p.action;
     const dancing = act === 'dance' || act === 'dj';
@@ -335,8 +342,9 @@ const Island = (() => {
     }
     // pseudo en néon
     ctx.font = '800 14px Outfit, Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(p.username, 0, 40);
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.fillText(p.username, 0, 40); ctx.shadowBlur = 0;
+    const label = p.offline ? `💤 ${p.username} · déconnecté` : p.username;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(label, 0, 40);
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.fillText(label, 0, 40); ctx.shadowBlur = 0;
     // ce que fait le personnage
     const ICON = { dance: '💃', drink: '🍹', dj: '🎧', sit: '🪑', popcorn: '🍿', sleep: '💤', cook: '🍳', dive: '🤿', tan: '😎', read: '📖', work: '💻', watch: '🐠', warm: '🔥', bath: '🛁', piano: '🎹', play: '🕹️', cheers: '🥂', slot: '🎰', darts: '🎯', claw: '🧸', marshmallow: '🍡', guitar: '🎸', wish: '🌠' };
     if (p.item && p.itemAt > Date.now() - 120000) { ctx.font = '22px "Noto Color Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.item, -24, y + 14); }
@@ -1212,6 +1220,7 @@ const Island = (() => {
       drawHots(t);
     }
     const here = p => kind !== 'house' || (p.floor || 0) === floorNow;
+    if (kind === 'island') items.push(...[...offline.values()].map(o => ({ y: o.y + 20, d: () => drawPlayer(o, t) })));
     items.push(...[...players.values()].filter(here).map(p => { p.pose = poseOf(p); return { y: p.pose ? p.pose.z : (p.dy ?? p.y) + (kind === 'house' ? 40 : 20), d: () => drawPlayer(p, t) }; }));
     // 🐾 chaque animal trottine derrière son maître
     for (const p of players.values()) {
@@ -1626,6 +1635,7 @@ const Island = (() => {
     if (changed) window.Babyfoot?.close();
     me = d.me; scene = d.scene; kind = d.kind; house = d.house; amb = d.amb || 0;
     players = new Map(d.players.map(p => [p.id, p]));
+    offline.clear(); for (const o of d.offline || []) if (o.id !== d.me) offline.set(o.id, { ...o, dx: o.x, dy: o.y });
     if (d.media) { media = d.media; mediaOffset = (d.media.serverNow || Date.now()) - Date.now(); } else media = null;
     const m = players.get(me); if (m) { cam.x = m.x; cam.y = m.y; }
     floorNow = m?.floor || 0;
@@ -1637,7 +1647,8 @@ const Island = (() => {
     syncScreen(); renderUI(); count();
     if (afterJoin) { const f = afterJoin; afterJoin = null; f(); }
   });
-  socket.on('island_joined', p => { if (!open) return; players.set(p.id, p); count(); });
+  socket.on('island_joined', p => { if (!open) return; offline.delete(p.id); players.set(p.id, p); count(); });
+  socket.on('island_offline', p => { if (open && kind === 'island' && !players.has(p.id)) offline.set(p.id, p); });
   socket.on('island_pet', ({ id, pet, look, mode }) => { const p = players.get(id); if (p) { p.pet = pet; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });

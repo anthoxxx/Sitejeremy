@@ -36,7 +36,7 @@ const Phone = (() => {
   function open(app) {
     if (state.me?.isGuest) return toast('Inscris-toi pour avoir ton téléphone 📱');
     if (!root) build();
-    root.classList.remove('hidden'); document.body.classList.add('phone-open');
+    root.classList.remove('hidden'); document.body.classList.add('phone-open'); hideReturn();
     refreshBadges();
     if (app && APPS[app]) APPS[app].open(); else home();
   }
@@ -59,13 +59,14 @@ const Phone = (() => {
     snap: { icon: '👻', name: 'Snap', c: '#ffe600', open: () => go(snapHome, '👻 Snap', [el('button', { class: 'ph-mini', onclick: () => go(camera, '') }, '📷')]), badge: () => snapsUnread },
     camera: { icon: '📷', name: 'Appareil photo', c: '#9aa3b2', open: () => go(camera, '') },
     contacts: { icon: '👥', name: 'Contacts', c: '#ff8a1f', open: () => go(contacts, '👥 Contacts') },
-    city: { icon: '🏙️', name: 'Ville', c: '#c64dff', open: () => { window.Island?.open(); home(); } },
-    games: { icon: '🎮', name: 'Jeux', c: '#ff2d55', open: () => { close(); Hub.open(); } },
-    shop: { icon: '💰', name: 'Boutique', c: '#ffd34d', open: () => { close(); window.Shop?.open(); } },
-    quests: { icon: '🎯', name: 'Quêtes', c: '#38dce6', open: () => { close(); window.Progress?.open(); } },
-    pet: { icon: '🐾', name: 'Mon animal', c: '#ff5fa2', open: () => { close(); window.Pets?.open(); } },
-    fortune: { icon: '🔮', name: 'Voyante', c: '#8b5cf6', open: () => { close(); window.Fortune?.open(); } },
-    notifs: { icon: '🔔', name: 'Notifs', c: '#ff8a1f', open: () => { close(); $('notifBtn')?.click(); } },
+    // sur ordinateur, le téléphone reste ouvert à côté de la Ville ; sur téléphone, on va directement en ville
+    city: { icon: '🏙️', name: 'Ville', c: '#c64dff', open: () => { window.Island?.open(); if (innerWidth <= 600) { close(); showReturn(); } else home(); } },
+    games: { icon: '🎮', name: 'Jeux', c: '#ff2d55', open: () => { close(); showReturn(); Hub.open(); } },
+    shop: { icon: '💰', name: 'Boutique', c: '#ffd34d', open: () => { close(); showReturn(); window.Shop?.open(); } },
+    quests: { icon: '🎯', name: 'Quêtes', c: '#38dce6', open: () => { close(); showReturn(); window.Progress?.open(); } },
+    pet: { icon: '🐾', name: 'Mon animal', c: '#ff5fa2', open: () => { close(); showReturn(); window.Pets?.open(); } },
+    fortune: { icon: '🔮', name: 'Voyante', c: '#8b5cf6', open: () => { close(); showReturn(); window.Fortune?.open(); } },
+    notifs: { icon: '🔔', name: 'Notifs', c: '#ff8a1f', open: () => { close(); showReturn(); $('notifBtn')?.click(); } },
     settings: { icon: '⚙️', name: 'Réglages', c: '#6b7280', open: () => go(settings, '⚙️ Réglages') },
   };
   function appIcon(k, small) {
@@ -280,6 +281,19 @@ const Phone = (() => {
       el('h4', { class: 'ph-h' }, '👤 Mon téléphone'), el('div', { class: 'ph-row' }, LC.avatar(state.me), el('div', { class: 'ph-row-txt' }, el('b', {}, state.me.username), el('small', {}, 'Ton numéro : ' + ('06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 '))))));
   }
 
+  // ---------- ↩️ Le bouton pour revenir au téléphone après avoir ouvert une appli ----------
+  let retBtn = null;
+  function showReturn() {
+    if (!retBtn) { retBtn = el('button', { class: 'ph-return', onclick: () => {
+      hideReturn();
+      document.querySelectorAll('.modal-back').forEach(m => m.remove());
+      if (document.body.classList.contains('hub-open')) Hub.close();
+      $('notifPanel')?.classList.add('hidden');
+      open();
+    } }, el('span', {}, '📱'), 'Retour au téléphone'); document.body.append(retBtn); }
+    retBtn.classList.remove('hidden');
+  }
+  function hideReturn() { retBtn?.classList.add('hidden'); }
   // ---------- Petits outils ----------
   function avatarOn(u, online) { const a = LC.avatar(u); if (online) a.append(el('span', { class: 'on' })); return a; }
   function ping(text, onclick) { const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
