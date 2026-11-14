@@ -10,6 +10,8 @@ const SOCIAL_DEFS = {
   xbox: { label: 'Xbox', color: '#107c10', ph: 'gamertag' },
 };
 const NAME_FX = [['none', 'Normal'], ['gradient', 'Dégradé'], ['glow', 'Néon'], ['rainbow', 'Arc-en-ciel'], ['gold', 'Or']];
+// ✨ Les animations de la photo de profil (marchent sur toutes les photos, même une photo normale)
+const AVATAR_FX_UI = [['none', 'Aucune'], ['bounce', '🏀 Rebond'], ['pulse', '💓 Battement'], ['float', '🎈 Flotte'], ['wiggle', '👋 Coucou'], ['spin', '🌀 Tourne'], ['zoom', '🔍 Zoom'], ['rainbow', '🌈 Arc-en-ciel'], ['neon', '💡 Néon'], ['glitter', '✨ Paillettes'], ['hearts', '💖 Cœurs'], ['flames', '🔥 Flammes']];
 const FRAMES_UI = [['none', 'Aucun'], ['neon', 'Néon'], ['gold', 'Or'], ['rainbow', 'Arc-en-ciel'], ['fire', 'Feu'], ['ice', 'Glace']];
 // Les effets et cadres exclusifs achetés dans la boutique 💰
 const PREMIUM_FX = { galaxy: '🌌 Galaxie', fire: '🔥 En feu', ice: '❄️ Glacé', glitter: '✨ Paillettes', pulse: '💡 Néon pulsé', matrix: '💻 Hacker' };
@@ -109,8 +111,8 @@ async function openProfile(id) {
 function readImage(file, w, h) {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) return reject(new Error('Choisis une image (JPG, PNG, GIF ou WEBP)'));
-    // Les GIF animés sont gardés tels quels s'ils sont légers
-    if (file.type === 'image/gif' && file.size <= 1.5 * 1024 * 1024) {
+    // Les photos animées (GIF et WEBP animés) sont gardées telles quelles jusqu'à 4 Mo
+    if ((file.type === 'image/gif' || file.type === 'image/webp') && file.size <= 4 * 1024 * 1024) {
       const fr = new FileReader();
       fr.onload = () => resolve(fr.result);
       fr.onerror = () => reject(new Error('Lecture impossible'));
@@ -210,7 +212,7 @@ function openMyProfile() {
   const namePick = colorPick('color');
   // --- Onglet Apparence ---
   const tabLook = el('div', {},
-    f('📷 Photo de profil', imageButtons('avatar', 256, 256), (state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, WEBP ou GIF animé (1,5 Mo max pour les GIF).'),
+    f('📷 Photo de profil', imageButtons('avatar', 256, 256), (state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, ou une photo animée 🎞️ (GIF ou WEBP animé, 4 Mo maximum). Et en dessous, choisis une animation ✨ pour faire bouger n\'importe quelle photo !'),
     f('🖼️ Bannière', el('div', {}, imageButtons('banner', 1200, 400),
       el('small', { class: 'help', style: 'display:block;margin:10px 0 6px' }, 'Ou un dégradé (utilisé quand il n\'y a pas d\'image) :'),
       choice(Object.keys(LC.BANNERS).map(k => [k, k]), 'bannerStyle', v => el('span', { class: 'banner-swatch', style: `background:${LC.BANNERS[v]}` })))),
@@ -222,6 +224,7 @@ function openMyProfile() {
       } }, '↺ Couleur par défaut (💙 homme · 🩷 femme · 💜 autre)'))),
     f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
+    f('✨ Photo animée', choice(AVATAR_FX_UI, 'avatarFx', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, avatarFx: v }), label))),
     f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...ownedOf('frame_', PREMIUM_FRAMES)], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
   // --- Onglet Infos ---
@@ -301,7 +304,7 @@ function openMyProfile() {
             try {
               const { user } = await api('/api/me', { method: 'PUT', body: {
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
-                nameEffect: d.nameEffect, frame: d.frame, bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
+                nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
               } });

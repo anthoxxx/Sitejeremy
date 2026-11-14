@@ -211,7 +211,7 @@ window.LC = {
   },
   avatar(u, big) {
     const nn = LC.neonOf(u);
-    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (nn ? ' av-nn-' + nn : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
+    const a = LC.el('div', { class: 'avatar' + (big ? ' lg' : '') + (nn ? ' av-nn-' + nn : '') + (u.frame && u.frame !== 'none' ? ' frame frame-' + u.frame : '') + (u.avatarFx && u.avatarFx !== 'none' ? ' afx afx-' + u.avatarFx : ''), style: `--avbg:${u.color || '#8b6cff'};--accent:${u.accent || u.color || '#ff5fa2'}` });
     if (u.avatar) a.append(LC.el('img', { src: u.avatar, alt: '', loading: 'lazy' }));
     else a.append((u.username || '?')[0].toUpperCase());
     if (u.validated) a.append(LC.el('span', { class: 'v-tick', title: 'Accepté : voix et caméra validées' }, '✓'));

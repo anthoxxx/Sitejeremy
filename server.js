@@ -26,7 +26,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // Les images de profil ont droit à une taille plus grande que le reste
-const bigJson = express.json({ limit: '3mb' });
+const bigJson = express.json({ limit: '7mb' }); // assez pour une photo de profil animée (GIF de 4 Mo)
 const smallJson = express.json({ limit: '50kb' });
 const isUpload = p => p.startsWith('/api/me/image/') || p === '/api/audio' || /^\/api\/rooms\/\d+\/background$/.test(p);
 const hugeJson = express.json({ limit: '40mb' });
@@ -62,6 +62,7 @@ const USERNAME_RE = /^[\p{L}\p{N}_\-]{3,20}$/u;
 
 const parseJSON = (v, d) => { try { const x = JSON.parse(v); return x ?? d; } catch (e) { return d; } };
 const NAME_EFFECTS = ['none', 'gradient', 'glow', 'rainbow', 'gold'];
+const AVATAR_FX = ['none', 'bounce', 'pulse', 'spin', 'float', 'wiggle', 'rainbow', 'glitter', 'hearts', 'flames', 'zoom', 'neon'];
 const FRAMES = ['none', 'neon', 'gold', 'rainbow', 'fire', 'ice'];
 const BANNER_STYLES = ['aurora', 'sunset', 'ocean', 'neon', 'forest', 'midnight', 'candy', 'lava'];
 const SOCIALS = ['discord', 'twitch', 'instagram', 'tiktok', 'youtube', 'steam', 'psn', 'xbox'];
@@ -90,7 +91,7 @@ function publicUser(u) {
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
     badges: u.is_guest ? [] : badgesOf(u.id),
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -114,7 +115,7 @@ function adminUser(u) {
   return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -738,6 +739,7 @@ app.put('/api/me', auth, (req, res) => {
   }
   db.prepare('UPDATE users SET birth_day=?, birth_month=?, show_birthday=? WHERE id=?').run(bd, bm,
     b.showBirthday !== undefined ? (b.showBirthday ? 1 : 0) : u.show_birthday, u.id);
+  if (b.avatarFx !== undefined) db.prepare('UPDATE users SET avatar_fx=? WHERE id=?').run(AVATAR_FX.includes(b.avatarFx) ? b.avatarFx : 'none', u.id);
   db.prepare(`UPDATE users SET gender=?, age=?, city=?, bio=?, color=?, accent=?, name_effect=?, avatar_frame=?, banner_style=?,
     status_emoji=?, status_text=?, interests=?, games=?, socials=?, show_age=?, show_city=? WHERE id=?`).run(
     gender, parseInt(age, 10),
@@ -774,7 +776,7 @@ function saveImage(dataUrl, prefix) {
   const m = /^data:image\/[a-z+]+;base64,(.+)$/i.exec(String(dataUrl || ''));
   if (!m) return { error: 'Image invalide' };
   const buf = Buffer.from(m[1], 'base64');
-  if (buf.length > 2 * 1024 * 1024) return { error: 'Image trop lourde (2 Mo maximum)' };
+  if (buf.length > 4.5 * 1024 * 1024) return { error: 'Image trop lourde (4 Mo maximum)' };
   const type = IMAGE_TYPES.find(t => t.test(buf));
   if (!type) return { error: 'Format accepté : JPG, PNG, GIF ou WEBP' };
   const name = `${prefix}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
@@ -2917,7 +2919,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre

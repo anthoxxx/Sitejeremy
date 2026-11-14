@@ -269,6 +269,7 @@ addColumn('users', 'coins_total', 'INTEGER NOT NULL DEFAULT 0'); // pièces gagn
 addColumn('users', 'daily_date', "TEXT NOT NULL DEFAULT ''"); // dernier bonus du jour (AAAA-MM-JJ, heure de Paris)
 addColumn('users', 'daily_streak', 'INTEGER NOT NULL DEFAULT 0'); // jours de suite
 addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté affiché à côté du pseudo
+addColumn('users', 'avatar_fx', "TEXT NOT NULL DEFAULT 'none'"); // ✨ animation de la photo de profil
 addColumn('users', 'shop_entry', "TEXT NOT NULL DEFAULT ''"); // effet d'entrée dans les salons
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, item TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, item))`);
 db.exec(`CREATE TABLE IF NOT EXISTS coin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, amount INTEGER NOT NULL, reason TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL DEFAULT 0)`);

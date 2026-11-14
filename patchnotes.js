@@ -535,4 +535,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 36,
+    date: '2026-11-14',
+    title: 'Les photos de profil animées 🎞️✨',
+    added: [
+      'Tu peux maintenant mettre une photo de profil animée : un GIF ou un WEBP animé (4 Mo maximum)',
+      'Dans « Personnaliser mon profil », la nouvelle option « ✨ Photo animée » fait bouger n\'importe quelle photo : Rebond, Battement, Flotte, Coucou, Tourne, Zoom, Arc-en-ciel, Néon, Paillettes, Cœurs ou Flammes',
+      'L\'animation se voit partout : dans le chat, la liste des connectés, les messages privés et les profils',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -320,7 +320,7 @@ function addRoomMessage(m, live = true) {
   }
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
+  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : '') + (m.staffOnly ? ' staff-only' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },

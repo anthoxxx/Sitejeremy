@@ -2820,3 +2820,31 @@ body.island-open .phone .ph-device { pointer-events: auto; }
 .away-title { margin: 12px 8px 4px; font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .list-item.is-away { opacity: .5; filter: grayscale(1); }
 .list-item.is-away:hover { opacity: .8; }
+
+/* =================== ✨ Les photos de profil animées =================== */
+.avatar.afx { will-change: transform; }
+.afx-bounce { animation: afxBounce 1.6s ease-in-out infinite; }
+@keyframes afxBounce { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px) scale(1.04, .97); } 50% { transform: translateY(0) scale(.97, 1.04); } }
+.afx-pulse { animation: afxPulse 1.2s ease-in-out infinite; }
+@keyframes afxPulse { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.1); } 30% { transform: scale(1); } 45% { transform: scale(1.07); } }
+.afx-float { animation: afxFloat 3s ease-in-out infinite; }
+@keyframes afxFloat { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
+.afx-wiggle { animation: afxWiggle 2.2s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes afxWiggle { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-12deg); } 80% { transform: rotate(10deg); } 90% { transform: rotate(-6deg); } }
+.afx-spin img { animation: afxSpin 6s linear infinite; }
+@keyframes afxSpin { to { transform: rotate(360deg); } }
+.afx-zoom img { animation: afxZoom 4s ease-in-out infinite; }
+.afx-zoom { overflow: hidden; }
+@keyframes afxZoom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+.afx-rainbow img, .afx-rainbow { animation: afxHue 4s linear infinite; }
+@keyframes afxHue { to { filter: hue-rotate(360deg) saturate(1.4); } }
+.afx-neon { animation: afxNeon 1.8s ease-in-out infinite; }
+@keyframes afxNeon { 0%, 100% { box-shadow: 0 0 4px #ff4fd8, 0 0 10px #ff4fd8; } 50% { box-shadow: 0 0 8px #38dce6, 0 0 22px #38dce6, 0 0 34px #38dce6; } }
+.afx-glitter::before, .afx-hearts::before, .afx-flames::before { position: absolute; inset: -30%; pointer-events: none; z-index: 2; font-size: 40%; display: grid; place-items: center; }
+.afx-glitter::before { content: '✨'; animation: afxSpark 1.6s ease-in-out infinite; }
+.afx-hearts::before { content: '💖'; animation: afxRise 2s ease-in infinite; }
+.afx-flames::before { content: '🔥'; animation: afxRise 1.3s ease-in infinite; }
+.avatar.lg.afx-glitter::before, .avatar.lg.afx-hearts::before, .avatar.lg.afx-flames::before { font-size: 26px; }
+@keyframes afxSpark { 0%, 100% { opacity: 0; transform: translate(28%, -30%) scale(.4) rotate(0); } 50% { opacity: 1; transform: translate(30%, -32%) scale(1) rotate(90deg); } }
+@keyframes afxRise { 0% { opacity: 0; transform: translate(26%, 10%) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(34%, -45%) scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .avatar.afx, .avatar.afx img, .avatar.afx::before { animation: none !important; } }
