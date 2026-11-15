@@ -295,10 +295,19 @@ const Island = (() => {
   }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   // 💤 les déconnectés : grisés et un peu transparents
+  // (le filtre « gris » coûte très cher à chaque image : on dessine le déconnecté une seule fois dans une petite image, puis on la recopie)
   function drawPlayer(p, t) {
     if (!p.offline) return drawPlayer0(p, t);
-    ctx.save(); ctx.globalAlpha = .6; ctx.filter = 'grayscale(1)';
-    try { drawPlayer0(p, t); } finally { ctx.restore(); }
+    if (!p._spr) {
+      const W2 = 300, H2 = 220, AX = 150, AY = 150, k = 2;
+      const a = document.createElement('canvas'); a.width = W2 * k; a.height = H2 * k;
+      const real = ctx; ctx = a.getContext('2d'); ctx.scale(k, k);
+      try { drawPlayer0({ ...p, dx: AX, dy: AY, x: AX, y: AY, moving: false, _spr: null }, 1); } catch (e) {} finally { ctx = real; }
+      const g = document.createElement('canvas'); g.width = a.width; g.height = a.height;
+      const gc = g.getContext('2d'); gc.filter = 'grayscale(1)'; gc.globalAlpha = .6; gc.drawImage(a, 0, 0);
+      p._spr = { c: g, W2, H2, AX, AY };
+    }
+    const s = p._spr; ctx.drawImage(s.c, p.dx - s.AX, p.dy - s.AY, s.W2, s.H2);
   }
   function drawPlayer0(p, t) {
     const col = neonOf(p), moving = p.moving;
@@ -413,8 +422,12 @@ const Island = (() => {
     for (const w of words) { const t2 = line ? line + ' ' + w : w; if (ctx.measureText(t2).width > max && line) { out.push(line); line = w; } else line = t2; }
     if (line) out.push(line); return out.slice(0, 4);
   }
-  // Jour et nuit selon l'heure de Paris
-  function nightLevel() {
+  // 📱 sur téléphone, on dessine en 1,5x au lieu de 3x : 4 fois moins de pixels, et toujours net
+  const DPR = () => Math.min(window.devicePixelRatio || 1, innerWidth < 700 ? 1.5 : 2);
+  // Jour et nuit selon l'heure de Paris (calculé une fois toutes les 20 secondes : c'est lent à calculer)
+  let nightCache = { at: 0, v: 0 };
+  function nightLevel() { const n = Date.now(); if (n - nightCache.at > 20000) nightCache = { at: n, v: nightLevel0() }; return nightCache.v; }
+  function nightLevel0() {
     const h = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', minute: 'numeric' }).split(':').map(Number);
     const x = h[0] + (h[1] || 0) / 60;
     if (x >= 8 && x < 18) return 0; if (x >= 18 && x < 21) return (x - 18) / 3 * .75; if (x >= 21 || x < 6) return .75; return .75 - (x - 6) / 2 * .75;
@@ -1142,7 +1155,7 @@ const Island = (() => {
     if (video && ts - lastDraw < 31) return;
     lastDraw = ts;
     const t = ts / 1000, dt = Math.min(.05, (ts - last) / 1000 || 0); last = ts;
-    const vw = cv.width / devicePixelRatio, vh = cv.height / devicePixelRatio;
+    const vw = cv.width / DPR(), vh = cv.height / DPR();
     const sc = S();
     // déplacement de mon personnage
     const mine = players.get(me);
@@ -1189,7 +1202,7 @@ const Island = (() => {
       const oy = sc.H * z <= avail ? top + (avail - sc.H * z) / 2 : Math.min(top, Math.max(top + avail - sc.H * z, top + avail / 2 - C.y * z));
       view = { z, ox, oy };
     }
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.setTransform(DPR(), 0, 0, DPR(), 0, 0);
     ctx.fillStyle = kind === 'island' ? '#c3c7d0' : '#07040d'; ctx.fillRect(0, 0, vw, vh);
     ctx.save();
     ctx.translate(view.ox, view.oy); ctx.scale(view.z, view.z);
@@ -1202,12 +1215,13 @@ const Island = (() => {
       drawLights(t, nn);
       drawCars(t);
       items.push(...shops.filter(o => o.x > x0 - 100 && o.x < x1 + 100 && o.y > y0 - 20 && o.y < y1 + 220).map(o => ({ y: o.y, d: () => drawShop(o, t, nn) })));
-      items.push(...TOWERS.map(tw => ({ y: tw[1], d: () => drawTower(tw, t, nn) })), ...ARCHES.map(a => ({ y: a[1] + 40, d: () => drawArch(a, t, nn) })));
+      const vis = (x, y, m = 200) => x > x0 - m && x < x1 + m && y > y0 - 60 && y < y1 + m + 200; // on ne dessine que ce qui est à l'écran
+      items.push(...TOWERS.filter(tw => vis(tw[0], tw[1])).map(tw => ({ y: tw[1], d: () => drawTower(tw, t, nn) })), ...ARCHES.filter(a => vis(a[0], a[1])).map(a => ({ y: a[1] + 40, d: () => drawArch(a, t, nn) })));
       items.push(...lamps.filter(l => l.x > x0 - 60 && l.x < x1 + 60 && l.y > y0 - 20 && l.y < y1 + 80).map(l => ({ y: l.y, d: () => drawLamp(l, t, nn) })), { y: FOUNTAIN.y + 26, d: () => drawFountain(t, nn) });
       const counts = {};
       for (const u of state.online || []) if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1;
       items.push(...palms.filter(p => p.x > x0 - 80 && p.x < x1 + 80 && p.y > y0 && p.y < y1 + 120).map(p => ({ y: p.y, d: () => drawPalm(p, t) })),
-        ...PLACES.map(p => ({ y: p.y + 30, d: () => drawPlace(p, t, counts[p.slug]) })));
+        ...PLACES.filter(p => vis(p.x, p.y, 260)).map(p => ({ y: p.y + 30, d: () => drawPlace(p, t, counts[p.slug]) })));
     } else {
       ({ club: drawClub, cinema: drawCinema, house: drawHouse, pool: drawPool, cafe: drawCafe, arcade: drawArcade, campfire: drawCamp })[kind](t);
       if (kind === 'house') {
@@ -1611,7 +1625,7 @@ const Island = (() => {
     for (let i = 0; i < 18; i++) leaves.push({ x: Math.random() * 800, y: Math.random() * 800, v: 30 + Math.random() * 40, p: Math.random() * 6, s: 12 + Math.random() * 10, e: set[i % set.length] });
     renderUI();
   }
-  function resize() { if (!cv) return; const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; zoom = r.width < 600 ? .72 : 1; screenPos = ''; }
+  function resize() { if (!cv) return; const r = cv.getBoundingClientRect(); cv.width = r.width * DPR(); cv.height = r.height * DPR(); zoom = r.width < 600 ? .72 : 1; screenPos = ''; }
   function count() { const c = root?.querySelector('.isl-count'); if (c) c.textContent = `· ${players.size} ${kind === 'island' ? 'promeneur' : 'personne'}${players.size > 1 ? 's' : ''}`; }
   let afterJoin = null;
   function openIsland(then) {
@@ -1658,7 +1672,7 @@ const Island = (() => {
     if (afterJoin) { const f = afterJoin; afterJoin = null; f(); }
   });
   socket.on('island_joined', p => { if (!open) return; offline.delete(p.id); players.set(p.id, p); count(); });
-  socket.on('island_offline', p => { if (open && kind === 'island' && !players.has(p.id)) offline.set(p.id, p); });
+  socket.on('island_offline', p => { if (open && kind === 'island' && !players.has(p.id)) offline.set(p.id, { ...p, dx: p.x, dy: p.y }); });
   socket.on('island_pet', ({ id, pet, look, mode }) => { const p = players.get(id); if (p) { p.pet = pet; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
@@ -1692,7 +1706,7 @@ const Island = (() => {
   // 🍽️ Ce qu'on achète en boutique : le personnage le tient et le mange dans la Ville
   function eat(e) { const mine = players.get(me); if (!open || !mine || !['island', 'cafe'].includes(kind)) return; mine.action = 'eat'; mine.item = e; mine.itemAt = Date.now(); socket.emit('island_action', 'eat', { x: mine.x, y: mine.y }, e); }
   const goHome = () => openHouse(state.me.id);
-  return { open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
+  return { open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());
 window.Island = Island;

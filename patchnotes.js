@@ -592,4 +592,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 40,
+    date: '2026-11-15',
+    title: 'La Ville beaucoup plus fluide 🚀',
+    added: [],
+    changed: [
+      'La Ville ne rame plus : elle s\'affiche jusqu\'à 4 fois plus vite sur ordinateur et environ 2 fois plus vite sur téléphone',
+      'Les membres déconnectés (en gris) ne ralentissent plus la Ville',
+      'Seul ce qui est à l\'écran est dessiné, et le téléphone se fatigue moins (moins de batterie, moins de chauffe)',
+    ],
+    removed: [],
+  },
 ];
