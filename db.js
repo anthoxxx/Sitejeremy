@@ -272,6 +272,11 @@ addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté a
 { const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'welcomed');
   addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
   if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
+addColumn('users', 'grey_heart', 'INTEGER NOT NULL DEFAULT 0'); // 🩶 cœur gris à côté du cœur rouge (choisi par le super-admin)
+if (!db.prepare("SELECT 1 FROM settings WHERE key='greyInit'").get() && db.prepare("SELECT 1 FROM users WHERE lower(username)='leptibof'").get()) {
+  db.prepare("UPDATE users SET grey_heart=1 WHERE lower(username)='leptibof'").run();
+  db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('greyInit','1')").run();
+}
 addColumn('users', 'is_dev', 'INTEGER NOT NULL DEFAULT 0'); // 💻 le rôle Développeur (une seule personne)
 addColumn('users', 'avatar_fx', "TEXT NOT NULL DEFAULT 'none'"); // ✨ animation de la photo de profil
 addColumn('users', 'shop_entry', "TEXT NOT NULL DEFAULT ''"); // effet d'entrée dans les salons

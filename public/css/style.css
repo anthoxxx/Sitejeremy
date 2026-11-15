@@ -2930,3 +2930,15 @@ body.island-open .phone .ph-device { pointer-events: auto; }
 .list-item .badge.dev .dev-long { display: none; }
 .list-item .badge.dev .dev-short { display: inline; }
 .list-item .badge-pair .badge:not(.dev) { display: none; } /* dans la liste des connectés, pas la place pour deux badges : on garde « 💻 Dev » */
+
+/* 📳 Le Wizz */
+body.wizz .app, body.wizz > .modal-back, body.wizz #island { animation: wizzShake .8s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes wizzShake { 10%, 90% { transform: translate(-3px, 1px); } 20%, 80% { transform: translate(6px, -3px); } 30%, 50%, 70% { transform: translate(-10px, 4px); } 40%, 60% { transform: translate(10px, -4px); } }
+
+/* 🎳 Bowling et 🎱 Billard */
+.phys-cv { display: block; margin: 8px auto; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); touch-action: none; user-select: none; }
+.bowl-board { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.bowl-cell { min-width: 46px; padding: 4px 6px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; font-size: .8rem; }
+.bowl-cell small { color: var(--muted); font-size: .68rem; } .bowl-cell b { min-height: 1.1em; } .bowl-cell em { font-style: normal; color: #ffd76a; font-weight: 800; min-height: 1.1em; }
+.bowl-cell.on { border-color: #8b5cf6; box-shadow: 0 0 10px -2px #8b5cf6; } .bowl-cell.total { background: linear-gradient(135deg, #7a3ccf, #ff2d55); color: #fff; } .bowl-cell.total small { color: #fff; }
+.go-gain { font-weight: 900; font-size: 1.15rem; color: #ffd76a; text-shadow: 0 0 10px rgba(255, 200, 60, .5); }

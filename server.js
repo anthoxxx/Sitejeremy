@@ -92,7 +92,7 @@ function publicUser(u) {
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
     badges: u.is_guest ? [] : badgesOf(u.id),
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -116,7 +116,7 @@ function adminUser(u) {
   return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -825,6 +825,16 @@ app.put('/api/me/password', auth, (req, res) => {
   if (!bcrypt.compareSync(String(req.body.current || ''), u.password_hash)) return res.status(400).json({ error: 'Mot de passe actuel incorrect' });
   if (String(req.body.next || '').length < 6) return res.status(400).json({ error: 'Nouveau mot de passe : 6 caractères minimum' });
   db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(bcrypt.hashSync(String(req.body.next), 10), u.id);
+  res.json({ ok: true });
+});
+
+// 🩶 Le cœur gris à côté du cœur rouge : c'est le super-admin qui le donne
+app.post('/api/admin/users/:id/grey', auth, (req, res) => {
+  if (!isSuper(req.user)) return res.status(403).json({ error: 'Réservé au super-admin' });
+  const t = getUser(parseInt(req.params.id, 10)); if (!t) return res.status(404).json({ error: 'Introuvable' });
+  db.prepare('UPDATE users SET grey_heart=? WHERE id=?').run(req.body.on ? 1 : 0, t.id);
+  refreshOnline(getUser(t.id));
+  log(req.user, 'grey', `🩶 Cœur gris ${req.body.on ? 'donné à' : 'retiré à'} ${t.username}`);
   res.json({ ok: true });
 });
 
@@ -2643,7 +2653,20 @@ admin.get('/logs', (req, res) => {
 app.use('/api/admin', admin);
 
 // Mini-jeux (scores, classements, parties à deux)
-const Games = require('./games')({ onScore: (uid, game) => { track(uid, 'game'); if (game === 'cache') Coins.earnCapped(uid, 'cache', 15, '🔍 Objets cachés : tout trouvé !', 5); else Coins.earnCapped(uid, 'solo_' + game, 3, '🎮 Partie de mini-jeu', 5); }, app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isVerified: u => isVerified(u), isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
+// 💰 Les mini-jeux rapportent des pièces : plus tu joues bien, plus tu gagnes (8 parties payées par jeu et par jour)
+const SOLO_PAY = {
+  serpent: s => 3 + Math.min(17, Math.floor(s / 30)), demineur: s => (s <= 60 ? 20 : s <= 180 ? 12 : 6), memory: s => (s <= 14 ? 20 : s <= 22 ? 12 : 6),
+  pendu: s => 3 + Math.min(17, s * 2), taquin: s => (s <= 80 ? 20 : s <= 200 ? 12 : 6), reflexes: s => (s <= 250 ? 15 : s <= 350 ? 10 : 5),
+  quiz: s => 3 + Math.min(17, Math.floor(s / 10)), bowling: s => 3 + Math.min(27, Math.floor(s / 8)), billard: s => (s <= 12 ? 25 : s <= 20 ? 15 : 8),
+};
+const SOLO_NAMES = { serpent: '🐍 Serpent', demineur: '💣 Démineur', memory: '🃏 Memory', pendu: '🔤 Pendu', taquin: '🧩 Taquin', reflexes: '⚡ Réflexes', quiz: '❓ Quiz', bowling: '🎳 Bowling', billard: '🎱 Billard' };
+const Games = require('./games')({ onScore: (uid, game, score, record) => {
+    track(uid, 'game');
+    if (game === 'cache') return Coins.earnCapped(uid, 'cache', 15, '🔍 Objets cachés : tout trouvé !', 5);
+    const base = (SOLO_PAY[game] || (() => 3))(score) + (record ? 5 : 0);
+    return Coins.earnCapped(uid, 'solo_' + game, base, `${SOLO_NAMES[game] || '🎮 Mini-jeu'} : ${record ? 'nouveau record !' : 'partie terminée'}`, 8);
+  },
+  onResult: (uid, game, res) => { track(uid, res === 'win' ? 'game_win' : 'game'); return Coins.earnCapped(uid, 'duel_' + game + '_' + res, res === 'win' ? 15 : res === 'draw' ? 6 : 3, res === 'win' ? '🏆 Victoire en duel' : res === 'draw' ? '🤝 Égalité en duel' : '🎮 Partie en duel', res === 'win' ? 10 : 5); }, app, io, db, auth, getUser, publicUser, online: null, emitToUser: (...a) => emitToUser(...a), isBlocked, isVerified: u => isVerified(u), isMutedBy, visibleOnline: (...a) => visibleOnline(...a), log, tooMany });
 app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 
 // Pages
@@ -2988,7 +3011,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.is_dev, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.is_dev, u.grey_heart, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre
@@ -3133,6 +3156,21 @@ io.on('connection', socket => {
     if (entry.room && entry.room !== PATCH_SLUG) socket.to('room:' + entry.room).emit('typing', { room: entry.room, username: entry.ghost && entry.ghostAnon ? 'La modération' : entry.user.username });
   });
 
+  // 📳 Le Wizz (comme sur MSN) : l'écran de l'autre tremble
+  socket.on('wizz', (to, ack) => {
+    const u = current(), target = getUser(parseInt(to, 10));
+    if (!u || u.is_guest || !target || target.id === uid) return ack && ack({ error: 'Impossible' });
+    if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Impossible d\'envoyer un wizz à cette personne' });
+    if (!isVerified(u) && !isStaff(target)) return ack && ack({ error: NOT_VERIFIED });
+    if (throttled(`wizz:${uid}:${target.id}`, 15000)) return ack && ack({ error: 'Attends un peu avant de renvoyer un wizz 😉' });
+    const content = `📳 ${u.username} a envoyé un wizz !`;
+    const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(uid, target.id, content, now(), 'text', '', 0);
+    const m = pmOut({ id: info.lastInsertRowid, from_id: uid, to_id: target.id, content, created_at: now(), is_read: 0, kind: 'text', media: '', duration: 0 });
+    emitToUser(target.id, 'pm', { ...m, fromUser: publicUser(u) }); emitToUser(uid, 'pm', { ...m, fromUser: publicUser(u) });
+    emitToUser(target.id, 'wizz', { from: u.username, userId: uid });
+    if (!throttled(`wizzn:${uid}:${target.id}`, 120000)) notify(target.id, { type: 'pm', icon: '📳', title: `${u.username} t'a envoyé un wizz !`, text: 'Ouvre la conversation', data: { userId: uid } });
+    ack && ack({ ok: true });
+  });
   socket.on('pm', ({ to, text, audio: rawAudio, image: rawImage } = {}, ack) => {
     const u = current();
     const target = getUser(parseInt(to, 10));

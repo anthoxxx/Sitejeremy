@@ -9,6 +9,8 @@ const GAME_LIST = {
     { id: 'reflexes', icon: '⚡', name: 'Réflexes', desc: 'Clique dès que l\'écran devient vert', unit: 'ms', order: 'lower' },
     { id: 'cache', icon: '🔍', name: 'Objets cachés', desc: 'Retrouve tous les objets cachés dans la scène', unit: 's', order: 'lower' },
     { id: 'quiz', icon: '🧠', name: 'Quiz', desc: '10 questions de culture générale', unit: 'pts', order: 'higher' },
+    { id: 'bowling', icon: '🎳', name: 'Bowling', desc: '5 manches : glisse pour lancer la boule et fais des strikes', unit: 'pts', order: 'higher' },
+    { id: 'billard', icon: '🎱', name: 'Billard', desc: 'Rentre les 10 boules en un minimum de coups', unit: 'coups', order: 'lower' },
   ],
   multi: [
     { id: 'morpion', icon: '⭕', name: 'Morpion', desc: 'Aligne 3 symboles avant l\'autre', bot: true },
@@ -120,6 +122,7 @@ const Solo = {
         el('h3', {}, text || 'Partie terminée'),
         score !== null && score !== undefined ? el('p', {}, `Score : ${score} ${g.unit}${rec ? ` · Record : ${rec.best} ${g.unit}` : ''}`) : null,
         rec?.record ? el('p', { class: 'go-rec' }, '✨ Nouveau record personnel !') : null,
+        rec?.gain ? el('p', { class: 'go-gain' }, `+${rec.gain} 💰 gagnées !`) : rec ? el('p', { class: 'help' }, '💰 Plus de pièces pour ce jeu aujourd\'hui (8 parties payées par jour)') : null,
         el('div', { class: 'actions' },
           el('button', { class: 'btn btn-primary', onclick: () => Solo.start(id) }, '🔁 Rejouer'),
           el('button', { class: 'btn', onclick: () => Hub.home() }, 'Autres jeux')));
@@ -132,6 +135,215 @@ const Solo = {
 
 const rand = n => Math.floor(Math.random() * n);
 const SOLO_GAMES = {
+  // 🎳 Bowling : 5 manches, glisse vers le haut pour lancer la boule (le côté où tu touches place la boule)
+  bowling(area, g) {
+    const W = 300, H = 560, LX0 = 40, LX1 = 260, k = Math.min(1, ((area.clientWidth || 340) - 10) / W, (innerHeight - 250) / H);
+    const cv = el('canvas', { class: 'phys-cv', width: W * 2, height: H * 2, style: `width:${W * k}px;height:${H * k}px` });
+    const ctx = cv.getContext('2d'); ctx.scale(2, 2);
+    const board = el('div', { class: 'bowl-board' });
+    area.append(board, cv, el('p', { class: 'help', style: 'text-align:center' }, '👆 Pose ton doigt sur la piste (là où tu veux placer la boule), puis glisse vers le haut. Plus tu glisses vite, plus elle va fort !'));
+    const FRAMES = 5, rolls = [];
+    let frame = 0, roll = 0, pins = [], ball = null, rolling = false, raf = 0, startAt = 0, drag = null, msg = '', msgAt = 0;
+    const rack = () => { pins = []; for (let r = 0; r < 4; r++) for (let i = 0; i <= r; i++) pins.push({ x: 150 + (i - r / 2) * 26, y: 150 - r * 26, ox: 150 + (i - r / 2) * 26, oy: 150 - r * 26, vx: 0, vy: 0, r: 9, m: 1, down: false, a: 0 }); };
+    const newBall = () => { ball = { x: 150, y: 505, vx: 0, vy: 0, r: 14, m: 5, gutter: false }; };
+    rack(); newBall();
+    // le score officiel du bowling (strike = 10 + 2 lancers suivants, spare = 10 + 1 lancer suivant)
+    function score() {
+      let s = 0, i = 0; const out = [];
+      for (let f = 0; f < FRAMES; f++) {
+        if (rolls[i] === undefined) { out.push(null); continue; }
+        if (f === FRAMES - 1) { s += (rolls[i] || 0) + (rolls[i + 1] || 0) + (rolls[i + 2] || 0); out.push(s); break; }
+        if (rolls[i] === 10) { if (rolls[i + 2] === undefined) { out.push(null); i++; continue; } s += 10 + rolls[i + 1] + rolls[i + 2]; out.push(s); i++; }
+        else { if (rolls[i + 1] === undefined) { out.push(null); i += 2; continue; } if (rolls[i] + rolls[i + 1] === 10) { if (rolls[i + 2] === undefined) { out.push(null); i += 2; continue; } s += 10 + rolls[i + 2]; } else s += rolls[i] + rolls[i + 1]; out.push(s); i += 2; }
+      }
+      return { total: s, out };
+    }
+    function drawBoard() {
+      const sc = score(); let i = 0; const cells = [];
+      for (let f = 0; f < FRAMES; f++) {
+        const a = rolls[i], b = rolls[i + 1], c = rolls[i + 2];
+        let t;
+        if (f === FRAMES - 1) { t = [a, b, c].filter(v => v !== undefined).map((v, j, arr) => (v === 10 ? 'X' : j > 0 && arr[j - 1] !== 10 && arr[j - 1] + v === 10 ? '/' : v === 0 ? '-' : v)).join(' '); }
+        else if (a === 10) { t = 'X'; i += 1; } else { t = [a, b].filter(v => v !== undefined).map((v, j) => (j === 1 && a + v === 10 ? '/' : v === 0 ? '-' : v)).join(' '); i += 2; }
+        cells.push(el('div', { class: 'bowl-cell' + (f === frame ? ' on' : '') }, el('small', {}, f + 1), el('b', {}, t || ' '), el('em', {}, sc.out[f] ?? '')));
+      }
+      board.replaceChildren(...cells, el('div', { class: 'bowl-cell total' }, el('small', {}, 'Total'), el('b', {}, sc.total)));
+      g.info(`Manche ${Math.min(frame + 1, FRAMES)}/${FRAMES} · lancer ${roll + 1}`);
+    }
+    drawBoard();
+    function collide(a, b) {
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = a.r + b.r;
+      if (!d || d >= min) return;
+      const nx = dx / d, ny = dy / d, over = min - d, tm = a.m + b.m;
+      a.x -= nx * over * b.m / tm; a.y -= ny * over * b.m / tm; b.x += nx * over * a.m / tm; b.y += ny * over * a.m / tm;
+      const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; if (rel <= 0) return;
+      const j = 2 * rel / tm * .92;
+      a.vx -= j * b.m * nx; a.vy -= j * b.m * ny; b.vx += j * a.m * nx; b.vy += j * a.m * ny;
+      // une quille touchée tombe
+      if (b.m === 1 && !b.down && Math.hypot(b.vx, b.vy) > 40) b.down = true;
+      if (a.m === 1 && !a.down && Math.hypot(a.vx, a.vy) > 40) a.down = true;
+    }
+    function step(dt) {
+      const all = [ball, ...pins.filter(p => !p.gone)];
+      for (const o of all) {
+        o.x += o.vx * dt; o.y += o.vy * dt;
+        const f = o === ball ? .15 : 2.2; o.vx *= Math.max(0, 1 - f * dt); o.vy *= Math.max(0, 1 - f * dt);
+        if (o !== ball) { if (o.down) o.a = Math.min(1, o.a + dt * 4); if (o.x < LX0 - 4 || o.x > LX1 + 4 || o.y < 20) { o.down = true; o.gone = true; } }
+      }
+      if (!ball.gutter && (ball.x < LX0 + ball.r - 6 || ball.x > LX1 - ball.r + 6)) { ball.gutter = true; ball.x = ball.x < 150 ? LX0 - 14 : LX1 + 14; ball.vx = 0; }
+      if (!ball.gutter) for (const p of pins) if (!p.gone) collide(ball, p);
+      for (let i = 0; i < pins.length; i++) for (let j = i + 1; j < pins.length; j++) if (!pins[i].gone && !pins[j].gone) collide(pins[i], pins[j]);
+      for (const p of pins) if (!p.gone && !p.down && Math.hypot(p.x - p.ox, p.y - p.oy) > 7) p.down = true;
+    }
+    function settle() {
+      rolling = false;
+      const fell = pins.filter(p => p.down && !p.counted).length;
+      pins.forEach(p => { if (p.down) p.counted = true; });
+      rolls.push(fell);
+      const standing = pins.filter(p => !p.down).length;
+      const last = frame === FRAMES - 1;
+      msg = fell === 10 && roll === 0 ? '🎳 STRIKE !' : standing === 0 ? '✨ SPARE !' : fell === 0 ? (ball.gutter ? '😬 Dans la rigole…' : '😅 Raté !') : `${fell} quille${fell > 1 ? 's' : ''}`;
+      msgAt = performance.now();
+      if (fell === 10 && roll === 0) LC.confetti(['🎳', '💥', '⭐']);
+      let nextFrame = false, reset = false;
+      if (!last) { if (roll === 0 && standing > 0) roll = 1; else { nextFrame = true; reset = true; } }
+      else {
+        const fr = rolls.slice(rolls.length - roll - 1);
+        if (roll === 0) { roll = 1; if (standing === 0) reset = true; }
+        else if (roll === 1) { if (fr[0] === 10 || fr[0] + fr[1] === 10) { roll = 2; if (standing === 0) reset = true; } else nextFrame = true; }
+        else nextFrame = true;
+      }
+      if (nextFrame) { frame++; roll = 0; reset = true; }
+      setTimeout(() => {
+        if (frame >= FRAMES) { drawBoard(); return g.end(score().total, score().total >= 100 ? '🎳 Champion du bowling !' : 'Partie terminée'); }
+        if (reset) rack(); else pins = pins.filter(p => !p.down);
+        newBall(); drawBoard();
+      }, 900);
+      drawBoard();
+    }
+    const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H, t: performance.now() }; };
+    cv.addEventListener('pointerdown', e => { if (rolling || frame >= FRAMES) return; const p = pos(e); if (p.y < 300) return; drag = { a: p, b: p }; ball.x = Math.max(LX0 + 16, Math.min(LX1 - 16, p.x)); cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', e => { if (!drag) return; drag.b = pos(e); if (drag.b.y > 380) ball.x = Math.max(LX0 + 16, Math.min(LX1 - 16, drag.b.x)); });
+    cv.addEventListener('pointerup', e => {
+      if (!drag) return; const a = drag.a, b = pos(e); drag = null;
+      const dy = b.y - a.y, dx = b.x - a.x, dt = Math.max(60, b.t - a.t);
+      if (dy > -30) return;
+      const sp = Math.min(900, Math.max(260, -dy / dt * 1000 * .9));
+      const ang = Math.atan2(dx, -dy); const lim = Math.max(-.35, Math.min(.35, ang));
+      ball.vx = Math.sin(lim) * sp; ball.vy = -Math.cos(lim) * sp; rolling = true; startAt = performance.now();
+    });
+    let lastT = 0;
+    function draw(ts) {
+      raf = requestAnimationFrame(draw);
+      const dt = Math.min(.033, (ts - lastT) / 1000 || 0); lastT = ts;
+      if (rolling) { for (let i = 0; i < 4; i++) step(dt / 4); const moving = [ball, ...pins.filter(p => !p.gone)].some(o => Math.hypot(o.vx, o.vy) > 8); if ((ball.y < -20 || !moving) && (performance.now() - startAt > 900) && !pins.some(p => !p.gone && Math.hypot(p.vx, p.vy) > 8) || performance.now() - startAt > 6000) settle(); }
+      // la piste en bois
+      ctx.fillStyle = '#1a1030'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#2b2440'; ctx.fillRect(LX0 - 26, 0, 26, H); ctx.fillRect(LX1, 0, 26, H);
+      const wood = ctx.createLinearGradient(LX0, 0, LX1, 0); wood.addColorStop(0, '#d9a066'); wood.addColorStop(.5, '#f0c58e'); wood.addColorStop(1, '#d9a066');
+      ctx.fillStyle = wood; ctx.fillRect(LX0, 0, LX1 - LX0, H);
+      ctx.strokeStyle = 'rgba(120,70,30,.25)'; for (let x = LX0; x < LX1; x += 11) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      ctx.fillStyle = '#7a3ccf'; for (let i = 0; i < 7; i++) { const x = LX0 + 25 + i * 28.5; ctx.beginPath(); ctx.moveTo(x, 360); ctx.lineTo(x - 5, 372); ctx.lineTo(x + 5, 372); ctx.fill(); }
+      ctx.strokeStyle = '#ff2d55'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(LX0, 470); ctx.lineTo(LX1, 470); ctx.stroke();
+      // les quilles (couchées quand elles tombent)
+      for (const p of pins) { if (p.gone) continue; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a * 1.4); ctx.globalAlpha = p.down ? .75 : 1;
+        ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(2, 3, 9, 9, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, 7); ctx.fill(); ctx.strokeStyle = '#ff2d55'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, 7); ctx.stroke(); ctx.restore(); }
+      // la boule
+      if (drag) { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ball.x, ball.y); ctx.lineTo(ball.x + (drag.b.x - drag.a.x) * 2, ball.y + (drag.b.y - drag.a.y) * 2); ctx.stroke(); ctx.setLineDash([]); }
+      const bg = ctx.createRadialGradient(ball.x - 5, ball.y - 5, 2, ball.x, ball.y, ball.r); bg.addColorStop(0, '#8fd0ff'); bg.addColorStop(1, '#1f4fd6');
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, 7); ctx.fill();
+      ctx.fillStyle = '#0b1440'; for (const [a, b] of [[-3, -5], [3, -5], [0, 1]]) { ctx.beginPath(); ctx.arc(ball.x + a, ball.y + b, 2, 0, 7); ctx.fill(); }
+      if (msg && ts - msgAt < 1500) { ctx.font = '900 30px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#7a3ccf'; ctx.lineWidth = 6; ctx.strokeText(msg, W / 2, 270); ctx.fillText(msg, W / 2, 270); }
+    }
+    raf = requestAnimationFrame(draw);
+    g.onCleanup(() => cancelAnimationFrame(raf));
+  },
+
+  // 🎱 Billard : vide la table en un minimum de coups (tire en arrière depuis la boule blanche, comme un lance-pierre)
+  billard(area, g) {
+    const W = 600, H = 330, X0 = 22, X1 = 578, Y0 = 22, Y1 = 308, R = 9, PR = 17;
+    const k = Math.min(1, ((area.clientWidth || 360) - 6) / W);
+    const cv = el('canvas', { class: 'phys-cv', width: W * 2, height: H * 2, style: `width:${W * k}px;height:${H * k}px` });
+    const ctx = cv.getContext('2d'); ctx.scale(2, 2);
+    area.append(cv, el('p', { class: 'help', style: 'text-align:center' }, '👆 Touche la table et tire en arrière (comme un lance-pierre) : la boule blanche part dans l\'autre sens. Plus tu tires loin, plus c\'est fort. Rentre toutes les boules en un minimum de coups !'));
+    const POCKETS = [[X0, Y0], [W / 2, Y0 - 4], [X1, Y0], [X0, Y1], [W / 2, Y1 + 4], [X1, Y1]];
+    const COLORS = ['#ffd34d', '#2f6fd6', '#ff2d55', '#8b5cf6', '#ff8a1f', '#2bd07a', '#8a1f2b', '#1c1c24', '#ffd34d', '#2f6fd6'];
+    const balls = [{ x: 150, y: H / 2, vx: 0, vy: 0, cue: true }];
+    let n = 0; for (let r = 0; r < 4; r++) for (let i = 0; i <= r; i++) balls.push({ x: 420 + r * 16.2, y: H / 2 + (i - r / 2) * 18.6, vx: 0, vy: 0, c: COLORS[n], num: ++n, stripe: n > 7 });
+    let shots = 0, moving = false, aim = null, raf = 0, potted = 0, msg = '', msgAt = 0, scratched = false;
+    const cue = () => balls.find(b => b.cue);
+    const info = () => g.info(`🎱 ${10 - potted} boule${10 - potted > 1 ? 's' : ''} sur la table · ${shots} coup${shots > 1 ? 's' : ''}`);
+    info();
+    function step(dt) {
+      for (const b of balls) {
+        if (b.in) continue;
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        const sp = Math.hypot(b.vx, b.vy); if (sp > 0) { const ns = Math.max(0, sp - 120 * dt); b.vx *= ns / sp; b.vy *= ns / sp; }
+        for (const [px, py] of POCKETS) if (Math.hypot(b.x - px, b.y - py) < PR) { b.in = true; b.vx = b.vy = 0; if (b.cue) scratched = true; else { potted++; msg = `🎱 Boule ${b.num} rentrée !`; msgAt = performance.now(); } }
+        if (b.in) continue;
+        if (b.x < X0 + R) { b.x = X0 + R; b.vx = Math.abs(b.vx) * .85; } if (b.x > X1 - R) { b.x = X1 - R; b.vx = -Math.abs(b.vx) * .85; }
+        if (b.y < Y0 + R) { b.y = Y0 + R; b.vy = Math.abs(b.vy) * .85; } if (b.y > Y1 - R) { b.y = Y1 - R; b.vy = -Math.abs(b.vy) * .85; }
+      }
+      for (let i = 0; i < balls.length; i++) for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], b = balls[j]; if (a.in || b.in) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (!d || d >= 2 * R) continue;
+        const nx = dx / d, ny = dy / d, o = (2 * R - d) / 2; a.x -= nx * o; a.y -= ny * o; b.x += nx * o; b.y += ny * o;
+        const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny; if (rel <= 0) continue;
+        const j2 = rel * .96; a.vx -= j2 * nx; a.vy -= j2 * ny; b.vx += j2 * nx; b.vy += j2 * ny;
+      }
+    }
+    function stopped() {
+      moving = false;
+      if (scratched) { scratched = false; shots++; msg = '😬 Blanche rentrée : +1 coup de pénalité'; msgAt = performance.now(); const c = cue(); c.in = false; c.x = 150; c.y = H / 2; while (balls.some(b => b !== c && !b.in && Math.hypot(b.x - c.x, b.y - c.y) < 2 * R + 1)) c.y += 4; }
+      info();
+      if (potted >= 10) { LC.confetti(['🎱', '🏆', '✨']); setTimeout(() => g.end(shots, shots <= 12 ? '🎱 Un vrai pro du billard !' : 'Table vidée !'), 600); }
+    }
+    const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; };
+    cv.addEventListener('pointerdown', e => { if (moving || potted >= 10) return; aim = { a: pos(e), b: pos(e) }; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove', e => { if (aim) aim.b = pos(e); });
+    cv.addEventListener('pointerup', () => {
+      if (!aim) return; const c = cue(); const dx = aim.a.x - aim.b.x, dy = aim.a.y - aim.b.y, d = Math.hypot(dx, dy); aim = null;
+      if (d < 8) return;
+      const p = Math.min(d, 160) / 160, sp = 120 + p * 980;
+      c.vx = dx / d * sp; c.vy = dy / d * sp; shots++; moving = true; info();
+    });
+    let lastT = 0;
+    function draw(ts) {
+      raf = requestAnimationFrame(draw);
+      const dt = Math.min(.033, (ts - lastT) / 1000 || 0); lastT = ts;
+      if (moving) { for (let i = 0; i < 6; i++) step(dt / 6); if (!balls.some(b => !b.in && Math.hypot(b.vx, b.vy) > 4)) { balls.forEach(b => { b.vx = b.vy = 0; }); stopped(); } }
+      ctx.fillStyle = '#5a3417'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#7a4a22'; ctx.fillRect(6, 6, W - 12, H - 12);
+      const felt = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W / 2); felt.addColorStop(0, '#1fa463'); felt.addColorStop(1, '#0e6b3d');
+      ctx.fillStyle = felt; ctx.fillRect(X0, Y0, X1 - X0, Y1 - Y0);
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.moveTo(150, Y0); ctx.lineTo(150, Y1); ctx.stroke();
+      ctx.fillStyle = '#fff'; for (const x of [150, 300, 450]) for (const y of [10, H - 10]) { ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.fill(); }
+      for (const [px, py] of POCKETS) { ctx.fillStyle = '#0a0a0a'; ctx.beginPath(); ctx.arc(px, py, PR - 2, 0, 7); ctx.fill(); }
+      for (const b of balls) {
+        if (b.in) continue;
+        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(b.x + 2, b.y + 2, R, 0, 7); ctx.fill();
+        ctx.fillStyle = b.cue ? '#fffef4' : b.stripe ? '#fff' : b.c; ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7); ctx.fill();
+        if (b.stripe) { ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7); ctx.clip(); ctx.fillStyle = b.c; ctx.fillRect(b.x - R, b.y - 4.5, 2 * R, 9); ctx.restore(); }
+        if (!b.cue) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 4.2, 0, 7); ctx.fill(); ctx.fillStyle = '#111'; ctx.font = '800 6px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.num, b.x, b.y + .3); }
+        ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(b.x - 3, b.y - 3, 2.2, 0, 7); ctx.fill();
+      }
+      const c = cue();
+      if (aim && c && !c.in) {
+        const dx = aim.a.x - aim.b.x, dy = aim.a.y - aim.b.y, d = Math.hypot(dx, dy);
+        if (d > 4) {
+          const ux = dx / d, uy = dy / d, p = Math.min(d, 160) / 160;
+          ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.setLineDash([5, 6]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + ux * 420, c.y + uy * 420); ctx.stroke(); ctx.setLineDash([]);
+          // la queue de billard
+          ctx.strokeStyle = '#e8c08a'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(c.x - ux * (14 + p * 40), c.y - uy * (14 + p * 40)); ctx.lineTo(c.x - ux * (200 + p * 40), c.y - uy * (200 + p * 40)); ctx.stroke();
+          ctx.fillStyle = `hsl(${120 - p * 120},90%,55%)`; ctx.fillRect(X0 + 10, Y1 - 14, 120 * p, 6);
+        }
+      }
+      if (msg && ts - msgAt < 1400) { ctx.font = '900 20px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 5; ctx.strokeStyle = '#0e3b22'; ctx.strokeText(msg, W / 2, H / 2); ctx.fillStyle = '#fff'; ctx.fillText(msg, W / 2, H / 2); }
+    }
+    raf = requestAnimationFrame(draw);
+    g.onCleanup(() => cancelAnimationFrame(raf));
+  },
   // 🐍 Serpent
   serpent(area, g) {
     const N = 18;

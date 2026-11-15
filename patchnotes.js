@@ -625,4 +625,21 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 43,
+    date: '2026-11-15',
+    title: 'Bowling 🎳, Billard 🎱, Wizz 📳 et plus de pièces avec les mini-jeux 💰',
+    added: [
+      '🎳 Nouveau mini-jeu Bowling : 5 manches, glisse vers le haut pour lancer la boule, strikes et spares comme en vrai',
+      '🎱 Nouveau mini-jeu Billard : rentre les 10 boules en un minimum de coups (tire en arrière comme un lance-pierre)',
+      '📳 Le Wizz, comme sur MSN : dans une conversation privée, le bouton « Wizz » fait trembler l\'écran de l\'autre (avec un son et une vibration)',
+      '🩶 Le cœur gris peut s\'afficher à côté du cœur rouge de certains admins',
+    ],
+    changed: [
+      '💰 Les mini-jeux rapportent beaucoup plus de pièces : plus ton score est bon, plus tu gagnes (jusqu\'à 30 pièces), +5 en cas de record, 8 parties payées par jeu et par jour',
+      '🏆 Les duels (morpion, 4 alignés, chifoumi, course de frappe, quiz duel) rapportent aussi : 15 pièces par victoire, 6 pour une égalité, 3 pour une défaite',
+      'L\'écran de fin de partie affiche les pièces gagnées',
+    ],
+    removed: [],
+  },
 ];

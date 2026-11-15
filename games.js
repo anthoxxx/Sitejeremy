@@ -75,6 +75,8 @@ const SOLO = {
   reflexes: { order: 'lower', max: 5000 },   // millisecondes
   quiz: { order: 'higher', max: 200 },       // points
   cache: { order: 'lower', max: 3600 },      // secondes pour trouver tous les objets cachés
+  bowling: { order: 'higher', max: 300 },    // points (10 lancers)
+  billard: { order: 'lower', max: 999 },     // coups pour vider la table
 };
 const MULTI = ['morpion', 'quatre', 'chifoumi', 'frappe', 'quizduel'];
 
@@ -179,7 +181,7 @@ function quatreWin(b, r, c, p) {
   return null;
 }
 
-module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isVerified, isMutedBy, visibleOnline, log, tooMany, onScore = () => {} }) {
+module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, online, emitToUser, isBlocked, isVerified, isMutedBy, visibleOnline, log, tooMany, onScore = () => {}, onResult = () => 0 }) {
   const now = () => Date.now();
   const games = new Map();   // id -> partie en cours
   const invites = new Map(); // id -> invitation en attente
@@ -202,8 +204,8 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
     db.prepare(`INSERT INTO game_scores (user_id,game,best,played,updated_at) VALUES (?,?,?,1,?)
       ON CONFLICT(user_id,game) DO UPDATE SET best=CASE WHEN ? THEN excluded.best ELSE best END, played=played+1, updated_at=excluded.updated_at`)
       .run(req.user.id, req.body.game, score, now(), better ? 1 : 0);
-    try { onScore(req.user.id, req.body.game, score, better); } catch (e) {}
-    res.json({ best: better ? score : cur.best, record: better });
+    let gain = 0; try { gain = onScore(req.user.id, req.body.game, score, better) || 0; } catch (e) {}
+    res.json({ best: better ? score : cur.best, record: better, gain });
   });
   app.get('/api/games/me', auth, (req, res) => {
     const rows = db.prepare('SELECT * FROM game_scores WHERE user_id=?').all(req.user.id);
@@ -236,7 +238,7 @@ module.exports = function setupGames({ app, io, db, auth, getUser, publicUser, o
     g.players.forEach((uid, i) => addResult(uid, g.type, w === null || w === undefined ? 'draw' : w === i ? 'win' : 'loss'));
     const names = g.players.map(id => getUser(id)?.username || '?');
     log(getUser(g.players[0]), 'game', `${GAME_NAMES[g.type]} : ${names[0]} contre ${names[1]} — ${w === null || w === undefined ? 'égalité' : 'victoire de ' + names[w]}${reason ? ' (' + reason + ')' : ''}`);
-    g.players.forEach(uid => emitToUser(uid, 'game_over', { id: g.id, winner: w ?? null, reason: reason || '' }));
+    g.players.forEach((uid, i) => { let gain = 0; try { gain = onResult(uid, g.type, w === null || w === undefined ? 'draw' : w === i ? 'win' : 'loss') || 0; } catch (e) {} emitToUser(uid, 'game_over', { id: g.id, winner: w ?? null, reason: reason || '', gain }); });
     setTimeout(() => games.delete(g.id), 5 * 60 * 1000);
   }
   function start(type, players) {

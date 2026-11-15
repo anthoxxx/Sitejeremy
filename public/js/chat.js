@@ -223,7 +223,8 @@ function renderRoomHead() {
   const pmUser = state.view?.type === 'pm' ? state.convs.get(state.view.userId)?.user : null;
   $('headCall').classList.toggle('hidden', !pmUser);
   $('headVideo').classList.toggle('hidden', !pmUser);
-  if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); }
+  $('headWizz').classList.toggle('hidden', !pmUser || !!state.me?.isGuest);
+  if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); $('headWizz').onclick = () => sendWizz(pmUser); }
   // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
   renderRoomBg(inRoom ? r : null);
   if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); setPrideUniverse(false); document.querySelector('.room-head').className = 'room-head'; return; }
@@ -320,13 +321,13 @@ function addRoomMessage(m, live = true) {
   }
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
+  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, grey: m.grey, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : '') + (m.staffOnly ? ' staff-only' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
-        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender, m.role)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
+        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender, m.role, m.grey)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
       m.anon ? null : LC.badgesRow(m.badges),
       ...messageBody(m),
@@ -554,7 +555,7 @@ function renderUsers() {
   const onIds = new Set(state.online.map(u => u.id));
   const away = (state.filter && state.filter !== 'all' && state.filter !== 'f' && state.filter !== 'h') ? [] : (state.recent || []).filter(u => !onIds.has(u.id) && !state.blocked.has(u.id) && (!q || u.username.toLowerCase().includes(q)) && (state.filter !== 'f' && state.filter !== 'h' || u.gender === state.filter));
   const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away', 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
-    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role, u.grey))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
@@ -565,7 +566,7 @@ function renderUsers() {
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role, u.grey)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         LC.badgesRow(u.badges, true),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
@@ -938,7 +939,7 @@ socket.on('pm', m => {
   } else if (m.from !== state.me.id) {
     conv.unread = (conv.unread || 0) + 1;
     ding();
-    toast(`💌 ${m.fromUser.username} : ${m.content.slice(0, 60)}`, () => openPm(m.fromUser));
+    if (!/^📳 .* a envoyé un wizz !$/.test(m.content)) toast(`💌 ${m.fromUser.username} : ${m.content.slice(0, 60)}`, () => openPm(m.fromUser)); // le wizz a déjà son message
   }
   renderConvs();
 });
@@ -1028,6 +1029,15 @@ function leaveWith(kind, reason) {
 }
 socket.on('kicked', ({ reason }) => leaveWith('kick', reason));
 socket.on('banned', ({ reason }) => leaveWith('ban', reason));
+// 📳 Le Wizz comme sur MSN : l'écran tremble
+function sendWizz(u) { socket.emit('wizz', u.id, r => { if (r?.error) return toast(r.error); shakeScreen(.5); }); }
+function shakeScreen(k = 1) {
+  document.body.classList.remove('wizz'); void document.body.offsetWidth; document.body.classList.add('wizz');
+  setTimeout(() => document.body.classList.remove('wizz'), 900);
+  try { navigator.vibrate?.([120, 60, 120, 60, 200]); } catch (e) {}
+  if (k >= 1) try { const A = new (window.AudioContext || window.webkitAudioContext)(), o = A.createOscillator(), g = A.createGain(); o.type = 'square'; o.frequency.setValueAtTime(180, A.currentTime); o.frequency.linearRampToValueAtTime(90, A.currentTime + .5); g.gain.setValueAtTime(.08, A.currentTime); g.gain.exponentialRampToValueAtTime(.001, A.currentTime + .6); o.connect(g).connect(A.destination); o.start(); o.stop(A.currentTime + .6); } catch (e) {}
+}
+socket.on('wizz', w => { shakeScreen(1); toast(`📳 ${w.from} t'a envoyé un wizz !`, () => openPm(state.convs.get(w.userId)?.user || { id: w.userId, username: w.from })); });
 socket.on('account_deleted', () => leaveWith('deleted'));
 socket.on('disconnect', reason => { Voice.leave(false); if (reason !== 'io server disconnect') addSys('Connexion perdue, reconnexion…'); });
 
