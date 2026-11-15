@@ -827,6 +827,29 @@ app.put('/api/me/password', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// 🗑️ Se désinscrire : le membre supprime lui-même son compte (définitif)
+app.delete('/api/me', auth, (req, res) => {
+  const u = req.user;
+  if (u.is_guest) return res.status(400).json({ error: 'Les invités n\'ont pas de compte à supprimer : déconnecte-toi simplement' });
+  if (u.role === 'superadmin') return res.status(403).json({ error: 'Le super-admin ne peut pas supprimer son compte (le site serait sans propriétaire)' });
+  if (tooMany(`delme:${u.id}`, 5, 3600000)) return res.status(429).json({ error: 'Trop d\'essais, réessaie plus tard' });
+  if (String(req.body.confirm || '').trim().toLowerCase() !== u.username.toLowerCase()) return res.status(400).json({ error: 'Écris exactement ton pseudo pour confirmer' });
+  // Les comptes Google n'ont pas de vrai mot de passe : le pseudo suffit
+  if (!u.google_id && !bcrypt.compareSync(String(req.body.password || ''), u.password_hash || '')) return res.status(400).json({ error: 'Mot de passe incorrect' });
+  log(u, 'account_delete', `🗑️ ${u.username} a supprimé son compte`, { ip: req.ip });
+  disconnectUser(u.id, 'account_deleted', 'Ton compte a été supprimé');
+  // Ce qui n'est pas effacé automatiquement avec le compte
+  for (const s of db.prepare("SELECT media FROM snaps WHERE (from_id=? OR to_id=?) AND media<>''").all(u.id, u.id)) removeUpload(s.media);
+  for (const s of db.prepare('SELECT media FROM stories WHERE user_id=?').all(u.id)) removeUpload(s.media);
+  db.prepare('DELETE FROM story_views WHERE user_id=? OR story_id IN (SELECT id FROM stories WHERE user_id=?)').run(u.id, u.id);
+  for (const t of ['snaps WHERE from_id=? OR to_id=?', 'stories WHERE user_id=?', 'houses WHERE user_id=?', 'island_spots WHERE user_id=?']) {
+    try { db.prepare('DELETE FROM ' + t).run(...Array((t.match(/\?/g) || []).length).fill(u.id)); } catch (e) { /* table absente */ }
+  }
+  deleteUserRecord(u);
+  res.clearCookie(COOKIE);
+  res.json({ ok: true });
+});
+
 // ---------- Données publiques ----------
 // Contenu du site (nom, textes, couleurs, histoire, règlement) — modifiable par le super-admin
 // Thèmes de fête : 'auto' = selon la date (heure de Paris)

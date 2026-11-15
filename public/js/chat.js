@@ -1028,6 +1028,7 @@ function leaveWith(kind, reason) {
 }
 socket.on('kicked', ({ reason }) => leaveWith('kick', reason));
 socket.on('banned', ({ reason }) => leaveWith('ban', reason));
+socket.on('account_deleted', () => leaveWith('deleted'));
 socket.on('disconnect', reason => { Voice.leave(false); if (reason !== 'io server disconnect') addSys('Connexion perdue, reconnexion…'); });
 
 function setAnnouncement(text) {

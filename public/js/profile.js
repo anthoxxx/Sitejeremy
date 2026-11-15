@@ -278,7 +278,11 @@ function openMyProfile() {
         el('button', { class: 'btn btn-sm', onclick: async () => {
           try { await api('/api/me/password', { method: 'PUT', body: { current: pwCur.value, next: pwNew.value } }); pwCur.value = pwNew.value = ''; toast('🔐 Mot de passe changé'); } catch (e) { toast(e.message); }
         } }, 'Changer le mot de passe')),
-    el('div', { class: 'staff-actions' }, el('button', { class: 'btn btn-danger', style: 'width:100%', onclick: logout }, '🚪 Se déconnecter')));
+    el('div', { class: 'staff-actions' }, el('button', { class: 'btn btn-danger', style: 'width:100%', onclick: logout }, '🚪 Se déconnecter')),
+    d.isGuest || state.me.role === 'superadmin' ? null : el('div', { class: 'delete-zone' },
+      el('div', { class: 'delete-title' }, '🗑️ Se désinscrire'),
+      el('p', { class: 'help', style: 'margin:4px 0 10px' }, 'Tu veux quitter le site ? Tu peux supprimer ton compte ici. C\'est définitif : ton profil, tes messages, tes amis, tes coins, ta maison et ton animal seront effacés.'),
+      el('button', { class: 'btn btn-sm btn-danger-outline', type: 'button', onclick: askDeleteAccount }, 'Supprimer mon compte')));
 
   const tabs = [['🎨 Apparence', tabLook], ['📝 Infos', tabInfo], ['🔗 Réseaux', tabSocial], ['🔐 Compte', tabAccount]];
   const body = el('div', { class: 'editor-body' });
@@ -312,4 +316,34 @@ function openMyProfile() {
             } catch (e) { err.textContent = e.message; }
           } }, '💾 Enregistrer')))));
   document.querySelectorAll('.modal-back .modal')[document.querySelectorAll('.modal-back .modal').length - 1].classList.add('editor-modal');
+}
+
+// 🗑️ Se désinscrire : double confirmation (pseudo + mot de passe)
+function askDeleteAccount() {
+  const me = state.me;
+  const google = !!me.googleLinked;
+  const name = el('input', { class: 'input', placeholder: 'Écris ton pseudo : ' + me.username, autocomplete: 'off' });
+  const pass = google ? null : el('input', { class: 'input', type: 'password', placeholder: 'Ton mot de passe', autocomplete: 'current-password', style: 'margin-top:8px' });
+  const err = el('p', { class: 'help', style: 'color:#ff6b6b;min-height:1em' });
+  const go = el('button', { class: 'btn btn-danger', style: 'width:100%', disabled: true }, '🗑️ Supprimer définitivement mon compte');
+  const check = () => { go.disabled = name.value.trim().toLowerCase() !== me.username.toLowerCase() || (pass && !pass.value); };
+  name.oninput = check; if (pass) pass.oninput = check;
+  const close = modal(el('div', { class: 'center delete-confirm' },
+    el('div', { style: 'font-size:2.6rem' }, '😢'),
+    el('h3', {}, 'Supprimer ton compte ?'),
+    el('p', {}, 'Tout sera effacé pour toujours : profil, photos, messages, amis, Paradise Coins, maison, animal, badges… On ne pourra pas le récupérer.'),
+    el('p', { class: 'help' }, google ? 'Pour confirmer, écris ton pseudo ci-dessous.' : 'Pour confirmer, écris ton pseudo et ton mot de passe.'),
+    name, pass, err,
+    el('div', { style: 'display:flex;gap:8px;margin-top:6px;flex-wrap:wrap' },
+      el('button', { class: 'btn', style: 'flex:1', onclick: () => close() }, 'Non, je reste 💜'), go)));
+  go.onclick = async () => {
+    go.disabled = true; err.textContent = '';
+    try {
+      await api('/api/me', { method: 'DELETE', body: { confirm: name.value, password: pass ? pass.value : '' } });
+      try { if (Voice.slug) Voice.leave(); } catch (e) {}
+      try { sessionStorage.setItem('lc_exit', JSON.stringify({ kind: 'deleted', at: Date.now() })); } catch (e) {}
+      location.href = '/';
+    } catch (e) { err.textContent = e.message; check(); }
+  };
+  name.focus();
 }

@@ -547,4 +547,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 37,
+    date: '2026-11-15',
+    title: 'Se désinscrire 🗑️',
+    added: [
+      'Dans « Personnaliser mon profil » → onglet « 🔐 Compte », un nouvel espace « 🗑️ Se désinscrire » permet de supprimer soi-même son compte',
+      'Par sécurité, il faut écrire son pseudo et son mot de passe pour confirmer (seulement le pseudo pour les comptes Google)',
+      'Tout est effacé définitivement : profil, photos, messages, amis, coins, maison, animal, snaps et stories',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
