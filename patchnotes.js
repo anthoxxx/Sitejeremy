@@ -604,4 +604,15 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 41,
+    date: '2026-11-15',
+    title: 'Le bouton « Retour au téléphone » ne gêne plus 📱',
+    added: [],
+    changed: [
+      'Le bouton « Retour au téléphone » devient une petite bulle ronde 📱 sur le côté : le texte s\'affiche 2 secondes puis disparaît',
+      'Tu peux déplacer la bulle où tu veux avec le doigt (ou la souris), et elle reste à cet endroit',
+    ],
+    removed: [],
+  },
 ];

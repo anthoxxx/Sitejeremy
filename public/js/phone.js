@@ -290,8 +290,25 @@ const Phone = (() => {
       if (document.body.classList.contains('hub-open')) Hub.close();
       $('notifPanel')?.classList.add('hidden');
       open();
-    } }, el('span', {}, '📱'), 'Retour au téléphone'); document.body.append(retBtn); }
-    retBtn.classList.remove('hidden');
+    } }, el('span', {}, '📱'), el('em', {}, 'Retour au téléphone')); document.body.append(retBtn); dragRet(retBtn); }
+    // petite bulle ronde : le texte s'affiche 2 secondes puis disparaît (et on peut la déplacer avec le doigt)
+    retBtn.classList.remove('hidden'); retBtn.classList.add('wide');
+    clearTimeout(retBtn._t); retBtn._t = setTimeout(() => retBtn.classList.remove('wide'), 2200);
+  }
+  function dragRet(b) {
+    try { const p = JSON.parse(localStorage.getItem('ph_ret_pos') || 'null'); if (p) { b.style.left = p.x + 'px'; b.style.top = p.y + 'px'; b.style.right = 'auto'; b.style.bottom = 'auto'; } } catch (e) {}
+    let d = null;
+    b.addEventListener('pointerdown', e => { const r = b.getBoundingClientRect(); d = { sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, moved: false, id: e.pointerId }; });
+    window.addEventListener('pointermove', e => {
+      if (!d || e.pointerId !== d.id) return;
+      const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+      if (!d.moved && Math.hypot(dx, dy) < 8) return;
+      if (!d.moved) { d.moved = true; try { b.setPointerCapture(e.pointerId); } catch (err) {} b.classList.remove('wide'); }
+      const x = Math.max(4, Math.min(innerWidth - b.offsetWidth - 4, d.ox + dx)), y = Math.max(4, Math.min(innerHeight - b.offsetHeight - 4, d.oy + dy));
+      Object.assign(b.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+    });
+    window.addEventListener('pointerup', () => { if (d?.moved) { try { localStorage.setItem('ph_ret_pos', JSON.stringify({ x: parseInt(b.style.left, 10), y: parseInt(b.style.top, 10) })); } catch (e) {} b._drag = Date.now(); } d = null; });
+    b.addEventListener('click', e => { if (b._drag && Date.now() - b._drag < 300) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   }
   function hideReturn() { retBtn?.classList.add('hidden'); }
   // ---------- Petits outils ----------
