@@ -109,7 +109,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -828,12 +828,22 @@ app.put('/api/me/password', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// 💻 Le rôle Développeur : réservé au super-admin, une seule personne à la fois
+// 💻 Le rôle Développeur : verrouillé pour toujours sur le premier super-admin qui l'active (le créateur du site)
+function devOwner() {
+  const r = db.prepare("SELECT value FROM settings WHERE key='devOwner'").get();
+  if (r) return Number(r.value) || 0;
+  const cur = db.prepare('SELECT id FROM users WHERE is_dev=1 ORDER BY id LIMIT 1').get(); // déjà activé avant le verrou
+  if (cur) { db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(cur.id)); return cur.id; }
+  return 0;
+}
+const canDev = u => !!u && u.role === 'superadmin' && (!devOwner() || devOwner() === u.id);
 app.post('/api/me/dev', auth, (req, res) => {
   const u = req.user;
   if (u.role !== 'superadmin') return res.status(403).json({ error: 'Réservé au super-admin' });
+  if (!canDev(u)) return res.status(403).json({ error: '🔒 Le rôle Développeur est verrouillé : il appartient au créateur du site' });
   const on = !!req.body.on;
-  if (on) db.prepare('UPDATE users SET is_dev=0 WHERE is_dev=1 AND id<>?').run(u.id);
+  if (!devOwner()) db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(u.id));
+  db.prepare('UPDATE users SET is_dev=0 WHERE is_dev=1 AND id<>?').run(u.id);
   db.prepare('UPDATE users SET is_dev=? WHERE id=?').run(on ? 1 : 0, u.id);
   const updated = getUser(u.id);
   refreshOnline(updated);
