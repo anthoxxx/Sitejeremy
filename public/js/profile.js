@@ -221,7 +221,7 @@ function openMyProfile() {
         const inp = namePick.querySelector('input[type=color]');
         inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
         inp.dispatchEvent(new Event('input'));
-      } }, '↺ Couleur par défaut (💙 homme · 🩷 femme · 💜 autre)'))),
+      } }, '↺ Couleur par défaut (selon ton genre)'))),
     f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
     f('✨ Photo animée', choice(AVATAR_FX_UI, 'avatarFx', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, avatarFx: v }), label))),

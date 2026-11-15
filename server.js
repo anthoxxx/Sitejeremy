@@ -16,9 +16,10 @@ const PORT = process.env.PORT || 3000;
 const COOKIE = 'lc_session';
 const ROLES = ['user', 'moderator', 'admin', 'superadmin'];
 const rank = u => ROLES.indexOf(u?.role);
-const GENDERS = ['h', 'f', 'x'];
+const GENDERS = ['h', 'f', 'g', 'v', 't', 'x']; // homme, femme, gay, trav, trans, autre
+const GENDER_FR = { h: 'Homme', f: 'Femme', g: 'Gay', v: 'Trav', t: 'Trans', x: 'Autre' };
 // Couleur du pseudo par défaut selon le genre : bleu (homme), rose (femme), violet (autre)
-const GENDER_COLORS = { h: '#4fb3ff', f: '#ff5fa2', x: '#a78bfa' };
+const GENDER_COLORS = { h: '#4fb3ff', f: '#ff5fa2', g: '#c9ccd8', v: '#d09060', t: '#b46cff', x: '#a78bfa' };
 const genderColor = g => GENDER_COLORS[g] || GENDER_COLORS.x;
 
 const app = express();
@@ -603,7 +604,7 @@ app.post('/api/register/google', vpnGuard, (req, res) => {
   createSession(res, info.lastInsertRowid);
   shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre (Google) : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
-  log(getUser(info.lastInsertRowid), 'register', `Inscription avec Google (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
+  log(getUser(info.lastInsertRowid), 'register', `Inscription avec Google (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
 app.get('/api/register/google/pending', (req, res) => res.json({ pending: googlePending.has(req.cookies.lc_gpend) }));
@@ -643,7 +644,7 @@ app.post('/api/register', vpnGuard, (req, res) => {
   createSession(res, info.lastInsertRowid);
   shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
-  log(getUser(info.lastInsertRowid), 'register', `Inscription (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
+  log(getUser(info.lastInsertRowid), 'register', `Inscription (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
   if (role === 'superadmin') log(null, 'admin_auto', `${username} est devenu super-administrateur`);
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
@@ -693,7 +694,7 @@ app.post('/api/guest', vpnGuard, (req, res) => {
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
   shieldAfterSignup(req, info.lastInsertRowid);
-  log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${req.body.gender === 'f' ? 'Femme' : req.body.gender === 'h' ? 'Homme' : 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
+  log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
 });
 
@@ -2559,7 +2560,7 @@ admin.post('/backup/import', requireRole('superadmin'), (req, res) => {
         if (k === 'role') return withRoles ? role : 'user';
         if (k === 'avatar' || k === 'banner') return img(raw[k]);
         if (k === 'created_at') return Number(raw.created_at) || now();
-        if (k === 'gender') return ['h', 'f', 'x'].includes(raw.gender) ? raw.gender : 'x';
+        if (k === 'gender') return GENDERS.includes(raw.gender) ? raw.gender : 'x';
         const v = raw[k] ?? DEF[k] ?? null;
         return typeof v === 'object' && v !== null ? JSON.stringify(v) : v;
       });
@@ -2738,6 +2739,17 @@ function fmtDuration(min) {
 function emitToRoomAdmins(slug, ev, data) {
   for (const e of online.values()) if (e.room === slug && isAdminRole(e.user)) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
+// 🎉 Bienvenue aux nouveaux : le bot l'annonce dans Général à leur première arrivée sur le chat
+const WELCOMES = ['🎉 Bienvenue à @{u} qui vient de nous rejoindre ! Dites-lui bonjour 👋', '🌴 Un nouveau membre au Paradise : bienvenue @{u} ! Fais comme chez toi 💜', '✨ Tout le monde accueille @{u}, tout nouveau sur le site ! 🥳', '🎊 @{u} vient d\'arriver sur The Paradise : bienvenue parmi nous ! 💫'];
+function welcomeNewcomer(u) {
+  db.prepare('UPDATE users SET welcomed=1 WHERE id=?').run(u.id);
+  setTimeout(() => {
+    const fresh = getUser(u.id); if (!fresh) return;
+    const content = WELCOMES[Math.floor(Math.random() * WELCOMES.length)].replace('{u}', fresh.username);
+    io.to('room:general').emit('message', { room: 'general', id: 'welcome' + u.id, userId: 0, username: 'Bienvenue', color: '#ffb547', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: '🎉', content, createdAt: now(), kind: 'text', welcomeId: u.id });
+    notify(u.id, { type: 'welcome', icon: '🎉', title: `Bienvenue sur le site, ${fresh.username} !`, text: 'Tout le monde a été prévenu de ton arrivée 👋 Une idée pour le site ? Viens la proposer dans le salon 💡 Suggestions', data: { slug: 'suggestions' } });
+  }, 6000);
+}
 function emitToStaff(ev, data) {
   for (const e of online.values()) if (isStaff(e.user)) for (const s of e.sockets) io.to(s).emit(ev, data);
 }
@@ -2909,6 +2921,7 @@ io.on('connection', socket => {
     online.set(uid, entry);
   }
   const firstSocket = !entry.sockets.size;
+  if (firstSocket && !entry.user.is_guest && !entry.user.welcomed) welcomeNewcomer(entry.user);
   if (firstSocket && !entry.user.is_guest) setTimeout(() => { Progress.award(uid, 'member'); if (isVerified(entry.user)) Progress.award(uid, 'verified'); if (entry.user.avatar) Progress.award(uid, 'photo'); }, 4000);
   entry.sockets.add(socket.id);
   if (isSuper(entry.user)) socket.join('supers');
@@ -3001,6 +3014,8 @@ io.on('connection', socket => {
     if (staffOnly) return ack && ack({ ok: true });
     ack && ack({ ok: true });
     if (scanned.level) modBotStrike(u, room, scanned);
+    // 💡 Une nouvelle idée dans le salon Suggestions : le staff est prévenu
+    if (room.slug === 'suggestions' && !isStaff(u) && !throttled(`sugg:${uid}`, 60000)) emitToStaff('staff_alert', { text: `💡 Nouvelle idée de ${anon ? 'quelqu\'un' : u.username} : « ${content.slice(0, 80)} »`, slug: 'suggestions' });
     shieldCheckMessage(u, room, content, info.lastInsertRowid);
     if (Jukebox.has(room.slug) && kind === 'text' && content.startsWith('!')) Jukebox.command(room.slug, u, content).catch(() => {});
     if (TvBot.has(room.slug) && kind === 'text' && content.startsWith('!')) TvBot.command(u, content).catch(() => {});

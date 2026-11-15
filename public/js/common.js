@@ -37,10 +37,11 @@ window.LC = {
     document.documentElement.dataset.theme = cur;
     try { localStorage.setItem('lc_theme', cur); } catch (e) {}
   },
-  genderLabel: g => ({ h: 'Homme', f: 'Femme', x: 'Autre' }[g] || 'Autre'),
-  genderIcon: g => ({ h: '💙', f: '🩷', x: '💜' }[g] || '💜'),
-  GENDERS: [['h', '💙 Homme'], ['f', '🩷 Femme'], ['x', '💜 Autre']],
-  GENDER_COLORS: { h: '#4fb3ff', f: '#ff5fa2', x: '#a78bfa' },
+  genderLabel: g => ({ h: 'Homme', f: 'Femme', g: 'Gay', v: 'Trav', t: 'Trans', x: 'Autre' }[g] || 'Autre'),
+  // Le cœur après le pseudo : ❤️ rouge pour les admins, sinon selon le genre choisi
+  genderIcon: (g, role) => (role === 'admin' || role === 'superadmin') ? '❤️' : ({ h: '💙', f: '🩷', g: '🖤', v: '🤎', t: '💜', x: '🤍' }[g] || '🤍'),
+  GENDERS: [['h', '💙 Homme'], ['f', '🩷 Femme'], ['g', '🖤 Gay'], ['v', '🤎 Trav'], ['t', '💜 Trans'], ['x', '🤍 Autre']],
+  GENDER_COLORS: { h: '#4fb3ff', f: '#ff5fa2', g: '#c9ccd8', v: '#d09060', t: '#b46cff', x: '#a78bfa' },
   ROLES: ['user', 'moderator', 'admin', 'superadmin'],
   rank(u) { return LC.ROLES.indexOf(u?.role); },
   isAdminRole(u) { return LC.rank(u) >= 2; },

@@ -559,4 +559,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 38,
+    date: '2026-11-15',
+    title: 'Nouveaux cœurs 💖, salon Suggestions 💡 et bienvenue aux nouveaux 🎉',
+    added: [
+      'De nouveaux cœurs à côté du pseudo : ❤️ rouge pour les admins, 🖤 noir pour Gay, 🤎 marron pour Trav, 💜 violet pour Trans',
+      'Ces nouveaux choix apparaissent à l\'inscription et dans « Personnaliser mon profil » → Infos',
+      'Le salon 💡 Suggestions : propose tes idées de nouveautés pour le site, le staff est prévenu à chaque nouvelle idée',
+      'À chaque nouveau membre, le bot 🎉 lui souhaite la bienvenue dans Général pour que tout le monde puisse lui dire bonjour',
+    ],
+    changed: [
+      'Le cœur « Autre » devient 🤍 blanc (le violet est maintenant pour Trans)',
+      'Dans la liste des déconnectés, le cœur garde sa couleur',
+    ],
+    removed: [],
+  },
 ];

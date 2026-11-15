@@ -269,6 +269,9 @@ addColumn('users', 'coins_total', 'INTEGER NOT NULL DEFAULT 0'); // pièces gagn
 addColumn('users', 'daily_date', "TEXT NOT NULL DEFAULT ''"); // dernier bonus du jour (AAAA-MM-JJ, heure de Paris)
 addColumn('users', 'daily_streak', 'INTEGER NOT NULL DEFAULT 0'); // jours de suite
 addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté affiché à côté du pseudo
+{ const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'welcomed');
+  addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
+  if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
 addColumn('users', 'avatar_fx', "TEXT NOT NULL DEFAULT 'none'"); // ✨ animation de la photo de profil
 addColumn('users', 'shop_entry', "TEXT NOT NULL DEFAULT ''"); // effet d'entrée dans les salons
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, item TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, item))`);
@@ -424,6 +427,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='patchnote'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('patchnote', 'Patch note', 'Toutes les nouveautés du site, annoncées par le bot 📝', '📝', (top && top.s != null ? top.s : 0) - 1, 0, Date.now());
   db.prepare("UPDATE rooms SET voice_enabled=0 WHERE slug='patchnote'").run();
+}
+// Salon « Suggestions » : les idées de nouveautés des membres 💡
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='suggestions'").get()) {
+  const g = db.prepare("SELECT sort FROM rooms WHERE slug='general'").get();
+  const sort = g ? g.sort + 1 : 3;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote','general')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('suggestions', 'Suggestions', 'Une idée pour le site ? Propose-la ici, toutes les idées sont bonnes à prendre 💡', '💡', sort, 0, Date.now());
 }
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();

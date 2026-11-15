@@ -165,7 +165,7 @@ function iconAnim(r) {
   return ANIM_CYCLE[Math.abs(h) % ANIM_CYCLE.length];
 }
 // Couleur néon de chaque salon officiel (nom, description et contour)
-const NEON = { general: 'red', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
+const NEON = { general: 'red', suggestions: 'orange', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
   musique: 'orange', karaoke: 'orange', tv: 'black', douane: 'white', patchnote: 'violet' };
 // Les salons des jeux s'affichent en doré
 // Salons dorés avec le logo animé comme icône
@@ -270,7 +270,7 @@ function joinRoom(slug) {
     setPlaceholder(`Message dans ${res.room.name}…`);
     $('messages').replaceChildren();
     res.history.forEach(m => addRoomMessage(m, false));
-    addSys(slug === 'patchnote' ? '📝 Toutes les nouveautés du site sont ici' : 'Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
+    addSys(slug === 'patchnote' ? '📝 Toutes les nouveautés du site sont ici' : slug === 'suggestions' ? '💡 Une idée pour améliorer le site ? Écris-la ici ! Le staff lit toutes les suggestions, elles sont toujours bonnes à prendre 💜' : 'Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
     if (res.room.station && !Media.isPlaying(res.room.station)) addSys(`📻 Ce salon écoute ${res.room.station.name} — clique sur ${res.room.station.name} ▶ en haut pour l'écouter.`);
     scrollDown(true);
     renderRoomHead(); renderRooms(); renderConvs(); renderUsers();
@@ -326,7 +326,7 @@ function addRoomMessage(m, live = true) {
     el('div', { class: 'body' },
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
-        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
+        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender, m.role)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
       m.anon ? null : LC.badgesRow(m.badges),
       ...messageBody(m),
@@ -554,7 +554,7 @@ function renderUsers() {
   const onIds = new Set(state.online.map(u => u.id));
   const away = (state.filter && state.filter !== 'all' && state.filter !== 'f' && state.filter !== 'h') ? [] : (state.recent || []).filter(u => !onIds.has(u.id) && !state.blocked.has(u.id) && (!q || u.username.toLowerCase().includes(q)) && (state.filter !== 'f' && state.filter !== 'h' || u.gender === state.filter));
   const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away', 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
-    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
@@ -565,7 +565,7 @@ function renderUsers() {
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         LC.badgesRow(u.badges, true),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),

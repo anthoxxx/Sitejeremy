@@ -71,7 +71,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .row > * { flex: 1; }
 .error { color: var(--red); font-size: .9rem; min-height: 1.2em; margin: 6px 0; }
 
-.gender-pick { display: flex; gap: 8px; }
+.gender-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.gender-pick label { min-width: calc(33.33% - 6px); }
 .gender-pick input { display: none; }
 .gender-pick label {
   flex: 1; text-align: center; padding: 10px 6px; border-radius: 12px; cursor: pointer;
@@ -134,7 +135,8 @@ footer.site { border-top: 1px solid var(--line); padding: 26px 6vw; display: fle
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; flex: none; position: relative; font-size: .9rem; }
 .avatar.lg { width: 84px; height: 84px; font-size: 2rem; }
 .avatar .on { position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: var(--green); border: 2px solid var(--bg-2); }
-.g-h { color: #4fb3ff; } .g-f { color: #ff5fa2; } .g-x { color: #c3b8ff; }
+.g-h { color: #4fb3ff; } .g-f { color: #ff5fa2; } .g-x { color: #c3b8ff; } .g-g, .g-v, .g-t { color: inherit; }
+.g-g { filter: drop-shadow(0 0 2px rgba(255, 255, 255, .55)); } /* 🖤 reste visible sur le fond sombre */
 .badge { font-size: .65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; text-transform: uppercase; letter-spacing: .04em; vertical-align: middle; }
 .badge.admin { background: var(--grad); color: #fff; }
 .badge.moderator { background: var(--green); color: #082a20; }
@@ -2818,7 +2820,8 @@ body.island-open .phone .ph-device { pointer-events: auto; }
 .ph-return span { font-size: 20px; }
 /* 💤 les membres déconnectés dans la liste */
 .away-title { margin: 12px 8px 4px; font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-.list-item.is-away { opacity: .5; filter: grayscale(1); }
+.list-item.is-away { opacity: .55; }
+.list-item.is-away .avatar { filter: grayscale(1); } /* le cœur garde sa couleur (🖤 = gay) */
 .list-item.is-away:hover { opacity: .8; }
 
 /* =================== ✨ Les photos de profil animées =================== */

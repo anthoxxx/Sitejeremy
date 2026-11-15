@@ -126,7 +126,7 @@ async function users() {
       el('td', {}, el('div', { style: 'display:flex;gap:10px;align-items:center' }, LC.avatar(u), el('div', {}, el('b', {}, u.username), ' ', LC.badge(u),
         el('div', { style: 'color:var(--muted);font-size:.78rem' }, 'Vu : ' + LC.date(u.lastSeen)),
         u.linkedAccounts ? el('div', { style: 'color:var(--gold);font-size:.78rem', title: 'Comptes créés depuis le même appareil ou la même connexion' }, `🔗 ${u.linkedAccounts} autre(s) compte(s) lié(s)`) : null))),
-      el('td', {}, `${LC.genderIcon(u.gender)} ${u.age || '?'} ans${u.city ? ' · ' + u.city : ''}`),
+      el('td', {}, `${LC.genderIcon(u.gender, u.role)} ${u.age || '?'} ans${u.city ? ' · ' + u.city : ''}`),
       el('td', {}, role),
       el('td', {}, status, !u.verified && u.role === 'user' ? el('div', { style: 'font-size:.78rem;color:' + (u.refused ? 'var(--red)' : '#4fb3ff') }, u.refused ? '❌ refusé' : `🛂 à vérifier · 🎙️ ${u.voiceOk ? '✅' : '⏳'} 📷 ${u.camOk ? '✅' : '⏳'}`) : null, muted ? el('div', { style: 'font-size:.78rem;color:var(--gold)' }, '🔇 muet') : null),
       el('td', {}, LC.date(u.createdAt)),
