@@ -319,6 +319,8 @@ window.LC = {
     return LC.el('div', { class: 'ubadges' + (small ? ' sm' : '') }, ...list.map((b, i) => LC.el('span', { class: 'ubadge', style: `animation-delay:${i * .12}s`, title: `${b.n} : ${b.d}`, onclick: e => { e.stopPropagation(); typeof toast === 'function' && toast(`${b.i} ${b.n} · ${b.d}`); } }, b.i)));
   },
   badge(u) {
+    // 💻 Le Développeur du site : son badge à lui, en plus de son rôle
+    if (u.dev) { const r = LC.badge({ ...u, dev: false }); const d = LC.el('span', { class: 'badge dev', title: 'Le développeur du site' }, '💻 ', LC.el('span', { class: 'dev-long' }, 'Développeur'), LC.el('span', { class: 'dev-short' }, 'Dev')); return r ? LC.el('span', { class: 'badge-pair' }, r, ' ', d) : d; }
     if (u.role === 'moderation') return LC.el('span', { class: 'badge moderator' }, 'Équipe');
     if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');
     if (u.role === 'admin') return LC.el('span', { class: 'badge admin' }, 'Admin');

@@ -615,4 +615,14 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 42,
+    date: '2026-11-15',
+    title: 'Le rôle 💻 Développeur',
+    added: [
+      'Un nouveau badge animé « 💻 Développeur » pour le créateur du site, à côté de son pseudo partout sur le site',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

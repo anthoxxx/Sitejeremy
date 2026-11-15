@@ -278,6 +278,12 @@ function openMyProfile() {
         el('button', { class: 'btn btn-sm', onclick: async () => {
           try { await api('/api/me/password', { method: 'PUT', body: { current: pwCur.value, next: pwNew.value } }); pwCur.value = pwNew.value = ''; toast('🔐 Mot de passe changé'); } catch (e) { toast(e.message); }
         } }, 'Changer le mot de passe')),
+    state.me.role === 'superadmin' ? el('div', { class: 'dev-zone' },
+      el('div', { class: 'dev-title' }, '💻 Rôle Développeur'),
+      el('p', { class: 'help', style: 'margin:4px 0 10px' }, 'Un badge « 💻 Développeur » animé à côté de ton pseudo, partout sur le site. Rien que pour toi : une seule personne peut l\'avoir.'),
+      el('button', { class: 'btn btn-sm ' + (state.me.dev ? '' : 'btn-primary'), type: 'button', onclick: async e => {
+        try { const r = await api('/api/me/dev', { method: 'POST', body: { on: !state.me.dev } }); Object.assign(state.me, r.user); renderMe?.(); toast(r.user.dev ? '💻 Tu es maintenant le Développeur du site !' : 'Rôle Développeur retiré'); if (r.user.dev) LC.confetti(['💻', '⚡', '✨']); e.target.textContent = r.user.dev ? 'Retirer le rôle' : 'Activer mon rôle Développeur'; e.target.classList.toggle('btn-primary', !r.user.dev); } catch (err) { toast(err.message); }
+      } }, state.me.dev ? 'Retirer le rôle' : 'Activer mon rôle Développeur')) : null,
     el('div', { class: 'staff-actions' }, el('button', { class: 'btn btn-danger', style: 'width:100%', onclick: logout }, '🚪 Se déconnecter')),
     d.isGuest || state.me.role === 'superadmin' ? null : el('div', { class: 'delete-zone' },
       el('div', { class: 'delete-title' }, '🗑️ Se désinscrire'),

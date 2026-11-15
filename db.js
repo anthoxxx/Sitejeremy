@@ -272,6 +272,7 @@ addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté a
 { const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'welcomed');
   addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
   if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
+addColumn('users', 'is_dev', 'INTEGER NOT NULL DEFAULT 0'); // 💻 le rôle Développeur (une seule personne)
 addColumn('users', 'avatar_fx', "TEXT NOT NULL DEFAULT 'none'"); // ✨ animation de la photo de profil
 addColumn('users', 'shop_entry', "TEXT NOT NULL DEFAULT ''"); // effet d'entrée dans les salons
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, item TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, item))`);

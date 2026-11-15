@@ -2918,3 +2918,15 @@ body.island-open .phone .ph-device { pointer-events: auto; }
 .book.flip { animation: bookFlip .45s ease; }
 @keyframes bookFlip { from { transform: perspective(600px) rotateY(-70deg); opacity: 0; } }
 @media (max-width: 600px) { .city-sign b { font-size: 1.05rem; } .city-sign small { display: none; } .city-ico { font-size: 2rem; } }
+
+/* 💻 Le rôle Développeur */
+.badge.dev { background: linear-gradient(90deg, #00f0ff, #8b5cff, #ff2bd6, #00f0ff); background-size: 300% 100%; color: #fff; text-shadow: 0 0 6px rgba(0,0,0,.45); box-shadow: 0 0 12px rgba(0, 240, 255, .55); animation: devFlow 3s linear infinite; font-family: 'DejaVu Sans Mono', ui-monospace, monospace; letter-spacing: .02em; }
+@keyframes devFlow { to { background-position: 300% 0; } }
+.badge-pair { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.dev-zone { margin-top: 18px; padding: 14px; border: 1px solid rgba(0, 240, 255, .45); border-radius: 14px; background: linear-gradient(135deg, rgba(0, 240, 255, .08), rgba(255, 43, 214, .08)); }
+.dev-title { font-weight: 800; color: #5ef6ff; }
+@media (prefers-reduced-motion: reduce) { .badge.dev { animation: none; } }
+.badge.dev .dev-short { display: none; }
+.list-item .badge.dev .dev-long { display: none; }
+.list-item .badge.dev .dev-short { display: inline; }
+.list-item .badge-pair .badge:not(.dev) { display: none; } /* dans la liste des connectés, pas la place pour deux badges : on garde « 💻 Dev » */
