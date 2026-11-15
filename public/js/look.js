@@ -285,9 +285,11 @@ const Look = (() => {
   }
 
   // ---------- L'atelier de création ----------
-  let close = null, draft = null, tab = 'skin', owned = new Set(), saving = false;
+  let close = null, draft = null, tab = 'skin', owned = new Set(), saving = false, only = null, hdr = {};
   const TABS = [['skin', '🎨 Peau'], ['hair', '💇 Cheveux'], ['face', '😊 Visage'], ['top', '👕 Haut'], ['bottom', '👖 Bas'], ['shoes', '👟 Chaussures'], ['acc', '🎩 Accessoires'], ['extra', '🪽 Extras']];
-  async function open() {
+  // opts (boutiques de la Ville) : { only: ['hair'], title, sub, done, confetti }
+  async function open(opts = {}) {
+    only = Array.isArray(opts.only) ? opts.only : null; hdr = opts || {}; if (only) tab = only[0];
     if (state.me?.isGuest) return toast('Inscris-toi pour créer ton personnage 🧍');
     if (close) close();
     let d; try { d = await api('/api/look'); } catch (e) { return toast(e.message); }
@@ -297,7 +299,7 @@ const Look = (() => {
     const back = box.closest('.modal-back'); back.classList.add('shop-back');
     let raf = 0;
     new MutationObserver((m, o) => { if (!document.body.contains(back)) { close = null; cancelAnimationFrame(raf); o.disconnect(); } }).observe(document.body, { childList: true });
-    render(d.mode || 'look');
+    render(only ? 'look' : (d.mode || 'look'));
     const cv = () => box.querySelector('.look-cv');
     const loop = ts => {
       raf = requestAnimationFrame(loop);
@@ -320,16 +322,16 @@ const Look = (() => {
     const curMode = mode || box.dataset.mode || 'look'; box.dataset.mode = curMode;
     const total = curMode === 'creature' ? creaturePrice() : Object.entries({ top: draft.top, shoes: draft.shoes, acc: draft.acc, extra: draft.extra, eyes: draft.eyes }).reduce((s, [slot, id]) => s + (owned.has(slot + ':' + id) ? 0 : priceOf(slot, id)), 0);
     box.replaceChildren(
-      el('div', { class: 'shop-head' }, el('div', {}, el('b', { class: 'pet-title' }, '🧍 Mon personnage'), el('small', {}, 'Crée le personnage qui te représente sur l\'Île du Paradise 🏝️')), el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
+      el('div', { class: 'shop-head' }, el('div', {}, el('b', { class: 'pet-title' }, hdr.title || '🧍 Mon personnage'), el('small', {}, hdr.sub || 'Crée le personnage qui te représente sur l\'Île du Paradise 🏝️')), el('button', { class: 'btn btn-sm', onclick: () => close && close() }, '✕')),
       el('div', { class: 'look-main' },
         el('div', { class: 'look-stage' }, el('canvas', { class: 'look-cv' }),
-          el('button', { class: 'btn btn-sm', onclick: () => { draft = random(); render(); } }, '🎲 Au hasard')),
+          only ? null : el('button', { class: 'btn btn-sm', onclick: () => { draft = random(); render(); } }, '🎲 Au hasard')),
         el('div', { class: 'look-side' },
           ...(curMode === 'creature' ? [el('h4', { class: 'look-h' }, '🐲 Choisis ta créature Paradimon'), el('div', { class: 'look-opts' }, creatureGrid())] : [
-          el('div', { class: 'shop-tabs look-tabs' }, ...TABS.map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; render(); } }, l))),
+          el('div', { class: 'shop-tabs look-tabs' }, ...(only ? TABS.filter(t => only.includes(t[0])) : TABS).map(([k, l]) => el('button', { class: 'shop-tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; render(); } }, l))),
           el('div', { class: 'look-opts' }, ...options())]))),
       el('div', { class: 'look-foot' },
-        el('div', { class: 'look-mode' }, el('small', {}, 'Sur l\'Île, je suis :'),
+        only ? el('div', { class: 'look-mode' }, el('small', {}, hdr.foot || '')) : el('div', { class: 'look-mode' }, el('small', {}, 'Sur l\'Île, je suis :'),
           ...[['look', '🧍 Mon personnage'], ['creature', '🐲 Une créature'], ['photo', '📷 Ma photo']].map(([m, l]) => el('button', { class: 'isl-chip' + (curMode === m ? ' on' : ''), onclick: () => { box.dataset.mode = m; render(m); } }, l))),
         el('button', { class: 'btn btn-primary', disabled: saving, onclick: save }, total ? `💾 Enregistrer (${total} 💰)` : '💾 Enregistrer')));
   }
@@ -378,7 +380,7 @@ const Look = (() => {
     try {
       const r = await api('/api/look', { method: 'POST', body: { look: draft, mode } });
       owned = new Set(r.owned || []); if (r.coins != null) { state.me.coins = r.coins; window.Shop?.counter(); }
-      toast('✨ Ton personnage est prêt ! Va le voir sur l\'Île 🏝️'); LC.confetti(['🧍', '✨', '👕']);
+      toast(hdr.done || '✨ Ton personnage est prêt ! Va le voir sur l\'Île 🏝️'); LC.confetti(hdr.confetti || ['🧍', '✨', '👕']); try { hdr.onSaved && hdr.onSaved(); } catch (e) {}
       close && close();
     } catch (e) { toast(e.message); }
     saving = false;

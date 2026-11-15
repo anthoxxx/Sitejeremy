@@ -30,7 +30,7 @@ const ENTRY = { club: [600, 690], cinema: [600, 740], house: [460, 1010], pool: 
 const DOORS = { club: [850, 710], cinema: [1360, 1055], house: [590, 710], pool: [1900, 700], cafe: [1060, 705], arcade: [590, 1045], campfire: [2050, 1370] };
 // Actions possibles dans chaque lieu
 const ACTIONS = {
-  island: ['dance'],
+  island: ['dance', 'eat'],
   club: ['dance', 'drink', 'dj', 'sit'],
   cinema: ['sit', 'popcorn'],
   house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play', 'coffee', 'mirror', 'dress', 'wash', 'shower'],
@@ -40,6 +40,8 @@ const ACTIONS = {
   campfire: ['sit', 'marshmallow', 'guitar', 'wish', 'dance', 'warm'],
 };
 const MENU = ['☕', '🍵', '🥐', '🍰', '🍕', '🍔', '🍦', '🧋', '🍾', '🥗'];
+// + tout ce qu'on achète dans les boutiques de la Ville
+for (const list of Object.values(require('./city').FOOD || {})) for (const it of list) if (!MENU.includes(it[0])) MENU.push(it[0]);
 const PRIZES = ['🧸', '🐶', '🦄', '🐱', '🐸', '🐼', '🐰', '🦊'];
 const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 // Les meubles qu'on peut placer chez soi

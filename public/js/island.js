@@ -1301,10 +1301,18 @@ const Island = (() => {
     if (!mine) return;
     let best = null, bd = 120;
     for (const p of PLACES) { const d = Math.hypot(p.x - mine.x, p.y + 30 - mine.y); if (d < bd && (p.inst || state.rooms?.some(r => r.slug === p.slug))) { bd = d; best = p; } }
+    // 🏪 les boutiques de la Ville : on peut entrer dedans
+    for (const o of shops) { const d = Math.hypot(o.x - mine.x, o.y + 18 - mine.y); if (d < 70 && d < bd) { bd = d; best = o; } }
     if (best === near) return;
     near = best;
     const card = root.querySelector('.isl-enter');
     if (!best) return card.classList.add('hidden');
+    if (best.k != null && !best.slug) {
+      const [name, icon] = SHOP_TYPES[best.k];
+      card.replaceChildren(el('div', {}, el('b', {}, `${icon} ${name}`), el('small', {}, window.City?.blurb(name) || 'Entre dans la boutique')),
+        el('button', { class: 'btn btn-primary', onclick: () => window.City?.open(name) }, '🚪 Entrer'));
+      return card.classList.remove('hidden');
+    }
     if (best.inst) {
       const txt = { club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma : regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
         pool: ['Piscine, plongeoir, ballon et cocktails', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
@@ -1569,6 +1577,8 @@ const Island = (() => {
       // clic sur un lieu : on y va ; clic sur l'eau : on va au bord le plus proche
       const place = PLACES.find(p => Math.hypot(p.x - x, p.y - y) < 70);
       if (place) { target = { x: place.x, y: place.y + 50 }; return; }
+      const shop = shops.find(o => Math.abs(o.x - x) < 62 && y < o.y + 6 && y > o.y - 190);
+      if (shop) { target = { x: shop.x, y: shop.y + 22 }; return; }
       if (onLand(x, y)) target = { x, y };
       else { let tx = x, ty = y; for (let k = 0; k < 40 && !onLand(tx, ty); k++) { tx += (1200 - tx) * .05; ty += (800 - ty) * .05; } target = { x: tx, y: ty }; }
     };
@@ -1679,7 +1689,10 @@ const Island = (() => {
   socket.on('house_info', h => { if (open && kind === 'house') { house = h; if (!editing) renderUI(); else root.querySelector('.isl-title').textContent = `🏠 ${h.name}`; } });
   socket.on('connect', () => { if (open) { players.clear(); open = false; openIsland(); } });
   const openHouse = id => openIsland(() => socket.emit('house_enter', id, r => { if (r?.error) toast(r.error); else if (r?.ring) ringPanel(r.ownerId, r.owner); }));
-  return { open: openIsland, close, isOpen: () => open, openHouse, PLACES, scene: () => scene, me: () => me };
+  // 🍽️ Ce qu'on achète en boutique : le personnage le tient et le mange dans la Ville
+  function eat(e) { const mine = players.get(me); if (!open || !mine || !['island', 'cafe'].includes(kind)) return; mine.action = 'eat'; mine.item = e; mine.itemAt = Date.now(); socket.emit('island_action', 'eat', { x: mine.x, y: mine.y }, e); }
+  const goHome = () => openHouse(state.me.id);
+  return { open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());
 window.Island = Island;

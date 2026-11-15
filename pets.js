@@ -98,6 +98,18 @@ module.exports = function setupPets({ db, coins, notify, track, onChange = () =>
   }
   function setAcc(uid, id) { const r = row(uid); if (!r) return { error: 'Pas d\'animal' }; if (id && !parse(r.items, []).includes(id)) return { error: 'Achète d\'abord cet accessoire' }; db.prepare('UPDATE pets SET accessory=? WHERE user_id=?').run(id || '', uid); onChange(uid); return { ok: true, pet: out(row(uid)) }; }
   function rename(uid, name) { const r = row(uid); name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 20); if (!r || !name) return { error: 'Choisis un nom' }; db.prepare('UPDATE pets SET name=? WHERE user_id=?').run(name, uid); onChange(uid); return { ok: true, pet: out(row(uid)) }; }
+  // 🛒 Soins achetés en ville (supermarché, pharmacie, hôpital) : nourriture, joie et expérience
+  function care(uid, { food = 0, joy = 0, xp = 0, minTo = 0 }) {
+    const r = row(uid); if (!r) return { error: 'Tu n\'as pas encore d\'animal 🐾 (adopte-en un dans le menu)' };
+    const l = live(r), before = stageOf(r.xp)[0];
+    const f = Math.max(minTo, Math.min(100, l.food + food)), j = Math.max(minTo, Math.min(100, l.joy + joy));
+    db.prepare('UPDATE pets SET food=?, joy=?, xp=xp+?, updated_at=? WHERE user_id=?').run(f, j, xp, now(), uid);
+    track(uid, 'pet');
+    const after = stageOf(row(uid).xp);
+    if (after[0] !== before) notify(uid, { type: 'pet', icon: SPECIES[r.species]?.icon || '🐾', title: `${r.name} a grandi ! Il est maintenant « ${after[1]} » 🎉`, text: 'Va le voir sur l\'Île du Paradise', important: true });
+    onChange(uid);
+    return { ok: true, pet: out(row(uid)) };
+  }
   function release(uid) { db.prepare('DELETE FROM pets WHERE user_id=?').run(uid); onChange(uid); return { ok: true }; }
 
   // ⏰ Toutes les 30 minutes : un animal qui a faim prévient son maître (une fois toutes les 12 heures)
@@ -111,5 +123,5 @@ module.exports = function setupPets({ db, coins, notify, track, onChange = () =>
     }
   }, 30 * 60000).unref?.();
 
-  return { SPECIES, ACCESSORIES, ACTIONS, STAGES, get: uid => out(row(uid)), mini, adopt, act, buyAccessory, setAcc, rename, release };
+  return { SPECIES, ACCESSORIES, ACTIONS, STAGES, get: uid => out(row(uid)), mini, care, adopt, act, buyAccessory, setAcc, rename, release };
 };

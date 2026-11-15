@@ -2643,6 +2643,16 @@ badgesOf = uid => { try { return Progress.shown(uid); } catch (e) { return []; }
 const track = (...a) => { try { Progress.track(...a); } catch (e) { console.error('progress', e.message); } };
 // 🐾 Les animaux de compagnie
 const Pets = require('./pets')({ db, coins: Coins, notify: (...a) => notify(...a), track, onChange: uid => Island.refreshPet(uid) });
+// 🏙️ Les boutiques de la Ville (on entre dedans pour de vrai)
+function sendPmAs(from, to, content) {
+  const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(from, to, content, now(), 'text', '', 0);
+  const m = pmOut({ id: info.lastInsertRowid, from_id: from, to_id: to, content, created_at: now(), is_read: 0, kind: 'text', media: '', duration: 0 });
+  const fu = publicUser(getUser(from));
+  emitToUser(to, 'pm', { ...m, fromUser: fu }); emitToUser(from, 'pm', { ...m, fromUser: fu });
+}
+const City = require('./city')({ db, coins: Coins, pets: Pets, getUser: id => getUser(id), publicUser: u => publicUser(u), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a),
+  areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', isBlocked, throttled: (...a) => throttled(...a), track, filterWords: t => filterWords(t), sendPm: sendPmAs });
+City.routes(app, auth);
 // 🧍 Les personnages de l'Île
 const Looks = require('./looks')({ db, coins: Coins, onChange: uid => Island.refreshPet(uid) });
 const reward = (id, key, ...rest) => {

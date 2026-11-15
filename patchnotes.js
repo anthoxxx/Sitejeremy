@@ -575,4 +575,21 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 39,
+    date: '2026-11-15',
+    title: 'On entre dans les boutiques de la Ville 🏙️💇',
+    added: [
+      'Approche-toi de la porte d\'une boutique de la Ville (ou touche-la) : un bouton « 🚪 Entrer » apparaît, et chaque boutique a son vendeur et ses activités',
+      '💇 Coiffeur : change de coupe, de couleur, de barbe… ou ose la « Coupe surprise » 😱 (gratuit)',
+      '👗 Boutique : les cabines d\'essayage pour changer de tenue · 💍 Bijouterie : couronnes, auréoles et ailes',
+      '🥖🍕🍣🍔🍦🍸 Boulangerie, Pizzeria, Sushi, Burger, Glacier, Bar : achète à manger ou à boire et ton personnage le mange dans la Ville',
+      '🛒 Supermarché et 💊 Pharmacie : croquettes, jouets et vitamines pour ton animal · 🏥 Hôpital : check-up gratuit pour toi et ton animal',
+      '🏋️ Salle de sport : tape le plus vite possible pendant 10 secondes et gagne des pièces',
+      '🏦 Banque : ton relevé de compte et des intérêts chaque jour · 📚 Librairie : blagues, anecdotes, citations et horoscope',
+      '💐 Fleuriste : fais livrer un bouquet à un ami · 📮 Poste : envoie une carte postale gratuite · 🏨 Hôtel : room service et ta suite',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

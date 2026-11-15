@@ -2859,3 +2859,57 @@ body.island-open .phone .ph-device { pointer-events: auto; }
 .btn-danger-outline:hover { background: rgba(255, 80, 80, .14); }
 .delete-confirm { max-width: 380px; }
 .delete-confirm .btn-danger:disabled { opacity: .45; cursor: not-allowed; }
+
+/* =================== 🏙️ Les boutiques de la Ville =================== */
+.city-back .modal { width: min(620px, 100%) !important; }
+.city-shop { --shop: #c64dff; }
+.city-head { display: flex; align-items: center; gap: 10px; padding: 16px 16px 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--shop) 55%, #1a1030), #1a1030 85%); border-bottom: 3px solid var(--shop); box-shadow: inset 0 -12px 30px -18px var(--shop); position: relative; }
+.city-head::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--shop) 0 26px, #fff 26px 52px); height: 10px; opacity: .9; }
+.city-sign { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding-top: 8px; }
+.city-sign b { display: block; font-size: 1.25rem; color: #fff; text-shadow: 0 0 12px var(--shop); }
+.city-sign small { color: #e6dcff; opacity: .85; }
+.city-ico { font-size: 2.4rem; filter: drop-shadow(0 0 10px var(--shop)); animation: cityBob 2.4s ease-in-out infinite; }
+@keyframes cityBob { 50% { transform: translateY(-4px) rotate(-4deg); } }
+.city-coins { font-weight: 800; padding: 6px 10px; border-radius: 999px; background: rgba(0,0,0,.35); color: #ffd76a; white-space: nowrap; padding-top: 6px; margin-top: 8px; }
+.city-head .btn { margin-top: 8px; }
+.city-npc { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px 4px; }
+.city-npc-face { font-size: 2rem; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-2); border: 2px solid var(--shop); flex: none; }
+.city-bubble { position: relative; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; }
+.city-bubble b { display: block; font-size: .8rem; color: var(--shop); }
+.city-bubble span { font-size: .92rem; }
+.city-body { padding: 8px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.city-h { margin: 8px 0 0; font-size: .95rem; }
+.city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.city-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); cursor: pointer; transition: transform .15s, border-color .15s; font: inherit; }
+.city-item span { font-size: 2rem; }
+.city-item b { font-size: .82rem; text-align: center; }
+.city-item em { font-style: normal; font-size: .78rem; color: #ffd76a; font-weight: 700; }
+.city-item:hover, .city-item.on { transform: translateY(-2px); border-color: var(--shop); box-shadow: 0 0 14px -4px var(--shop); }
+.city-item:disabled { opacity: .5; }
+.city-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.city-big { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 12px; border-radius: 16px; cursor: pointer; font: inherit; color: #fff; border: 2px solid var(--shop); background: linear-gradient(160deg, color-mix(in srgb, var(--shop) 30%, transparent), var(--bg-2)); box-shadow: 0 0 18px -8px var(--shop); transition: transform .15s; }
+.city-big:hover { transform: scale(1.02); }
+.city-big span { font-size: 2.3rem; }
+.city-big small { opacity: .8; text-align: center; }
+.gym { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.gym-ico { font-size: 3rem; }
+.gym-count { font-size: 3.2rem; font-weight: 900; color: var(--shop); text-shadow: 0 0 16px var(--shop); }
+.gym-count.pop { animation: gymPop .15s ease; }
+@keyframes gymPop { 50% { transform: scale(1.25); } }
+.gym-bar { width: 100%; height: 10px; border-radius: 99px; background: var(--bg-2); overflow: hidden; }
+.gym-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #2bff88, var(--shop)); }
+.gym-btn { width: 100%; padding: 22px; font: 900 1.3rem Outfit, sans-serif; border-radius: 18px; border: 0; color: #fff; background: linear-gradient(135deg, var(--shop), #8b5cf6); cursor: pointer; touch-action: manipulation; user-select: none; }
+.gym-btn:active { transform: scale(.97); }
+.bank-card { padding: 18px; border-radius: 18px; background: linear-gradient(135deg, #0f3b55, #1a1030); border: 1px solid #38dce6; display: flex; flex-direction: column; gap: 4px; }
+.bank-card b { font-size: 2rem; color: #ffd76a; }
+.bank-log { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.bank-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: var(--bg-2); font-size: .85rem; }
+.bank-row em { font-style: normal; color: var(--muted); font-size: .75rem; }
+.bank-row .plus { color: #2bd07a; } .bank-row .minus { color: #ff6b6b; }
+.book { padding: 18px; border-radius: 6px 16px 16px 6px; background: #fff8e8; color: #3a2a1a; border-left: 8px solid #8a5a2b; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.book small { font-weight: 800; color: #8a5a2b; }
+.book p { font-family: Georgia, serif; font-size: 1.05rem; margin: 6px 0; }
+.book em { color: #2b8a4a; font-style: normal; font-weight: 700; }
+.book.flip { animation: bookFlip .45s ease; }
+@keyframes bookFlip { from { transform: perspective(600px) rotateY(-70deg); opacity: 0; } }
+@media (max-width: 600px) { .city-sign b { font-size: 1.05rem; } .city-sign small { display: none; } .city-ico { font-size: 2rem; } }
