@@ -272,6 +272,14 @@ addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté a
 { const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'welcomed');
   addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
   if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
+addColumn('users', 'identity', "TEXT NOT NULL DEFAULT ''");     // 🏳️‍🌈 le cœur d'identité choisi dans le profil (gay, bi, trans…)
+addColumn('users', 'likes', "TEXT NOT NULL DEFAULT '[]'");     // 💬 les phrases « J'aime… » choisies dans le profil
+addColumn('users', 'msg_font', "TEXT NOT NULL DEFAULT ''");    // ✍️ style d'écriture des messages
+addColumn('users', 'msg_color', "TEXT NOT NULL DEFAULT ''");   // 🎨 couleur d'écriture des messages
+// les anciens choix « Gay / Trav / Trans » de l'inscription deviennent des cœurs d'identité (choisis maintenant dans le profil)
+db.prepare("UPDATE users SET identity='gay', gender='h' WHERE gender='g'").run();
+db.prepare("UPDATE users SET identity='trav', gender='x' WHERE gender='v'").run();
+db.prepare("UPDATE users SET identity='trans', gender='x' WHERE gender='t'").run();
 addColumn('users', 'grey_heart', 'INTEGER NOT NULL DEFAULT 0'); // 🩶 cœur gris à côté du cœur rouge (choisi par le super-admin)
 if (!db.prepare("SELECT 1 FROM settings WHERE key='greyInit'").get() && db.prepare("SELECT 1 FROM users WHERE lower(username)='leptibof'").get()) {
   db.prepare("UPDATE users SET grey_heart=1 WHERE lower(username)='leptibof'").run();

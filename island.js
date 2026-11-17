@@ -432,7 +432,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     });
     // 🛋️ Placer ses meubles où l'on veut
     socket.on('house_furniture', (list, cb) => {
-      if (!Array.isArray(list) || list.length > 80) return ack(cb, { error: '80 meubles au maximum (40 par étage)' });
+      if (!Array.isArray(list) || list.length > 600) return ack(cb, { error: 'Ta maison est pleine à craquer (600 meubles) 😅' });
       const clean = [];
       for (const f of list) {
         if (!f || !FURN.includes(f.t)) continue;

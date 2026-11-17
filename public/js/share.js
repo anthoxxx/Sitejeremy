@@ -61,15 +61,22 @@ function embedEl(info) {
   return null;
 }
 // Corps d'un message : texte + photo / vidéo / aperçu du premier lien
+// ✍️ le style d'écriture de l'auteur + 🐱 les émojis qu'on peut toucher (ils s'animent)
+function textEl(m, content) {
+  const st = LC.msgStyle(m._st || m);
+  const t = el('div', { class: 'text' + (st.class ? ' ' + st.class : ''), style: st.style || null }, linkify(content));
+  window.Touchy?.wrap(t);
+  return t;
+}
 function messageBody(m) {
   const frag = [];
   if (m.kind === 'audio' && m.media) return [audioPlayer(m.media, m.duration)];
   if (m.kind === 'image' && m.media) {
     frag.push(photoEl(m.media, m.content !== '🖼️ Photo' ? m.content : ''));
-    if (m.content && m.content !== '🖼️ Photo') frag.push(el('div', { class: 'text' }, linkify(m.content)));
+    if (m.content && m.content !== '🖼️ Photo') frag.push(textEl(m, m.content));
     return frag;
   }
-  frag.push(el('div', { class: 'text' }, linkify(m.content)));
+  frag.push(textEl(m, m.content));
   const links = (m.content.match(/https?:\/\/[^\s<]+/g) || []).slice(0, 2);
   for (const l of links) {
     const info = embedInfo(l.replace(/[.,!?)]+$/, ''));

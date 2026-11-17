@@ -2942,3 +2942,18 @@ body.wizz .app, body.wizz > .modal-back, body.wizz #island { animation: wizzShak
 .bowl-cell small { color: var(--muted); font-size: .68rem; } .bowl-cell b { min-height: 1.1em; } .bowl-cell em { font-style: normal; color: #ffd76a; font-weight: 800; min-height: 1.1em; }
 .bowl-cell.on { border-color: #8b5cf6; box-shadow: 0 0 10px -2px #8b5cf6; } .bowl-cell.total { background: linear-gradient(135deg, #7a3ccf, #ff2d55); color: #fff; } .bowl-cell.total small { color: #fff; }
 .go-gain { font-weight: 900; font-size: 1.15rem; color: #ffd76a; text-shadow: 0 0 10px rgba(255, 200, 60, .5); }
+
+/* ✍️ Les styles d'écriture des messages */
+.mf-manuscrite { font-family: 'Caveat', cursive; font-size: 1.3em; line-height: 1.15; }
+.mf-machine { font-family: 'Special Elite', 'Courier New', monospace; }
+.mf-fantaisie { font-family: 'Pacifico', cursive; font-size: 1.05em; }
+.mf-pixel { font-family: 'Press Start 2P', monospace; font-size: .72em; line-height: 1.7; }
+.mf-elegante { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-size: 1.08em; }
+.mf-bd { font-family: 'Bangers', 'Comic Sans MS', cursive; font-size: 1.2em; letter-spacing: .04em; }
+.mf-gras { font-weight: 800; }
+.mf-italique { font-style: italic; }
+/* 💬 Les phrases « J'aime… » */
+.likes-pick { display: flex; flex-wrap: wrap; gap: 6px; max-height: 220px; overflow-y: auto; padding: 2px; }
+.like-chip { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-size: .82rem; cursor: pointer; }
+.like-chip.on { background: var(--grad); color: #fff; border-color: transparent; }
+.ptag.like { background: rgba(139, 92, 246, .16); border-color: rgba(139, 92, 246, .4); }

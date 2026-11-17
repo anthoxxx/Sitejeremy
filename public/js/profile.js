@@ -35,6 +35,8 @@ function profileCard(u, opts = {}) {
       el('div', { class: 'pinfo' }, info, opts.online !== undefined ? el('span', {}, opts.online ? ' · 🟢 En ligne' : ' · ⚪ Hors ligne') : null),
       u.birthday ? el('div', { class: 'pinfo' }, `🎂 Anniversaire : ${u.birthday.day} ${LC.MONTHS[u.birthday.month - 1]}`) : null,
       el('div', { class: 'psection' }, el('h5', {}, 'À propos'), el('div', { class: 'pbio' }, u.bio || 'Aucune description pour l\'instant.')),
+      u.identity ? el('div', { class: 'pinfo' }, `${LC.identityHeart(u.identity)} ${LC.identityLabel(u.identity)}`) : null,
+      u.likes?.length ? el('div', { class: 'psection' }, el('h5', {}, '💬 Ce que j\'aime'), el('div', { class: 'ptags' }, ...u.likes.map(t => el('span', { class: 'ptag like' }, t)))) : null,
       u.interests?.length ? el('div', { class: 'psection' }, el('h5', {}, '✨ Centres d\'intérêt'),
         el('div', { class: 'ptags' }, ...u.interests.map(t => el('span', { class: 'ptag' }, t)))) : null,
       u.games?.length ? el('div', { class: 'psection' }, el('h5', {}, '🎮 Jeux du moment'),
@@ -175,6 +177,11 @@ function openMyProfile() {
     draw();
     return box;
   };
+  const likesPick = () => {
+    const box = el('div', { class: 'likes-pick' });
+    const draw = () => box.replaceChildren(...(window.LIKES || []).map(t => { const on = (d.likes || []).includes(t); return el('button', { type: 'button', class: 'like-chip' + (on ? ' on' : ''), onclick: () => { const cur = d.likes || []; if (on) d.likes = cur.filter(x => x !== t); else { if (cur.length >= 12) return toast('12 phrases au maximum'); d.likes = [...cur, t]; } draw(); refresh(); } }, t); }));
+    draw(); return box;
+  };
   const colorPick = key => {
     const input = el('input', { type: 'color', value: d[key] || '#8b6cff', class: 'color-input' });
     const box = el('div', { class: 'swatches' });
@@ -224,6 +231,8 @@ function openMyProfile() {
       } }, '↺ Couleur par défaut (selon ton genre)'))),
     f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
+    f('✍️ Style d\'écriture de mes messages', choice(LC.MSG_FONTS, 'msgFont', (v, label) => el('span', { class: v ? 'mf-' + v : '' }, label))),
+    f('🎨 Couleur d\'écriture', el('div', {}, colorPick('msgColor'), el('button', { type: 'button', class: 'btn btn-sm', style: 'margin-top:6px', onclick: e => { d.msgColor = ''; refresh(); e.target.textContent = '✅ Couleur normale'; } }, '↺ Couleur normale')), 'Tes messages s\'afficheront avec ce style et cette couleur, pour tout le monde.'),
     f('✨ Photo animée', choice(AVATAR_FX_UI, 'avatarFx', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, avatarFx: v }), label))),
     f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...ownedOf('frame_', PREMIUM_FRAMES)], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
@@ -250,6 +259,8 @@ function openMyProfile() {
     f('💭 Statut', el('div', {}, choice(STATUS_EMOJIS.map(e => [e, e || '∅']), 'statusEmoji'), el('div', { style: 'margin-top:8px' }, statusText))),
     el('div', {}, f('📝 À propos de moi', bio), bioCount),
     el('div', { class: 'row', style: 'margin-top:14px' }, f('Âge', age), f('Je suis', gender)),
+    f('🏳️‍🌈 Mon cœur à côté du pseudo', choice(LC.IDENTITIES.map(([v, l, h]) => [v, (h ? h + ' ' : '') + l]), 'identity'), 'Choisis ton identité : son cœur s\'affiche à côté de ton pseudo partout sur le site.'),
+    f('💬 Mes phrases (jusqu\'à 12)', likesPick(), 'Elles s\'affichent sur ton profil : les autres voient tout de suite ce que tu aimes.'),
     f('Ville', city),
     f('E-mail (privé : visible seulement par l\'administration du site)', email),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher mon âge aux autres'), bind(el('input', { type: 'checkbox', checked: d.showAge !== false }), 'showAge')),
@@ -314,7 +325,7 @@ function openMyProfile() {
             try {
               const { user } = await api('/api/me', { method: 'PUT', body: {
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
-                nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
+                nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
               } });

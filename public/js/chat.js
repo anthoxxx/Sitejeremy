@@ -321,13 +321,13 @@ function addRoomMessage(m, live = true) {
   }
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, grey: m.grey, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
+  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, grey: m.grey, identity: m.identity, msgFont: m.msgFont, msgColor: m.msgColor, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : '') + (m.staffOnly ? ' staff-only' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
-        ' ', el('span', { class: 'g-' + m.gender }, LC.genderIcon(m.gender, m.role, m.grey)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
+        ' ', el('span', { class: 'g-' + m.gender }, LC.heartOf(m)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
         el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
       m.anon ? null : LC.badgesRow(m.badges),
       ...messageBody(m),
@@ -422,6 +422,7 @@ async function openPm(user) {
 }
 function addBubble(m) {
   const mine = m.from === state.me.id;
+  m._st = mine ? state.me : state.convs.get(m.from)?.user || null;
   const row = el('div', { class: 'bubble-row' + (mine ? ' mine' : ''), 'data-pm': m.id },
     !mine && m.kind !== 'audio' ? el('button', { class: 'btn btn-sm bubble-tr', title: 'Traduire ce message', onclick: () => Translator.translateRow(row) }, '🌐') : null,
     mine ? el('div', { class: 'bubble-tools' },
@@ -555,7 +556,7 @@ function renderUsers() {
   const onIds = new Set(state.online.map(u => u.id));
   const away = (state.filter && state.filter !== 'all' && state.filter !== 'f' && state.filter !== 'h') ? [] : (state.recent || []).filter(u => !onIds.has(u.id) && !state.blocked.has(u.id) && (!q || u.username.toLowerCase().includes(q)) && (state.filter !== 'f' && state.filter !== 'h' || u.gender === state.filter));
   const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away', 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
-    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role, u.grey))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
@@ -566,7 +567,7 @@ function renderUsers() {
     return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.genderIcon(u.gender, u.role, u.grey)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         LC.badgesRow(u.badges, true),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),

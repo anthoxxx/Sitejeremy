@@ -926,7 +926,7 @@ const Island = (() => {
   function furniturePanel() {
     panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
-      if (draft.length >= 40) return toast('40 meubles au maximum');
+      if (draft.length >= 600) return toast('Ta maison est pleine à craquer (600 meubles) 😅');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
       const n = draft.length, me0 = players.get(me) || { x: 460, y: 900 }; draft.push({ t: k, x: Math.round(me0.x + (n % 3 - 1) * 60), y: d.neon ? 110 + (n * 31) % 70 : Math.round(Math.max(260, me0.y - 90)), l: floorNow, ...(d.neon ? { c: Decor.NEON[n % Decor.NEON.length] } : {}) }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
     } }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null))));

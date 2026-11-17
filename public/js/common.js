@@ -37,10 +37,19 @@ window.LC = {
     document.documentElement.dataset.theme = cur;
     try { localStorage.setItem('lc_theme', cur); } catch (e) {}
   },
-  genderLabel: g => ({ h: 'Homme', f: 'Femme', g: 'Gay', v: 'Trav', t: 'Trans', x: 'Autre' }[g] || 'Autre'),
+  genderLabel: g => ({ h: 'Homme', f: 'Femme', g: 'Homme', v: 'Autre', t: 'Autre', x: 'Autre' }[g] || 'Autre'),
+  // 🏳️‍🌈 Les cœurs d'identité (choisis dans le profil, affichés à côté du pseudo)
+  IDENTITIES: [['', 'Aucun (cœur de mon genre)', ''], ['gay', 'Gay', '🖤'], ['lesbienne', 'Lesbienne', '🧡'], ['bi', 'Bi', '💚'], ['pan', 'Pan', '💛'], ['trans', 'Trans', '💜'], ['trav', 'Trav', '🤎'], ['queer', 'Queer', '🩵'], ['nonbinaire', 'Non-binaire', '💞'], ['hetero', 'Hétéro', '💝']],
+  identityHeart: id => (LC.IDENTITIES.find(x => x[0] === id) || [])[2] || '',
+  identityLabel: id => (LC.IDENTITIES.find(x => x[0] === id) || [])[1] || '',
+  // Le cœur à côté du pseudo : ❤️ pour les admins (+ 🩶 si donné), puis le cœur d'identité choisi, sinon celui du genre
+  heartOf: u => { if (!u) return ''; const idh = LC.identityHeart(u.identity); const admin = u.role === 'admin' || u.role === 'superadmin'; return admin ? '❤️' + (u.grey ? '🩶' : '') + idh : idh || LC.genderIcon(u.gender); },
+  // ✍️ Le style d'écriture choisi pour ses messages
+  MSG_FONTS: [['', 'Normal'], ['manuscrite', 'Manuscrite'], ['machine', 'Machine à écrire'], ['fantaisie', 'Fantaisie'], ['pixel', 'Pixel'], ['elegante', 'Élégante'], ['bd', 'Bande dessinée'], ['gras', 'Gras'], ['italique', 'Italique']],
+  msgStyle: u => ({ class: u?.msgFont ? 'mf-' + u.msgFont : '', style: u?.msgColor ? `color:${u.msgColor}` : '' }),
   // Le cœur après le pseudo : ❤️ rouge pour les admins, sinon selon le genre choisi
   genderIcon: (g, role, grey) => (role === 'admin' || role === 'superadmin') ? '❤️' + (grey ? '🩶' : '') : ({ h: '💙', f: '🩷', g: '🖤', v: '🤎', t: '💜', x: '🤍' }[g] || '🤍'),
-  GENDERS: [['h', '💙 Homme'], ['f', '🩷 Femme'], ['g', '🖤 Gay'], ['v', '🤎 Trav'], ['t', '💜 Trans'], ['x', '🤍 Autre']],
+  GENDERS: [['h', 'Homme'], ['f', 'Femme'], ['x', 'Autre']],
   GENDER_COLORS: { h: '#4fb3ff', f: '#ff5fa2', g: '#c9ccd8', v: '#d09060', t: '#b46cff', x: '#a78bfa' },
   ROLES: ['user', 'moderator', 'admin', 'superadmin'],
   rank(u) { return LC.ROLES.indexOf(u?.role); },
