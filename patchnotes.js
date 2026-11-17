@@ -642,4 +642,28 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 44,
+    date: '2026-11-17',
+    title: 'Énorme mise à jour : cœurs d\'identité, statuts, vocal traduit, iPhone 18, émojis vivants… 🚀',
+    added: [
+      '🏳️‍🌈 Les cœurs d\'identité se choisissent dans « Personnaliser mon profil » → Infos : 🖤 Gay, 🧡 Lesbienne, 💚 Bi, 💛 Pan, 💜 Trans, 🤎 Trav, 🩵 Queer, 💞 Non-binaire, 💝 Hétéro. Le cœur s\'affiche à côté du pseudo partout',
+      '💬 Les phrases « J\'aime… » : choisis jusqu\'à 12 phrases (j\'aime le paranormal, la voyance, les chats…) qui s\'affichent sur ton profil',
+      '✍️ Choisis le style d\'écriture (manuscrite, machine à écrire, pixel, BD…) et la couleur de tes messages',
+      '🟢 Les statuts comme sur Discord : en ligne, 🌙 absent (tout seul après 5 minutes sans bouger) ou ⛔ ne pas déranger (plus de sons). Choisis-le en touchant ton pseudo en haut à droite',
+      '🎶 Au vocal, quand quelqu\'un parle : son cercle pulse avec sa voix, des petites barres bougent et des notes de musique s\'envolent à droite et à gauche',
+      '🌐 La traduction du vocal : bouton « Traduire » dans le vocal. Ce que disent les autres au micro (dans n\'importe quelle langue) s\'affiche traduit en français en sous-titres, et peut même être lu à voix haute',
+      '📱 Le téléphone devient un iPhone 18 : Dynamic Island animée, cadre en titane, et de nouvelles applis (Météo, Horloge avec chrono et minuteur, Calculette, Notes, Calendrier, Lampe)',
+      '⚙️ Les réglages du téléphone : couleur (titane, noir, or, rose…), forme et taille des icônes, taille du texte, mode sombre, nom du téléphone',
+      '🎬 Au cinéma de la Ville, le siège où quelqu\'un est assis devient doré',
+      '👥 Dans les lieux de la Ville (club, cinéma, maisons…), les pseudos des personnes présentes s\'affichent au-dessus de la barre des actions',
+      '🐱 Les émojis des messages prennent vie quand on les touche : le chat lèche l\'écran, le chien aboie, le fantôme traverse l\'écran, la fusée décolle, les cœurs s\'envolent…',
+    ],
+    changed: [
+      'À l\'inscription, on choisit seulement Homme, Femme ou Autre (les identités se choisissent ensuite dans le profil)',
+      '🛋️ Plus de limite de 40 meubles dans ta maison',
+      'La vidéo de présentation a été retirée de la page de connexion',
+    ],
+    removed: [],
+  },
 ];
