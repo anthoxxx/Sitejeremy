@@ -1093,6 +1093,7 @@ function showSeasonBanner() {
 }
 document.addEventListener('site', () => showSeasonBanner());
 $('fxBtn').onclick = () => { const on = LC.toggleFx(); $('fxBtn').textContent = on ? '✨ Effets' : '✨ Effets coupés'; };
+$('fxBtn').textContent = LC.fxEnabled() ? '✨ Effets' : '✨ Effets coupés';
 
 // ---------- Douane ----------
 const isSuperMe = () => state.me?.role === 'superadmin';

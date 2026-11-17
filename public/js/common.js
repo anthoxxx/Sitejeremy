@@ -130,7 +130,8 @@ window.LC = {
     if (key === 'nouvel-an') { const d = new Date(); return `🎆 Bonne année ${d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear()} ! Plein de bonheur à tous ✨`; }
     return s.greeting;
   },
-  fxEnabled() { try { return localStorage.getItem('lc_fx') !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return true; } },
+  // les effets (feuilles, neige…) : coupés si le téléphone demande moins d'animations, SAUF si on les a rallumés avec le bouton « ✨ Effets »
+  fxEnabled() { try { const v = localStorage.getItem('lc_fx'); return v === '1' || (v !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return true; } },
   applySeason(key) {
     const s = LC.SEASONS[key];
     document.documentElement.dataset.season = s ? key : '';
