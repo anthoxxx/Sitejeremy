@@ -89,6 +89,7 @@ const Voice = {
   },
 
   leave(notify = true) {
+    try { window.VoiceCap?.onLeave(); } catch (e) {}
     if (notify && this.slug) socket.emit('voice_leave');
     if (this.cam) { this.cam.stop(); this.cam = null; }
     for (const id of [...this.peers.keys()]) this.closePeer(id);
@@ -411,8 +412,18 @@ setInterval(() => {
     m.an.getByteFrequencyData(m.data);
     let sum = 0;
     for (const v of m.data) sum += v;
-    const speaking = sum / m.data.length > 14 && !(key === 'me' && Voice.muted);
-    document.querySelectorAll(`[data-voice="${key}"]`).forEach(c => c.classList.toggle('speaking', speaking));
+    const avg = sum / m.data.length, speaking = avg > 14 && !(key === 'me' && Voice.muted);
+    // 🎶 quand on parle : le cercle pulse avec la voix, les barres bougent et des notes de musique s'envolent à droite et à gauche
+    const lvl = speaking ? Math.min(1, (avg - 10) / 60) : 0;
+    document.querySelectorAll(`[data-voice="${key}"]`).forEach(c => {
+      c.classList.toggle('speaking', speaking); c.style.setProperty('--lvl', lvl.toFixed(2));
+      if (!c.querySelector('.vfx-eq')) c.append(el('span', { class: 'vfx-eq' }, el('i'), el('i'), el('i'), el('i')));
+      const bars = c.querySelectorAll('.vfx-eq i'); bars.forEach((b, i) => { const v = m.data[2 + i * 5] || 0; b.style.height = speaking ? (3 + v / 255 * 13) + 'px' : '2px'; });
+      if (speaking && Math.random() < .35 + lvl * .4 && !document.hidden) {
+        const n = el('span', { class: 'vfx-note', style: `--dx:${(Math.random() < .5 ? -1 : 1) * (18 + Math.random() * 30)}px;--rot:${(Math.random() - .5) * 60}deg;color:${['#ff5fa2', '#4fb3ff', '#ffd34d', '#33d6a6', '#c86bff'][Math.floor(Math.random() * 5)]}` }, ['♪', '♫', '♬', '🎵', '🎶'][Math.floor(Math.random() * 5)]);
+        c.append(n); setTimeout(() => n.remove(), 1400);
+      }
+    });
   }
 }, 150);
 
@@ -447,6 +458,7 @@ function renderVoice() {
       Voice.cam ? el('button', { class: 'btn btn-sm cam-viewers-btn', title: 'Qui regarde ma caméra', onclick: () => openCamViewers() }, '👁 ' + Voice.camViewers.length) : null,
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
+      el('button', { class: 'btn btn-sm' + (window.VoiceCap?.talking ? ' btn-ok' : ''), title: 'Traduction du vocal et sous-titres', onclick: () => VoiceCap.panel() }, '🌐', el('span', { class: 'lbl' }, window.VoiceCap?.talking ? ' Sous-titres' : ' Traduire')),
       el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'));
   } else if (listening) {
     ctrl = el('div', { class: 'voice-ctrl' },
@@ -454,6 +466,7 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
       el('button', { class: 'btn btn-sm btn-primary', title: 'Prendre la parole (avec ton micro)', onclick: () => Voice.join() }, '🎙️', el('span', { class: 'lbl' }, ' Parler')),
       el('button', { class: 'btn btn-sm' + (Voice.autoListen ? ' btn-ok' : ''), title: 'Écouter tout seul le vocal quand j\'arrive dans un salon', onclick: () => Voice.setAutoListen(!Voice.autoListen) }, Voice.autoListen ? '🔁 Auto ✓' : '🔁 Auto'),
+      el('button', { class: 'btn btn-sm', title: 'Traduction du vocal', onclick: () => VoiceCap.panel() }, '🌐'),
       el('button', { class: 'btn btn-sm btn-danger', title: 'Arrêter d\'écouter', onclick: () => Voice.leave() }, '⏹'));
   } else {
     ctrl = el('div', { class: 'voice-ctrl' },

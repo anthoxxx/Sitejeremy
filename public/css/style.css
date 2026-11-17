@@ -2974,3 +2974,26 @@ body.wizz .app, body.wizz > .modal-back, body.wizz #island { animation: wizzShak
 .isl-name { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(15, 10, 30, .78); border: 1px solid var(--c); color: #fff; font: 700 12px Outfit, sans-serif; white-space: nowrap; box-shadow: 0 0 8px -2px var(--c); }
 .isl-name .avatar { width: 20px !important; height: 20px !important; font-size: 10px; }
 .isl-name.me { background: rgba(80, 40, 140, .85); }
+
+/* 🎶 Les effets quand on parle au vocal */
+.voice-chip { position: relative; }
+.voice-chip .avatar { transition: transform .1s, box-shadow .1s; }
+.voice-chip.speaking .avatar { transform: scale(calc(1 + var(--lvl, 0) * .18)); box-shadow: 0 0 0 calc(2px + var(--lvl, 0) * 6px) rgba(51, 214, 166, .45), 0 0 calc(8px + var(--lvl, 0) * 18px) rgba(51, 214, 166, .7); }
+.voice-chip.speaking { border-color: var(--green); box-shadow: 0 0 calc(6px + var(--lvl, 0) * 16px) rgba(51, 214, 166, .55); animation: vfxSway 1.2s ease-in-out infinite; }
+@keyframes vfxSway { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-2px) rotate(-1.5deg); } 75% { transform: translateX(2px) rotate(1.5deg); } }
+.vfx-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; margin-left: 2px; }
+.vfx-eq i { width: 3px; height: 2px; border-radius: 2px; background: linear-gradient(#33d6a6, #4fb3ff); transition: height .12s; }
+.voice-chip:not(.speaking) .vfx-eq { opacity: .3; }
+.vfx-note { position: absolute; left: 22px; top: 0; pointer-events: none; font-size: 15px; font-weight: 900; text-shadow: 0 0 8px currentColor; animation: vfxNote 1.4s ease-out forwards; z-index: 3; }
+@keyframes vfxNote { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), -42px) rotate(var(--rot)) scale(1.15); } }
+.voice-bar, .voice-people { overflow: visible !important; }
+@media (prefers-reduced-motion: reduce) { .vfx-note, .voice-chip.speaking { animation: none; } }
+/* 🌐 Les sous-titres traduits du vocal */
+.voice-caps { position: fixed; left: 50%; transform: translateX(-50%); bottom: 110px; z-index: 300; width: min(640px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.vcap { background: rgba(10, 6, 24, .88); color: #fff; border: 1px solid rgba(79, 179, 255, .5); border-radius: 14px; padding: 8px 12px; font-size: .98rem; box-shadow: 0 6px 24px rgba(0,0,0,.4); animation: vcapIn .25s ease; transition: opacity .5s; }
+.vcap b { color: #4fb3ff; margin-right: 6px; } .vcap.mine b { color: #33d6a6; }
+.vcap.interim span { opacity: .65; font-style: italic; }
+.vcap span.tr { color: #ffe9a8; } .vcap em { font-style: normal; font-size: .8em; }
+.vcap.bye { opacity: 0; }
+@keyframes vcapIn { from { opacity: 0; transform: translateY(8px); } }
+.vcap-panel h3 { margin-top: 0; } .vcap-panel hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }

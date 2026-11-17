@@ -3358,6 +3358,18 @@ io.on('connection', socket => {
   // ----- Vocal -----
   const myVoiceRoom = () => { for (const r of socket.rooms) if (r.startsWith('room:')) return r.slice(5); return null; };
   // opts.listen = true : on écoute le vocal sans micro (on entend ceux qui parlent, sans parler)
+  // 🌐 Sous-titres du vocal : le navigateur de celui qui parle transcrit sa voix, on l'envoie aux autres (chacun le traduit dans sa langue)
+  socket.on('voice_caption', (data, ack) => {
+    const vu = voiceUserOf(socket.id), u = current();
+    if (!vu || vu.listener || !u) return ack && ack({ error: 'Rejoins le vocal pour parler' });
+    if (u.muted_until && u.muted_until > now()) return;
+    const text = String(data?.text || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    if (!text || tooMany('cap:' + uid, 40, 60000)) return;
+    const slug = voiceOf.get(socket.id);
+    const lang = /^[a-z]{2}(-[A-Z]{2})?$/.test(String(data?.lang || '')) ? data.lang : '';
+    for (const [sid] of voice.get(slug) || []) if (sid !== socket.id) io.to(sid).emit('voice_caption', { userId: uid, username: u.username, text: filterWords(text), lang, final: !!data?.final });
+    ack && ack({ ok: true });
+  });
   socket.on('voice_join', (opts, ack) => {
     const listen = !!(opts && opts.listen);
     const u = current();
