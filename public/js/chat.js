@@ -43,7 +43,8 @@ const isStaff = () => LC.rank(state.me) >= 1;
 // ---------- Son ----------
 let audioCtx;
 function ding() {
-  if (!state.sound) return;
+  if (!state.sound || state.me?.presence === 'dnd') return; // ⛔ ne pas déranger : pas de son
+
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -91,7 +92,8 @@ smallScreen.addEventListener?.('change', () => { const inp = $('input'); if (inp
 // ---------- Rendu : en-tête utilisateur ----------
 function renderMe() {
   const chip = $('meChip');
-  chip.replaceChildren(...[LC.avatar(state.me), el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me)].filter(Boolean));
+  const myAv = LC.avatar(state.me); if (!state.me.isGuest) { const p = state.me.presence || 'auto'; myAv.append(el('span', { class: 'on st-' + (p === 'auto' ? 'online' : p) })); }
+  chip.replaceChildren(...[myAv, el('span', { class: 'me-name' }, state.me.username), LC.badge(state.me)].filter(Boolean));
   chip.onclick = e => { e.stopPropagation(); toggleUserMenu(); };
   $('adminLink').classList.toggle('hidden', !isStaff());
   $('ghostBtn').classList.toggle('hidden', state.me.role !== 'superadmin');
@@ -380,7 +382,7 @@ function renderConvs() {
   const onlineIds = new Set(state.online.map(u => u.id));
   $('pmList').replaceChildren(...list.map(c => {
     const av = LC.avatar(c.user);
-    if (onlineIds.has(c.user.id)) av.append(el('span', { class: 'on' }));
+    if (onlineIds.has(c.user.id)) av.append(dotFor(c.user.id));
     return el('div', { class: 'list-item' + (state.view?.type === 'pm' && state.view.userId === c.user.id ? ' active' : ''), onclick: () => openPm(c.user) },
       av,
       el('div', { class: 'meta' }, el('div', { class: 'name' }, c.user.username), el('div', { class: 'sub' }, c.last?.content || '')),
@@ -506,7 +508,7 @@ function renderFriends() {
     el('button', { class: 'btn btn-sm', title: 'Refuser', onclick: e => { e.stopPropagation(); friendAction(u, 'refuse'); } }, '❌')));
   for (const u of f.friends) {
     const av = LC.avatar(u);
-    if (online.has(u.id)) av.append(el('span', { class: 'on' }));
+    if (online.has(u.id)) av.append(dotFor(u.id));
     rows.push(el('div', { class: 'list-item', 'data-uid': u.id, onclick: () => openProfile(u.id) },
       av, el('div', { class: 'meta' }, el('div', { class: 'name' }, u.username), el('div', { class: 'sub' }, online.has(u.id) ? '🟢 en ligne' : 'hors ligne')),
       el('button', { class: 'btn btn-sm conv-del', title: 'Message privé', onclick: e => { e.stopPropagation(); openPm(u); } }, '💌')));
@@ -559,7 +561,7 @@ function renderUsers() {
     el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
-    const av = LC.avatar(u); av.append(el('span', { class: 'on' }));
+    const av = LC.avatar(u); av.append(dotFor(u.id));
     const muted = typeof isUserMuted === 'function' && isUserMuted(u.id);
     const staffRole = ['admin', 'superadmin', 'moderator'].includes(u.role);
     // Douane : super-admin seulement ; validation voix/caméra : toute l'équipe
@@ -638,6 +640,10 @@ function askLogout() {
 }
 
 // ---------- Menu de mon compte (clic sur mon pseudo) ----------
+// 🟢 Le statut façon Discord
+function setPresence(v) { socket.emit('presence_set', v, r => { if (!r?.ok) return; state.me.presence = r.presence; closeUserMenu(); toast({ auto: '🟢 Tu es en ligne', away: '🌙 Tu es absent', dnd: '⛔ Ne pas déranger : plus de sons de notification' }[r.presence]); renderMe?.(); }); }
+const statusOfId = id => (state.online || []).find(u => u.id === id)?.status || 'online';
+const dotFor = id => el('span', { class: 'on st-' + statusOfId(id), title: { online: 'En ligne', away: 'Absent', dnd: 'Ne pas déranger' }[statusOfId(id)] });
 function closeUserMenu() { $('userMenu').classList.add('hidden'); }
 function toggleUserMenu() {
   const m = $('userMenu');
@@ -645,6 +651,7 @@ function toggleUserMenu() {
   const item = (icon, label, fn, cls = '') => el('button', { class: 'um-item ' + cls, onclick: () => { closeUserMenu(); fn(); } }, el('span', {}, icon), label);
   m.replaceChildren(...[
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
+    !state.me.isGuest ? el('div', { class: 'um-status' }, ...[['auto', '🟢', 'En ligne'], ['away', '🌙', 'Absent'], ['dnd', '⛔', 'Ne pas déranger']].map(([v, i, l]) => el('button', { class: 'um-st' + ((state.me.presence || 'auto') === v ? ' on' : ''), title: l, onclick: e => { e.stopPropagation(); setPresence(v); } }, el('span', { class: 'dot st-' + (v === 'auto' ? 'online' : v) }), l))) : null,
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     !state.me.isGuest ? item('📱', 'Mon téléphone', () => Phone.open()) : null,
     !state.me.isGuest ? item('🎯', 'Mes quêtes et mes badges', () => Progress.open()) : null,
@@ -1197,3 +1204,13 @@ socket.on('badges', ({ userId, badges }) => {
 // 💤 la liste des membres déconnectés récemment (mise à jour chaque minute)
 async function loadRecent() { try { state.recent = (await api('/api/users/recent')).users; renderUsers(); } catch (e) {} }
 setTimeout(loadRecent, 2500); setInterval(loadRecent, 60000);
+
+// 🌙 Absent tout seul après 5 minutes sans toucher le site
+(() => {
+  let last = Date.now(), idle = false;
+  const wake = () => { last = Date.now(); if (idle) { idle = false; socket.emit('idle', false); } };
+  ['pointerdown', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  setInterval(() => { if (!idle && Date.now() - last > 5 * 60000) { idle = true; socket.emit('idle', true); } }, 30000);
+  socket.on('connect', () => { if (idle) socket.emit('idle', true); });
+})();

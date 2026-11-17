@@ -986,7 +986,14 @@ const Island = (() => {
     ctx.fillStyle = '#7a0d22'; ctx.fillRect(100, 0, 1000, 26);
     for (let i = 0; i < 20; i++) { ctx.fillStyle = (i + Math.floor(t * 3)) % 2 ? '#fff6c0' : '#a8862a'; ctx.beginPath(); ctx.arc(110 + i * 51, 13, 4, 0, 7); ctx.fill(); }
     // fauteuils
-    for (const s of SEATS) { ctx.fillStyle = '#7d1022'; roundRect(s.x - 25, s.y - 30, 50, 22, 6); ctx.fill(); ctx.fillStyle = '#a3172f'; roundRect(s.x - 22, s.y - 12, 44, 18, 5); ctx.fill(); }
+    // 🎬 un siège occupé change de couleur (doré et lumineux)
+    const sitting = [...players.values()].filter(p => p.action === 'sit');
+    for (const s of SEATS) {
+      const taken = sitting.some(p => Math.hypot((p.dx ?? p.x) - s.x, (p.dy ?? p.y) - s.y) < 22);
+      if (taken) { ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 14; }
+      ctx.fillStyle = taken ? '#c98a12' : '#7d1022'; roundRect(s.x - 25, s.y - 30, 50, 22, 6); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = taken ? '#ffd34d' : '#a3172f'; roundRect(s.x - 22, s.y - 12, 44, 18, 5); ctx.fill();
+    }
     // stand pop-corn
     ctx.fillStyle = '#ffd76a'; ctx.fillRect(60, 520, 110, 46); ctx.fillStyle = '#c21e3a'; for (let i = 0; i < 5; i++) ctx.fillRect(60 + i * 22, 520, 11, 46);
     ctx.font = '30px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🍿', 115, 505);
@@ -1547,6 +1554,7 @@ const Island = (() => {
       el('div', { class: 'isl-hint' }, '👆 Touche le sol pour marcher · approche-toi d\'un lieu pour y entrer'),
       el('div', { class: 'isl-enter hidden' }),
       el('div', { class: 'isl-bottom' },
+        el('div', { class: 'isl-names hidden' }),
         el('div', { class: 'isl-actwrap' },
           el('button', { type: 'button', class: 'isl-arrow left hidden', 'aria-label': 'Boutons précédents', onclick: () => scrollActs(-1) }, '‹'),
           el('div', { class: 'isl-actions', onscroll: () => arrows() }),
@@ -1626,7 +1634,14 @@ const Island = (() => {
     renderUI();
   }
   function resize() { if (!cv) return; const r = cv.getBoundingClientRect(); cv.width = r.width * DPR(); cv.height = r.height * DPR(); zoom = r.width < 600 ? .72 : 1; screenPos = ''; }
-  function count() { const c = root?.querySelector('.isl-count'); if (c) c.textContent = `· ${players.size} ${kind === 'island' ? 'promeneur' : 'personne'}${players.size > 1 ? 's' : ''}`; }
+  function count() {
+    const c = root?.querySelector('.isl-count'); if (c) c.textContent = `· ${players.size} ${kind === 'island' ? 'promeneur' : 'personne'}${players.size > 1 ? 's' : ''}`;
+    // 👥 dans une instance : les pseudos de ceux qui sont là, juste au-dessus de la barre des actions
+    const n = root?.querySelector('.isl-names'); if (!n) return;
+    const list = kind === 'island' ? [] : [...players.values()];
+    n.classList.toggle('hidden', !list.length);
+    n.replaceChildren(...list.map(p => el('span', { class: 'isl-name' + (p.id === me ? ' me' : ''), style: `--c:${p.color || '#c3b8ff'}` }, LC.avatar(p), p.username)));
+  }
   let afterJoin = null;
   function openIsland(then) {
     if (!root) build();

@@ -2957,3 +2957,20 @@ body.wizz .app, body.wizz > .modal-back, body.wizz #island { animation: wizzShak
 .like-chip { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-size: .82rem; cursor: pointer; }
 .like-chip.on { background: var(--grad); color: #fff; border-color: transparent; }
 .ptag.like { background: rgba(139, 92, 246, .16); border-color: rgba(139, 92, 246, .4); }
+
+/* 🟢 Les statuts façon Discord */
+.avatar .on.st-away, .dot.st-away { background: #f0b232; }
+.avatar .on.st-away::after, .dot.st-away::after { content: ''; position: absolute; width: 60%; height: 60%; top: -5%; left: -5%; border-radius: 50%; background: var(--bg-2); }
+.avatar .on.st-dnd, .dot.st-dnd { background: #f23f43; }
+.avatar .on.st-dnd::after, .dot.st-dnd::after { content: ''; position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; margin-top: -1px; border-radius: 2px; background: var(--bg-2); }
+.avatar .on { overflow: hidden; }
+.dot { position: relative; display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: var(--green); overflow: hidden; flex: none; }
+.dot.st-online { background: #23a55a; }
+.um-status { display: flex; gap: 4px; padding: 6px 8px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.um-st { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font: inherit; font-size: .72rem; cursor: pointer; }
+.um-st.on { border-color: #8b5cf6; box-shadow: 0 0 10px -3px #8b5cf6; }
+/* 👥 les pseudos des gens présents dans une instance, au-dessus de la barre des actions */
+.isl-names { display: flex; gap: 6px; justify-content: center; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 4px; }
+.isl-name { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(15, 10, 30, .78); border: 1px solid var(--c); color: #fff; font: 700 12px Outfit, sans-serif; white-space: nowrap; box-shadow: 0 0 8px -2px var(--c); }
+.isl-name .avatar { width: 20px !important; height: 20px !important; font-size: 10px; }
+.isl-name.me { background: rgba(80, 40, 140, .85); }

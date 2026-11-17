@@ -112,7 +112,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -2723,8 +2723,10 @@ const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: 
 // 🎉 Les soirées événements
 const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 
+// 🟢 Le statut comme sur Discord : en ligne, 🌙 absent (choisi, ou tout seul après 5 minutes sans bouger), ⛔ ne pas déranger
+const statusOf = entry => { const p = entry.user.presence || 'auto'; return p === 'dnd' ? 'dnd' : p === 'away' || entry.idle ? 'away' : 'online'; };
 function onlineOut(entry) {
-  return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost };
+  return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost, status: statusOf(entry) };
 }
 // Mode fantôme : le super-admin est invisible pour tout le monde sauf les autres super-admins
 const isGhost = id => !!online.get(id)?.ghost;
@@ -3224,6 +3226,14 @@ io.on('connection', socket => {
   Events.onConnection(socket);
 
   // ----- Mode fantôme (super-admin) -----
+  // 🟢 Statut : choisi dans le menu, ou absent tout seul quand on ne bouge plus
+  socket.on('presence_set', (st, ack) => {
+    const e = online.get(uid); if (!e) return;
+    const v = ['auto', 'away', 'dnd'].includes(st) ? st : 'auto';
+    db.prepare('UPDATE users SET presence=? WHERE id=?').run(v, uid);
+    e.user = getUser(uid) || e.user; schedulePresence(); ack && ack({ ok: true, presence: v });
+  });
+  socket.on('idle', on => { const e = online.get(uid); if (!e) return; const v = !!on; if (e.idle !== v) { e.idle = v; schedulePresence(); } });
   socket.on('ghost', (on, ack) => {
     const u = current();
     if (!isSuper(u)) return ack && ack({ error: 'Réservé au super-admin' });
