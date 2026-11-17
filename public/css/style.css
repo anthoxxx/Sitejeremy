@@ -2997,3 +2997,55 @@ body.wizz .app, body.wizz > .modal-back, body.wizz #island { animation: wizzShak
 .vcap.bye { opacity: 0; }
 @keyframes vcapIn { from { opacity: 0; transform: translateY(8px); } }
 .vcap-panel h3 { margin-top: 0; } .vcap-panel hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+
+/* =================== 📱 iPhone 18 =================== */
+.ph-device { --frame: #b9b2a6; background: linear-gradient(145deg, color-mix(in srgb, var(--frame) 100%, white 25%), var(--frame) 30%, color-mix(in srgb, var(--frame) 70%, black) 70%, var(--frame)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--frame) 60%, black), inset 0 0 0 2px rgba(255,255,255,.25), 0 30px 80px rgba(0,0,0,.7), 0 0 40px color-mix(in srgb, var(--frame) 40%, transparent); border-radius: 54px; padding: 10px; }
+.ph-device::before { content: ''; position: absolute; inset: 6px; border-radius: 48px; background: #000; z-index: 0; }
+.ph-device > * { position: relative; z-index: 1; }
+.ph-device .ph-status { position: absolute; z-index: 6; }
+.ph-screen { border-radius: 44px; }
+.ph-side { position: absolute !important; width: 4px; border-radius: 3px; background: color-mix(in srgb, var(--frame) 80%, black); z-index: 0 !important; }
+.ph-side-l1 { left: -4px; top: 120px; height: 34px; } .ph-side-l2 { left: -4px; top: 170px; height: 58px; } .ph-side-r { right: -4px; top: 170px; height: 86px; }
+.ph-side-cam { right: -4px; top: 330px; height: 40px; width: 5px; background: color-mix(in srgb, var(--frame) 50%, #333); }
+/* la Dynamic Island */
+.ph-island { position: relative; width: 116px; height: 32px; border-radius: 999px; background: #000; margin-top: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: width .45s cubic-bezier(.3,1.4,.5,1), height .45s cubic-bezier(.3,1.4,.5,1); box-shadow: 0 0 0 1px rgba(255,255,255,.04); }
+.ph-island .ph-cam { position: absolute; right: 12px; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #3a4a8a, #0b0b16 60%); box-shadow: inset 0 0 0 2px #15151f; }
+.ph-island-txt { opacity: 0; font: 700 12px Outfit, sans-serif; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85%; transition: opacity .2s; text-shadow: none; }
+.ph-island.big { width: 260px; height: 46px; }
+.ph-island.big .ph-island-txt { opacity: 1; transition-delay: .2s; }
+.ph-island.big .ph-cam { opacity: 0; }
+.ph-icons { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 12px; }
+.ph-sig { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; } .ph-sig i { width: 3px; background: #fff; border-radius: 1px; } .ph-sig i:nth-child(1) { height: 4px; } .ph-sig i:nth-child(2) { height: 6px; } .ph-sig i:nth-child(3) { height: 8px; } .ph-sig i:nth-child(4) { height: 11px; }
+.ph-bat { width: 24px; height: 12px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,.85); padding: 1px; position: relative; display: inline-block; } .ph-bat::after { content: ''; position: absolute; right: -4px; top: 3px; width: 2px; height: 4px; border-radius: 1px; background: rgba(255,255,255,.85); } .ph-bat i { display: block; height: 100%; width: 85%; border-radius: 2px; background: #fff; }
+.ph-device.light .ph-sig i, .ph-device.light .ph-bat i { background: #111; } .ph-device.light .ph-bat { border-color: #111; }
+@media (max-width: 600px) { .ph-device::before, .ph-side { display: none; } .ph-device { padding: 0; border-radius: 0; background: #000; box-shadow: none; } .ph-screen { border-radius: 0; } .ph-island { transform: scale(.9); } }
+/* les réglages d'apparence */
+.ph-device[data-icons="rond"] .ph-ico { border-radius: 50%; } .ph-device[data-icons="carre"] .ph-ico { border-radius: 6px; }
+.ph-device[data-cols="3"] .ph-grid { grid-template-columns: repeat(3, 1fr); } .ph-device[data-cols="3"] .ph-grid .ph-ico { width: 70px; height: 70px; font-size: 36px; }
+.ph-device[data-cols="5"] .ph-grid { grid-template-columns: repeat(5, 1fr); gap: 12px 4px; } .ph-device[data-cols="5"] .ph-grid .ph-ico { width: 48px; height: 48px; font-size: 25px; } .ph-device[data-cols="5"] .ph-grid small { font-size: 9px; }
+.ph-device[data-text="petit"] .ph-screen { font-size: 13px; } .ph-device[data-text="grand"] .ph-screen { font-size: 17px; }
+.ph-device[data-theme="sombre"] .ph-app { background: #000; color: #f2f2f7; } .ph-device[data-theme="sombre"] .ph-bar { background: #1c1c1e; color: #fff; border-color: #2c2c2e; } .ph-device[data-theme="sombre"] .ph-row { background: #1c1c1e; color: #f2f2f7; } .ph-device[data-theme="sombre"] .ph-h { color: #98989f; } .ph-device[data-theme="sombre"] .ph-seg { background: #2c2c2e; }
+/* ces applis ont leur propre fond */
+.ph-app:has(.ph-weather), .ph-app:has(.ph-torch) { background: transparent !important; color: #fff; } .ph-app:has(.ph-torch.on) { color: #5a4a00; }
+.ph-app:has(.ph-calc) { background: #000 !important; color: #fff; }
+.ph-about { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.08); margin-bottom: 6px; } .ph-about-ico { font-size: 34px; } .ph-about small { display: block; opacity: .7; }
+.ph-frames { display: flex; flex-wrap: wrap; gap: 10px; } .ph-frame { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; background: linear-gradient(145deg, color-mix(in srgb, var(--fc) 100%, white 30%), var(--fc), color-mix(in srgb, var(--fc) 70%, black)); cursor: pointer; } .ph-frame.on { border-color: #4fb3ff; box-shadow: 0 0 10px #4fb3ff; }
+.ph-seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.08); } .ph-seg button { flex: 1; padding: 8px 4px; border: 0; border-radius: 9px; background: transparent; color: inherit; font: 600 12px Outfit, sans-serif; cursor: pointer; } .ph-seg button.on { background: #4fb3ff; color: #fff; }
+.ph-input { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: inherit; font: inherit; }
+/* 🧮 calculette */
+.ph-calc { display: flex; flex-direction: column; gap: 12px; height: 100%; justify-content: flex-end; padding-bottom: 6px; } .ph-calc-disp { text-align: right; font: 300 54px Outfit, sans-serif; padding: 0 8px; overflow-x: auto; white-space: nowrap; }
+.ph-calc-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; } .ph-ck { aspect-ratio: 1; border-radius: 50%; border: 0; background: #333338; color: #fff; font: 500 24px Outfit, sans-serif; cursor: pointer; } .ph-ck.op { background: #ff9500; } .ph-ck.fn { background: #a5a5a5; color: #111; } .ph-ck.zero { grid-column: span 2; aspect-ratio: auto; border-radius: 999px; } .ph-ck:active { filter: brightness(1.4); }
+/* ⛅ météo */
+.ph-weather { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 30px; text-shadow: 0 1px 4px rgba(0,0,0,.3); } .ph-w-ico { font-size: 64px; } .ph-w-t { font: 200 72px Outfit, sans-serif; line-height: 1; }
+.ph-w-hours { display: flex; gap: 6px; margin-top: 14px; padding: 10px; border-radius: 16px; background: rgba(255,255,255,.15); width: 100%; justify-content: space-between; } .ph-w-hours div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; }
+.ph-w-days { width: 100%; margin-top: 10px; border-radius: 16px; background: rgba(255,255,255,.15); padding: 6px 12px; } .ph-w-days div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+/* ⏰ horloge */
+.ph-clockapp { display: flex; flex-direction: column; align-items: center; gap: 6px; } .ph-big-time { font: 200 48px Outfit, sans-serif; font-variant-numeric: tabular-nums; } .ph-chrono { font: 300 36px Outfit, sans-serif; font-variant-numeric: tabular-nums; }
+.ph-row-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; } .ph-pill { padding: 8px 14px; border-radius: 999px; border: 0; background: rgba(255,255,255,.12); color: inherit; font: 700 13px Outfit, sans-serif; cursor: pointer; } .ph-pill.go { background: #2bd07a; color: #04210f; }
+/* 📝 notes */
+.ph-note-ta { width: 100%; height: 100%; min-height: 300px; border: 0; background: #fffbe0; color: #222; border-radius: 12px; padding: 14px; font: 16px/1.5 'Caveat', Outfit, sans-serif; font-size: 20px; resize: none; }
+/* 📅 calendrier */
+.ph-cal-m { display: block; text-align: center; text-transform: capitalize; font-size: 18px; margin-bottom: 8px; color: #ff453a; } .ph-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 12px; } .ph-cal-grid small { opacity: .6; font-weight: 700; }
+.ph-cal-grid span { padding: 7px 0; border-radius: 50%; font-size: 14px; } .ph-cal-grid span.today { background: #ff453a; color: #fff; font-weight: 800; } .ph-cal-grid span.mark { box-shadow: inset 0 0 0 2px #ffd34d; }
+/* 🔦 lampe */
+.ph-torch { flex: 1; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #888; cursor: pointer; } .ph-torch span { font-size: 70px; filter: grayscale(1); } .ph-torch.on span { filter: drop-shadow(0 0 30px #fff3a0); } .ph-torch.on { color: #8a7a2a; }

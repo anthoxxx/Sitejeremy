@@ -24,13 +24,15 @@ const Phone = (() => {
   function build() {
     root = el('div', { class: 'phone hidden', onclick: e => { if (e.target === root && !document.body.classList.contains('island-open')) close(); } },
       el('div', { class: 'ph-device' },
-        el('div', { class: 'ph-status' }, el('b', { class: 'ph-time' }, time()), el('span', { class: 'ph-notch' }), el('span', { class: 'ph-icons' }, '📶 🔋')),
+        el('div', { class: 'ph-status' }, el('b', { class: 'ph-time' }, time()), el('span', { class: 'ph-island' }, el('i', { class: 'ph-cam' }), el('span', { class: 'ph-island-txt' })), el('span', { class: 'ph-icons' }, el('span', { class: 'ph-sig' }, el('i'), el('i'), el('i'), el('i')), ' 5G ', el('span', { class: 'ph-bat' }, el('i')))),
+        el('span', { class: 'ph-side ph-side-l1' }), el('span', { class: 'ph-side ph-side-l2' }), el('span', { class: 'ph-side ph-side-r' }), el('span', { class: 'ph-side ph-side-cam' }),
         screen = el('div', { class: 'ph-screen' }),
         el('div', { class: 'ph-nav' },
           el('button', { class: 'ph-navbtn', title: 'Retour', onclick: () => (stack.length > 1 ? back() : home()) }, '‹'),
           el('button', { class: 'ph-homebtn', title: 'Accueil', onclick: () => home() }),
           el('button', { class: 'ph-navbtn', title: 'Ranger le téléphone', onclick: () => close() }, '✕'))));
     document.body.append(root);
+    applyLook();
     setInterval(() => { const t = root.querySelector('.ph-time'); if (t) t.textContent = time(); const c = root.querySelector('.ph-clock b'); if (c) c.textContent = time(); }, 15000);
   }
   function open(app) {
@@ -67,6 +69,12 @@ const Phone = (() => {
     pet: { icon: '🐾', name: 'Mon animal', c: '#ff5fa2', open: () => { close(); showReturn(); window.Pets?.open(); } },
     fortune: { icon: '🔮', name: 'Voyante', c: '#8b5cf6', open: () => { close(); showReturn(); window.Fortune?.open(); } },
     notifs: { icon: '🔔', name: 'Notifs', c: '#ff8a1f', open: () => { close(); showReturn(); $('notifBtn')?.click(); } },
+    calc: { icon: '🧮', name: 'Calculette', c: '#ff9500', open: () => go(calculator, '🧮 Calculette') },
+    weather: { icon: '⛅', name: 'Météo', c: '#2f9bff', open: () => go(weather, '') },
+    clock: { icon: '⏰', name: 'Horloge', c: '#1c1c24', open: () => go(clockApp, '⏰ Horloge') },
+    notes: { icon: '📝', name: 'Notes', c: '#ffcc00', open: () => go(notes, '📝 Notes') },
+    agenda: { icon: '📅', name: 'Calendrier', c: '#ff3b30', open: () => go(calendar, '📅 Calendrier') },
+    torch: { icon: '🔦', name: 'Lampe', c: '#5856d6', open: () => go(torch, '') },
     settings: { icon: '⚙️', name: 'Réglages', c: '#6b7280', open: () => go(settings, '⚙️ Réglages') },
   };
   function appIcon(k, small) {
@@ -80,7 +88,7 @@ const Phone = (() => {
     const d = new Date();
     screen.replaceChildren(el('div', { class: 'ph-home' },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
-      el('div', { class: 'ph-grid' }, ...['messages', 'snap', 'phone', 'contacts', 'camera', 'city', 'games', 'shop', 'quests', 'pet', 'fortune', 'notifs', 'settings'].map(k => appIcon(k))),
+      el('div', { class: 'ph-grid' }, ...['messages', 'snap', 'phone', 'contacts', 'camera', 'city', 'games', 'shop', 'quests', 'pet', 'fortune', 'notifs', 'weather', 'clock', 'calc', 'notes', 'agenda', 'torch', 'settings'].map(k => appIcon(k))),
       el('div', { class: 'ph-dock' }, ...['phone', 'messages', 'snap', 'camera'].map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {
@@ -275,10 +283,103 @@ const Phone = (() => {
   socket.on('story_new', () => { if (isOpen() && stack.at(-1)?.fn === snapHome) go(snapHome, '👻 Snap'); });
 
   // ---------- ⚙️ Réglages ----------
+  // ---------- 🎨 Le look du téléphone (iPhone 18) ----------
+  const FRAME_COLORS = { titane: ['Titane naturel', '#b9b2a6'], noir: ['Titane noir', '#2c2c31'], blanc: ['Titane blanc', '#e8e8ea'], desert: ['Titane désert', '#c9a47e'], bleu: ['Bleu nuit', '#34507a'], rose: ['Rose', '#e9a8c3'], neon: ['Néon violet', '#a855f7'], or: ['Or', '#e7c25a'] };
+  function applyLook() {
+    const d = root?.querySelector('.ph-device'); if (!d) return;
+    d.style.setProperty('--frame', (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[1]);
+    d.dataset.icons = opt('icons', 'arrondi'); d.dataset.cols = opt('cols', '4'); d.dataset.text = opt('text', 'normal'); d.dataset.theme = opt('theme', 'clair');
+  }
   function settings(body) {
-    body.replaceChildren(el('h4', { class: 'ph-h' }, '🖼️ Fond d\'écran'),
+    const seg = (key, def, list, after) => el('div', { class: 'ph-seg' }, ...list.map(([v, l]) => el('button', { class: opt(key, def) === v ? 'on' : '', onclick: () => { setOpt(key, v); applyLook(); after ? after() : settings(body); } }, l)));
+    body.replaceChildren(
+      el('div', { class: 'ph-about' }, el('div', { class: 'ph-about-ico' }, ''), el('div', {}, el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS 18 · 1 To · ' + (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[0]))),
+      el('h4', { class: 'ph-h' }, '🖼️ Fond d\'écran'),
       el('div', { class: 'ph-walls' }, ...Object.entries(WALLS).map(([k, v]) => el('button', { class: 'ph-wall' + (opt('wall', 'neon') === k ? ' on' : ''), style: `background:${v}`, onclick: () => { setOpt('wall', k); settings(body); } }))),
+      el('h4', { class: 'ph-h' }, '📱 Couleur du téléphone'),
+      el('div', { class: 'ph-frames' }, ...Object.entries(FRAME_COLORS).map(([k, [n, c]]) => el('button', { class: 'ph-frame' + (opt('frame', 'titane') === k ? ' on' : ''), title: n, style: `--fc:${c}`, onclick: () => { setOpt('frame', k); applyLook(); settings(body); } }))),
+      el('h4', { class: 'ph-h' }, '🔲 Forme des icônes'), seg('icons', 'arrondi', [['arrondi', 'Arrondies'], ['rond', 'Rondes'], ['carre', 'Carrées']]),
+      el('h4', { class: 'ph-h' }, '🔢 Icônes par ligne'), seg('cols', '4', [['3', '3 (grandes)'], ['4', '4'], ['5', '5 (petites)']]),
+      el('h4', { class: 'ph-h' }, '🔠 Taille du texte'), seg('text', 'normal', [['petit', 'Petit'], ['normal', 'Normal'], ['grand', 'Grand']]),
+      el('h4', { class: 'ph-h' }, '🌗 Apparence des applis'), seg('theme', 'clair', [['clair', '☀️ Claire'], ['sombre', '🌙 Sombre']]),
+      el('h4', { class: 'ph-h' }, '🏝️ Dynamic Island'), seg('island', '1', [['1', 'Animée'], ['0', 'Discrète']], () => { settings(body); island('🏝️ La Dynamic Island est animée !'); }),
+      el('h4', { class: 'ph-h' }, '✏️ Nom du téléphone'),
+      el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => { setOpt('name', e.target.value.trim() || 'iPhone 18 Pro'); settings(body); } }),
       el('h4', { class: 'ph-h' }, '👤 Mon téléphone'), el('div', { class: 'ph-row' }, LC.avatar(state.me), el('div', { class: 'ph-row-txt' }, el('b', {}, state.me.username), el('small', {}, 'Ton numéro : ' + ('06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 '))))));
+  }
+
+  // ---------- 🧮 Calculette ----------
+  function calculator(body) {
+    let expr = '';
+    const disp = el('div', { class: 'ph-calc-disp' }, '0');
+    const show = () => { disp.textContent = expr || '0'; };
+    const press = k => {
+      if (k === 'C') expr = ''; else if (k === '⌫') expr = expr.slice(0, -1);
+      else if (k === '=') { try { const v = Function('"use strict";return (' + expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.').replace(/%/g, '/100') + ')')(); expr = Number.isFinite(v) ? String(Math.round(v * 1e8) / 1e8).replace('.', ',') : 'Erreur'; } catch (e) { expr = 'Erreur'; } }
+      else { if (expr === 'Erreur') expr = ''; expr += k; }
+      show();
+    };
+    const keys = ['C', '⌫', '%', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', ',', '='];
+    body.replaceChildren(el('div', { class: 'ph-calc' }, disp, el('div', { class: 'ph-calc-keys' }, ...keys.map(k => el('button', { class: 'ph-ck' + (['÷', '×', '-', '+', '='].includes(k) ? ' op' : ['C', '⌫', '%'].includes(k) ? ' fn' : '') + (k === '0' ? ' zero' : ''), onclick: () => press(k) }, k)))));
+  }
+  // ---------- ⛅ Météo (au Paradise, il fait toujours beau… ou presque) ----------
+  function weather(body) {
+    const h = new Date().getHours(), night = h < 7 || h >= 20, seed = new Date().getDate();
+    const conds = night ? [['🌙', 'Nuit étoilée'], ['✨', 'Ciel dégagé'], ['🌌', 'Aurore boréale']] : [['☀️', 'Grand soleil'], ['🌤️', 'Quelques nuages'], ['🌈', 'Arc-en-ciel'], ['⛅', 'Éclaircies']];
+    const [ic, txt] = conds[seed % conds.length], t = 18 + (seed % 9) - (night ? 6 : 0);
+    screen.style.background = night ? 'linear-gradient(180deg, #0b1640, #2a1050)' : 'linear-gradient(180deg, #4fb3ff, #2f6fd6 60%, #6a5cff)';
+    body.replaceChildren(el('div', { class: 'ph-weather' },
+      el('small', {}, '📍 Ville du Paradise'), el('div', { class: 'ph-w-ico' }, ic), el('b', { class: 'ph-w-t' }, t + '°'), el('div', {}, txt), el('small', {}, `Max ${t + 3}° · Min ${t - 5}°`),
+      el('div', { class: 'ph-w-hours' }, ...Array.from({ length: 6 }, (_, i) => { const hh = (h + i) % 24, n = hh < 7 || hh >= 20; return el('div', {}, el('small', {}, i ? hh + ' h' : 'Maint.'), el('span', {}, n ? '🌙' : ['☀️', '🌤️', '⛅'][(seed + i) % 3]), el('b', {}, (t + (i % 3) - 1) + '°')); })),
+      el('div', { class: 'ph-w-days' }, ...['Demain', 'Après-demain', 'Dans 3 jours'].map((dd, i) => el('div', {}, el('span', {}, dd), el('span', {}, ['☀️', '🌦️', '🌈'][(seed + i) % 3]), el('b', {}, `${t - 2 + i}° / ${t + 4 + i}°`))))));
+  }
+  // ---------- ⏰ Horloge : heure, chrono et minuteur ----------
+  function clockApp(body) {
+    let chrono = 0, chronoAt = 0, run = false, tim = 0, timEnd = 0;
+    const big = el('div', { class: 'ph-big-time' }), ch = el('div', { class: 'ph-chrono' }, '00:00,0'), tm = el('div', { class: 'ph-chrono' }, '05:00');
+    const fmt = ms => { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+    const tick = () => {
+      if (!body.isConnected) return;
+      big.textContent = new Date().toLocaleTimeString('fr-FR');
+      if (run) ch.textContent = fmt(chrono + Date.now() - chronoAt) + ',' + Math.floor((chrono + Date.now() - chronoAt) % 1000 / 100);
+      if (timEnd) { const left = timEnd - Date.now(); tm.textContent = fmt(Math.max(0, left)); if (left <= 0) { timEnd = 0; island('⏰ Le minuteur est terminé !'); try { navigator.vibrate?.([300, 100, 300]); } catch (e) {} toast('⏰ Minuteur terminé !'); } }
+      timers.push(setTimeout(tick, 100));
+    };
+    const btn = (l, fn, cls = '') => el('button', { class: 'ph-pill ' + cls, onclick: fn }, l);
+    body.replaceChildren(el('div', { class: 'ph-clockapp' },
+      big, el('small', {}, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
+      el('h4', { class: 'ph-h' }, '⏱️ Chronomètre'), ch,
+      el('div', { class: 'ph-row-btns' }, btn('▶ / ⏸', () => { if (run) { chrono += Date.now() - chronoAt; run = false; } else { chronoAt = Date.now(); run = true; } }, 'go'), btn('↺', () => { run = false; chrono = 0; ch.textContent = '00:00,0'; })),
+      el('h4', { class: 'ph-h' }, '⏳ Minuteur'), tm,
+      el('div', { class: 'ph-row-btns' }, ...[1, 3, 5, 10].map(m => btn(m + ' min', () => { tim = m; timEnd = Date.now() + m * 60000; })), btn('⏹', () => { timEnd = 0; tm.textContent = '00:00'; }))));
+    tick();
+  }
+  // ---------- 📝 Notes (gardées sur cet appareil) ----------
+  function notes(body) {
+    let list = []; try { list = JSON.parse(localStorage.getItem('ph_notes') || '[]'); } catch (e) {}
+    const saveN = () => { try { localStorage.setItem('ph_notes', JSON.stringify(list.slice(0, 50))); } catch (e) {} };
+    const edit = i => go(b => { const ta = el('textarea', { class: 'ph-note-ta', placeholder: 'Écris ta note…' }, list[i]?.t || ''); ta.oninput = () => { list[i] = { t: ta.value, at: Date.now() }; saveN(); }; b.replaceChildren(ta); setTimeout(() => ta.focus(), 50); }, '📝 Note');
+    body.replaceChildren(
+      el('button', { class: 'ph-new', onclick: () => { list.unshift({ t: '', at: Date.now() }); saveN(); edit(0); } }, '✏️ Nouvelle note'),
+      ...(list.filter(n => n.t.trim()).length ? list.map((n, i) => n.t.trim() ? el('div', { class: 'ph-row', onclick: () => edit(i) }, el('div', { class: 'ph-row-txt' }, el('b', {}, n.t.split('\n')[0].slice(0, 40)), el('small', {}, ago(n.at))), el('button', { class: 'ph-mini', onclick: e => { e.stopPropagation(); list.splice(i, 1); saveN(); notes(body); } }, '🗑')) : null) : [el('div', { class: 'ph-wait' }, 'Aucune note pour l\'instant ✍️')]));
+  }
+  // ---------- 📅 Calendrier (avec les soirées du Paradise et les anniversaires) ----------
+  async function calendar(body) {
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), first = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+    const marks = {};
+    try { const ev = window.EventState?.next || window.EventState?.live; if (ev?.at) { const d = new Date(ev.at); if (d.getMonth() === m) marks[d.getDate()] = (ev.icon || '🎉') + ' ' + (ev.title || 'Soirée'); } } catch (e) {}
+    if (state.me.birthMonth === m + 1 && state.me.birthDay) marks[state.me.birthDay] = '🎂 Mon anniversaire';
+    const cells = [...Array(first).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+    body.replaceChildren(el('div', { class: 'ph-cal' },
+      el('b', { class: 'ph-cal-m' }, now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })),
+      el('div', { class: 'ph-cal-grid' }, ...['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => el('small', {}, d)), ...cells.map(d => el('span', { class: (d === now.getDate() ? 'today' : '') + (marks[d] ? ' mark' : ''), title: marks[d] || '' }, d || ''))),
+      ...Object.entries(marks).map(([d, t]) => el('div', { class: 'ph-row' }, el('div', { class: 'ph-row-txt' }, el('b', {}, t), el('small', {}, `${d} ${now.toLocaleDateString('fr-FR', { month: 'long' })}`))))));
+  }
+  // ---------- 🔦 Lampe torche ----------
+  function torch(body) {
+    let on = true;
+    const t = el('div', { class: 'ph-torch on', onclick: () => { on = !on; t.classList.toggle('on', on); screen.style.background = on ? '#fffbe8' : '#000'; } }, el('span', {}, '🔦'), el('small', {}, 'Touche pour allumer / éteindre'));
+    screen.style.background = '#fffbe8'; body.replaceChildren(t);
   }
 
   // ---------- ↩️ Le bouton pour revenir au téléphone après avoir ouvert une appli ----------
@@ -313,7 +414,9 @@ const Phone = (() => {
   function hideReturn() { retBtn?.classList.add('hidden'); }
   // ---------- Petits outils ----------
   function avatarOn(u, online) { const a = LC.avatar(u); if (online) a.append(el('span', { class: 'on' })); return a; }
-  function ping(text, onclick) { const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
+  function ping(text, onclick) { island(text); const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
+  // 🏝️ La Dynamic Island : elle s'agrandit pour afficher une alerte
+  function island(text) { const i = root?.querySelector('.ph-island'); if (!i || opt('island', '1') !== '1') return; i.querySelector('.ph-island-txt').textContent = text; i.classList.add('big'); clearTimeout(i._t); i._t = setTimeout(() => i.classList.remove('big'), 3200); }
   function pickFriend(title, cb) { go(body => body.replaceChildren(...(friends().length ? friends().map(u => el('button', { class: 'ph-row', onclick: () => cb(u) }, avatarOn(u, u.online), el('div', { class: 'ph-row-txt' }, el('b', {}, u.username)))) : [el('div', { class: 'ph-wait' }, 'Ajoute des amis d\'abord 🤝')])), title); }
   setTimeout(refreshBadges, 3000);
   return { open, close, isOpen, refreshBadges };
