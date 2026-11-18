@@ -680,4 +680,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 46,
+    date: '2026-11-18',
+    title: 'Le salon Vérification réservé 🛂',
+    added: [],
+    changed: [
+      '🔒 Dans le salon Vérification, seul le staff peut écrire : les nouveaux attendent qu\'on leur parle au micro',
+      '🔒 Pas de messages privés depuis le salon Vérification (sauf pour le staff)',
+      '✅ Une fois vérifié, on sort tout seul du salon Vérification et on ne peut plus y retourner (il est réservé aux nouveaux)',
+    ],
+    removed: [],
+  },
 ];

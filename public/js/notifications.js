@@ -151,7 +151,7 @@ function muteLeft(until) {
 function renderMuteBanner() {
   const muted = isMuted();
   const customsClosed = state.customs?.enabled && !state.customs.open && typeof needsCustoms === 'function' && needsCustoms();
-  const locked = muted || customsClosed;
+  const locked = muted || customsClosed || $('composer').classList.contains('locked'); // 🔒 salon Vérification
   const b = $('muteBanner');
   b.classList.toggle('hidden', !muted);
   $('input').disabled = locked;

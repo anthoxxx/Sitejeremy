@@ -85,6 +85,7 @@ const smallScreen = matchMedia('(max-width: 760px)');
 function setPlaceholder(full, short = 'Message…') {
   const inp = $('input');
   inp.dataset.full = full; inp.dataset.short = short;
+  if (inp.disabled) return; // zone bloquée : on garde le message 🔒
   inp.placeholder = smallScreen.matches ? short : full;
 }
 smallScreen.addEventListener?.('change', () => { const inp = $('input'); if (inp.dataset.full) inp.placeholder = smallScreen.matches ? inp.dataset.short : inp.dataset.full; });
@@ -273,6 +274,7 @@ function joinRoom(slug) {
     try { localStorage.setItem('lc_room', slug); } catch (e) {}
     $('headProfile').classList.add('hidden');
     setPlaceholder(`Message dans ${res.room.name}…`);
+    lockComposer(slug === 'douane' && !isStaff() && !state.me.dev ? '🔒 Seul le staff écrit ici : attends qu\'on te parle au micro 🎙️' : '');
     $('messages').replaceChildren();
     res.history.forEach(m => addRoomMessage(m, false));
     addSys(slug === 'patchnote' ? '📝 Toutes les nouveautés du site sont ici' : slug === 'suggestions' ? '💡 Une idée pour améliorer le site ? Écris-la ici ! Le staff lit toutes les suggestions, elles sont toujours bonnes à prendre 💜' : 'Bienvenue dans ' + res.room.name + ' ! Sois respectueux 💜');
@@ -398,8 +400,15 @@ function deleteConv(user) {
   socket.emit('pm_delete_conv', { userId: user.id }, res => res?.error ? toast(res.error) : toast('🗑 Conversation supprimée'));
 }
 
+// 🔒 Bloquer la zone de message (salon Vérification, ou messages privés tant qu'on n'est pas vérifié)
+function lockComposer(text) {
+  const c = $('composer'), i = $('input'); if (!c || !i) return;
+  c.classList.toggle('locked', !!text); i.disabled = !!text;
+  if (text) { i.value = ''; i.placeholder = text; } else if (i.dataset.full) i.placeholder = smallScreen.matches ? i.dataset.short : i.dataset.full;
+}
 async function openPm(user) {
   state.view = { type: 'pm', userId: user.id };
+  lockComposer(!isStaff() && !state.me.dev && ((state.customs?.enabled && !state.me.verified) || state.currentRoom?.slug === 'douane') ? (state.currentRoom?.slug === 'douane' ? '🔒 Pas de messages privés depuis le salon Vérification' : '🔒 Tu pourras écrire en privé une fois vérifié 🛂') : '');
   typers.clear(); renderTyping();
   if (!state.convs.has(user.id)) state.convs.set(user.id, { user, unread: 0, last: null });
   const conv = state.convs.get(user.id);

@@ -3129,3 +3129,7 @@ body.tch-shake .app { animation: wizzShake .6s ease both; }
 @keyframes wizzHint { 0%, 85%, 100% { transform: rotate(0); } 88% { transform: rotate(-14deg); } 91% { transform: rotate(14deg); } 94% { transform: rotate(-10deg); } 97% { transform: rotate(8deg); } }
 .ph-wizz { animation: wizzHint 3s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .list-item.on-mic .name > .uname, .msg .who.on-mic .uname, .list-item.on-mic, .list-item.on-mic .avatar, .voice-chip.on-mic::before, .wizz-btn { animation: none; } }
+/* 🔒 zone de message bloquée (salon Vérification) */
+.composer.locked { opacity: .75; }
+.composer.locked #input { cursor: not-allowed; }
+.composer.locked button:not(#emojiBtn) { pointer-events: none; opacity: .45; }

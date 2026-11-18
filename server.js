@@ -1037,10 +1037,15 @@ const VOICE_NEEDED = '🎙️ Ta voix doit d\'abord être validée par l\'équip
 const CAM_NEEDED = '📷 Ta caméra doit d\'abord être validée par l\'équipe : va dans le salon « Vérification » ou demande la validation.';
 const customsOpen = () => getSettings().customsOpen === '1';
 const isVerified = u => !!u && (!customsOn() || !!u.verified || isStaff(u));
+// vérifié = validé à la douane (si elle est ouverte) ET voix + caméra validées (si la vérification des médias est allumée)
+const fullyVerified = u => !!u && !u.is_guest && (!customsOn() || !!u.verified) && (!mediaVerifyOn() || (!!u.voice_ok && !!u.cam_ok)) && (customsOn() || mediaVerifyOn());
+const canWriteDouane = u => isStaff(u) || !!u?.is_dev;
 const NOT_VERIFIED = '🛂 Passe d\'abord par la Douane : un super-admin doit valider ta voix 🎙️ et ta caméra 📷.';
 function roomAccess(user, room) {
   if (!room) return 'Salon introuvable';
   if (room.slug === 'douane' && !customsOn() && !mediaVerifyOn() && !isStaff(user)) return 'Ce salon est fermé';
+  // ✅ une fois vérifié, on ne retourne plus dans le salon Vérification (sauf le staff et le développeur)
+  if (room.slug === 'douane' && !isStaff(user) && !user.is_dev && fullyVerified(user)) return '✅ Tu es déjà vérifié : le salon Vérification est seulement pour les nouveaux';
   if (!isVerified(user) && room.slug !== 'douane') return NOT_VERIFIED;
   if (isStaff(user) || room.owner_id === user.id || isRoomManager(room.id, user.id)) return null;
   if (room.members_only && user.is_guest) return 'Ce salon est réservé aux membres inscrits';
@@ -1927,6 +1932,8 @@ app.post('/api/customs/verify/:id', auth, (req, res) => {
   log(req.user, verified ? 'verify' : 'unverify', `${target.username} : ${what === 'refuse' ? 'refusé à la douane ❌' : what === 'reset' ? 'badges retirés, renvoyé à la douane' : label}${verified && !wasVerified ? ' → accepté' : ''}`);
   const updated = getUser(target.id);
   refreshOnline(updated);
+  // ✅ vérifié : il sort tout seul du salon Vérification (après quelques secondes pour voir le message)
+  if (fullyVerified(updated)) setTimeout(() => ejectFromRoom(target.id, 'douane', '✅ Tu es vérifié, bienvenue ! Le salon Vérification est réservé aux nouveaux'), 4000);
   if (verified && !wasVerified && customsOn()) {
     notify(target.id, { type: 'verified', icon: '✅', title: 'Tu es accepté !', text: `Tu as les deux badges 🎙️ voix et 📷 caméra. Bienvenue sur ${getSettings().siteName} : tu as accès à tous les salons, aux messages privés et à tout le site.` });
     io.to('room:douane').emit('system', { room: 'douane', text: `✅ ${target.username} a les deux badges 🎙️📷 : accepté, bienvenue !` });
@@ -3089,6 +3096,7 @@ io.on('connection', socket => {
     const room = getRoomBySlug(entry.room);
     if (!room || !socket.rooms.has('room:' + room.slug)) return ack && ack({ error: 'Rejoins un salon d\'abord' });
     if (roomAccess(u, room)) return ack && ack({ error: roomAccess(u, room) });
+    if (room.slug === 'douane' && !canWriteDouane(u)) return ack && ack({ error: '🔒 Dans le salon Vérification, seul le staff peut écrire. Allume ton micro 🎙️ et ta caméra 📷 quand un membre du staff te le demande.' });
     if (room.slug === 'douane' && customsOn() && !customsOpen() && !isVerified(u)) return ack && ack({ error: '🛂 La douane est fermée pour le moment : attends qu\'un membre du staff l\'ouvre' });
     if (room.slug === 'douane' && u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée : tu ne peux pas écrire pour le moment' });
     const kind = audio ? 'audio' : image ? 'image' : 'text', media = audio ? audio.url : image ? image.url : '', duration = audio ? audio.duration : 0;
@@ -3201,7 +3209,7 @@ io.on('connection', socket => {
     const u = current(), target = getUser(parseInt(to, 10));
     if (!u || u.is_guest || !target || target.id === uid) return ack && ack({ error: 'Impossible' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Impossible d\'envoyer un wizz à cette personne' });
-    if (!isVerified(u) && !isStaff(target)) return ack && ack({ error: NOT_VERIFIED });
+    if (!isVerified(u) && !isStaff(u) && !u.is_dev) return ack && ack({ error: NOT_VERIFIED });
     if (throttled(`wizz:${uid}:${target.id}`, 15000)) return ack && ack({ error: 'Attends un peu avant de renvoyer un wizz 😉' });
     const content = `📳 ${u.username} a envoyé un wizz !`;
     const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(uid, target.id, content, now(), 'text', '', 0);
@@ -3217,7 +3225,8 @@ io.on('connection', socket => {
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid)) return ack && ack({ error: 'Cette personne ne reçoit pas tes messages' });
-    if (!isVerified(u) && !isStaff(target)) return ack && ack({ error: NOT_VERIFIED });
+    if (!isVerified(u) && !isStaff(u) && !u.is_dev) return ack && ack({ error: '🔒 Tant que tu n\'es pas vérifié, tu ne peux pas écrire en privé. Passe d\'abord la vérification 🛂' });
+    if (online.get(uid)?.room === 'douane' && !canWriteDouane(u)) return ack && ack({ error: '🔒 Pas de messages privés depuis le salon Vérification : seul le staff peut écrire ici' });
     if (!isVerified(target) && !isStaff(u)) return ack && ack({ error: `${target.username} n'a pas encore passé la douane` });
     if (isMutedBy(target.id, uid)) return ack && ack({ error: `${target.username} t'a mis en sourdine pour le moment` });
     if (isBlocked(uid, target.id)) return ack && ack({ error: 'Tu as bloqué cette personne' });
