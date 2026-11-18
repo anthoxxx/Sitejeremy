@@ -87,6 +87,7 @@ function isBirthday(u) {
 }
 
 let badgesOf = () => []; // 🏅 remplacé plus bas par les vrais badges
+let AdventRef = null; // 🎄 Calendrier de l'Avent (créé plus bas)
 let PageantRef = null; // 👑 Miss & Mister Paradise (créé plus bas)
 function publicUser(u) {
   if (!u) return null;
@@ -963,6 +964,8 @@ function siteInfo() {
   out.maxAccounts = parseInt(s.maxAccounts, 10) || 0;
   out.themeMode = s.theme || 'auto';
   out.theme = activeTheme();
+  out.xmas = !!AdventRef?.isLive(); // 🎄 décembre : Village de Noël et Calendrier de l'Avent
+  out.xmasDay = out.xmas ? AdventRef.today().d : 0;
   return out;
 }
 app.get('/api/site', (req, res) => res.json({ site: siteInfo() }));
@@ -2768,6 +2771,9 @@ const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) 
 CityGames.routes(app, auth);
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
+// 🎄 Le Calendrier de l'Avent
+const Advent = AdventRef = require('./advent')({ db, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id) });
+Advent.routes(app, auth);
 // 🎉 Les soirées événements
 const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 

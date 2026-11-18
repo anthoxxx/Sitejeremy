@@ -670,6 +670,7 @@ function toggleUserMenu() {
     !state.me.isGuest ? item('🧍', 'Mon personnage de l\'Île', () => Look.open()) : null,
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
+    item('🎄', 'Calendrier de l\'Avent', () => Advent.open()),
     item('👑', 'Miss & Mister Paradise', () => Pageant.open()),
     item('🎮', 'Mini-jeux', () => Hub.open()),
     item('🏙️', 'La Ville du Paradise', () => Island.open(), 'mobile-only'),

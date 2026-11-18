@@ -37,6 +37,11 @@ const SHOP = [
   { id: 'entry_carpet', slot: 'entry', value: 'carpet', name: 'Entrée Tapis rouge', icon: '🌟', price: 600, desc: 'Tapis rouge et flashs des photographes' },
   { id: 'entry_rainbow', slot: 'entry', value: 'rainbow', name: 'Entrée Arc-en-ciel', icon: '🌈', price: 300, desc: 'Un arc-en-ciel annonce ton arrivée' },
   // 🛋️ Meubles rares pour sa maison sur l'Île
+  // 🎄 objets exclusifs du Calendrier de l'Avent (on ne peut pas les acheter)
+  { id: 'badge_santa', slot: 'badge', value: '🎅', name: 'Badge Père Noël', icon: '🎅', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
+  { id: 'furn_xmastree', slot: 'furniture', value: 'xmastree', name: 'Sapin de Noël', icon: '🎄', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
+  { id: 'furn_snowman', slot: 'furniture', value: 'snowman', name: 'Bonhomme de neige', icon: '⛄', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
+  { id: 'furn_gifts', slot: 'furniture', value: 'gifts', name: 'Pile de cadeaux', icon: '🎁', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
   { id: 'furn_throne', slot: 'furniture', value: 'throne', name: 'Trône royal', icon: '👑', price: 700, desc: 'Un trône doré pour ta maison (on peut s\'y asseoir)' },
   { id: 'furn_jacuzzi', slot: 'furniture', value: 'jacuzzi', name: 'Jacuzzi', icon: '🫧', price: 800, desc: 'Un jacuzzi avec des bulles' },
   { id: 'furn_djbooth', slot: 'furniture', value: 'djbooth', name: 'Platines de DJ', icon: '🎧', price: 600, desc: 'Mixe chez toi comme au club' },
@@ -122,7 +127,7 @@ module.exports = function setupCoins({ db, emitToUser, notify, getUser, multipli
     const rank = db.prepare('SELECT COUNT(*)+1 r FROM users WHERE coins_total>? AND is_guest=0').get(u.coins_total || 0).r;
     return {
       coins: u.coins || 0, total: u.coins_total || 0, rank, daily: dailyInfo(u),
-      items: SHOP.map(i => ({ ...i, owned: mine.has(i.id), equipped: i.slot !== 'furniture' && equipped[i.slot] === i.value })),
+      items: SHOP.filter(i => !i.exclusive || mine.has(i.id)).map(i => ({ ...i, owned: mine.has(i.id), equipped: i.slot !== 'furniture' && equipped[i.slot] === i.value })),
       history: db.prepare('SELECT amount, reason, created_at FROM coin_log WHERE user_id=? ORDER BY id DESC LIMIT 15').all(uid),
     };
   }
@@ -130,6 +135,7 @@ module.exports = function setupCoins({ db, emitToUser, notify, getUser, multipli
     const item = BY_ID.get(id);
     if (!item) return { error: 'Cet objet n\'existe pas' };
     if (owns(uid, id)) return { error: 'Tu l\'as déjà !' };
+    if (item.exclusive) return { error: '🎄 Cet objet se gagne seulement dans le Calendrier de l\'Avent' };
     if (!spend(uid, item.price, `🛍️ Achat : ${item.name}`)) return { error: `Il te manque ${item.price - balance(uid)} pièces 💰` };
     db.prepare('INSERT OR IGNORE INTO inventory (user_id,item,created_at) VALUES (?,?,?)').run(uid, id, now());
     log(getUser(uid), 'shop_buy', `${item.name} (${item.price} pièces)`);

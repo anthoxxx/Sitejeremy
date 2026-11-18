@@ -14,7 +14,7 @@ const Look = (() => {
     top: [['tshirt', 'T-shirt', 0], ['debardeur', 'Débardeur', 0], ['chemise', 'Chemise', 0], ['hoodie', 'Sweat à capuche', 0], ['veste', 'Veste ouverte', 0], ['maillot', 'Maillot de foot', 0], ['crop', 'Crop top', 0], ['pull', 'Pull rayé', 0], ['robe', 'Robe', 0], ['costume', 'Costume chic', 150], ['robe_soiree', 'Robe de soirée', 200], ['cuir', 'Blouson en cuir', 180]],
     bottom: [['jean', 'Jean', 0], ['pantalon', 'Pantalon', 0], ['short', 'Short', 0], ['jupe', 'Jupe', 0], ['jogging', 'Jogging', 0]],
     shoes: [['baskets', 'Baskets', 0], ['bottes', 'Bottes', 0], ['talons', 'Talons', 0], ['sandales', 'Sandales', 0], ['dorees', 'Baskets dorées', 120]],
-    acc: [['', 'Rien', 0], ['casquette', 'Casquette', 0], ['bonnet', 'Bonnet', 0], ['chapeau', 'Chapeau', 0], ['lunettes', 'Lunettes', 0], ['soleil', 'Lunettes de soleil', 0], ['casque', 'Casque audio', 0], ['noeud', 'Nœud', 0], ['fleur', 'Fleur', 0], ['couronne', 'Couronne', 300], ['aureole', 'Auréole', 250], ['cornes', 'Cornes de diable', 200], ['chat', 'Oreilles de chat', 150], ['lapin', 'Oreilles de lapin', 150]],
+    acc: [['', 'Rien', 0], ['casquette', 'Casquette', 0], ['bonnet', 'Bonnet', 0], ['chapeau', 'Chapeau', 0], ['lunettes', 'Lunettes', 0], ['soleil', 'Lunettes de soleil', 0], ['casque', 'Casque audio', 0], ['noeud', 'Nœud', 0], ['fleur', 'Fleur', 0], ['couronne', 'Couronne', 300], ['aureole', 'Auréole', 250], ['cornes', 'Cornes de diable', 200], ['chat', 'Oreilles de chat', 150], ['lapin', 'Oreilles de lapin', 150], ['pere_noel', 'Bonnet de Père Noël 🎄', 9999]],
     extra: [['', 'Rien', 0], ['sac', 'Sac à dos', 0], ['ailes', 'Ailes d\'ange', 500], ['ailes_demon', 'Ailes de démon', 500], ['cape', 'Cape de héros', 300], ['papillon', 'Ailes de papillon', 450]],
   };
   const priceOf = (slot, id) => (CAT[slot]?.find(x => x[0] === id) || [])[2] || 0;
@@ -190,6 +190,7 @@ const Look = (() => {
     const A = L.acc;
     if (A === 'lunettes' || A === 'soleil') { g.strokeStyle = '#1c1c24'; g.lineWidth = 1.4; g.fillStyle = A === 'soleil' ? '#1c1c24' : 'rgba(180,220,255,.35)'; for (const x of [ex - 5.5, ex + 3.5]) { g.beginPath(); g.arc(x, ey, 3.4, 0, 7); g.fill(); g.stroke(); } g.beginPath(); g.moveTo(ex - 2.1, ey); g.lineTo(ex + .1, ey); g.moveTo(ex - 8.9, ey); g.lineTo(-12, ey - 1); g.stroke(); }
     if (A === 'casquette') { g.fillStyle = top; g.beginPath(); g.arc(0, HY - 4, 13.5, Math.PI, 0); g.fill(); g.fillStyle = shade(top, .7); g.beginPath(); g.ellipse(10, HY - 4, 10, 2.6, 0, 0, 7); g.fill(); }
+    if (A === 'pere_noel') { g.fillStyle = '#e8202f'; g.beginPath(); g.moveTo(-14, HY - 6); g.quadraticCurveTo(-4, HY - 34, 18, HY - 26); g.lineTo(13, HY - 6); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.fillRect(-16, HY - 9, 32, 7); g.beginPath(); g.arc(19, HY - 25, 5, 0, 7); g.fill(); }
     if (A === 'bonnet') { g.fillStyle = '#ff2d55'; g.beginPath(); g.arc(0, HY - 3, 14, Math.PI, 0); g.fill(); g.fillStyle = '#ffffff'; g.fillRect(-14, HY - 5, 28, 4); g.beginPath(); g.arc(0, HY - 18, 4, 0, 7); g.fill(); }
     if (A === 'chapeau') { g.fillStyle = '#1c1c24'; g.beginPath(); g.ellipse(0, HY - 9, 18, 4, 0, 0, 7); g.fill(); rr(g, -10, HY - 25, 20, 16, 3); g.fill(); g.fillStyle = '#ff2d55'; g.fillRect(-10, HY - 13, 20, 3); }
     if (A === 'casque') { g.strokeStyle = '#2a2a32'; g.lineWidth = 3; g.beginPath(); g.arc(0, HY - 2, 15, Math.PI * 1.05, Math.PI * 1.95); g.stroke(); g.fillStyle = '#ff2d55'; g.beginPath(); g.ellipse(12.5, HY + 1, 4, 5, 0, 0, 7); g.fill(); }
@@ -348,7 +349,8 @@ const Look = (() => {
     return el('div', { class: 'look-sw' }, ...list.map(c => el('button', { class: 'look-c' + (draft[key] === c ? ' on' : ''), style: `background:${c}`, title: c, onclick: () => { draft[key] = c; render(); } })));
   }
   function choice(slot, key, list) {
-    return el('div', { class: 'look-grid' }, ...list.map(([id, name, price]) => {
+    // (les objets exclusifs, comme le bonnet du Calendrier de l'Avent, n'apparaissent que si on les a gagnés)
+    return el('div', { class: 'look-grid' }, ...list.filter(([id, , price]) => !(price >= 9999 && !owned.has(slot + ':' + id))).map(([id, name, price]) => {
       const locked = price && !owned.has(slot + ':' + id);
       const c = el('canvas', { class: 'look-thumb', width: 96, height: 104 });
       const g = c.getContext('2d'); g.setTransform(1.15, 0, 0, 1.15, 48, slot === 'shoes' || slot === 'bottom' ? 40 : slot === 'top' || slot === 'extra' ? 66 : 82);

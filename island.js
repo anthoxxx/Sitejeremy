@@ -45,7 +45,7 @@ for (const list of Object.values(require('./city').FOOD || {})) for (const it of
 const PRIZES = ['🧸', '🐶', '🦄', '🐱', '🐸', '🐼', '🐰', '🦊'];
 const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 // Les meubles qu'on peut placer chez soi
-const RARE = ['throne', 'jacuzzi', 'djbooth', 'statue', 'neonsign']; // meubles rares de la boutique 💰
+const RARE = ['throne', 'jacuzzi', 'djbooth', 'statue', 'neonsign', 'xmastree', 'snowman', 'gifts']; // meubles rares de la boutique 💰
 const NEONS = ['neon_coeur', 'neon_etoile', 'neon_love', 'neon_tube', 'neon_vague', 'neon_palmier', 'neon_lune', 'neon_eclair', 'neon_bouche', 'neon_cadre'];
 const HOUSE_STYLES = ['cosy', 'moderne', 'chalet', 'plage', 'chateau', 'loft', 'japon'];
 const FURN = [...RARE, ...NEONS, 'chair', 'nightstand', 'coffee', 'sink', 'toilet', 'shower', 'wardrobe', 'mirror', 'vanity', 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];

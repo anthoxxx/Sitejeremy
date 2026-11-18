@@ -54,6 +54,7 @@ const Island = (() => {
   const shops = [];
   const SHOP_TYPES = [['Boulangerie', '🥖', '#ffd34d'], ['Pizzeria', '🍕', '#ff2d55'], ['Pharmacie', '💊', '#2bff88'], ['Hôtel', '🏨', '#c64dff'], ['Banque', '🏦', '#38dce6'], ['Fleuriste', '💐', '#ff4fd8'], ['Sushi', '🍣', '#ff8a1f'], ['Coiffeur', '💇', '#ff4fd8'], ['Burger', '🍔', '#ffd34d'], ['Glacier', '🍦', '#38dce6'], ['Boutique', '👗', '#c64dff'], ['Salle de sport', '🏋️', '#2fa8ff'], ['Bar', '🍸', '#ff2d55'], ['Hôpital', '🏥', '#ffffff'], ['Poste', '📮', '#ffd34d'], ['Librairie', '📚', '#2bff88'], ['Supermarché', '🛒', '#2fa8ff'], ['Bijouterie', '💍', '#ffd76a']];
   const TOWERS = [[560, 370, '#2fa8ff', 3], [1840, 380, '#ff4fd8', 4], [2090, 600, '#38dce6', 3], [2070, 990, '#ffd34d', 4], [560, 1265, '#c64dff', 3], [1790, 1265, '#2bff88', 4], [300, 380, '#ff8a1f', 5], [2100, 380, '#c64dff', 5], [300, 1300, '#38dce6', 4], [1170, 1120, '#ff8a1f', 0]].filter(t => t[3]);
+  const xmas = () => !!(window.LC?.site?.xmas || (() => { try { return localStorage.getItem('lc_xmas_force') === '1'; } catch (e) { return false; } })());
   function buildTerrain() {
     terrain = document.createElement('canvas'); terrain.width = W; terrain.height = H;
     const g = terrain.getContext('2d');
@@ -98,6 +99,20 @@ const Island = (() => {
     }
     g.restore();
     g.strokeStyle = '#8a90a0'; g.lineWidth = 8; land(); g.stroke(); // le bord de la ville
+    // ❄️ en décembre : de la neige partout sur les pelouses et les trottoirs
+    if (xmas()) {
+      seed = 31;
+      const onRoad = (x, y) => STREETS_Y.some(sy => Math.abs(sy - y) < 56) || STREETS_X.some(sx => Math.abs(sx - x) < 56);
+      for (let i = 0; i < 1400; i++) {
+        const x = 60 + rnd() * 2280, y = 130 + rnd() * 1420, r = 6 + rnd() * 22; if (onRoad(x, y)) continue;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(255,255,255,${.55 + rnd() * .35})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r * 1.6, r, 0, 0, 7); g.fill();
+      }
+      // un liseré de neige au bord des trottoirs
+      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 3;
+      for (const y of STREETS_Y) for (const d of [-52, 52]) { g.beginPath(); g.moveTo(0, y + d); g.lineTo(W, y + d); g.stroke(); }
+      for (const x of STREETS_X) for (const d of [-52, 52]) { g.beginPath(); g.moveTo(x + d, 0); g.lineTo(x + d, H); g.stroke(); }
+    }
     // 🏪 les boutiques et les immeubles qui remplissent les quartiers
     seed = 77; shops.length = 0;
     const free = (x, y) => onLand(x, y - 60) && !PLACES.some(p => Math.abs(p.x - x) < 130 && Math.abs(p.y - y) < 120) && !TOWERS.some(t => Math.abs(t[0] - x) < 110 && Math.abs(t[1] - y) < 120)
@@ -586,6 +601,10 @@ const Island = (() => {
     djbooth: { name: 'Platines de DJ', icon: '🎧', w: 200, h: 90, act: 'dj', spot: 'front', rare: 'furn_djbooth' },
     statue: { name: 'Statue en or', icon: '🗿', w: 80, h: 140, rare: 'furn_statue' },
     neonsign: { name: 'Néon « Paradise »', icon: '💡', w: 220, h: 70, rare: 'furn_neonsign' },
+    // 🎄 les meubles du Calendrier de l'Avent
+    xmastree: { name: 'Sapin de Noël', icon: '🎄', w: 120, h: 170, rare: 'furn_xmastree', advent: true },
+    snowman: { name: 'Bonhomme de neige', icon: '⛄', w: 90, h: 120, rare: 'furn_snowman', advent: true },
+    gifts: { name: 'Pile de cadeaux', icon: '🎁', w: 110, h: 80, rare: 'furn_gifts', advent: true },
   };
   Object.assign(FURN, window.Decor?.FURN || {});
   const ACT_LABEL = { wash: 'Se laver les mains', shower: 'Prendre une douche', coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
@@ -629,6 +648,15 @@ const Island = (() => {
     ctx.fillStyle = 'rgba(0,0,0,.14)'; if (!d.flat && !d.neon && f.t !== 'painting') { ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, 9, 0, 0, 7); ctx.fill(); }
     if (window.Decor && Decor.draw(ctx, f, d, t, A, nightLevel())) { ctx.restore(); if (f.t === 'tv') drawScreen(t); return; }
     switch (f.t) {
+      // 🎄 sapin avec guirlande qui clignote, bonhomme de neige et cadeaux
+      case 'xmastree': {
+        ctx.fillStyle = '#6b3f1f'; ctx.fillRect(-10, h / 2 - 26, 20, 26);
+        for (let i = 0; i < 3; i++) { ctx.fillStyle = ['#1f8a4c', '#23a058', '#2bb866'][i]; ctx.beginPath(); ctx.moveTo(0, -h / 2 + i * 38); ctx.lineTo(-w / 2 + 6 - i * -2 + (2 - i) * 8, -h / 2 + 70 + i * 38); ctx.lineTo(w / 2 - 6 - (2 - i) * 8, -h / 2 + 70 + i * 38); ctx.closePath(); ctx.fill(); }
+        for (let i = 0; i < 14; i++) { const a = i * 2.4, yy = -h / 2 + 30 + (i * 9) % 110, xx = Math.sin(a) * (10 + (yy + h / 2) * .28); ctx.fillStyle = ['#ff2d3a', '#ffd34d', '#4fb3ff', '#ff5fa2'][(i + Math.floor(t * 3)) % 4]; ctx.beginPath(); ctx.arc(xx, yy, 4, 0, 7); ctx.fill(); }
+        ctx.font = '26px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText('⭐', 0, -h / 2 - 4); break;
+      }
+      case 'snowman': ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 26, 34, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(0, -22, 24, 0, 7); ctx.fill(); ctx.fillStyle = '#222'; ctx.fillRect(-18, -54, 36, 8); ctx.fillRect(-12, -78, 24, 26); ctx.beginPath(); ctx.arc(-8, -26, 3, 0, 7); ctx.arc(8, -26, 3, 0, 7); ctx.fill(); ctx.fillStyle = '#ff8a1f'; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(16, -17); ctx.lineTo(0, -14); ctx.fill(); ctx.fillStyle = '#ff2d3a'; ctx.fillRect(-22, -4, 44, 8); break;
+      case 'gifts': for (const [gx, gy, gw, gh, c] of [[-30, 10, 46, 40, '#ff2d3a'], [18, 14, 40, 34, '#2fa8ff'], [-6, -22, 38, 34, '#2bd07a']]) { ctx.fillStyle = c; ctx.fillRect(gx - gw / 2, gy - gh / 2, gw, gh); ctx.fillStyle = '#ffd34d'; ctx.fillRect(gx - 3, gy - gh / 2, 6, gh); ctx.fillRect(gx - gw / 2, gy - 3, gw, 6); } break;
       case 'sofa': ctx.fillStyle = A; roundRect(-w / 2 + 10, -h / 2, w - 20, 40, 12); ctx.fill(); roundRect(-w / 2, -h / 2 + 12, 30, h - 12, 10); ctx.fill(); roundRect(w / 2 - 30, -h / 2 + 12, 30, h - 12, 10); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.28)'; roundRect(-w / 2 + 30, -h / 2 + 38, w - 60, 30, 8); ctx.fill(); break;
       case 'armchair': ctx.fillStyle = A; roundRect(-w / 2, -h / 2, w, h, 14); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.3)'; roundRect(-w / 2 + 12, -h / 2 + 22, w - 24, h - 30, 8); ctx.fill(); break;
       case 'bed': ctx.fillStyle = '#6b4a2b'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.fillStyle = '#fff'; ctx.fillRect(-w / 2 + 10, -h / 2 + 10, w - 20, 40); ctx.fillStyle = A; ctx.fillRect(-w / 2 + 10, -h / 2 + 55, w - 20, h - 62); ctx.fillStyle = 'rgba(255,255,255,.2)'; for (let i = 0; i < 3; i++) ctx.fillRect(-w / 2 + 10, -h / 2 + 70 + i * 30, w - 20, 6); break;
@@ -934,7 +962,7 @@ const Island = (() => {
     editing = false; sel = -1; drag = null; root.querySelector('.isl-panel')?.remove(); renderUI();
   }
   function furniturePanel() {
-    panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
+    panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).filter(([, d]) => !d.advent || window.Shop?.owned(d.rare)).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
       if (draft.length >= 600) return toast('Ta maison est pleine à craquer (600 meubles) 😅');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
@@ -1098,6 +1126,31 @@ const Island = (() => {
     ctx.fillStyle = '#2a2a32'; ctx.fillRect(l.x - 2, l.y - 50, 4, 52); ctx.fillRect(l.x - 6, l.y - 2, 12, 4);
     ctx.fillStyle = l.c; ctx.shadowColor = l.c; ctx.shadowBlur = 16 * flick; ctx.beginPath(); ctx.arc(l.x, l.y - 54, 6, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = '#2a2a32'; ctx.beginPath(); ctx.moveTo(l.x - 8, l.y - 58); ctx.lineTo(l.x + 8, l.y - 58); ctx.lineTo(l.x, l.y - 66); ctx.fill();
+    // 🎄 en décembre : une guirlande qui clignote autour du lampadaire, et un ruban rouge
+    if (xmas()) { const C = ['#ff2d3a', '#2bd07a', '#ffd34d', '#4fb3ff']; for (let i = 0; i < 6; i++) { ctx.fillStyle = C[(i + Math.floor(t * 3 + l.x)) % 4]; ctx.beginPath(); ctx.arc(l.x + (i % 2 ? 4 : -4), l.y - 8 - i * 7, 2.6, 0, 7); ctx.fill(); } ctx.fillStyle = '#e8202f'; ctx.fillRect(l.x - 5, l.y - 44, 10, 5); }
+  }
+  // 🎄 le grand sapin de Noël de la place, avec sa guirlande et son étoile
+  const BIG_TREE = { x: 1095, y: 945 };
+  function drawBigTree(t, n) {
+    const { x, y } = BIG_TREE;
+    ctx.save(); ctx.translate(x, y); ctx.scale(.72, .72);
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(0, 6, 70, 14, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6b3f1f'; ctx.fillRect(-14, -30, 28, 34);
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = ['#17703c', '#1f8a4c', '#23a058', '#2bb866'][i]; ctx.beginPath(); ctx.moveTo(0, -250 + i * 50); ctx.lineTo(-80 + i * 8 - (3 - i) * 0, -150 + i * 40); ctx.lineTo(80 - i * 8, -150 + i * 40); ctx.closePath(); ctx.fill(); }
+    for (let i = 0; i < 40; i++) { const yy = -230 + (i * 23) % 200, xx = Math.sin(i * 2.3) * (14 + (yy + 230) * .3); ctx.fillStyle = ['#ff2d3a', '#ffd34d', '#4fb3ff', '#ff5fa2', '#ffffff'][(i + Math.floor(t * 4)) % 5]; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 8 + n * 8; ctx.beginPath(); ctx.arc(xx, yy, 4.5, 0, 7); ctx.fill(); }
+    ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 25; ctx.font = '46px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText('⭐', 0, -262 + Math.sin(t * 2) * 3); ctx.shadowBlur = 0;
+    ctx.font = '30px "Noto Color Emoji", sans-serif'; ctx.fillText('🎁', -48, -8); ctx.fillText('🎁', 46, -10); ctx.fillText('🎁', 4, 4);
+    ctx.restore();
+  }
+  // 🎅 le traîneau du Père Noël traverse le ciel le soir du 24 décembre
+  function drawSanta(t, vw, vh) {
+    const d = window.LC?.site?.xmasDay, h = new Date().getHours(), force = (() => { try { return localStorage.getItem('lc_xmas_force') === '1'; } catch (e) { return false; } })();
+    if (!force && !(d === 24 && h >= 18) && d !== 25) return;
+    const k = (t % 22) / 22, x = -300 + k * (vw + 600), y = 90 + Math.sin(k * 6) * 30;
+    ctx.save(); ctx.font = '42px "Noto Color Emoji", sans-serif'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🦌🦌🦌🛷🎅', x, y);
+    ctx.globalAlpha = .8; ctx.font = '16px sans-serif'; for (let i = 0; i < 8; i++) ctx.fillText('✨', x - 30 - i * 26, y + Math.sin(t * 8 + i) * 8);
+    ctx.restore();
   }
   function drawFountain(t, n) {
     const { x, y } = FOUNTAIN;
@@ -1235,6 +1288,7 @@ const Island = (() => {
       const vis = (x, y, m = 200) => x > x0 - m && x < x1 + m && y > y0 - 60 && y < y1 + m + 200; // on ne dessine que ce qui est à l'écran
       items.push(...TOWERS.filter(tw => vis(tw[0], tw[1])).map(tw => ({ y: tw[1], d: () => drawTower(tw, t, nn) })), ...ARCHES.filter(a => vis(a[0], a[1])).map(a => ({ y: a[1] + 40, d: () => drawArch(a, t, nn) })));
       items.push(...lamps.filter(l => l.x > x0 - 60 && l.x < x1 + 60 && l.y > y0 - 20 && l.y < y1 + 80).map(l => ({ y: l.y, d: () => drawLamp(l, t, nn) })), { y: FOUNTAIN.y + 26, d: () => drawFountain(t, nn) });
+      if (xmas()) items.push({ y: BIG_TREE.y + 6, d: () => drawBigTree(t, nn) });
       const counts = {};
       for (const u of state.online || []) if (u.room && !u.ghost) counts[u.room] = (counts[u.room] || 0) + 1;
       items.push(...palms.filter(p => p.x > x0 - 80 && p.x < x1 + 80 && p.y > y0 && p.y < y1 + 120).map(p => ({ y: p.y, d: () => drawPalm(p, t) })),
@@ -1267,6 +1321,7 @@ const Island = (() => {
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
     if (kind === 'island') try { window.CityGames?.drawTop(ctx, t, players.get(me)); } catch (e) {}
     if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
+    if (kind === 'island' && xmas()) { ctx.save(); ctx.setTransform(DPR(), 0, 0, DPR(), 0, 0); drawSanta(t, vw, vh); ctx.restore(); }
     if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.setLineDash([]); if (f.t !== 'tv') { ctx.beginPath(); ctx.moveTo(0, -d.h / 2 - 4); ctx.lineTo(0, -d.h / 2 - 22); ctx.stroke(); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -d.h / 2 - 34, 13, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1404'; ctx.font = '900 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⟳', 0, -d.h / 2 - 33); } ctx.restore(); }
     drawFx(t);
     // shooter dans le ballon en marchant dessus
@@ -1642,7 +1697,7 @@ const Island = (() => {
     document.addEventListener('keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys.delete(k); });
     buildTerrain();
     const month = new Date().getMonth();
-    const set = month === 9 || month === 10 ? ['🍂', '🍁', '❄️'] : month === 11 || month <= 1 ? ['❄️', '❄️', '✨'] : ['🌸', '✨'];
+    const set = xmas() ? ['❄️', '❄️', '❅', '✨'] : month === 9 || month === 10 ? ['🍂', '🍁', '❄️'] : month === 11 || month <= 1 ? ['❄️', '❄️', '✨'] : ['🌸', '✨'];
     for (let i = 0; i < 18; i++) leaves.push({ x: Math.random() * 800, y: Math.random() * 800, v: 30 + Math.random() * 40, p: Math.random() * 6, s: 12 + Math.random() * 10, e: set[i % set.length] });
     renderUI();
   }

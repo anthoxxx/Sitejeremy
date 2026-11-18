@@ -8,12 +8,12 @@ const CAT = {
   top: ['tshirt', 'debardeur', 'chemise', 'hoodie', 'veste', 'maillot', 'crop', 'pull', 'robe', 'costume', 'robe_soiree', 'cuir'],
   bottom: ['jean', 'pantalon', 'short', 'jupe', 'jogging'],
   shoes: ['baskets', 'bottes', 'talons', 'sandales', 'dorees'],
-  acc: ['', 'casquette', 'bonnet', 'chapeau', 'lunettes', 'soleil', 'casque', 'noeud', 'fleur', 'couronne', 'aureole', 'cornes', 'chat', 'lapin'],
+  acc: ['', 'casquette', 'bonnet', 'chapeau', 'lunettes', 'soleil', 'casque', 'noeud', 'fleur', 'couronne', 'aureole', 'cornes', 'chat', 'lapin', 'pere_noel'],
   extra: ['', 'sac', 'ailes', 'ailes_demon', 'cape', 'papillon'],
   creature: ['flamichou', 'bulloo', 'feuillou', 'voltis', 'nuagelle', 'rocaillou', 'lunacorne', 'cristalis', 'draconeau'],
 };
 // Les pièces rares (prix en Paradise Coins)
-const PRICES = { 'eyes:etoiles': 80, 'top:costume': 150, 'top:robe_soiree': 200, 'top:cuir': 180, 'shoes:dorees': 120, 'acc:couronne': 300, 'acc:aureole': 250, 'acc:cornes': 200, 'acc:chat': 150, 'acc:lapin': 150, 'extra:ailes': 500, 'extra:ailes_demon': 500, 'extra:cape': 300, 'extra:papillon': 450, 'creature:nuagelle': 200, 'creature:rocaillou': 200, 'creature:lunacorne': 400, 'creature:cristalis': 450, 'creature:draconeau': 600 };
+const PRICES = { 'eyes:etoiles': 80, 'top:costume': 150, 'top:robe_soiree': 200, 'top:cuir': 180, 'shoes:dorees': 120, 'acc:couronne': 300, 'acc:aureole': 250, 'acc:cornes': 200, 'acc:chat': 150, 'acc:lapin': 150, 'acc:pere_noel': 99999, 'extra:ailes': 500, 'extra:ailes_demon': 500, 'extra:cape': 300, 'extra:papillon': 450, 'creature:nuagelle': 200, 'creature:rocaillou': 200, 'creature:lunacorne': 400, 'creature:cristalis': 450, 'creature:draconeau': 600 };
 const COLOR_KEYS = ['skin', 'hairColor', 'topColor', 'bottomColor', 'shoesColor'];
 
 module.exports = function setupLooks({ db, coins, onChange = () => {} }) {
