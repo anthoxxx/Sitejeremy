@@ -273,10 +273,6 @@ addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté a
   addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
   if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
 addColumn('users', 'perks', 'INTEGER NOT NULL DEFAULT 0'); // 👑 privilèges : changer de pseudo librement + couleur noire réservée
-if (!db.prepare("SELECT 1 FROM settings WHERE key='perksInit'").get()) {
-  const n = db.prepare("UPDATE users SET perks=1 WHERE lower(username)='leptibof' OR is_dev=1").run().changes;
-  if (n) db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('perksInit','1')").run();
-}
 addColumn('users', 'presence', "TEXT NOT NULL DEFAULT 'auto'"); // 🟢 statut choisi : auto, away (absent), dnd (ne pas déranger)
 addColumn('users', 'identity', "TEXT NOT NULL DEFAULT ''");     // 🏳️‍🌈 le cœur d'identité choisi dans le profil (gay, bi, trans…)
 addColumn('users', 'likes', "TEXT NOT NULL DEFAULT '[]'");     // 💬 les phrases « J'aime… » choisies dans le profil
@@ -287,11 +283,16 @@ db.prepare("UPDATE users SET identity='gay', gender='h' WHERE gender='g'").run()
 db.prepare("UPDATE users SET identity='trav', gender='x' WHERE gender='v'").run();
 db.prepare("UPDATE users SET identity='trans', gender='x' WHERE gender='t'").run();
 addColumn('users', 'grey_heart', 'INTEGER NOT NULL DEFAULT 0'); // 🩶 cœur gris à côté du cœur rouge (choisi par le super-admin)
-if (!db.prepare("SELECT 1 FROM settings WHERE key='greyInit'").get() && db.prepare("SELECT 1 FROM users WHERE lower(username)='leptibof'").get()) {
-  db.prepare("UPDATE users SET grey_heart=1 WHERE lower(username)='leptibof'").run();
-  db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('greyInit','1')").run();
-}
 addColumn('users', 'is_dev', 'INTEGER NOT NULL DEFAULT 0'); // 💻 le rôle Développeur (une seule personne)
+// leptibof est un simple membre : aucun privilège, pas de cœur gris (retiré une seule fois, le super-admin peut toujours en redonner avec 👑)
+if (!db.prepare("SELECT 1 FROM settings WHERE key='leptibofReset'").get()) {
+  db.prepare("UPDATE users SET perks=0, grey_heart=0 WHERE lower(username)='leptibof' AND role NOT IN ('moderator','admin','superadmin')").run();
+  for (const r of db.prepare("SELECT id, color, gender FROM users WHERE lower(username)='leptibof' AND role NOT IN ('moderator','admin','superadmin')").all()) {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(r.color || ''); // 🖤 il perd aussi la couleur noire
+    if (m && m.slice(1).map(x => parseInt(x, 16) / 255).reduce((t, v, i) => t + v * [0.2126, 0.7152, 0.0722][i], 0) < 0.12) db.prepare('UPDATE users SET color=? WHERE id=?').run({ h: '#4fb3ff', f: '#ff5fa2' }[r.gender] || '#a78bfa', r.id);
+  }
+  db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('leptibofReset','1')").run();
+}
 addColumn('users', 'avatar_fx', "TEXT NOT NULL DEFAULT 'none'"); // ✨ animation de la photo de profil
 addColumn('users', 'shop_entry', "TEXT NOT NULL DEFAULT ''"); // effet d'entrée dans les salons
 db.exec(`CREATE TABLE IF NOT EXISTS inventory (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, item TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, item))`);
