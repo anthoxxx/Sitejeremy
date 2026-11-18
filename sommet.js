@@ -1,24 +1,26 @@
 // The Paradise — « Le Sommet du Paradise » : grand quiz sur scène, présenté par Maestro Paradise
-// Un candidat à la fois au centre de la scène grimpe 12 paliers de questions jusqu'au million de points.
+// Un candidat à la fois au centre de la scène grimpe 12 paliers de questions jusqu'à 500 pièces 💰.
 // 3 aides : ✂️ Moitié (retire 2 mauvaises réponses), 🗳️ Vote du salon (les spectateurs votent), 🔄 Changer de question.
-// Paliers de sécurité : 1 000 et 20 000 points.
+// Paliers de sécurité : 1 000 et 20 000 pièces.
 const QUESTIONS = require('./sommet-questions');
 
 const SLUG = 'sommet';
 const HOST = { username: 'Maestro Paradise', color: '#ff5fa2', icon: '🎩' };
-const LADDER = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 250000, 1000000];
+// 💰 « Qui veut gagner des pièces » : on gagne de vraies Paradise Coins
+const LADDER = [5, 10, 15, 25, 35, 50, 70, 100, 140, 200, 300, 500];
 const SAFE = new Set([3, 7]); // index des paliers de sécurité (1 000 et 20 000)
+const CALL_MS = 20000; // 📞 l'ami a 20 secondes pour répondre
 const Q_MS = 45000, VOTE_MS = 15000, SUSPENSE_MS = 2600, RESULT_MS = 3500, OVER_MS = 9000;
 const fmt = n => n.toLocaleString('fr-FR');
 
 module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, notifyLive = () => {}, reward = () => {} }) {
   const now = () => Date.now();
-  db.exec(`CREATE TABLE IF NOT EXISTS sommet_scores (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  db.exec(`CREATE TABLE IF NOT EXISTS sommet_coins (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     best INTEGER NOT NULL DEFAULT 0, total INTEGER NOT NULL DEFAULT 0, tops INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0)`);
-  const save = (id, pts, top) => { reward(id, top ? 'win_sommet' : 'play_sommet', top ? 40 : 5, top ? '🏔️ Au sommet du Paradise !' : '🎮 Partie du Sommet'); return save0(id, pts, top); };
-  const save0 = (id, pts, top) => db.prepare(`INSERT INTO sommet_scores (user_id, best, total, tops, games) VALUES (?,?,?,?,1)
+  const save = (id, pts, top) => { if (pts > 0) reward(id, top ? 'win_sommet' : 'play_sommet', pts, top ? '🏔️ Au sommet : 500 pièces gagnées !' : `🏔️ Qui veut gagner des pièces : ${pts} pièces`, 3); return save0(id, pts, top); };
+  const save0 = (id, pts, top) => db.prepare(`INSERT INTO sommet_coins (user_id, best, total, tops, games) VALUES (?,?,?,?,1)
     ON CONFLICT(user_id) DO UPDATE SET best=MAX(best, excluded.best), total=total+excluded.total, tops=tops+excluded.tops, games=games+1`).run(id, pts, pts, top ? 1 : 0);
-  const leaderboard = () => db.prepare('SELECT s.*, u.username, u.color FROM sommet_scores s JOIN users u ON u.id=s.user_id ORDER BY s.best DESC, s.total DESC LIMIT 5').all()
+  const leaderboard = () => db.prepare('SELECT s.*, u.username, u.color FROM sommet_coins s JOIN users u ON u.id=s.user_id ORDER BY s.best DESC, s.total DESC LIMIT 5').all()
     .map(r => ({ id: r.user_id, username: r.username, color: r.color, best: r.best, tops: r.tops }));
 
   let msgSeq = 1, timer = null, lb = leaderboard();
@@ -28,7 +30,7 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
     queue: [],          // ids en attente
     cand: null,         // { id, username, color, avatar }
     level: 0, q: null, pick: null, removed: [], votes: new Map(), voteCounts: null,
-    jokers: { half: true, vote: true, swap: true }, deadline: 0, left: 0, line: '', result: null, won: 0,
+    jokers: { half: true, vote: true, swap: true, friend: true }, deadline: 0, left: 0, line: '', result: null, won: 0,
   };
   const say = content => io.to('room:' + SLUG).emit('message', { room: SLUG, id: 'so' + (msgSeq++), userId: 0, username: HOST.username, color: HOST.color, gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: HOST.icon, content, createdAt: now(), kind: 'text' });
   const host = l => { g.line = l; };
@@ -38,6 +40,7 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
     phase: g.phase, ladder: LADDER, safe: [...SAFE], level: g.level, cand: g.cand,
     queue: g.queue.map(id => userOf(id)).filter(Boolean).map(u => ({ id: u.id, username: u.username })),
     q: g.q ? { text: g.q.text, answers: g.q.answers, tier: g.q.tier } : null,
+    call: g.phase === 'call' && g.call ? { to: g.call.name } : null, callResult: g.callResult || null,
     pick: g.pick, removed: g.removed, jokers: g.jokers, voteCounts: g.voteCounts, voters: g.phase === 'vote' ? g.votes.size : 0,
     deadline: g.deadline, line: g.line, result: g.result, secured: secured(), won: g.won,
     correct: ['result', 'over'].includes(g.phase) && g.q ? g.q.correct : null,
@@ -69,21 +72,33 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
       host('🏔️ Qui sera le prochain candidat à tenter l\'ascension ? Inscris-toi !');
       return broadcast();
     }
-    Object.assign(g, { phase: 'intro', level: 0, q: null, pick: null, removed: [], voteCounts: null, result: null, won: 0, jokers: { half: true, vote: true, swap: true }, deadline: 0 });
-    notify(g.cand.id, { type: 'game', icon: '🏔️', title: 'C\'est ton tour au Sommet du Paradise !', text: 'Tu es sur scène : 12 questions jusqu\'au million de points.', data: { slug: SLUG } });
+    Object.assign(g, { phase: 'intro', level: 0, q: null, pick: null, removed: [], voteCounts: null, result: null, won: 0, jokers: { half: true, vote: true, swap: true, friend: true }, deadline: 0 });
+    notify(g.cand.id, { type: 'game', icon: '🏔️', title: 'C\'est ton tour au Sommet du Paradise !', text: 'Tu es sur scène : 12 questions jusqu\'à 500 pièces 💰.', data: { slug: SLUG } });
     if (g.queue[0]) notifyLive(g.queue[0], { type: 'game', icon: '⏳', title: 'Prépare-toi : tu passes juste après au Sommet !', data: { slug: SLUG } });
-    host(`🎩 Applaudissez bien fort ${g.cand.username} ! Objectif : le sommet et son million de points !`);
-    say(`🏔️ ${g.cand.username} monte sur scène ! 12 questions jusqu'au million de points. Paliers de sécurité à ${fmt(LADDER[3])} et ${fmt(LADDER[7])} points. Bonne chance !`);
+    host(`🎩 Applaudissez bien fort ${g.cand.username} ! Objectif : le sommet et ses 500 pièces !`);
+    say(`🏔️ ${g.cand.username} monte sur scène ! 12 questions jusqu'à 500 pièces 💰. Paliers de sécurité à ${fmt(LADDER[3])} et ${fmt(LADDER[7])} pièces. Bonne chance !`);
     broadcast();
     setTimer(4500, ask);
   }
   function ask() {
     g.q = drawQuestion(g.level);
-    g.phase = 'question'; g.pick = null; g.removed = []; g.voteCounts = null; g.result = null;
+    g.phase = 'question'; g.pick = null; g.removed = []; g.voteCounts = null; g.result = null; g.callResult = null;
     g.deadline = now() + Q_MS;
-    host(`Question ${g.level + 1} pour ${fmt(LADDER[g.level])} points${SAFE.has(g.level) ? ' (palier de sécurité !)' : ''}…`);
+    host(`Question ${g.level + 1} pour ${fmt(LADDER[g.level])} pièces${SAFE.has(g.level) ? ' (palier de sécurité !)' : ''}…`);
     broadcast();
     setTimer(Q_MS, () => finish('timeout'));
+  }
+  const emitTo = (id, ev, data) => { for (const e of getOnline().values()) if (e.user.id === id) for (const sid of e.sockets) io.to(sid).emit(ev, data); };
+  function endCall() {
+    if (g.phase !== 'call') return;
+    clearTimeout(timer);
+    const c = g.call || {}, ans = c.answer;
+    g.callResult = { name: c.name, answer: ans ?? null };
+    g.phase = 'question'; g.deadline = now() + g.left;
+    host(ans != null ? `📞 ${c.name} pense que c'est la réponse ${'ABCD'[ans]} : « ${g.q.answers[ans]} » !` : `📞 ${c.name} n'a pas répondu à temps… à toi de jouer !`);
+    if (c.to) emitTo(c.to, 'so_call_end', {});
+    broadcast();
+    setTimer(g.left, () => finish('timeout'));
   }
   function finish(kind) {
     clearTimeout(timer);
@@ -94,10 +109,10 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
     else if (kind === 'quit') pts = g.level ? LADDER[g.level - 1] : 0;
     else pts = secured();
     g.won = pts; g.phase = 'over'; g.deadline = 0;
-    host(kind === 'top' ? `🏆 INCROYABLE ! ${c.username} atteint le SOMMET : 1 MILLION de points !` : kind === 'quit' ? `💼 ${c.username} s'arrête là et repart avec ${fmt(pts)} points. Sage décision !` : kind === 'timeout' ? `⏱️ Le temps est écoulé… ${c.username} repart avec ${fmt(pts)} points.` : `😮 Oh non ! ${c.username} repart avec ${fmt(pts)} points.`);
-    say(kind === 'top' ? `🏆🏆🏆 ${c.username} a atteint le SOMMET DU PARADISE et gagne 1 000 000 de points ! Bravo !!!` : `🏔️ ${c.username} termine son ascension avec ${fmt(pts)} points. Merci et bravo !`);
+    host(kind === 'top' ? `🏆 INCROYABLE ! ${c.username} atteint le SOMMET : 500 PIÈCES !` : kind === 'quit' ? `💼 ${c.username} s'arrête là et repart avec ${fmt(pts)} pièces. Sage décision !` : kind === 'timeout' ? `⏱️ Le temps est écoulé… ${c.username} repart avec ${fmt(pts)} pièces.` : `😮 Oh non ! ${c.username} repart avec ${fmt(pts)} pièces.`);
+    say(kind === 'top' ? `🏆🏆🏆 ${c.username} a atteint le SOMMET DU PARADISE et gagne 500 pièces ! Bravo !!!` : `🏔️ ${c.username} termine son ascension avec ${fmt(pts)} pièces. Merci et bravo !`);
     save(c.id, pts, kind === 'top');
-    notify(c.id, { type: 'game', icon: kind === 'top' ? '🏆' : '🏔️', title: kind === 'top' ? 'Tu as atteint le SOMMET : 1 000 000 de points !' : `Sommet du Paradise : tu repars avec ${fmt(pts)} points`, text: `Tu es allé jusqu'à la question ${g.level + 1}.`, data: { slug: SLUG } });
+    notify(c.id, { type: 'game', icon: kind === 'top' ? '🏆' : '🏔️', title: kind === 'top' ? 'Tu as atteint le SOMMET : 500 pièces !' : `Sommet du Paradise : tu repars avec ${fmt(pts)} pièces`, text: `Tu es allé jusqu'à la question ${g.level + 1}.`, data: { slug: SLUG } });
     lb = leaderboard();
     broadcast();
     setTimer(OVER_MS, nextCandidate);
@@ -149,7 +164,7 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
         g.phase = 'result'; g.result = good ? 'good' : 'bad';
         if (!good) { host(`❌ Ce n'était pas ça ! La bonne réponse était ${'ABCD'[g.q.correct]} : ${g.q.answers[g.q.correct]}.`); broadcast(); return setTimer(RESULT_MS, () => finish('wrong')); }
         if (g.level === LADDER.length - 1) { broadcast(); return setTimer(RESULT_MS, () => finish('top')); }
-        host(`✅ BONNE RÉPONSE ! ${fmt(LADDER[g.level])} points${SAFE.has(g.level) ? ' : palier de sécurité atteint, ils sont à vous !' : ''}`);
+        host(`✅ BONNE RÉPONSE ! ${fmt(LADDER[g.level])} pièces${SAFE.has(g.level) ? ' : palier de sécurité atteint, ils sont à vous !' : ''}`);
         broadcast();
         setTimer(RESULT_MS, () => { g.level++; ask(); });
       });
@@ -158,7 +173,13 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
       if (!isCand() || g.phase !== 'question') return { error: 'Pas maintenant' };
       finish('quit');
     }));
-    socket.on('so_joker', guard((u, kind) => {
+    // 📞 l'ami appelé répond (il peut être n'importe où sur le site)
+    socket.on('so_call_answer', i => {
+      if (g.phase !== 'call' || g.call?.to !== uid) return;
+      i = parseInt(i, 10); if (!(i >= 0 && i < 4)) return;
+      g.call.answer = i; endCall();
+    });
+    socket.on('so_joker', guard((u, kind, target) => {
       if (!isCand() || g.phase !== 'question') return { error: 'Pas maintenant' };
       if (!g.jokers[kind]) return { error: 'Aide déjà utilisée' };
       g.jokers[kind] = false;
@@ -190,6 +211,16 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
           broadcast();
           setTimer(g.left, () => finish('timeout'));
         });
+      } else if (kind === 'friend') {
+        const t = userOf(parseInt(target, 10));
+        if (!t || t.id === uid) { g.jokers.friend = true; return { error: 'Choisis un ami connecté' }; }
+        g.left = Math.max(5000, g.deadline - now());
+        g.phase = 'call'; g.call = { to: t.id, name: t.username }; g.deadline = now() + CALL_MS;
+        host(`📞 Allô ${t.username} ? ${u.username} a besoin de toi ! Tu as 20 secondes…`);
+        say(`📞 ${u.username} appelle ${t.username} à l'aide !`);
+        emitTo(t.id, 'so_call', { from: u.username, text: g.q.text, answers: g.q.answers, removed: g.removed, deadline: g.deadline });
+        broadcast();
+        setTimer(CALL_MS, endCall);
       } else return { error: 'Aide inconnue' };
     }));
     socket.on('so_vote', guard((u, i) => {
@@ -203,7 +234,7 @@ module.exports = function setupSommet({ io, db, getOnline, notify = () => {}, no
 
   function command(user, text) {
     const c = text.trim().toLowerCase();
-    if (c === '!aide' || c === '!sommet') say(`🎩 Bienvenue au Sommet du Paradise ! Inscris-toi avec « 🏔️ Je tente l'ascension ». Un candidat à la fois répond à 12 questions de plus en plus dures, jusqu'à 1 000 000 de points. Paliers de sécurité à ${fmt(LADDER[3])} et ${fmt(LADDER[7])}. Aides : ✂️ Moitié, 🗳️ Vote du salon, 🔄 Changer de question. On peut s'arrêter à tout moment avec ses points !`);
+    if (c === '!aide' || c === '!sommet') say(`🎩 Bienvenue au Sommet du Paradise ! Inscris-toi avec « 🏔️ Je tente l'ascension ». Un candidat à la fois répond à 12 questions de plus en plus dures, jusqu'à 500 pièces. Paliers de sécurité à ${fmt(LADDER[3])} et ${fmt(LADDER[7])}. Aides : ✂️ Moitié, 🗳️ Vote du salon, 🔄 Changer de question. On peut s'arrêter à tout moment avec ses pièces !`);
     return Promise.resolve();
   }
 

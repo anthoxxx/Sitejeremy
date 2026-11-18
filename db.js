@@ -457,6 +457,8 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='suggestions'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('suggestions', 'Suggestions', 'Une idée pour le site ? Propose-la ici, toutes les idées sont bonnes à prendre 💡', '💡', sort, 0, Date.now());
 }
+// 💰 Le Sommet devient « Qui veut gagner des pièces » (de vraies pièces à gagner)
+db.prepare("UPDATE rooms SET description=? WHERE slug='sommet' AND description LIKE '%million%'").run('Qui veut gagner des pièces ? 12 questions pour gagner jusqu\'à 500 vraies pièces 💰 (avec 📞 Appeler un ami !)');
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)
 db.prepare("UPDATE rooms SET name='26 – 40 ans' WHERE slug='25-40' AND name='25 – 40 ans'").run();
 

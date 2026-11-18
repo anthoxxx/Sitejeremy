@@ -3205,3 +3205,8 @@ body.a11y-flash::after { content: ''; position: fixed; inset: 0; z-index: 5000; 
 .pg-me { font-size: .8rem; color: #ffd34d; font-weight: 700; } .pg-empty { text-align: center; padding: 16px; color: var(--muted); }
 .pg-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .home-pageant { text-align: center; } .hp-title { font-weight: 800; margin-bottom: 10px; } .hp-row { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; } .hp-win { display: flex; flex-direction: column; align-items: center; gap: 4px; } .hp-win .avatar { width: 78px !important; height: 78px !important; box-shadow: 0 0 0 3px #ffd34d, 0 0 20px rgba(255, 211, 77, .5); } .hp-win small { color: #ffd34d; }
+/* 📞 Appeler un ami (Qui veut gagner des pièces) */
+.so-calling { padding: 8px 12px; border-radius: 12px; background: rgba(43, 208, 122, .15); border: 1px solid #2bd07a; font-weight: 700; margin-bottom: 8px; animation: cgPulse 1s ease-in-out infinite; } .so-calling.done { animation: none; }
+.so-call { text-align: center; max-width: 480px; } .so-call-ring { font-size: 54px; animation: wizzHint 1s ease-in-out infinite; } .so-call-timer { color: #ff5fa2; }
+.so-call .so-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.so-call-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
