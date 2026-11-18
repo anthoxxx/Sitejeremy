@@ -692,4 +692,18 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 47,
+    date: '2026-11-18',
+    title: '♿ Le site accessible à tous',
+    added: [
+      '♿ Nouveau menu « Accessibilité » (en touchant ton pseudo en haut à droite, dans le menu de gauche, ou avec Alt + A)',
+      '👁️ Pour les aveugles et malvoyants : le site lit les nouveaux messages à voix haute, texte plus grand, fort contraste, police très lisible ou spéciale dyslexie, aide pour les daltoniens, liens soulignés et contour bien visible au clavier',
+      '👂 Pour les sourds et malentendants : alertes visuelles (l\'écran clignote en jaune à la place du son), vibrations, sous-titres du vocal',
+      '🤐 Pour les muets : « ⌨️ Écrire pour parler » dans le vocal (les autres entendent ton texte lu à voix haute et le voient en sous-titres) et des phrases rapides (Bonjour, Oui, Non, Merci…)',
+      '🖐️ Gros boutons faciles à toucher et mode « moins d\'animations » (conseillé en cas d\'épilepsie)',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

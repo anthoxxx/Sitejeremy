@@ -40,7 +40,7 @@ const VoiceCap = (() => {
     const b = box(), key = c.mine ? 'me' : c.userId;
     let line = lines.get(key);
     if (!line || !b.contains(line)) { line = el('div', { class: 'vcap' + (c.mine ? ' mine' : '') }); b.append(line); lines.set(key, line); }
-    const set = (t, tr) => line.replaceChildren(el('b', {}, (c.mine ? '🎙️ ' : '🗣️ ') + c.username), el('span', { class: tr ? 'tr' : '' }, t), tr ? el('em', {}, ' 🌐') : null);
+    const set = (t, tr) => line.replaceChildren(el('b', {}, (c.tts ? '⌨️ ' : c.mine ? '🎙️ ' : '🗣️ ') + c.username), el('span', { class: tr ? 'tr' : '' }, t), tr ? el('em', {}, ' 🌐') : null);
     set(c.text, false); line.classList.toggle('interim', !c.final);
     clearTimeout(line._t); line._t = setTimeout(() => { line.classList.add('bye'); setTimeout(() => { line.remove(); if (lines.get(key) === line) lines.delete(key); }, 500); }, c.final ? 9000 : 4000);
     while (b.children.length > 4) b.firstChild.remove();
@@ -49,7 +49,7 @@ const VoiceCap = (() => {
     if (base(c.lang) !== base(myLang())) {
       try { const r = await api('/api/translate', { method: 'POST', body: { text: c.text, to: myLang() } }); if (r.text) { text = r.text; set(text, true); } } catch (e) {}
     }
-    if (opt.read && 'speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(text); u.lang = myLang(); u.rate = 1.05; speechSynthesis.speak(u); }
+    if ((opt.read || (c.tts && window.A11y?.opt.ttsHear !== false)) && 'speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(text); u.lang = myLang(); u.rate = 1.05; speechSynthesis.speak(u); }
     lines.delete(key);
   }
   socket.on('voice_caption', c => show(c));
@@ -73,6 +73,8 @@ const VoiceCap = (() => {
       R ? null : el('p', { class: 'help', style: 'color:#ffb547' }, '⚠️ Ton navigateur ne sait pas écrire la voix : tu peux lire les sous-titres des autres, mais pas envoyer les tiens (utilise Google Chrome).'),
       el('p', { class: 'help', style: 'margin-top:8px' }, 'Ta langue de traduction se change avec le bouton 🌐 du salon.')));
   }
-  return { panel, start, stop, get talking() { return opt.talk; }, onLeave: () => stop(true) };
+  // ⌨️ Pour ceux qui ne peuvent pas parler : on écrit, et les autres l'entendent à voix haute dans le vocal
+  function say(text) { text = String(text || '').trim(); if (!text) return; socket.emit('voice_caption', { text, lang: (window.Translator?.lang || 'fr'), final: true, tts: true }, r => { if (r?.error) return toast(r.error); show({ username: state.me.username, mine: true, text, final: true, tts: true }); }); }
+  return { panel, start, stop, say, get talking() { return opt.talk; }, onLeave: () => stop(true) };
 })();
 window.VoiceCap = VoiceCap;

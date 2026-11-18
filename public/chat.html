@@ -14,6 +14,7 @@
   <script src="/js/common.js"></script>
   <script src="/js/likes.js"></script>
   <script src="/js/touchy.js"></script>
+  <script src="/js/a11y.js"></script>
 </head>
 <body>
 <div class="app">
@@ -64,6 +65,7 @@
         <a href="/histoire" target="_blank">📖 Histoire</a>
         <a href="/reglement" target="_blank">📜 Règlement</a>
         <button type="button" id="fxBtn" title="Activer / couper les animations de fête">✨ Effets</button>
+        <button type="button" onclick="A11y.open()" title="Accessibilité : lecture à voix haute, gros texte, alertes visuelles…">♿ Accessibilité</button>
         <button type="button" class="mobile-only-inline" onclick="LC.toggleTheme()">🌓 Thème</button>
         <button type="button" class="mobile-only-inline" id="soundBtn2">🔊 Son</button>
         <button type="button" class="logout-link" onclick="askLogout()">🚪 Déconnexion</button>
@@ -105,7 +107,7 @@
     <div class="pa-stage hidden" id="paStage"></div>
     <div class="md-stage hidden" id="mdStage"></div>
     <div class="announce hidden" id="announce"></div>
-    <div class="messages" id="messages"></div>
+    <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Messages"></div>
     <div class="mute-banner hidden" id="muteBanner"></div>
     <div class="typing" id="typing"></div>
     <div class="readonly-bar hidden" id="readonlyBar">📝 Salon en lecture seule : seul le bot y annonce les nouveautés du site</div>

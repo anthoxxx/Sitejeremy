@@ -458,6 +458,7 @@ function renderVoice() {
       Voice.cam ? el('button', { class: 'btn btn-sm cam-viewers-btn', title: 'Qui regarde ma caméra', onclick: () => openCamViewers() }, '👁 ' + Voice.camViewers.length) : null,
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
+      el('button', { class: 'btn btn-sm', title: 'Écrire pour parler : les autres entendent ton texte à voix haute', onclick: () => A11y.sayBox() }, '⌨️'),
       el('button', { class: 'btn btn-sm' + (window.VoiceCap?.talking ? ' btn-ok' : ''), title: 'Traduction du vocal et sous-titres', onclick: () => VoiceCap.panel() }, '🌐', el('span', { class: 'lbl' }, window.VoiceCap?.talking ? ' Sous-titres' : ' Traduire')),
       el('button', { class: 'btn btn-sm btn-danger', onclick: () => Voice.leave() }, '📞'));
   } else if (listening) {
@@ -467,6 +468,7 @@ function renderVoice() {
       el('button', { class: 'btn btn-sm btn-primary', title: 'Prendre la parole (avec ton micro)', onclick: () => Voice.join() }, '🎙️', el('span', { class: 'lbl' }, ' Parler')),
       el('button', { class: 'btn btn-sm' + (Voice.autoListen ? ' btn-ok' : ''), title: 'Écouter tout seul le vocal quand j\'arrive dans un salon', onclick: () => Voice.setAutoListen(!Voice.autoListen) }, Voice.autoListen ? '🔁 Auto ✓' : '🔁 Auto'),
       el('button', { class: 'btn btn-sm', title: 'Traduction du vocal', onclick: () => VoiceCap.panel() }, '🌐'),
+      el('button', { class: 'btn btn-sm', title: 'Écrire pour parler : les autres entendent ton texte à voix haute', onclick: () => A11y.sayBox() }, '⌨️'),
       el('button', { class: 'btn btn-sm btn-danger', title: 'Arrêter d\'écouter', onclick: () => Voice.leave() }, '⏹'));
   } else {
     ctrl = el('div', { class: 'voice-ctrl' },

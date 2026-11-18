@@ -43,6 +43,7 @@ const isStaff = () => LC.rank(state.me) >= 1;
 // ---------- Son ----------
 let audioCtx;
 function ding() {
+  try { window.A11y?.alert(); } catch (e) {} // 👀 alerte visuelle (personnes sourdes)
   if (!state.sound || state.me?.presence === 'dnd') return; // ⛔ ne pas déranger : pas de son
 
   try {
@@ -675,6 +676,7 @@ function toggleUserMenu() {
     !state.me.isGuest ? item('💰', 'Mes pièces et la boutique', () => Shop.open(), 'mobile-only') : null,
     item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
+    item('♿', 'Accessibilité (voir, entendre, parler)', () => A11y.open()),
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     state.me.googleOn && !state.me.googleLinked && !state.me.isGuest ? item('🔐', 'Relier mon compte Google', () => { location.href = '/auth/google'; }) : null,
     el('div', { class: 'um-sep' }),
