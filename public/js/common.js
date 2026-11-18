@@ -238,11 +238,11 @@ window.LC = {
   // Badges de la douane : 🎙️ voix et 📷 caméra (vert = validé)
   douaneBadges(u, withPhoto = true) {
     return LC.el('span', { class: 'dbadges', title: `Voix ${u.voiceOk ? 'validée' : 'pas encore validée'} · Caméra ${u.camOk ? 'validée' : 'pas encore validée'}${withPhoto ? ' · Photo ' + (u.photoOk ? 'vérifiée' : 'pas vérifiée') : ''}` },
-      LC.el('span', { class: 'dbadge' + (u.voiceOk ? ' ok' : '') }, '🎙️'), LC.el('span', { class: 'dbadge' + (u.camOk ? ' ok' : '') }, '📷'),
+      LC.el('span', { class: 'dbadge' + (u.voiceOk ? ' ok' : '') }, LC.el('i', { class: 'di' }, '🎙️')), LC.el('span', { class: 'dbadge' + (u.camOk ? ' ok' : '') }, LC.el('i', { class: 'di' }, '📷')),
       withPhoto ? LC.photoBadge(u) : null);
   },
   // Badge V : photo de profil vérifiée par le staff
-  photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, 'V'); },
+  photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, LC.el('i', { class: 'di' }, 'V')); },
   // Pseudo avec sa couleur et son effet
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';

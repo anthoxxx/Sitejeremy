@@ -737,4 +737,14 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 50,
+    date: '2026-11-18',
+    title: 'Les badges de vérification plus clairs 🛂',
+    added: [],
+    changed: [
+      'Les badges 🎙️ voix, 📷 caméra et V photo montrent clairement ce qui n\'est pas encore validé : une croix rouge ✕ et un contour rouge en pointillés. Quand c\'est validé, une coche verte ✓',
+    ],
+    removed: [],
+  },
 ];

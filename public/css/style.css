@@ -3252,3 +3252,13 @@ body.snow-hit #island::after { content: ''; position: absolute; inset: 0; pointe
 .tv-you { font-weight: 800; color: #ffd34d; } .tv-staff { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; width: 100%; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.12); }
 .tv-queue, .tv-results { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; font-size: .8rem; margin-top: 6px; } .tv-queue span, .tv-results span { padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.08); }
 .tv-flash { position: absolute; inset: 0; display: grid; place-items: center; font: 900 1.6rem Outfit, sans-serif; color: #fff; text-shadow: 0 0 20px #ff2d55; background: rgba(255,45,85,.25); animation: a11yFlash 1.6s ease both; pointer-events: none; }
+
+/* 🛂 badges de vérification : on voit tout de suite ce qui n'est PAS encore validé */
+.dbadge { position: relative; overflow: visible; }
+.dbadge, .dbadge:not(.ok) { filter: none !important; opacity: 1 !important; }
+.dbadge .di { font-style: normal; }
+.dbadge:not(.ok) { border: 1px dashed #ff4d5e; background: rgba(255, 77, 94, .12); }
+.dbadge:not(.ok) .di { filter: grayscale(1); opacity: .5; }
+.dbadge:not(.ok)::after { content: '✕'; position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px; border-radius: 50%; background: #ff2d3a; color: #fff; font: 900 8px/12px Outfit, sans-serif; text-align: center; filter: none; box-shadow: 0 0 0 1.5px var(--bg-2); }
+.dbadge.ok::after { content: '✓'; position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px; border-radius: 50%; background: #23a55a; color: #fff; font: 900 8px/12px Outfit, sans-serif; text-align: center; box-shadow: 0 0 0 1.5px var(--bg-2); }
+.dbadge.vphoto:not(.ok) { color: #ff9aa3; }
