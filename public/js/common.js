@@ -337,6 +337,8 @@ window.LC = {
   },
   badge(u) {
     // 💻 Le Développeur du site : son badge à lui, en plus de son rôle
+    // 👑 Miss & Mister Paradise du mois
+    if (u.crown) { const r = LC.badge({ ...u, crown: '' }); const c = LC.el('span', { class: 'badge crown', title: u.crown === 'miss' ? 'Miss Paradise du mois' : 'Mister Paradise du mois' }, u.crown === 'miss' ? '👸 Miss' : '🤴 Mister'); return r ? LC.el('span', { class: 'badge-pair' }, r, ' ', c) : c; }
     if (u.dev) { const r = LC.badge({ ...u, dev: false }); const d = LC.el('span', { class: 'badge dev', title: 'Le développeur du site' }, '💻 ', LC.el('span', { class: 'dev-long' }, 'Développeur'), LC.el('span', { class: 'dev-short' }, 'Dev')); return r ? LC.el('span', { class: 'badge-pair' }, r, ' ', d) : d; }
     if (u.role === 'moderation') return LC.el('span', { class: 'badge moderator' }, 'Équipe');
     if (u.role === 'superadmin') return LC.el('span', { class: 'badge superadmin' }, 'Super Admin');

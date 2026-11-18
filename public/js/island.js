@@ -297,6 +297,7 @@ const Island = (() => {
   // 💤 les déconnectés : grisés et un peu transparents
   // (le filtre « gris » coûte très cher à chaque image : on dessine le déconnecté une seule fois dans une petite image, puis on la recopie)
   function drawPlayer(p, t) {
+    if (kind === 'island' && !p.offline && window.CityGames?.carOf(p.id)) return drawCar(p, t, window.CityGames.carOf(p.id));
     if (!p.offline) return drawPlayer0(p, t);
     if (!p._spr) {
       const W2 = 300, H2 = 220, AX = 150, AY = 150, k = 2;
@@ -308,6 +309,15 @@ const Island = (() => {
       p._spr = { c: g, W2, H2, AX, AY };
     }
     const s = p._spr; ctx.drawImage(s.c, p.dx - s.AX, p.dy - s.AY, s.W2, s.H2);
+  }
+  // 🏎️ pendant une course, le personnage est dans sa voiture
+  function drawCar(p, t, car) {
+    const x = p.dx ?? p.x, y = p.dy ?? p.y, dirL = (p._cx ?? x) > x + .5 ? true : (p._cx ?? x) < x - .5 ? false : p._left; p._left = dirL; p._cx = x;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(0, 10, 30, 8, 0, 0, 7); ctx.fill();
+    ctx.scale(dirL ? 1 : -1, 1); ctx.font = '54px "Noto Color Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText(car, 0, -12 + Math.sin(t * 30 + p.id) * (p.moving ? 1.2 : 0)); ctx.restore();
+    ctx.font = '800 13px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(p.username, x, y - 46); ctx.fillStyle = neonOf(p); ctx.fillText(p.username, x, y - 46);
   }
   function drawPlayer0(p, t) {
     const col = neonOf(p), moving = p.moving;
@@ -1181,7 +1191,7 @@ const Island = (() => {
       mine.moving = len > 0;
       if (len) {
         if (mine.action) { mine.action = ''; }
-        const sp = (kind === 'island' ? 260 : 220) * dt, nx = mine.x + vx / len * sp, ny = mine.y + vy / len * sp;
+        const sp = (kind === 'island' ? 260 * (window.CityGames?.speed() ?? 1) : 220) * dt, nx = mine.x + vx / len * sp, ny = mine.y + vy / len * sp;
         if (sc.walk(nx, ny)) { mine.x = nx; mine.y = ny; } else if (sc.walk(nx, mine.y)) mine.x = nx; else if (sc.walk(mine.x, ny)) mine.y = ny; else target = null;
         if (ts - lastSent > 70) { lastSent = ts; socket.emit('island_move', { x: mine.x, y: mine.y }); }
       }
@@ -1253,7 +1263,9 @@ const Island = (() => {
       const moving = Math.hypot(tx - p.px, ty - p.py) > 3;
       items.push({ y: p.py + 6, d: () => drawPet(p, t, moving) });
     }
+    if (kind === 'island') try { window.CityGames?.drawGround(ctx, t); } catch (e) {}
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
+    if (kind === 'island') try { window.CityGames?.drawTop(ctx, t, players.get(me)); } catch (e) {}
     if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
     if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.setLineDash([]); if (f.t !== 'tv') { ctx.beginPath(); ctx.moveTo(0, -d.h / 2 - 4); ctx.lineTo(0, -d.h / 2 - 22); ctx.stroke(); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -d.h / 2 - 34, 13, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1404'; ctx.font = '900 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⟳', 0, -d.h / 2 - 33); } ctx.restore(); }
     drawFx(t);
@@ -1514,6 +1526,7 @@ const Island = (() => {
     if (kind !== 'island') acts.unshift(
       el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
+    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
     if (kind === 'island' || kind === 'pool' || kind === 'campfire') acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (!confirm('Lancer un feu d\'artifice pour toute l\'Île ? (30 pièces 💰)')) return; socket.emit('island_fw', r => r?.error && toast(r.error)); } }, el('span', {}, '🎆'), 'Feu d\'artifice'));
@@ -1691,6 +1704,8 @@ const Island = (() => {
   socket.on('island_pet', ({ id, pet, look, mode }) => { const p = players.get(id); if (p) { p.pet = pet; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
+  // 🏁 le serveur nous place sur la ligne de départ
+  socket.on('island_teleport', ({ x, y }) => { const p = players.get(me); if (!p || kind !== 'island') return; p.x = p.dx = x; p.y = p.dy = y; cam.x = x; cam.y = y; target = null; });
   socket.on('island_action', ({ id, action, x, y, item }) => {
     const p = players.get(id); if (!p) return;
     p.action = action; if (id !== me && x != null) { p.x = x; p.y = y; }
@@ -1721,7 +1736,7 @@ const Island = (() => {
   // 🍽️ Ce qu'on achète en boutique : le personnage le tient et le mange dans la Ville
   function eat(e) { const mine = players.get(me); if (!open || !mine || !['island', 'cafe'].includes(kind)) return; mine.action = 'eat'; mine.item = e; mine.itemAt = Date.now(); socket.emit('island_action', 'eat', { x: mine.x, y: mine.y }, e); }
   const goHome = () => openHouse(state.me.id);
-  return { open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
+  return { root: () => root, kind: () => kind, open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());
 window.Island = Island;

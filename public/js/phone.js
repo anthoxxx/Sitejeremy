@@ -69,6 +69,7 @@ const Phone = (() => {
     pet: { icon: '🐾', name: 'Mon animal', c: '#ff5fa2', open: () => { close(); showReturn(); window.Pets?.open(); } },
     fortune: { icon: '🔮', name: 'Voyante', c: '#8b5cf6', open: () => { close(); showReturn(); window.Fortune?.open(); } },
     notifs: { icon: '🔔', name: 'Notifs', c: '#ff8a1f', open: () => { close(); showReturn(); $('notifBtn')?.click(); } },
+    pageant: { icon: '👑', name: 'Miss & Mister', c: '#ff5fa2', open: () => { close(); showReturn(); window.Pageant?.open(); } },
     calc: { icon: '🧮', name: 'Calculette', c: '#ff9500', open: () => go(calculator, '🧮 Calculette') },
     weather: { icon: '⛅', name: 'Météo', c: '#2f9bff', open: () => go(weather, '') },
     clock: { icon: '⏰', name: 'Horloge', c: '#1c1c24', open: () => go(clockApp, '⏰ Horloge') },
@@ -88,7 +89,7 @@ const Phone = (() => {
     const d = new Date();
     screen.replaceChildren(el('div', { class: 'ph-home' },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
-      el('div', { class: 'ph-grid' }, ...['messages', 'snap', 'phone', 'contacts', 'camera', 'city', 'games', 'shop', 'quests', 'pet', 'fortune', 'notifs', 'weather', 'clock', 'calc', 'notes', 'agenda', 'torch', 'settings'].map(k => appIcon(k))),
+      el('div', { class: 'ph-grid' }, ...['messages', 'snap', 'phone', 'contacts', 'camera', 'city', 'games', 'shop', 'quests', 'pet', 'fortune', 'pageant', 'notifs', 'weather', 'clock', 'calc', 'notes', 'agenda', 'torch', 'settings'].map(k => appIcon(k))),
       el('div', { class: 'ph-dock' }, ...['phone', 'messages', 'snap', 'camera'].map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {

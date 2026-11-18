@@ -42,6 +42,7 @@
     <div>
     <div class="card exit-card hidden" id="exitCard"></div>
     <div class="card home-event hidden" id="homeEvent"></div>
+    <div class="card home-pageant hidden" id="homePageant"></div>
     <div class="card" id="authCard">
       <div class="tabs">
         <button data-tab="register" class="active">Inscription</button>
@@ -138,6 +139,13 @@
     } catch (ex) { err.textContent = ex.message; }
     btn.disabled = false;
   });
+  // 👑 Les gagnants de Miss & Mister Paradise, avec leur photo
+  fetch('/api/pageant/winners').then(r => r.json()).then(({ winners }) => {
+    if (!winners || !winners.list.length) return;
+    const c = document.getElementById('homePageant');
+    c.append(LC.el('div', { class: 'hp-title' }, '👑 Les élus du mois'), LC.el('div', { class: 'hp-row' }, ...winners.list.map(w => LC.el('div', { class: 'hp-win' }, LC.avatar(w.user, true), LC.el('b', {}, w.user.username), LC.el('small', {}, w.label)))));
+    c.classList.remove('hidden');
+  }).catch(() => {});
   // Message après une expulsion ou un bannissement
   let exited = false;
   try {

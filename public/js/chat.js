@@ -328,7 +328,7 @@ function addRoomMessage(m, live = true) {
   }
   if (m.bot) return addBotMessage(m, live);
   const mention = m.userId !== state.me.id && new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
-  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, grey: m.grey, identity: m.identity, msgFont: m.msgFont, msgColor: m.msgColor, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
+  const user = { id: m.userId, username: m.username, color: m.color, gender: m.gender, role: m.role, modLevel: m.modLevel, avatar: m.avatar, frame: m.frame, avatarFx: m.avatarFx, dev: m.dev, grey: m.grey, crown: m.crown, identity: m.identity, msgFont: m.msgFont, msgColor: m.msgColor, nameEffect: m.nameEffect, isBirthday: m.isBirthday, validated: m.validated };
   const row = el('div', { class: 'msg' + (mention ? ' mention' : '') + (m.staffOnly ? ' staff-only' : ''), 'data-id': m.id },
     LC.avatar(user),
     el('div', { class: 'body' },
@@ -670,6 +670,7 @@ function toggleUserMenu() {
     !state.me.isGuest ? item('🧍', 'Mon personnage de l\'Île', () => Look.open()) : null,
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
+    item('👑', 'Miss & Mister Paradise', () => Pageant.open()),
     item('🎮', 'Mini-jeux', () => Hub.open()),
     item('🏙️', 'La Ville du Paradise', () => Island.open(), 'mobile-only'),
     item('🏳️‍🌈', 'Espace Arc-en-ciel', () => $('prideBtn').click(), 'mobile-only'),

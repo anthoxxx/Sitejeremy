@@ -706,4 +706,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 48,
+    date: '2026-11-18',
+    title: 'Chasse au trésor 🗺️, Courses de voitures 🏁 et Miss & Mister Paradise 👑',
+    added: [
+      '🗺️ La Chasse au trésor du jour : chaque jour, un coffre est caché quelque part dans la Ville. Bouton « Trésor » pour lire l\'énigme et les indices (un nouvel indice à midi et à 18 h)',
+      '🌡️ Promène-toi : l\'indicateur te dit si tu as froid, tiède, chaud ou si c\'est brûlant. Tout près, le coffre 🧰 apparaît : marche dessus ! Le premier gagne 250 💰, les suivants 25 💰',
+      '🏁 Les Courses de voitures dans la Ville : bouton « Course », choisis ta voiture (🏎️ 🚗 🚓 🚕…) et fais le tour de la Ville en passant par les 9 points. Départ 20 secondes après le premier pilote, 8 pilotes maximum',
+      '🏆 Courses : 🥇 100 💰, 🥈 60 💰, 🥉 40 💰, arrivée 15 💰, et le classement des meilleurs temps de la semaine',
+      '👑 Miss & Mister Paradise : chaque mois, présente-toi (il faut une photo de profil) et vote une fois par jour dans chaque catégorie (+5 💰 par vote)',
+      '🏆 À la fin du mois, les gagnants ont une couronne 👸 Miss / 🤴 Mister à côté du pseudo, 500 💰 et leur photo sur la page d\'accueil',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

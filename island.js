@@ -67,7 +67,7 @@ const THEMES = ['cosy', 'ocean', 'rose', 'nuit', 'jungle', 'or'];
 const ACCESS = ['all', 'friends', 'bell', 'closed'];
 const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
 
-module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null, lookOf = () => ({ look: null, mode: 'look' }) }) {
+module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null, lookOf = () => ({ look: null, mode: 'look' }), onMove = () => {} }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
   const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', floor: p.floor || 0, pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
@@ -271,6 +271,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       if (d > 60) { x = p.x + dx / d * 60; y = p.y + dy / d * 60; }
       if (!S.walk(x, y)) return;
       p.x = x; p.y = y;
+      if (p.scene === 'island') { try { onMove(uid, x, y); } catch (e) {} }
       if (p.action && d > 4) { p.action = ''; emitScene(p.scene, 'island_action', { id: uid, action: '' }); }
       socket.to(roomOf(p.scene)).emit('island_move', { id: uid, x: Math.round(x), y: Math.round(y) });
     });
@@ -605,5 +606,9 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   }
   // L'animal a changé (repas, accessoire…) : ceux qui sont à côté le voient tout de suite
   function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); const lk = lookOf(uid); p.look = lk.look; p.mode = lk.mode; emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet, look: p.look, mode: p.mode }); }
-  return { onConnection, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto, refreshPet };
+  // 🏁 placer quelqu'un ailleurs dans la Ville (départ des courses)
+  function teleport(uid, x, y) { const p = players.get(uid); if (!p || p.scene !== 'island') return false; p.x = x; p.y = y; emitToUser(uid, 'island_teleport', { x, y }); emitScene('island', 'island_move', { id: uid, x: Math.round(x), y: Math.round(y) }); return true; }
+  const posOf = uid => { const p = players.get(uid); return p ? { scene: p.scene, x: p.x, y: p.y } : null; };
+  const islanders = () => [...players.entries()].filter(([, p]) => p.scene === 'island').map(([id]) => id);
+  return { onConnection, teleport, posOf, islanders, count: () => players.size, where: uid => players.get(uid)?.scene || null, mediaEmpty, playAuto, refreshPet };
 };
