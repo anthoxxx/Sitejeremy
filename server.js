@@ -112,7 +112,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, perks: hasPerks(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -754,7 +754,7 @@ app.put('/api/me', auth, (req, res) => {
     b.city !== undefined ? filterWords(clean(b.city, 40)) : u.city,
     b.bio !== undefined ? filterWords(cleanMultiline(b.bio, 500)) : u.bio,
     // Si la personne change de genre et garde la couleur par défaut, la couleur suit le nouveau genre
-    (() => { const c = hex(b.color, u.color); return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
+    (() => { let c = hex(b.color, u.color); if (isDarkColor(c) && !hasPerks(u)) c = isDarkColor(u.color) ? genderColor(gender) : u.color; /* 🖤 le noir est réservé */ return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
     hex(b.accent, u.accent || '#ff5fa2'),
     pick(b.nameEffect, [...NAME_EFFECTS, ...Coins.ownedValues(u.id, 'name')], u.name_effect || 'none'),
     pick(b.frame, [...FRAMES, ...Coins.ownedValues(u.id, 'frame')], u.avatar_frame || 'none'),
@@ -833,6 +833,37 @@ app.put('/api/me/password', auth, (req, res) => {
   if (String(req.body.next || '').length < 6) return res.status(400).json({ error: 'Nouveau mot de passe : 6 caractères minimum' });
   db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(bcrypt.hashSync(String(req.body.next), 10), u.id);
   res.json({ ok: true });
+});
+
+// 👑 Les privilèges (changer de pseudo comme on veut, couleur noire réservée) : le développeur + ceux à qui le super-admin les donne
+function hasPerks(u) { return !!u && (u.perks === 1 || u.is_dev === 1); }
+const isDarkColor = c => { const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c || ''); if (!m) return false; const [r, g, b] = m.slice(1).map(x => parseInt(x, 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.12; };
+app.post('/api/admin/users/:id/perks', auth, (req, res) => {
+  if (!isSuper(req.user)) return res.status(403).json({ error: 'Réservé au super-admin' });
+  const t = getUser(parseInt(req.params.id, 10)); if (!t) return res.status(404).json({ error: 'Introuvable' });
+  db.prepare('UPDATE users SET perks=? WHERE id=?').run(req.body.on ? 1 : 0, t.id);
+  if (!req.body.on && isDarkColor(t.color) && !t.is_dev) db.prepare('UPDATE users SET color=? WHERE id=?').run(genderColor(t.gender), t.id);
+  refreshOnline(getUser(t.id));
+  log(req.user, 'perks', `👑 Privilèges ${req.body.on ? 'donnés à' : 'retirés à'} ${t.username}`);
+  res.json({ ok: true });
+});
+// ✏️ Changer de pseudo (avec les privilèges)
+app.post('/api/me/username', auth, (req, res) => {
+  const u = req.user;
+  if (!hasPerks(u)) return res.status(403).json({ error: '👑 Réservé aux membres qui ont les privilèges' });
+  const name = clean(req.body.username, 20);
+  if (!USERNAME_RE.test(name)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
+  if (isPanelName(name)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
+  if (filterWords(name) !== name) return res.status(400).json({ error: 'Ce pseudo n\'est pas autorisé' });
+  const other = db.prepare('SELECT id, is_guest FROM users WHERE lower(username)=lower(?) AND id<>?').get(name, u.id);
+  if (other) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
+  if (tooMany('rename:' + u.id, 20, 3600000)) return res.status(429).json({ error: 'Doucement ! Réessaie plus tard' });
+  const old = u.username;
+  db.prepare('UPDATE users SET username=? WHERE id=?').run(name, u.id);
+  const updated = getUser(u.id);
+  refreshOnline(updated);
+  log(updated, 'rename', `✏️ ${old} s'appelle maintenant ${name}`);
+  res.json({ user: selfUser(updated) });
 });
 
 // 🩶 Le cœur gris à côté du cœur rouge : c'est le super-admin qui le donne

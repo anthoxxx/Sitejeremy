@@ -213,6 +213,13 @@ window.LC = {
     return root;
   },
   time(ts) { return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); },
+  // 📅 la date et l'heure d'un message : « Aujourd'hui 14:24 », « Hier 22:10 », « 16/11/2026 08:05 »
+  when(ts) {
+    const d = new Date(ts), now = new Date(), t = LC.time(ts), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((day(now) - day(d)) / 86400000);
+    return diff === 0 ? 'Aujourd\'hui ' + t : diff === 1 ? 'Hier ' + t : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + t;
+  },
+  isDark(c) { const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c || ''); if (!m) return false; const [r, g, b] = m.slice(1).map(x => parseInt(x, 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.12; },
   date(ts) { return ts ? new Date(ts).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'; },
   // Néon de chaque personne sur tout le site : rouge = administrateurs, bleu = hommes, rose = femmes
   neonOf(u) {
@@ -240,7 +247,7 @@ window.LC = {
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
     const nn = fx ? '' : LC.neonOf(u);
-    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
     // badge acheté dans la boutique 💰
     const badge = u.shopBadge ? LC.el('span', { class: 'shop-badge', title: 'Badge de la boutique' }, u.shopBadge) : null;
     if (!u.isBirthday && !badge) return n;

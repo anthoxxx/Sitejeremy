@@ -272,6 +272,11 @@ addColumn('users', 'shop_badge', "TEXT NOT NULL DEFAULT ''"); // badge acheté a
 { const had = db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'welcomed');
   addColumn('users', 'welcomed', 'INTEGER NOT NULL DEFAULT 0'); // 🎉 message de bienvenue déjà fait
   if (!had) db.prepare('UPDATE users SET welcomed=1').run(); }
+addColumn('users', 'perks', 'INTEGER NOT NULL DEFAULT 0'); // 👑 privilèges : changer de pseudo librement + couleur noire réservée
+if (!db.prepare("SELECT 1 FROM settings WHERE key='perksInit'").get()) {
+  const n = db.prepare("UPDATE users SET perks=1 WHERE lower(username)='leptibof' OR is_dev=1").run().changes;
+  if (n) db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('perksInit','1')").run();
+}
 addColumn('users', 'presence', "TEXT NOT NULL DEFAULT 'auto'"); // 🟢 statut choisi : auto, away (absent), dnd (ne pas déranger)
 addColumn('users', 'identity', "TEXT NOT NULL DEFAULT ''");     // 🏳️‍🌈 le cœur d'identité choisi dans le profil (gay, bi, trans…)
 addColumn('users', 'likes', "TEXT NOT NULL DEFAULT '[]'");     // 💬 les phrases « J'aime… » choisies dans le profil

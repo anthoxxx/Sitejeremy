@@ -3105,3 +3105,27 @@ body.tch-shake .app { animation: wizzShake .6s ease both; }
 .tch-poop span { position: absolute; left: 50%; top: -20%; font-size: 120px; transform: translateX(-50%); animation: poopFall 1.2s cubic-bezier(.5,0,1,1) both; }
 @keyframes poopFall { 80% { top: 55%; transform: translateX(-50%) scale(1, 1); } 90% { top: 58%; transform: translateX(-50%) scale(1.4, .6); } 100% { top: 55%; transform: translateX(-50%) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .tch { display: none; } }
+
+/* 🎶🎄 Au micro : notes de musique de chaque côté du pseudo et lumières de Noël qui clignotent */
+.list-item.on-mic .name, .msg .who.on-mic { position: relative; }
+.list-item.on-mic .name > .uname, .list-item.on-mic .name > .uname-wrap, .msg .who.on-mic .uname { animation: xmasName 1.2s steps(1) infinite; }
+@keyframes xmasName { 0% { color: #ff2d3a; text-shadow: 0 0 8px #ff2d3a; } 25% { color: #2bd07a; text-shadow: 0 0 8px #2bd07a; } 50% { color: #ffd34d; text-shadow: 0 0 8px #ffd34d; } 75% { color: #ffffff; text-shadow: 0 0 8px #9fd8ff; } }
+.list-item.on-mic .name::before, .list-item.on-mic .name::after, .msg .who.on-mic::before, .msg .who.on-mic::after { display: inline-block; font-size: .85em; animation: micNote 1s ease-in-out infinite; }
+.list-item.on-mic .name::before, .msg .who.on-mic::before { content: '🎵'; margin-right: 3px; }
+.list-item.on-mic .name::after, .msg .who.on-mic::after { content: '🎶'; margin-left: 3px; animation-delay: .5s; }
+@keyframes micNote { 0%, 100% { transform: translateY(0) rotate(-10deg); } 50% { transform: translateY(-4px) rotate(10deg); } }
+.list-item.on-mic { background: linear-gradient(90deg, rgba(255,45,58,.12), rgba(43,208,122,.12), rgba(255,211,77,.12)); background-size: 300% 100%; animation: xmasBg 3s linear infinite; border-radius: 12px; }
+@keyframes xmasBg { to { background-position: 300% 0; } }
+.list-item.on-mic .avatar { box-shadow: 0 0 0 2px #ff2d3a, 0 0 0 4px #2bd07a, 0 0 14px #ffd34d; animation: xmasRing 1.2s steps(1) infinite; }
+@keyframes xmasRing { 0% { box-shadow: 0 0 0 2px #ff2d3a, 0 0 0 4px #2bd07a, 0 0 14px #ffd34d; } 33% { box-shadow: 0 0 0 2px #2bd07a, 0 0 0 4px #ffd34d, 0 0 14px #ff2d3a; } 66% { box-shadow: 0 0 0 2px #ffd34d, 0 0 0 4px #ff2d3a, 0 0 14px #2bd07a; } }
+/* la guirlande de Noël autour de la bulle du vocal */
+.voice-chip.on-mic::before { content: ''; position: absolute; inset: -4px; border-radius: 999px; padding: 2px; background: repeating-linear-gradient(90deg, #ff2d3a 0 10px, #2bd07a 10px 20px, #ffd34d 20px 30px, #4fb3ff 30px 40px); background-size: 40px 100%; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: garland .6s steps(4) infinite; pointer-events: none; }
+@keyframes garland { to { background-position: 40px 0; } }
+/* 🖤 un pseudo noir reste lisible sur le fond sombre */
+.uname-black { text-shadow: 0 0 2px #fff, 0 0 6px rgba(255,255,255,.75) !important; }
+.black-pick { background: #000; color: #fff; border: 1px solid #fff4; }
+/* 📳 le bouton wizz à côté du message */
+.wizz-btn { animation: wizzHint 3s ease-in-out infinite; }
+@keyframes wizzHint { 0%, 85%, 100% { transform: rotate(0); } 88% { transform: rotate(-14deg); } 91% { transform: rotate(14deg); } 94% { transform: rotate(-10deg); } 97% { transform: rotate(8deg); } }
+.ph-wizz { animation: wizzHint 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .list-item.on-mic .name > .uname, .msg .who.on-mic .uname, .list-item.on-mic, .list-item.on-mic .avatar, .voice-chip.on-mic::before, .wizz-btn { animation: none; } }

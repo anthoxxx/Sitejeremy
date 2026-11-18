@@ -118,14 +118,14 @@ const Phone = (() => {
     const file = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => { const f = file.files[0]; file.value = ''; if (!f) return; try { const url = await upload(f); socket.emit('pm', { to: u.id, image: { url }, text: '' }, r => r?.error && toast(r.error)); } catch (e) { toast(e.message); } } });
     const sendIt = () => { const t = input.value.trim(); if (!t) return; input.value = ''; socket.emit('pm', { to: u.id, text: t }, r => r?.error && toast(r.error)); };
     body.classList.add('ph-chat');
-    body.replaceChildren(list, el('div', { class: 'ph-compose' }, el('button', { class: 'ph-mini', onclick: () => file.click() }, '🖼️'), file, input, el('button', { class: 'ph-send', onclick: sendIt }, '➤')));
+    body.replaceChildren(list, el('div', { class: 'ph-compose' }, el('button', { class: 'ph-mini', onclick: () => file.click() }, '🖼️'), el('button', { class: 'ph-mini ph-wizz', title: 'Envoyer un wizz (son écran tremble)', onclick: () => window.sendWizz?.(u) }, '📳'), file, input, el('button', { class: 'ph-send', onclick: sendIt }, '➤')));
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendIt(); } });
     try { const d = await api('/api/pm/' + u.id); list.replaceChildren(...d.messages.map(bubble)); list.scrollTop = list.scrollHeight; } catch (e) {}
     const c = state.convs?.get(u.id); if (c) c.unread = 0; socket.emit('pm_read', u.id); refreshBadges();
   }
   const bubble = m => el('div', { class: 'ph-bub ' + (m.from === state.me.id ? 'me' : 'them') },
     m.kind === 'image' ? el('img', { src: m.media, alt: '', onclick: () => window.open(m.media, '_blank') }) : m.kind === 'audio' ? el('audio', { src: m.media, controls: true }) : null,
-    m.kind !== 'audio' && !(m.kind === 'image' && m.content === '🖼️ Photo') ? el('span', {}, m.content) : null, el('small', {}, new Date(m.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })));
+    m.kind !== 'audio' && !(m.kind === 'image' && m.content === '🖼️ Photo') ? el('span', {}, m.content) : null, el('small', {}, LC.when(m.createdAt)));
   socket.on('pm', m => {
     if (isOpen() && convOpen && (m.from === convOpen || m.to === convOpen)) { const l = root.querySelector('.ph-bubbles'); if (l) { l.append(bubble(m)); l.scrollTop = l.scrollHeight; } if (m.from === convOpen) socket.emit('pm_read', convOpen); }
     else if (m.from !== state.me?.id) { setTimeout(refreshBadges, 300); if (isOpen()) ping(`💬 ${m.fromUser?.username || 'Message'} : ${m.content}`, () => go(b => conversation(b, m.fromUser), m.fromUser.username)); }

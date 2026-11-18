@@ -228,7 +228,15 @@ function openMyProfile() {
         const inp = namePick.querySelector('input[type=color]');
         inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
         inp.dispatchEvent(new Event('input'));
-      } }, '↺ Couleur par défaut (selon ton genre)'))),
+      } }, '↺ Couleur par défaut (selon ton genre)'),
+      state.me.perks ? el('button', { type: 'button', class: 'btn btn-sm black-pick', style: 'margin-top:8px;margin-left:6px', onclick: () => { const inp = namePick.querySelector('input[type=color]'); inp.value = '#000000'; inp.dispatchEvent(new Event('input')); } }, '🖤 Noir (réservé 👑)') : null),
+      state.me.perks ? null : 'Le noir est réservé aux membres qui ont les privilèges 👑'),
+    state.me.perks ? f('✏️ Changer de pseudo (👑 privilège)', (() => {
+      const inp = el('input', { class: 'input', maxlength: 20, value: state.me.username });
+      return el('div', { class: 'row', style: 'gap:8px' }, inp, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async () => {
+        try { const r = await api('/api/me/username', { method: 'POST', body: { username: inp.value.trim() } }); Object.assign(state.me, r.user); d.username = r.user.username; renderMe(); refresh(); toast(`✏️ Tu t'appelles maintenant ${r.user.username} !`); LC.confetti(['✏️', '👑', '✨']); } catch (e) { toast(e.message); }
+      } }, 'Changer'));
+    })(), 'Tu peux changer de pseudo quand tu veux, autant de fois que tu veux.') : null,
     f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
     f('✍️ Style d\'écriture de mes messages', choice(LC.MSG_FONTS, 'msgFont', (v, label) => el('span', { class: v ? 'mf-' + v : '' }, label))),

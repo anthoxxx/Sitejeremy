@@ -226,6 +226,8 @@ function renderRoomHead() {
   $('headCall').classList.toggle('hidden', !pmUser);
   $('headVideo').classList.toggle('hidden', !pmUser);
   $('headWizz').classList.toggle('hidden', !pmUser || !!state.me?.isGuest);
+  $('wizzBtn').classList.toggle('hidden', !pmUser || !!state.me?.isGuest);
+  if (pmUser) $('wizzBtn').onclick = () => sendWizz(pmUser);
   if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); $('headWizz').onclick = () => sendWizz(pmUser); }
   // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
   renderRoomBg(inRoom ? r : null);
@@ -330,7 +332,7 @@ function addRoomMessage(m, live = true) {
       el('div', {},
         el('span', { class: 'who', 'data-uid': m.anon ? null : m.userId, onclick: () => m.anon ? toast('🛡️ Message de l\'équipe de modération') : openProfile(m.userId) }, m.anon ? '🛡️ ' : '', LC.name(user)),
         ' ', el('span', { class: 'g-' + m.gender }, LC.heartOf(m)), ' ', LC.badge(user), m.anon ? null : roomModBadge(m.userId),
-        el('span', { class: 'time' }, LC.time(m.createdAt)), editedTag(m)),
+        el('span', { class: 'time', title: new Date(m.createdAt).toLocaleString('fr-FR') }, LC.when(m.createdAt)), editedTag(m)),
       m.anon ? null : LC.badgesRow(m.badges),
       ...messageBody(m),
       m.staffOnly ? el('div', { class: 'staff-only-bar' }, el('span', {}, '🔒 Visible seulement par les administrateurs'),
@@ -350,7 +352,7 @@ function addBotMessage(m, live = true) {
   $('messages').append(el('div', { class: 'msg bot-msg' + (mention ? ' mention' : '') },
     el('div', { class: 'avatar bot-av' }, m.botIcon || '🤖'),
     el('div', { class: 'body' },
-      el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, 'Bot'), el('span', { class: 'time' }, LC.time(m.createdAt))),
+      el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, 'Bot'), el('span', { class: 'time' }, LC.when(m.createdAt))),
       el('div', { class: 'text' }, m.content))));
   trimMessages();
   if (live) { scrollDown(); if (mention) { ding(); toast((m.botIcon || '🤖') + ' ' + m.content.slice(0, 90)); } }
@@ -430,7 +432,7 @@ function addBubble(m) {
     mine ? el('div', { class: 'bubble-tools' },
       canEdit(m, m.from) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'pm') }, '✏️') : null,
       el('button', { class: 'btn btn-sm', title: 'Supprimer pour tout le monde', onclick: () => deletePm(m) }, '🗑')) : null,
-    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time' }, LC.time(m.createdAt), editedTag(m))));
+    el('div', { class: 'bubble' + (m.kind === 'audio' ? ' audio' : m.kind === 'image' ? ' photo' : '') }, ...messageBody(m), el('span', { class: 'time', title: new Date(m.createdAt).toLocaleString('fr-FR') }, LC.when(m.createdAt), editedTag(m))));
   row._msg = m;
   $('messages').append(row);
   trimMessages();

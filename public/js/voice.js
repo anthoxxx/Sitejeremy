@@ -846,3 +846,12 @@ function askVerify(kind) {
       voice && state.view?.type === 'room' && state.view.slug !== 'douane' ? el('button', { class: 'btn', onclick: () => { close(); Voice.join(true); } }, '🎧 Écouter seulement') : null),
     el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:8px', onclick: () => close() }, 'Fermer'));
 }
+
+// 🎶🎄 Ceux qui sont au micro : des notes de musique de chaque côté de leur pseudo et des couleurs de Noël qui clignotent
+function markMic() {
+  const ids = new Set();
+  for (const parts of state.voice?.values?.() || []) for (const p of parts) if (!p.listener) ids.add(String(p.userId));
+  document.querySelectorAll('#userList .list-item[data-uid], .msg .who[data-uid], .voice-chip[data-uid]').forEach(e => e.classList.toggle('on-mic', ids.has(e.dataset.uid)));
+}
+setInterval(markMic, 1000);
+socket.on('voice_state', () => setTimeout(markMic, 50));

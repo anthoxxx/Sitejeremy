@@ -666,4 +666,18 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 45,
+    date: '2026-11-18',
+    title: 'Le micro en mode Noël 🎄🎶, la date des messages et le Wizz bien visible 📳',
+    added: [
+      '🎶 Quand quelqu\'un est au micro, des notes de musique 🎵 🎶 dansent de chaque côté de son pseudo (dans la liste des connectés et dans le chat)',
+      '🎄 Et son pseudo clignote aux couleurs de Noël (rouge, vert, or), avec une guirlande lumineuse autour de sa bulle dans le vocal',
+      '📅 Chaque message affiche maintenant sa date : « Aujourd\'hui 14:24 », « Hier 22:10 » ou la date complète',
+      '📳 Le bouton Wizz est maintenant juste à côté de la zone de message dans les conversations privées, et aussi dans l\'appli Messages du téléphone',
+      '👑 Les privilèges (donnés par le super-admin) : changer de pseudo quand on veut et la couleur de pseudo 🖤 noire, réservée',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

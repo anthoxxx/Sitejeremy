@@ -132,6 +132,7 @@ async function users() {
       el('td', {}, LC.date(u.createdAt)),
       el('td', {},
         el('button', { class: 'btn btn-sm', onclick: () => showHistory(u) }, '📄'),
+        isSuper() && !u.isGuest ? el('button', { class: 'btn btn-sm' + (u.perks ? ' btn-ok' : ''), title: u.perks ? 'Retirer les privilèges 👑 (pseudo libre, couleur noire)' : 'Donner les privilèges 👑 : changer de pseudo comme il veut et la couleur noire', onclick: async () => { await run(() => api(`/api/admin/users/${u.id}/perks`, { method: 'POST', body: { on: !u.perks } }), u.perks ? 'Privilèges retirés' : '👑 Privilèges donnés'); load(); } }, '👑') : null,
         isSuper() && (u.role === 'admin' || u.role === 'superadmin') ? el('button', { class: 'btn btn-sm' + (u.grey ? ' btn-ok' : ''), title: u.grey ? 'Retirer le cœur gris 🩶' : 'Donner le cœur gris 🩶 (à côté du cœur rouge)', onclick: async () => { await run(() => api(`/api/admin/users/${u.id}/grey`, { method: 'POST', body: { on: !u.grey } }), u.grey ? 'Cœur gris retiré' : '🩶 Cœur gris ajouté'); load(); } }, '🩶') : null,
         u.role === 'user' && !(u.voiceOk && u.camOk) ? ['voice', 'cam'].map(k => {
           const on = k === 'voice' ? u.voiceOk : u.camOk;
