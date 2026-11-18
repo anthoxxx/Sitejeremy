@@ -45,7 +45,7 @@ const CityGames = (() => {
     const r = mine();
     if (race.state === 'idle' || !race.checkpoints.length) return;
     // la ligne de départ en damier
-    ctx.save(); for (let i = 0; i < 8; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#fff' : '#111'; ctx.fillRect(440 + j * 10, 430 + i * 12, 10, 12); } ctx.restore();
+    ctx.save(); for (let i = 0; i < 7; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#fff' : '#111'; ctx.fillRect(650 + j * 10, 938 + i * 12, 10, 12); } ctx.restore();
     if (!r) return;
     race.checkpoints.forEach(([x, y], i) => {
       const next = i === r.cp && !r.done, passed = i < r.cp;

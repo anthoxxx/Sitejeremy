@@ -3,7 +3,7 @@ const DAY = 86400000;
 const parisDay = (ts = Date.now()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts);
 const parisHour = () => Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', hour12: false }).format(Date.now()));
 // Les lieux connus de la Ville (pour les indices)
-const LANDMARKS = [['le Paradise Club', 850, 710], ['le Ciné Paradise', 1360, 1055], ['le quartier des maisons', 590, 710], ['la piscine', 1900, 700], ['le Café Paradise', 1060, 705], ['la salle d\'arcade', 590, 1045], ['le feu de camp', 2050, 1370], ['la grande fontaine', 1200, 820]];
+const LANDMARKS = [['le Paradise Club', 1250, 1370], ['le Ciné Paradise', 2850, 1370], ['le quartier des maisons', 450, 1370], ['la piscine', 3590, 1370], ['le Café Paradise', 1560, 1370], ['la salle d\'arcade', 450, 2090], ['le feu de camp', 3590, 2090], ['la grande fontaine', 2200, 1440], ['le lac du parc', 2200, 2600], ['la Voyante', 2050, 650], ['le Karaoké', 1250, 2090], ['la Roue', 3830, 1370]];
 const RIDDLES = [
   'Je dors là où les néons ne dorment jamais… Trouve-moi avant les autres ! 🗝️',
   'Un pirate a caché son coffre dans la Ville. Il a laissé des indices… à toi de jouer ! 🏴‍☠️',
@@ -12,8 +12,8 @@ const RIDDLES = [
   'Un coffre magique apparaît chaque jour à un endroit différent. Aujourd\'hui, il t\'attend… ✨',
 ];
 // Le circuit de course : des points de passage dans les rues (dans l'ordre), un tour complet
-const CHECKPOINTS = [[700, 480], [1200, 480], [1700, 480], [2250, 800], [2250, 1450], [1200, 1450], [150, 1450], [150, 800], [400, 480]];
-const START = [[400, 455], [400, 505], [340, 455], [340, 505], [280, 455], [280, 505], [220, 455], [220, 505]];
+const CHECKPOINTS = [[1000, 980], [1800, 980], [2600, 980], [3400, 980], [3400, 1700], [3400, 2420], [2600, 2420], [1800, 2420], [1000, 2420], [200, 2420], [200, 1700], [200, 980], [600, 980]];
+const START = [[600, 960], [600, 1000], [540, 960], [540, 1000], [480, 960], [480, 1000], [420, 960], [420, 1000]];
 
 module.exports = function setupCityGames({ db, io, coins, notify, track = () => {}, getUser, island, emitToUser, botSay = () => {}, throttled }) {
   const now = () => Date.now();
@@ -26,13 +26,13 @@ module.exports = function setupCityGames({ db, io, coins, notify, track = () => 
     const day = parisDay();
     let t = db.prepare('SELECT * FROM treasure WHERE day=?').get(day);
     if (!t) {
-      const x = 160 + Math.random() * 2080, y = 220 + Math.random() * 1260;
+      const x = 160 + Math.random() * 3880, y = 240 + Math.random() * 2520;
       db.prepare('INSERT OR IGNORE INTO treasure (day,x,y,riddle,created_at) VALUES (?,?,?,?,?)').run(day, x, y, Math.floor(Math.random() * RIDDLES.length), now());
       t = db.prepare('SELECT * FROM treasure WHERE day=?').get(day);
     }
     return t;
   }
-  const zoneOf = (x, y) => `${y < 640 ? 'au nord' : y < 1060 ? 'au centre' : 'au sud'}${x < 900 ? '-ouest' : x < 1500 ? '' : '-est'}`.replace('au centre', 'en plein centre').replace(/^en plein centre-/, 'au centre-');
+  const zoneOf = (x, y) => `${y < 1100 ? 'au nord' : y < 1950 ? 'au centre' : 'au sud'}${x < 1500 ? '-ouest' : x < 2800 ? '' : '-est'}`.replace('au centre', 'en plein centre').replace(/^en plein centre-/, 'au centre-');
   function hints(t) {
     const h = parisHour(), [name, lx, ly] = LANDMARKS.reduce((b, l) => (Math.hypot(l[1] - t.x, l[2] - t.y) < Math.hypot(b[1] - t.x, b[2] - t.y) ? l : b));
     const out = [`🧭 Le coffre est caché ${zoneOf(t.x, t.y)} de la Ville.`];

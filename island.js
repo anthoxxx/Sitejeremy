@@ -8,7 +8,7 @@
 
 // Taille et zone où l'on peut marcher pour chaque type de lieu (même formules côté navigateur)
 const SCENES = {
-  island: { W: 2400, H: 1600, walk: (x, y) => x > 70 && x < 2330 && y > 150 && y < 1540 }, // la ville du Paradise
+  island: { W: 4200, H: 2900, walk: (x, y) => x > 70 && x < 4130 && y > 160 && y < 2840 && Math.hypot((x - 2200) / 300, (y - 2600) / 105) > 1 }, // la grande ville du Paradise
   club: { W: 1200, H: 760, walk: (x, y) => x > 60 && x < 1140 && y > 290 && y < 720 },
   cinema: { W: 1200, H: 800, walk: (x, y) => x > 60 && x < 1140 && y > 575 && y < 770 },
   // la grande maison : 4 pièces séparées par des murs avec des portes (même formule côté navigateur)
@@ -27,7 +27,7 @@ const PUBLIC = ['club', 'cinema', 'pool', 'cafe', 'arcade', 'campfire'];
 const kindOf = scene => (scene.startsWith('house:') ? 'house' : scene);
 // Où l'on arrive en entrant, et où l'on ressort sur l'île
 const ENTRY = { club: [600, 690], cinema: [600, 740], house: [460, 1010], pool: [600, 690], cafe: [550, 650], arcade: [600, 690], campfire: [600, 690] };
-const DOORS = { club: [850, 710], cinema: [1360, 1055], house: [590, 710], pool: [1900, 700], cafe: [1060, 705], arcade: [590, 1045], campfire: [2050, 1370] };
+const DOORS = { club: [1250, 1440], cinema: [2850, 1440], house: [450, 1440], pool: [3590, 1440], cafe: [1560, 1440], arcade: [450, 2160], campfire: [3590, 2160] };
 // Actions possibles dans chaque lieu
 const ACTIONS = {
   island: ['dance', 'eat'],
@@ -74,6 +74,8 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   const roomOf = scene => 'isl:' + scene;
   // 💤 Ceux qui se déconnectent restent dans la Ville (endormis) à l'endroit où ils étaient
   db.exec('CREATE TABLE IF NOT EXISTS island_spots (user_id INTEGER PRIMARY KEY, x REAL NOT NULL, y REAL NOT NULL, at INTEGER NOT NULL)');
+  // 🏙️ la nouvelle grande ville : les anciennes positions ne veulent plus rien dire, on repart de la place
+  try { if (!db.prepare("SELECT 1 FROM settings WHERE key='cityV2'").get()) { db.prepare('DELETE FROM island_spots').run(); db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('cityV2','1')").run(); } } catch (e) {}
   const spotOf = uid => db.prepare('SELECT x, y FROM island_spots WHERE user_id=?').get(uid);
   function offlineOut(r) {
     const u = getUser(r.user_id); if (!u || u.banned) return null;
@@ -100,7 +102,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   const boards = new Map(); // scene -> meilleurs scores de la salle d'arcade (jusqu'au redémarrage)
   const boardOf = scene => { let b = boards.get(scene); if (!b) { b = { darts: [], jackpots: 0, prizes: 0 }; boards.set(scene, b); } return b; };
   const inScene = scene => [...players.values()].filter(p => p.scene === scene);
-  const spawn = () => { for (let i = 0; i < 40; i++) { const x = 1130 + Math.random() * 140, y = 880 + Math.random() * 70; if (SCENES.island.walk(x, y)) return [x, y]; } return [1200, 950]; };
+  const spawn = () => { for (let i = 0; i < 40; i++) { const x = 2120 + Math.random() * 160, y = 1570 + Math.random() * 40; /* sur la grande place */ if (SCENES.island.walk(x, y)) return [x, y]; } return [1200, 950]; };
   const sockOf = p => [...p.sockets].map(sid => io.sockets.sockets.get(sid)).filter(Boolean);
   const emitScene = (scene, ev, data) => io.to(roomOf(scene)).emit(ev, data);
 

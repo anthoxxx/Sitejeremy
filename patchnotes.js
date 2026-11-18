@@ -747,4 +747,21 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 51,
+    date: '2026-11-18',
+    title: 'La nouvelle Ville du Paradise 🏙️ : 3 fois plus grande et beaucoup plus réaliste',
+    added: [
+      '🗺️ Une toute nouvelle carte, 3 fois plus grande : 6 avenues, 5 rues, 15 quartiers. Chaque lieu a sa place dans son quartier : plus aucun bâtiment ne se touche',
+      '🏛️ La grande place pavée au centre de la Ville avec Général et sa fontaine, et un parc avec un grand lac au sud (on ne peut pas marcher dans l\'eau)',
+      '🏢 Un quartier des affaires avec ses gratte-ciel, et une rangée de boutiques dans chaque quartier',
+      '🛣️ Des rues plus vraies : bitume, marquages blancs, passages piétons, larges trottoirs pavés, arbres alignés le long des avenues, plus de voitures',
+      '🌳 Des centaines d\'arbres avec leur ombre, des buissons et des fleurs partout',
+    ],
+    changed: [
+      'Tout le monde repart de la grande place à la première visite de la nouvelle Ville',
+      'Le circuit des courses et la chasse au trésor sont adaptés à la nouvelle carte',
+    ],
+    removed: [],
+  },
 ];
