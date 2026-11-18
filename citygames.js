@@ -126,11 +126,47 @@ module.exports = function setupCityGames({ db, io, coins, notify, track = () => 
     return db.prepare('SELECT b.ms, u.username FROM race_best b JOIN users u ON u.id=b.user_id WHERE b.week=? ORDER BY b.ms LIMIT 10').all(week);
   }
 
+  // ---------- ⛄ La bataille de boules de neige (en hiver) ----------
+  const winter = () => { const m = Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', month: 'numeric' }).format(Date.now())); return [11, 12, 1, 2].includes(m) || process.env.SNOW_FORCE === '1'; };
+  const roundKey = () => parisDay() + ':' + parisHour();
+  let snow = { round: roundKey(), score: { red: 0, blue: 0 }, hitters: { red: new Set(), blue: new Set() } };
+  const teams = new Map(); const lastThrow = new Map();
+  const teamOf = uid => { if (!teams.has(uid)) { const c = { red: 0, blue: 0 }; for (const t of teams.values()) c[t]++; teams.set(uid, c.red <= c.blue ? 'red' : 'blue'); } return teams.get(uid); };
+  const snowState = () => ({ score: snow.score, teams: Object.fromEntries(teams), endsIn: (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000 });
+  function endRound() {
+    const { red, blue } = snow.score;
+    if (red !== blue && red + blue > 0) {
+      const win = red > blue ? 'red' : 'blue';
+      for (const id of snow.hitters[win]) { const g = coins.earnCapped(id, 'snow_win', 20, `⛄ Bataille de boules de neige : l'équipe ${win === 'red' ? 'rouge' : 'bleue'} a gagné !`, 4); if (g) emitToUser(id, 'snow_won', { gain: g, team: win }); }
+      botSay(`⛄ Fin de la manche de boules de neige : l'équipe ${win === 'red' ? '🔴 ROUGE' : '🔵 BLEUE'} gagne ${Math.max(red, blue)} à ${Math.min(red, blue)} ! Les lanceurs gagnants reçoivent 20 pièces 💰`);
+    }
+    snow = { round: roundKey(), score: { red: 0, blue: 0 }, hitters: { red: new Set(), blue: new Set() } };
+    io.emit('snow_state', snowState());
+  }
+  setInterval(() => { if (snow.round !== roundKey()) endRound(); }, 20000).unref?.();
+  function onConnection(socket, uid) {
+    socket.on('snow_join', ack => { if (!winter()) return ack && ack({ error: '⛄ Les boules de neige, c\'est en hiver (de novembre à février) !' }); const t = teamOf(uid); ack && ack({ ok: true, team: t, ...snowState() }); });
+    socket.on('snow_throw', pos => {
+      if (!winter() || !pos) return;
+      const me = island.posOf(uid); if (!me || me.scene !== 'island') return;
+      const t = now(); if (t - (lastThrow.get(uid) || 0) < 650) return; lastThrow.set(uid, t);
+      let x = Number(pos.x), y = Number(pos.y); if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const d = Math.hypot(x - me.x, y - me.y), max = 520; if (d > max) { x = me.x + (x - me.x) / d * max; y = me.y + (y - me.y) / d * max; }
+      const team = teamOf(uid);
+      // qui est touché ? le joueur le plus proche du point d'impact (pas soi-même, pas son équipe)
+      let hit = null, best = 46;
+      for (const id of island.islanders()) { if (id === uid) continue; const p = island.posOf(id); const dd = Math.hypot(p.x - x, p.y - y + 20); if (dd < best && teamOf(id) !== team) { best = dd; hit = id; } }
+      if (hit) { snow.score[team]++; snow.hitters[team].add(uid); track(uid, 'game'); }
+      const fx = { from: uid, fx: Math.round(me.x), fy: Math.round(me.y), x: Math.round(x), y: Math.round(y), hit, team, score: snow.score };
+      for (const id of island.islanders()) emitToUser(id, 'snow_fx', fx);
+    });
+  }
+
   function routes(app, auth) {
     app.get('/api/city/treasure', auth, (req, res) => res.json(info(req.user.id)));
     app.get('/api/city/race', auth, (req, res) => res.json({ ...pub(), leaderboard: leaderboard(), cars: CARS }));
     app.post('/api/city/race/join', auth, (req, res) => { const r = join(req.user.id, String(req.body?.car || '')); res.status(r.error ? 400 : 200).json(r); });
     app.post('/api/city/race/leave', auth, (req, res) => res.json(leave(req.user.id)));
   }
-  return { onMove, routes, leave };
+  return { onMove, routes, leave, onConnection };
 };

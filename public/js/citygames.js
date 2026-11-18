@@ -1,5 +1,8 @@
 // The Paradise — Les jeux de la Ville (côté écran) : 🗺️ Chasse au trésor du jour et 🏁 Courses de voitures
 const CityGames = (() => {
+  // ⛄ boules de neige
+  let snowMode = false, myTeam = '', snowScore = { red: 0, blue: 0 }, snowTeams = {}, balls = [], frozen = new Map(), snowEnds = 0;
+  const winter = () => [10, 11, 0, 1].includes(new Date().getMonth()) || !!window.LC?.site?.xmas;
   let race = { state: 'idle', racers: [], checkpoints: [] }, heat = 0, near = null, nearAt = 0, myCar = '🏎️', hud = null;
   try { myCar = localStorage.getItem('lc_car') || '🏎️'; } catch (e) {}
   const mine = () => race.racers.find(r => r.id === state.me?.id);
@@ -21,6 +24,7 @@ const CityGames = (() => {
     const h = getHud(); if (!h) return;
     const r = mine(), heatTxt = ['', '🧊 Froid', '🌤️ Tiède', '🔥 Chaud', '🔥🔥 Brûlant !'][heat] || '';
     const parts = [];
+    if (snowMode) parts.push(el('div', { class: 'cg-snow' }, el('b', {}, '⛄ Bataille de boules de neige'), el('div', { class: 'cg-snow-score' }, el('span', { class: 'red' + (myTeam === 'red' ? ' me' : '') }, '🔴 ' + snowScore.red), el('i', {}, 'contre'), el('span', { class: 'blue' + (myTeam === 'blue' ? ' me' : '') }, '🔵 ' + snowScore.blue)), el('small', {}, `Tu es dans l'équipe ${myTeam === 'red' ? '🔴 rouge' : '🔵 bleue'} · touche l'écran pour lancer · fin de la manche dans ${Math.max(0, Math.ceil((snowEnds - Date.now()) / 60000))} min`)));
     if (heat && !(r && race.state === 'running')) parts.push(el('div', { class: 'cg-heat lvl' + heat, title: 'Chasse au trésor : plus c\'est chaud, plus tu es près du coffre' }, '🗺️ ', heatTxt));
     if (r && race.state === 'lobby') parts.push(el('div', { class: 'cg-race' }, el('b', {}, '🏁 Départ dans ', el('span', { class: 'cg-lobby' }, Math.max(0, Math.ceil((race.lobbyEnd - Date.now()) / 1000)) + ' s')), el('small', {}, `${race.racers.length} pilote${race.racers.length > 1 ? 's' : ''} : ${race.racers.map(x => x.username).join(', ')}`)));
     if (r && race.state === 'running') {
@@ -35,7 +39,9 @@ const CityGames = (() => {
   setInterval(() => { if (window.Island?.isOpen?.() && window.Island.kind() === 'island') renderHud(); else if (hud) hud.replaceChildren(); }, 250);
 
   // ---------- 🎨 Dessin sur la carte de la Ville ----------
-  function drawGround(ctx, t) {
+  function drawGround(ctx, t, players) {
+    // ⛄ en mode boules de neige : un rond de la couleur de l'équipe sous chaque joueur
+    if (snowMode && players) for (const p of players.values()) { const tm = snowTeams[p.id]; if (!tm) continue; ctx.save(); ctx.globalAlpha = .55; ctx.strokeStyle = tm === 'red' ? '#ff2d3a' : '#2f8bff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.dx ?? p.x, (p.dy ?? p.y) + 16, 26, 9, 0, 0, 7); ctx.stroke(); ctx.restore(); }
     const r = mine();
     if (race.state === 'idle' || !race.checkpoints.length) return;
     // la ligne de départ en damier
@@ -51,6 +57,15 @@ const CityGames = (() => {
     });
   }
   function drawTop(ctx, t, me) {
+    // ⛄ les boules de neige en vol, et l'éclaboussure à l'arrivée
+    const nowMs = Date.now();
+    balls = balls.filter(b => nowMs - b.at < 1400);
+    for (const b of balls) {
+      const k = Math.min(1, (nowMs - b.at) / 420);
+      if (k < 1) { const x = b.fx + (b.x - b.fx) * k, y = b.fy - 40 + (b.y - 30 - (b.fy - 40)) * k - Math.sin(k * Math.PI) * 70; ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(b.fx + (b.x - b.fx) * k, b.fy + (b.y - b.fy) * k + 10, 7, 3, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.strokeStyle = '#bcd6ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.fill(); ctx.stroke(); }
+      else { const s = (nowMs - b.at - 420) / 980; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - s); ctx.fillStyle = '#fff'; for (let i = 0; i < 9; i++) { const a = i * .7; ctx.beginPath(); ctx.arc(b.x + Math.cos(a) * s * 34, b.y - 30 + Math.sin(a) * s * 20, 5 * (1 - s) + 2, 0, 7); ctx.fill(); } if (b.hit) { ctx.font = '900 18px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.strokeText('PAF ! ❄️', b.x, b.y - 70 - s * 20); ctx.fillStyle = '#9fd8ff'; ctx.fillText('PAF ! ❄️', b.x, b.y - 70 - s * 20); } ctx.restore(); }
+    }
+
     // ✨ le coffre au trésor brille quand on est tout près
     if (near && Date.now() - nearAt < 3000) {
       const { x, y } = near, b = Math.sin(t * 5) * 4;
@@ -111,6 +126,15 @@ const CityGames = (() => {
   socket.on('treasure_near', p => { near = p; nearAt = Date.now(); });
   socket.on('treasure_found', ({ rank, gain }) => { LC.confetti(['🧰', '💰', '🗺️', '✨']); toast(rank === 1 ? `🏆 BRAVO ! Tu as trouvé le trésor du jour en premier : +${gain} 💰` : `🧰 Trésor trouvé ! +${gain} 💰 (${rank}e chercheur)`); near = null; });
   socket.on('treasure_winner', ({ username }) => { if (username !== state.me?.username) toast(`🗺️ ${username} a trouvé le trésor du jour ! Il reste un petit butin pour les suivants…`); });
-  return { speed, carOf, drawGround, drawTop, treasurePanel, racePanel };
+  // ⛄ lancer une boule de neige
+  function toggleSnow() {
+    if (snowMode) { snowMode = false; toast('⛄ Mode boules de neige coupé : tu marches de nouveau'); return; }
+    socket.emit('snow_join', r => { if (r?.error) return toast(r.error); snowMode = true; myTeam = r.team; snowScore = r.score; snowTeams = r.teams; snowEnds = Date.now() + r.endsIn; toast(`⛄ Tu es dans l'équipe ${r.team === 'red' ? '🔴 ROUGE' : '🔵 BLEUE'} ! Touche l'écran pour lancer des boules de neige sur l'autre équipe`); });
+  }
+  function throwAt(x, y) { socket.emit('snow_throw', { x, y }); }
+  socket.on('snow_fx', f => { balls.push({ ...f, at: Date.now() }); snowScore = f.score; snowTeams[f.from] = f.team; if (f.hit === state.me?.id) { try { navigator.vibrate?.(120); } catch (e) {} document.body.classList.remove('snow-hit'); void document.body.offsetWidth; document.body.classList.add('snow-hit'); setTimeout(() => document.body.classList.remove('snow-hit'), 900); } });
+  socket.on('snow_state', s => { snowScore = s.score; snowTeams = s.teams; snowEnds = Date.now() + s.endsIn; });
+  socket.on('snow_won', ({ gain }) => { LC.confetti(['⛄', '❄️', '🏆']); toast(`⛄ Ton équipe a gagné la manche ! +${gain} 💰`); });
+  return { speed, carOf, drawGround, drawTop, treasurePanel, racePanel, winter, snowOn: () => snowMode, toggleSnow, throwAt };
 })();
 window.CityGames = CityGames;

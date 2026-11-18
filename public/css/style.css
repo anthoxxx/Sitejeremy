@@ -3229,3 +3229,9 @@ body.a11y-flash::after { content: ''; position: fixed; inset: 0; z-index: 5000; 
 .adv-num { position: absolute; top: 4px; left: 8px; font-size: .9rem; opacity: .9; } .adv-door.big .adv-num { font-size: 1.3rem; }
 .adv-gift { font-size: 2rem; } .adv-shine { font-size: 1.4rem; opacity: .8; }
 .adv-reveal { text-align: center; } .adv-reveal-ico { font-size: 90px; animation: emoPop .8s cubic-bezier(.3,1.8,.5,1); } .adv-reveal p { font-size: 1.1rem; }
+/* ⛄ la bataille de boules de neige */
+.cg-snow { padding: 8px 14px; border-radius: 16px; background: rgba(15,20,45,.88); color: #fff; border: 2px solid #bcd6ff; text-align: center; font: 700 13px Outfit, sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.cg-snow-score { display: flex; gap: 10px; align-items: center; justify-content: center; font: 900 22px Outfit, sans-serif; margin: 2px 0; } .cg-snow-score i { font-size: 12px; font-style: normal; opacity: .7; }
+.cg-snow-score .red { color: #ff5a64; } .cg-snow-score .blue { color: #5aa8ff; } .cg-snow-score .me { text-decoration: underline; }
+.isl-act.snow.on { background: linear-gradient(135deg, #9fd8ff, #ffffff); color: #0b2a4a; }
+body.snow-hit #island::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 20; background: radial-gradient(circle, rgba(255,255,255,0) 30%, rgba(220,240,255,.85)); animation: a11yFlash .9s ease both; }

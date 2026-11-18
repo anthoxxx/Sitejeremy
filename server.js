@@ -3279,6 +3279,7 @@ io.on('connection', socket => {
   Paroles.onConnection(socket, uid, current);
   MotDor.onConnection(socket, uid, current);
   Island.onConnection(socket, uid, current);
+  CityGames.onConnection(socket, uid);
   Events.onConnection(socket);
 
   // ----- Mode fantôme (super-admin) -----

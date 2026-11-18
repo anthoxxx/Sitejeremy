@@ -1317,7 +1317,7 @@ const Island = (() => {
       const moving = Math.hypot(tx - p.px, ty - p.py) > 3;
       items.push({ y: p.py + 6, d: () => drawPet(p, t, moving) });
     }
-    if (kind === 'island') try { window.CityGames?.drawGround(ctx, t); } catch (e) {}
+    if (kind === 'island') try { window.CityGames?.drawGround(ctx, t, players); } catch (e) {}
     items.sort((a, b) => a.y - b.y).forEach(it => it.d());
     if (kind === 'island') try { window.CityGames?.drawTop(ctx, t, players.get(me)); } catch (e) {}
     if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
@@ -1581,6 +1581,7 @@ const Island = (() => {
     if (kind !== 'island') acts.unshift(
       el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
+    if (kind === 'island' && window.CityGames?.winter()) acts.push(el('button', { type: 'button', class: 'isl-act snow' + (window.CityGames.snowOn() ? ' on' : ''), onclick: e => { window.CityGames.toggleSnow(); e.currentTarget.classList.toggle('on', window.CityGames.snowOn()); } }, el('span', {}, '⛄'), 'Boules de neige'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
@@ -1641,6 +1642,7 @@ const Island = (() => {
       const { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
       root.querySelector('.isl-hint').classList.add('gone');
       root.querySelector('.isl-panel')?.remove();
+      if (kind === 'island' && window.CityGames?.snowOn()) { window.CityGames.throwAt(x, y); return; } // ⛄ mode boules de neige : on lance au lieu de marcher
       if (editing) {
         const prev = draft[sel];
         if (prev && FURN[prev.t]) { const hp = rotHandle(prev); if (Math.hypot(hp.x - x, hp.y - y) < 26) { drag = { id: e.pointerId, rotate: true }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} return; } }
