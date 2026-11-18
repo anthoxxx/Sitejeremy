@@ -229,8 +229,8 @@ function openMyProfile() {
         inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
         inp.dispatchEvent(new Event('input'));
       } }, '↺ Couleur par défaut (selon ton genre)'),
-      state.me.perks ? el('button', { type: 'button', class: 'btn btn-sm black-pick', style: 'margin-top:8px;margin-left:6px', onclick: () => { const inp = namePick.querySelector('input[type=color]'); inp.value = '#000000'; inp.dispatchEvent(new Event('input')); } }, '🖤 Noir (réservé 👑)') : null),
-      state.me.perks ? null : 'Le noir est réservé aux membres qui ont les privilèges 👑'),
+      state.me.canBlack ? el('button', { type: 'button', class: 'btn btn-sm black-pick', style: 'margin-top:8px;margin-left:6px', onclick: () => { const inp = namePick.querySelector('input[type=color]'); inp.value = '#000000'; inp.dispatchEvent(new Event('input')); } }, '🖤 Noir (réservé au staff)') : null),
+      state.me.canBlack ? null : 'Le noir est réservé au staff 🛡️'),
     state.me.perks ? f('✏️ Changer de pseudo (👑 privilège)', (() => {
       const inp = el('input', { class: 'input', maxlength: 20, value: state.me.username });
       return el('div', { class: 'row', style: 'gap:8px' }, inp, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async () => {

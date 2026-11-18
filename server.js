@@ -112,7 +112,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, perks: hasPerks(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, perks: hasPerks(u), canBlack: canBlack(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -754,7 +754,7 @@ app.put('/api/me', auth, (req, res) => {
     b.city !== undefined ? filterWords(clean(b.city, 40)) : u.city,
     b.bio !== undefined ? filterWords(cleanMultiline(b.bio, 500)) : u.bio,
     // Si la personne change de genre et garde la couleur par défaut, la couleur suit le nouveau genre
-    (() => { let c = hex(b.color, u.color); if (isDarkColor(c) && !hasPerks(u)) c = isDarkColor(u.color) ? genderColor(gender) : u.color; /* 🖤 le noir est réservé */ return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
+    (() => { let c = hex(b.color, u.color); if (isDarkColor(c) && !canBlack(u)) c = isDarkColor(u.color) ? genderColor(gender) : u.color; /* 🖤 le noir est réservé */ return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
     hex(b.accent, u.accent || '#ff5fa2'),
     pick(b.nameEffect, [...NAME_EFFECTS, ...Coins.ownedValues(u.id, 'name')], u.name_effect || 'none'),
     pick(b.frame, [...FRAMES, ...Coins.ownedValues(u.id, 'frame')], u.avatar_frame || 'none'),
@@ -837,12 +837,14 @@ app.put('/api/me/password', auth, (req, res) => {
 
 // 👑 Les privilèges (changer de pseudo comme on veut, couleur noire réservée) : le développeur + ceux à qui le super-admin les donne
 function hasPerks(u) { return !!u && (u.perks === 1 || u.is_dev === 1); }
+// 🖤 la couleur noire : tout le staff (modos, admins) et ceux qui ont les privilèges, pas les simples membres
+const canBlack = u => isStaff(u) || hasPerks(u);
 const isDarkColor = c => { const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(c || ''); if (!m) return false; const [r, g, b] = m.slice(1).map(x => parseInt(x, 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.12; };
 app.post('/api/admin/users/:id/perks', auth, (req, res) => {
   if (!isSuper(req.user)) return res.status(403).json({ error: 'Réservé au super-admin' });
   const t = getUser(parseInt(req.params.id, 10)); if (!t) return res.status(404).json({ error: 'Introuvable' });
   db.prepare('UPDATE users SET perks=? WHERE id=?').run(req.body.on ? 1 : 0, t.id);
-  if (!req.body.on && isDarkColor(t.color) && !t.is_dev) db.prepare('UPDATE users SET color=? WHERE id=?').run(genderColor(t.gender), t.id);
+  if (!req.body.on && isDarkColor(t.color) && !t.is_dev && !isStaff(t)) db.prepare('UPDATE users SET color=? WHERE id=?').run(genderColor(t.gender), t.id);
   refreshOnline(getUser(t.id));
   log(req.user, 'perks', `👑 Privilèges ${req.body.on ? 'donnés à' : 'retirés à'} ${t.username}`);
   res.json({ ok: true });
@@ -2153,6 +2155,7 @@ admin.patch('/users/:id', (req, res) => {
     if (target.is_guest && req.body.role !== 'user') return res.status(400).json({ error: 'Un invité ne peut pas être promu' });
     const lvl = Math.min(3, Math.max(1, parseInt(req.body.modLevel, 10) || modLevel(target)));
     db.prepare('UPDATE users SET role=?, mod_level=? WHERE id=?').run(req.body.role, lvl, target.id);
+    { const t2 = getUser(target.id); if (isDarkColor(t2.color) && !canBlack(t2)) db.prepare('UPDATE users SET color=? WHERE id=?').run(genderColor(t2.gender), t2.id); } // 🖤 plus staff : il perd le noir
     const ROLE_FR = { superadmin: 'super-admin', admin: 'admin', moderator: 'modérateur ' + lvl, user: 'membre' };
     log(req.user, 'role', `${target.username} : ${target.role === 'moderator' ? 'modérateur ' + modLevel(target) : { superadmin: 'super-admin', admin: 'admin', user: 'membre' }[target.role] || target.role} → ${ROLE_FR[req.body.role]}`);
     if (req.body.role === 'moderator' && target.role === 'moderator' && lvl !== modLevel(target)) {
