@@ -721,4 +721,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 49,
+    date: '2026-11-18',
+    title: 'Noël arrive 🎄 : Calendrier de l\'Avent, Village de Noël, boules de neige ⛄, The Voice 🎤 et Qui veut gagner des pièces 💰',
+    added: [
+      '🎄 Le Calendrier de l\'Avent (menu ou téléphone) : du 1er au 24 décembre, ouvre une case chaque jour (le jour même !) : pièces, sapin, bonhomme de neige et cadeaux pour ta maison, bonnet de Père Noël, et un énorme cadeau le 24 (badge 🎅 + 300 pièces)',
+      '🏘️ En décembre, la Ville devient un Village de Noël : neige partout, grand sapin illuminé sur la place, guirlandes sur les lampadaires, flocons… et le traîneau du Père Noël traverse le ciel le soir du 24',
+      '⛄ La bataille de boules de neige (de novembre à février) : bouton « Boules de neige » dans la Ville, tu es dans l\'équipe 🔴 rouge ou 🔵 bleue, touche l\'écran pour lancer. Chaque heure, l\'équipe qui a le plus touché gagne 20 pièces',
+      '🎤 The Voice du Paradise : un nouveau salon pour le concours de chant au micro. Le staff ouvre le concours, chacun s\'inscrit avec sa chanson, le jury (le staff) se retourne 🔄 et le public vote 👏. Le gagnant reçoit 300 pièces et le badge exclusif 🎙️',
+      '📞 Nouveau joker « Appeler un ami » au Sommet : ton ami reçoit la question où qu\'il soit sur le site et a 20 secondes pour te répondre',
+    ],
+    changed: [
+      '💰 Le Sommet du Paradise devient « Qui veut gagner des pièces » : on gagne de vraies pièces (jusqu\'à 500 💰) au lieu des points',
+    ],
+    removed: [],
+  },
 ];

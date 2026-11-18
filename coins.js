@@ -38,6 +38,7 @@ const SHOP = [
   { id: 'entry_rainbow', slot: 'entry', value: 'rainbow', name: 'Entrée Arc-en-ciel', icon: '🌈', price: 300, desc: 'Un arc-en-ciel annonce ton arrivée' },
   // 🛋️ Meubles rares pour sa maison sur l'Île
   // 🎄 objets exclusifs du Calendrier de l'Avent (on ne peut pas les acheter)
+  { id: 'badge_voice', slot: 'badge', value: '🎙️', name: 'Badge The Voice', icon: '🎙️', price: 0, exclusive: true, desc: 'Gagné en remportant The Voice du Paradise' },
   { id: 'badge_santa', slot: 'badge', value: '🎅', name: 'Badge Père Noël', icon: '🎅', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
   { id: 'furn_xmastree', slot: 'furniture', value: 'xmastree', name: 'Sapin de Noël', icon: '🎄', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },
   { id: 'furn_snowman', slot: 'furniture', value: 'snowman', name: 'Bonhomme de neige', icon: '⛄', price: 0, exclusive: true, desc: 'Gagné dans le Calendrier de l\'Avent' },

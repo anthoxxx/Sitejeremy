@@ -2771,6 +2771,8 @@ const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) 
 CityGames.routes(app, auth);
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
+// 🎤 The Voice du Paradise
+const TheVoice = require('./thevoice')({ io, db, coins: Coins, notify: (...a) => notify(...a), isStaff: u => isStaff(u), getOnline: () => online, track });
 // 🎄 Le Calendrier de l'Avent
 const Advent = AdventRef = require('./advent')({ db, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id) });
 Advent.routes(app, auth);
@@ -3280,6 +3282,7 @@ io.on('connection', socket => {
   MotDor.onConnection(socket, uid, current);
   Island.onConnection(socket, uid, current);
   CityGames.onConnection(socket, uid);
+  TheVoice.onConnection(socket, uid, current);
   Events.onConnection(socket);
 
   // ----- Mode fantôme (super-admin) -----

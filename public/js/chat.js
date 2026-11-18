@@ -169,7 +169,7 @@ function iconAnim(r) {
   return ANIM_CYCLE[Math.abs(h) % ANIM_CYCLE.length];
 }
 // Couleur néon de chaque salon officiel (nom, description et contour)
-const NEON = { general: 'red', suggestions: 'orange', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
+const NEON = { general: 'red', suggestions: 'orange', thevoice: 'red', rencontres: 'pink', '18-25': 'blue', '25-40': 'blue', '40-plus': 'blue', amitie: 'green', gaming: 'grey',
   musique: 'orange', karaoke: 'orange', tv: 'black', douane: 'white', patchnote: 'violet' };
 // Les salons des jeux s'affichent en doré
 // Salons dorés avec le logo animé comme icône

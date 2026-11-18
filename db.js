@@ -457,6 +457,14 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='suggestions'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('suggestions', 'Suggestions', 'Une idée pour le site ? Propose-la ici, toutes les idées sont bonnes à prendre 💡', '💡', sort, 0, Date.now());
 }
+// 🎤 Salon « The Voice du Paradise » : le concours de chant au micro
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='thevoice'").get()) {
+  const r = db.prepare("SELECT sort FROM rooms WHERE slug='sommet'").get();
+  const sort = r ? r.sort + 1 : 16;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('thevoice', 'The Voice du Paradise', 'Le concours de chant au micro : le jury se retourne, le public vote 🎤', '🎤', sort, 0, Date.now());
+}
 // 💰 Le Sommet devient « Qui veut gagner des pièces » (de vraies pièces à gagner)
 db.prepare("UPDATE rooms SET description=? WHERE slug='sommet' AND description LIKE '%million%'").run('Qui veut gagner des pièces ? 12 questions pour gagner jusqu\'à 500 vraies pièces 💰 (avec 📞 Appeler un ami !)');
 // Le salon « 25 – 40 ans » devient « 26 – 40 ans » (18 – 25 ans s'arrête à 25)

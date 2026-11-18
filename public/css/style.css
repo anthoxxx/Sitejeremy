@@ -3235,3 +3235,20 @@ body.a11y-flash::after { content: ''; position: fixed; inset: 0; z-index: 5000; 
 .cg-snow-score .red { color: #ff5a64; } .cg-snow-score .blue { color: #5aa8ff; } .cg-snow-score .me { text-decoration: underline; }
 .isl-act.snow.on { background: linear-gradient(135deg, #9fd8ff, #ffffff); color: #0b2a4a; }
 body.snow-hit #island::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 20; background: radial-gradient(circle, rgba(255,255,255,0) 30%, rgba(220,240,255,.85)); animation: a11yFlash .9s ease both; }
+
+/* =================== 🎤 The Voice du Paradise =================== */
+.tv-stage { margin: 8px 12px 0; padding: 12px; border-radius: 18px; background: radial-gradient(ellipse at 50% 0%, #4a0f2a, #12061c 70%); border: 2px solid #ff2d55; box-shadow: 0 0 24px -6px #ff2d55; color: #fff; position: relative; overflow: hidden; }
+.tv-head { display: flex; justify-content: space-between; align-items: center; } .tv-head b { font: 900 1.05rem Outfit, sans-serif; letter-spacing: .06em; text-shadow: 0 0 10px #ff2d55; } .tv-phase { font-size: .8rem; font-weight: 700; }
+.tv-scene { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0; }
+.tv-jury { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.tv-chair { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px; border-radius: 14px; background: rgba(255,255,255,.06); min-width: 64px; transition: transform .5s; }
+.tv-chair .tv-back { font-size: 30px; display: block; transform: scaleX(-1); filter: grayscale(.2); }
+.tv-chair.turned { background: rgba(255,45,85,.25); box-shadow: 0 0 18px #ff2d55; animation: tvTurn .6s ease; } .tv-chair.turned i { font-style: normal; font-size: .58rem; font-weight: 900; color: #ff2d55; background: #fff; padding: 1px 4px; border-radius: 4px; }
+@keyframes tvTurn { from { transform: rotateY(180deg); } }
+.tv-spot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 24px; border-radius: 50%; } .tv-spot.on { background: radial-gradient(circle, rgba(255,240,180,.35), transparent 70%); }
+.tv-spot .avatar { width: 74px !important; height: 74px !important; box-shadow: 0 0 0 3px #ffd34d, 0 0 30px #ffd34d; } .tv-spot em { font-style: normal; color: #ffe9a8; } .tv-mic { font-size: 40px; } .tv-score { font-weight: 800; }
+.tv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; } .tv-song { max-width: 220px; }
+.tv-turn { padding: 12px 22px; border-radius: 999px; border: 0; background: radial-gradient(circle at 40% 35%, #ff6a7a, #c4001d); color: #fff; font: 900 1rem Outfit, sans-serif; box-shadow: 0 6px 0 #7a0012, 0 0 20px #ff2d55; cursor: pointer; } .tv-turn:active { transform: translateY(4px); box-shadow: 0 2px 0 #7a0012; }
+.tv-you { font-weight: 800; color: #ffd34d; } .tv-staff { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; width: 100%; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.12); }
+.tv-queue, .tv-results { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; font-size: .8rem; margin-top: 6px; } .tv-queue span, .tv-results span { padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.08); }
+.tv-flash { position: absolute; inset: 0; display: grid; place-items: center; font: 900 1.6rem Outfit, sans-serif; color: #fff; text-shadow: 0 0 20px #ff2d55; background: rgba(255,45,85,.25); animation: a11yFlash 1.6s ease both; pointer-events: none; }
