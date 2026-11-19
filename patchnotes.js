@@ -816,4 +816,19 @@ module.exports = [
     changed: ['Les applis du dock (Téléphone, Messages, Snap, Appareil photo) ne sont plus en double sur l\'écran d\'accueil'],
     removed: [],
   },
+  {
+    id: 56,
+    date: '2026-11-19',
+    title: 'Ton iPhone devient vraiment réaliste 📱✨',
+    added: [
+      '🔒 Un vrai écran verrouillé quand tu sors ton téléphone : grosse heure, tes dernières notifications, lampe et appareil photo, et « Glisse vers le haut pour déverrouiller »',
+      '🎛️ Le Centre de contrôle : glisse (ou touche) en haut à droite de l\'écran : mode avion, Wi‑Fi, Bluetooth, données, concentration, luminosité, volume, radio, lampe, minuteur…',
+      '🔔 Le Centre de notifications : glisse en haut à gauche pour voir toutes tes notifications',
+      '➖ La barre en bas de l\'écran : glisse-la vers le haut (ou touche-la) pour revenir à l\'accueil, et depuis l\'accueil pour ranger le téléphone. Glisse depuis le bord gauche d\'une appli pour revenir en arrière',
+      '🔘 Les boutons sur les côtés marchent : volume + / − (avec la barre du volume), et le bouton latéral éteint l\'écran et le reverrouille',
+      '🎬 Les applis s\'ouvrent et se ferment avec une animation, et l\'écran d\'accueil a plusieurs pages qu\'on fait défiler (avec les petits points)',
+    ],
+    changed: ['Les boutons ‹ et ✕ sous l\'écran sont remplacés par la barre de l\'iPhone (sur ordinateur, un petit ✕ à côté du téléphone le range)'],
+    removed: [],
+  },
 ];

@@ -35,14 +35,20 @@ const Phone = (() => {
     root = el('div', { class: 'phone hidden', onclick: e => { if (e.target === root && !document.body.classList.contains('island-open')) close(); } },
       el('div', { class: 'ph-device' },
         el('div', { class: 'ph-status' }, el('b', { class: 'ph-time' }, time()), el('span', { class: 'ph-island' }, el('i', { class: 'ph-cam' }), el('span', { class: 'ph-island-txt' })), el('span', { class: 'ph-icons' }, el('span', { class: 'ph-sig' }, el('i'), el('i'), el('i'), el('i')), ' 5G ', el('span', { class: 'ph-bat' }, el('i')))),
-        el('span', { class: 'ph-side ph-side-l1' }), el('span', { class: 'ph-side ph-side-l2' }), el('span', { class: 'ph-side ph-side-r' }), el('span', { class: 'ph-side ph-side-cam' }),
+        // les vrais boutons sur les côtés : volume + / − et le bouton latéral (verrouiller)
+        el('button', { class: 'ph-side ph-side-l1', title: 'Volume +', onclick: () => volume(1) }), el('button', { class: 'ph-side ph-side-l2', title: 'Volume −', onclick: () => volume(-1) }),
+        el('button', { class: 'ph-side ph-side-r', title: 'Bouton latéral : verrouiller', onclick: () => power() }), el('span', { class: 'ph-side ph-side-cam' }),
         screen = el('div', { class: 'ph-screen' }),
-        el('div', { class: 'ph-nav' },
-          el('button', { class: 'ph-navbtn', title: 'Retour', onclick: () => (stack.length > 1 ? back() : home()) }, '‹'),
-          el('button', { class: 'ph-homebtn', title: 'Accueil', onclick: () => home() }),
-          el('button', { class: 'ph-navbtn', title: 'Ranger le téléphone', onclick: () => close() }, '✕'))));
+        // les zones à toucher ou glisser en haut : notifications (à gauche) et centre de contrôle (à droite)
+        el('div', { class: 'ph-edge ph-edge-l', title: 'Centre de notifications' }), el('div', { class: 'ph-edge ph-edge-r', title: 'Centre de contrôle' }),
+        el('div', { class: 'ph-overlay hidden' }),
+        // la barre du bas : on la glisse vers le haut (ou on la touche) pour revenir à l'accueil, et depuis l'accueil pour ranger le téléphone
+        el('div', { class: 'ph-homebar', title: 'Glisse vers le haut : accueil' }, el('i')),
+        el('button', { class: 'ph-navbtn ph-close', title: 'Ranger le téléphone', onclick: () => close() }, '✕'),
+        el('div', { class: 'ph-hud hidden' })));
     document.body.append(root);
     applyLook();
+    setupGestures();
     setInterval(() => { const t = root.querySelector('.ph-time'); if (t) t.textContent = time(); const c = root.querySelector('.ph-clock b'); if (c) c.textContent = time(); }, 15000);
   }
   function open(app) {
@@ -51,16 +57,20 @@ const Phone = (() => {
     root.classList.remove('hidden'); document.body.classList.add('phone-open'); hideReturn();
     refreshBadges();
     const go2 = () => (app && APPS[app] ? APPS[app].open() : home());
-    if (opt('pin', '') && !unlocked) lockScreen(go2); else go2();
+    // 🔒 comme un vrai iPhone : il faut le déverrouiller (avec code si tu en as mis un), sauf si tu l'as rangé il y a moins de 2 minutes
+    const stale = Date.now() - closedAt > 120000;
+    if (screenOff) { screenOff = false; root.querySelector('.ph-device').classList.remove('off'); }
+    if ((opt('pin', '') && !unlocked) || (!opt('pin', '') && opt('lockopen', '1') === '1' && stale && !app)) lockScreen(go2); else go2();
   }
-  function close() { if (!root) return; if (opt('pin', '')) unlocked = false; /* 🔒 il se reverrouille quand on le range */ stopCam(); clearTimers(); convOpen = null; root.classList.add('hidden'); document.body.classList.remove('phone-open'); }
+  function close() { if (!root) return; closedAt = Date.now(); hideOverlay(); if (opt('pin', '')) unlocked = false; /* 🔒 il se reverrouille quand on le range */ stopCam(); clearTimers(); convOpen = null; root.classList.add('hidden'); document.body.classList.remove('phone-open'); }
   const isOpen = () => root && !root.classList.contains('hidden');
   function go(fn, title, actions) {
     stopCam(); clearTimers();
     stack.push({ fn, title });
     screen.style.background = ''; dark(!title);
     const body = el('div', { class: 'ph-app-body' });
-    screen.replaceChildren(el('div', { class: 'ph-app' },
+    hideOverlay();
+    screen.replaceChildren(el('div', { class: 'ph-app ph-zoom-in' },
       title ? el('div', { class: 'ph-bar' }, el('button', { class: 'ph-back', onclick: back }, '‹'), el('b', {}, title), el('span', { class: 'ph-bar-act' }, ...(actions || []))) : null, body));
     fn(body);
   }
@@ -206,11 +216,21 @@ const Phone = (() => {
     stopCam(); clearTimers(); stack = []; convOpen = null;
     screen.style.background = wallBg(); dark(true);
     const d = new Date();
-    screen.replaceChildren(el('div', { class: 'ph-home' },
+    hideOverlay();
+    const wasApp = !!screen.querySelector('.ph-app');
+    screen.replaceChildren(el('div', { class: 'ph-home' + (wasApp ? ' ph-zoom-home' : '') },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
       jiggle ? null : widgets(),
       jiggle ? el('div', { class: 'ph-jhint' }, el('span', {}, '✋ Fais glisser une appli pour la déplacer'), el('button', { class: 'ph-done', onclick: () => { jiggle = false; home(); } }, 'OK')) : null,
-      el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...gridList().map(k => appIcon(k))),
+      (() => { // 📄 plusieurs pages d'applis, qu'on fait défiler sur le côté (avec les petits points)
+        const per = +opt('cols', '4') * (opt('cols', '4') === '3' ? 4 : 5), list = gridList(), pages = [];
+        for (let i = 0; i < Math.max(1, list.length); i += per) pages.push(list.slice(i, i + per));
+        const dots = el('div', { class: 'ph-dots' + (pages.length < 2 ? ' hidden' : '') }, ...pages.map((_, i) => el('i', { class: i === homePage ? 'on' : '' })));
+        const wrap = el('div', { class: 'ph-pages', onscroll: e => { const i = Math.round(e.target.scrollLeft / e.target.clientWidth); if (i !== homePage) { homePage = i; dots.querySelectorAll('i').forEach((d, j) => d.classList.toggle('on', j === i)); } } },
+          ...pages.map(p => el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...p.map(k => appIcon(k)))));
+        homePage = Math.min(homePage, pages.length - 1); setTimeout(() => { wrap.scrollLeft = homePage * wrap.clientWidth; }, 0);
+        return el('div', { class: 'ph-pagewrap' }, wrap, dots);
+      })(),
       el('div', { class: 'ph-dock' + (jiggle ? ' jiggle' : '') }, ...dockList().map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {
@@ -768,7 +788,8 @@ const Phone = (() => {
     const cur = opt('pin', '');
     body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('span', { class: 'ios-face' }, '🙂'), el('small', {}, 'Protège ton téléphone avec un code à 4 chiffres. Face ID 🙂 le déverrouille aussi.')),
       group(cur ? row('🔓', '#ff3b30', 'Désactiver le code', null, () => { setOpt('pin', ''); unlocked = true; toast('🔓 Code désactivé'); pinPage(body); }) : row('🔒', '#34c759', 'Activer un code', null, () => askPin('Choisis un code à 4 chiffres', p => askPin('Confirme ton code', p2 => { if (p !== p2) return toast('Les codes ne sont pas pareils'); setOpt('pin', p); unlocked = true; toast('🔒 Code activé !'); go(pinPage, 'Face ID et code'); })))),
-      cur ? group(row('😊', '#34c759', 'Face ID', sw('faceid', '1'))) : null));
+      cur ? group(row('😊', '#34c759', 'Face ID', sw('faceid', '1'))) : null,
+      group(row('📲', '#007aff', 'Écran verrouillé quand on sort le téléphone', sw('lockopen', '1')))));
   }
   function aboutPage(body) {
     const n = installed().length + SYSTEM.length;
@@ -788,7 +809,21 @@ const Phone = (() => {
   let unlocked = false;
   function lockScreen(then) {
     stopCam(); clearTimers(); stack = [];
-    screen.style.background = lockBg(); dark(true);
+    screen.style.background = lockBg(); dark(true); hideOverlay();
+    if (!opt('pin', '')) { // 🔓 pas de code : on glisse vers le haut
+      const n = snapsUnread + pmUnread;
+      const l = el('div', { class: 'lock lock-free' }, el('div', { class: 'lock-ico' }, '🔒'), el('small', { class: 'lock-date' }, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })), el('b', { class: 'lock-time' }, time()),
+        el('div', { class: 'lock-list' }, ...(n ? [el('div', { class: 'lock-notif' }, el('b', {}, '📱 The Paradise'), el('span', {}, `${n} nouvelle${n > 1 ? 's' : ''} notification${n > 1 ? 's' : ''}`))] : [])),
+        el('div', { class: 'lock-tools' }, el('button', { onclick: e => { e.stopPropagation(); unlocked = true; APPS.torch.open(); } }, '🔦'), el('button', { onclick: e => { e.stopPropagation(); unlocked = true; APPS.camera.open(); } }, '📷')),
+        el('div', { class: 'lock-hint' }, '⌃', el('small', {}, 'Glisse vers le haut pour déverrouiller')));
+      let y0 = null;
+      l.addEventListener('pointerdown', e => { y0 = e.clientY; });
+      l.addEventListener('pointermove', e => { if (y0 != null && y0 - e.clientY > 0) l.style.transform = `translateY(${-(y0 - e.clientY)}px)`; });
+      const end = e => { if (y0 == null) return; const d = y0 - e.clientY; y0 = null; if (d > 70 || Math.abs(d) < 6) { l.classList.add('lock-up'); setTimeout(() => { unlocked = true; then(); }, 260); } else l.style.transform = ''; };
+      l.addEventListener('pointerup', end); l.addEventListener('pointercancel', end);
+      api('/api/notifications').then(d => { const box = l.querySelector('.lock-list'); if (!box?.isConnected) return; box.replaceChildren(...d.notifications.slice(0, 3).map(x => el('div', { class: 'lock-notif' }, el('b', {}, `${x.icon} ${ago(x.createdAt)}`), el('span', {}, x.title)))); }).catch(() => {});
+      screen.replaceChildren(l); return;
+    }
     let v = '';
     const dots = el('div', { class: 'pin-dots' }, ...[0, 1, 2, 3].map(() => el('i')));
     const ok = () => { unlocked = true; island('🔓 Déverrouillé'); then(); };
@@ -960,6 +995,64 @@ const Phone = (() => {
     const draw = () => { card.textContent = Q[i]; };
     body.replaceChildren(el('div', { class: 'ph-tr' }, el('small', {}, '💡 La citation du jour'), card, el('div', { class: 'ph-row-btns' }, el('button', { class: 'ph-pill go', onclick: () => { i = (i + 1) % Q.length; draw(); } }, '➡️ Une autre'), el('button', { class: 'ph-pill', onclick: () => { const st = window.state?.convs; navigator.clipboard?.writeText(Q[i]); toast('📋 Copiée !'); } }, '📋 Copier'))));
     draw();
+  }
+
+  // =================== 🖐️ Gestes, Centre de contrôle, Centre de notifications, boutons ===================
+  let closedAt = 0, screenOff = false, homePage = 0;
+  function swipeDown(elm, fn) { let y0 = null; elm.addEventListener('pointerdown', e => { y0 = e.clientY; elm.setPointerCapture?.(e.pointerId); }); elm.addEventListener('pointerup', e => { if (y0 == null) return; const d = e.clientY - y0; y0 = null; if (d > 25 || Math.abs(d) < 6) fn(); }); }
+  function setupGestures() {
+    swipeDown(root.querySelector('.ph-edge-l'), () => !screenOff && !screen.querySelector('.lock') && notifCenter());
+    swipeDown(root.querySelector('.ph-edge-r'), () => !screenOff && controlCenter());
+    // la barre du bas
+    const hb = root.querySelector('.ph-homebar'); let y0 = null;
+    hb.addEventListener('pointerdown', e => { y0 = e.clientY; hb.setPointerCapture?.(e.pointerId); });
+    hb.addEventListener('pointerup', e => { if (y0 == null) return; const d = y0 - e.clientY; y0 = null; if (d < -10) return; if (!root.querySelector('.ph-overlay').classList.contains('hidden')) return hideOverlay(); if (screen.querySelector('.lock')) return; if (jiggle) { jiggle = false; return home(); } if (screen.querySelector('.ph-home')) { close(); showReturn(); return; } home(); });
+    // depuis le bord gauche d'une appli : glisser vers la droite = retour
+    let x0 = null, ya = 0;
+    screen.addEventListener('pointerdown', e => { const r = screen.getBoundingClientRect(); x0 = e.clientX - r.left < 24 ? e.clientX : null; ya = e.clientY; });
+    screen.addEventListener('pointerup', e => { if (x0 != null && e.clientX - x0 > 70 && Math.abs(e.clientY - ya) < 60 && stack.length) back(); x0 = null; });
+  }
+  const overlay = () => root.querySelector('.ph-overlay');
+  function hideOverlay() { const o = root?.querySelector('.ph-overlay'); if (o && !o.classList.contains('hidden')) { o.classList.add('hidden'); o.replaceChildren(); } }
+  function showOverlay(cls, ...kids) { const o = overlay(); o.className = 'ph-overlay ' + cls; o.replaceChildren(...kids); o.onclick = e => { if (e.target === o) hideOverlay(); }; }
+  function controlCenter() {
+    const tile = (ico, label, on, fn, c = '#007aff') => el('button', { class: 'cc-t' + (on ? ' on' : ''), style: `--c:${c}`, onclick: e => { e.stopPropagation(); fn(e.currentTarget); } }, el('span', {}, ico), el('small', {}, label));
+    const toggle = (key, def, b) => { const v = opt(key, def) === '1' ? '0' : '1'; setOpt(key, v); b.classList.toggle('on', v === '1'); applyLook(); };
+    const slider = (ico, key, def, min, oninput) => { const max = key === 'vol' ? 10 : 100, pc = v => `${(v - min) / (max - min) * 100}%`; const box = el('div', { class: 'cc-slider', style: `--v:${pc(+opt(key, def))}` }, el('input', { type: 'range', min, max, value: opt(key, def), oninput: e => { setOpt(key, e.target.value); box.style.setProperty('--v', pc(+e.target.value)); oninput && oninput(); applyLook(); } }), el('span', {}, ico)); return box; };
+    const media = window.Media;
+    showOverlay('cc',
+      el('div', { class: 'cc-panel', onclick: e => e.stopPropagation() },
+        el('div', { class: 'cc-grid' },
+          el('div', { class: 'cc-box' }, tile('✈️', 'Avion', opt('plane', '0') === '1', b => toggle('plane', '0', b), '#ff9500'), tile('📶', 'Données', opt('data', '1') === '1', b => toggle('data', '1', b), '#34c759'), tile('🛜', 'Wi‑Fi', opt('wifi', '1') === '1', b => toggle('wifi', '1', b)), tile('🔵', 'Bluetooth', opt('bt', '1') === '1', b => toggle('bt', '1', b))),
+          el('div', { class: 'cc-box cc-music' }, el('small', {}, media?.playing ? '🔊 En écoute' : '📻 Radio'), el('b', {}, media?.current?.name || 'Aucune radio'), el('div', {}, el('button', { onclick: e => { e.stopPropagation(); if (media) { media.toggle(); setTimeout(controlCenter, 500); } } }, media?.playing ? '⏸' : '▶️'))),
+          tile('🌙', 'Concentration', state.me.presence === 'dnd', b => { const on = state.me.presence !== 'dnd'; window.setPresence?.(on ? 'dnd' : 'auto'); b.classList.toggle('on', on); }, '#5856d6'),
+          tile('🔒', 'Verrouiller', false, () => power(), '#8e8e93'),
+          slider('🔆', 'bright', '100', 35), slider('🔊', 'vol', '7', 0, () => ringTone()),
+          tile('🔦', 'Lampe', false, () => APPS.torch.open()), tile('⏰', 'Minuteur', false, () => APPS.clock.open()), tile('🧮', 'Calculs', false, () => APPS.calc.open()), tile('📷', 'Photo', false, () => APPS.camera.open())),
+        el('small', { class: 'cc-hint' }, 'Touche en dehors pour fermer')));
+  }
+  async function notifCenter() {
+    const list = el('div', { class: 'nc-list' }, el('div', { class: 'ph-wait' }, 'Chargement…'));
+    showOverlay('nc', el('div', { class: 'nc-panel', onclick: e => e.stopPropagation() }, el('b', { class: 'lock-time' }, time()), el('small', { class: 'lock-date' }, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })), list,
+      el('button', { class: 'nc-clear', onclick: () => { api('/api/notifications/read', { method: 'POST' }).catch(() => {}); list.replaceChildren(el('div', { class: 'ph-wait' }, 'Aucune notification 🎉')); } }, 'Tout effacer')));
+    try {
+      const d = await api('/api/notifications');
+      list.replaceChildren(...(d.notifications.length ? d.notifications.slice(0, 20).map(x => el('button', { class: 'lock-notif' + (x.read ? '' : ' new'), onclick: () => { hideOverlay(); if (x.data?.userId) go(b => conversation(b, { id: x.data.userId, username: x.title.split(' ')[0] }), x.title.split(' ')[0]); else if (x.data?.slug) { close(); joinRoom(x.data.slug); } } }, el('b', {}, `${x.icon} The Paradise · ${ago(x.createdAt)}`), el('span', {}, x.title), x.text ? el('small', {}, x.text) : null)) : [el('div', { class: 'ph-wait' }, 'Aucune notification 🎉')]));
+    } catch (e) { list.replaceChildren(el('div', { class: 'ph-wait' }, e.message)); }
+  }
+  // 🔊 les boutons de volume (avec la petite barre qui apparaît)
+  function volume(dir) {
+    const v = Math.max(0, Math.min(10, +opt('vol', '7') + dir)); setOpt('vol', String(v));
+    if (window.Media?.audio) { Media.volume = v / 10; Media.audio.volume = v / 10; }
+    const h = root.querySelector('.ph-hud'); h.classList.remove('hidden'); h.replaceChildren(el('span', {}, v ? '🔊' : '🔇'), el('i', {}, el('b', { style: `height:${v * 10}%` })));
+    clearTimeout(h._t); h._t = setTimeout(() => h.classList.add('hidden'), 1300);
+    if (dir > 0) ringTone();
+  }
+  // ⏻ le bouton latéral : l'écran s'éteint (et se reverrouille) ; on rappuie pour le rallumer
+  function power() {
+    const d = root.querySelector('.ph-device');
+    if (screenOff) { screenOff = false; d.classList.remove('off'); unlocked = false; closedAt = 0; lockScreen(home); return; }
+    screenOff = true; unlocked = false; hideOverlay(); stopCam(); clearTimers(); d.classList.add('off'); try { navigator.vibrate?.(15); } catch (e) {}
   }
 
   // ---------- ↩️ Le bouton pour revenir au téléphone après avoir ouvert une appli ----------
