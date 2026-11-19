@@ -243,13 +243,17 @@ function openMyProfile() {
       const COLS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#32ade6', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#ff5fa2', '#ffffff', '#c0c0c0', '#d4af37', '#8b4513', '#000000'];
       const box = el('div', { class: 'nr-pick' });
       const draw = () => {
-        const [st, col = '#ff5fa2'] = String(d.nameRing || '').split(':');
-        const set = (s, c) => { d.nameRing = !s ? '' : s === 'arcenciel' ? 'arcenciel' : s + ':' + c; draw(); refresh(); };
+        const [st, col = '#ff5fa2', col2 = ''] = String(d.nameRing || '').split(':');
+        const set = (s, c, c2 = col2) => { d.nameRing = !s ? '' : s === 'arcenciel' ? 'arcenciel' : s + ':' + c + (c2 ? ':' + c2 : ''); draw(); refresh(); };
+        const inp2 = el('input', { type: 'color', class: 'color-input', value: col2 || '#ffcc00', onchange: e => set(st || 'contour', col, e.target.value) });
         const inp = el('input', { type: 'color', class: 'color-input', value: col, onchange: e => set(st || 'contour', e.target.value) });
         box.replaceChildren(
           el('div', { class: 'nr-prev' }, el('small', {}, 'Dans la liste des connectés :'), el('div', { class: 'list-item' + LC.ringRow(d).cls, style: LC.ringRow(d).style || null }, LC.avatar(d), el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name({ ...d, nameRing: '' })), el('div', { class: 'sub' }, '🟢 En ligne'))), el('small', {}, 'Dans les messages :'), el('div', {}, LC.name({ username: d.username, color: d.color, nameEffect: d.nameEffect, nameRing: d.nameRing }))),
           el('div', { class: 'nr-styles' }, ...RING.map(([v, l]) => el('button', { type: 'button', class: 'btn btn-sm' + ((st || '') === v ? ' btn-primary' : ''), onclick: () => set(v, col) }, l))),
-          st && st !== 'arcenciel' ? el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (col === c ? ' active' : ''), style: `background:${c}`, title: c, onclick: () => set(st, c) })), inp) : null);
+          st && st !== 'arcenciel' ? el('small', { class: 'nr-lbl' }, '🎨 1ʳᵉ couleur') : null,
+          st && st !== 'arcenciel' ? el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (col === c ? ' active' : ''), style: `background:${c}`, title: c, onclick: () => set(st, c) })), inp) : null,
+          st && st !== 'arcenciel' ? el('small', { class: 'nr-lbl' }, '🎨 2ᵉ couleur (pour faire un mélange de 2 couleurs)') : null,
+          st && st !== 'arcenciel' ? el('div', { class: 'swatches' }, el('button', { type: 'button', class: 'btn btn-sm' + (!col2 ? ' btn-primary' : ''), onclick: () => set(st, col, '') }, '🚫 Une seule couleur'), ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (col2 === c ? ' active' : ''), style: `background:${c}`, title: c, onclick: () => set(st, col, c) })), inp2) : null);
       };
       draw(); return box;
     })(), 'Une couleur autour de ton pseudo, visible par tout le monde (messages, liste des membres, profil…).'),

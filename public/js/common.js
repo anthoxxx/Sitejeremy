@@ -245,12 +245,12 @@ window.LC = {
   photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, LC.el('i', { class: 'di' }, 'V')); },
   // Pseudo avec sa couleur et son effet
   // ⭕ la couleur autour de toute la ligne (photo + pseudo) dans la liste des connectés
-  ringRow(u) { const [rs, rc] = String(u?.nameRing || '').split(':'); return rs ? { cls: ' nrr nrr-' + rs, style: `--nr:${rc || '#ff5fa2'};--c:${u.color || '#8b6cff'}` } : { cls: '', style: '' }; },
+  ringRow(u) { const [rs, rc, rc2] = String(u?.nameRing || '').split(':'); return rs ? { cls: ' nrr nrr-' + rs + (rc2 ? ' nrr2' : ''), style: `--nr:${rc || '#ff5fa2'};--c:${u.color || '#8b6cff'}` + (rc2 ? `;--nr2:${rc2}` : '') } : { cls: '', style: '' }; },
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
     const nn = fx ? '' : LC.neonOf(u);
-    const [rs, rc] = String(u.nameRing || '').split(':'); /* ⭕ la couleur autour du pseudo */
-    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (rs ? ' nr nr-' + rs : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` + (rc ? `;--nr:${rc}` : '') }, u.username);
+    const [rs, rc, rc2] = String(u.nameRing || '').split(':'); /* ⭕ la couleur (ou les 2 couleurs) autour du pseudo */
+    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (rs ? ' nr nr-' + rs + (rc2 ? ' nr2' : '') : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` + (rc ? `;--nr:${rc}` : '') + (rc2 ? `;--nr2:${rc2}` : '') }, u.username);
     // badge acheté dans la boutique 💰
     const badge = u.shopBadge ? LC.el('span', { class: 'shop-badge', title: 'Badge de la boutique' }, u.shopBadge) : null;
     if (!u.isBirthday && !badge) return n;

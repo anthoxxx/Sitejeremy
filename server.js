@@ -747,7 +747,7 @@ app.put('/api/me', auth, (req, res) => {
   db.prepare('UPDATE users SET birth_day=?, birth_month=?, show_birthday=? WHERE id=?').run(bd, bm,
     b.showBirthday !== undefined ? (b.showBirthday ? 1 : 0) : u.show_birthday, u.id);
   if (b.identity !== undefined) db.prepare('UPDATE users SET identity=? WHERE id=?').run(IDENTITIES.includes(b.identity) ? b.identity : '', u.id);
-  if (b.nameRing !== undefined) db.prepare('UPDATE users SET name_ring=? WHERE id=?').run(/^(contour|halo|bulle|neon|double|degrade):#[0-9a-f]{6}$/i.test(b.nameRing || '') || b.nameRing === 'arcenciel' ? b.nameRing.toLowerCase() : '', u.id);
+  if (b.nameRing !== undefined) db.prepare('UPDATE users SET name_ring=? WHERE id=?').run(/^(contour|halo|bulle|neon|double|degrade):#[0-9a-f]{6}(:#[0-9a-f]{6})?$/i.test(b.nameRing || '') || b.nameRing === 'arcenciel' ? b.nameRing.toLowerCase() : '', u.id);
   if (b.joinSound !== undefined) db.prepare('UPDATE users SET join_sound=? WHERE id=?').run(JOIN_SOUNDS.includes(b.joinSound) ? b.joinSound : '', u.id);
   if (b.likes !== undefined && Array.isArray(b.likes)) db.prepare('UPDATE users SET likes=? WHERE id=?').run(JSON.stringify([...new Set(b.likes.map(String))].filter(x => LIKES.includes(x)).slice(0, 12)), u.id);
   if (b.msgFont !== undefined) db.prepare('UPDATE users SET msg_font=? WHERE id=?').run(MSG_FONTS.includes(b.msgFont) ? b.msgFont : '', u.id);

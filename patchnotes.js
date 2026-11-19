@@ -912,4 +912,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 63,
+    date: '2026-11-19',
+    title: 'Deux couleurs autour de ton pseudo 🎨🎨',
+    added: [
+      '🎨 Tu peux maintenant choisir une 2ᵉ couleur pour le contour de ton pseudo : les deux couleurs se mélangent en dégradé (par exemple rose ➜ bleu)',
+      'Ça marche avec tous les styles : Contour, Halo, Bulle, Néon, Double et Dégradé. Dans la liste des connectés, toute ta ligne (photo + pseudo) prend les deux couleurs',
+      '📍 Profil → 🎨 Apparence → « Couleur autour du pseudo » → « 2ᵉ couleur ». Touche « Une seule couleur » pour revenir à une seule',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
