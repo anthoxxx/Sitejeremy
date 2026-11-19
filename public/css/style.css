@@ -3465,3 +3465,62 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .sw-app .ph-ico { width: 50px; height: 50px; font-size: 26px; opacity: .35; filter: grayscale(.6); transition: .15s; } .sw-app small { font-size: 10px; color: #6b6b75; } .sw-app.on .ph-ico { opacity: 1; filter: none; } .sw-app.on::after { content: '✓'; position: absolute; top: -4px; right: 8px; width: 18px; height: 18px; border-radius: 50%; background: #007aff; color: #fff; font: 900 11px/18px Outfit, sans-serif; }
 .sw-input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #d1d1d6; background: #f2f2f7; font: 16px Outfit, sans-serif; text-align: center; }
 .sw-opt.on::after { content: ' ✓'; float: right; }
+
+/* =================== 📱 iPhone : les vraies icônes, la police iOS, multitâche, Spotlight, Siri… =================== */
+.ph-device, .ph-device button, .ph-device input, .ph-device textarea, .ph-device select { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif; }
+.ph-device .ph-time, .ph-device .ph-clock b, .ph-device .lock-time { font-family: -apple-system, 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif; }
+.ph-ico.real { background-size: cover; box-shadow: 0 1px 3px rgba(0,0,0,.28), inset 0 0 0 .5px rgba(0,0,0,.08); overflow: visible; }
+.ph-ico.real::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 45%); pointer-events: none; }
+.ph-ico .ic-svg { width: 100%; height: 100%; border-radius: inherit; display: block; }
+.ph-ico:not(.real) { background: linear-gradient(180deg, color-mix(in srgb, var(--c) 100%, white 22%), color-mix(in srgb, var(--c) 82%, black)); box-shadow: 0 1px 3px rgba(0,0,0,.28); }
+.ph-appicon small { font-size: 11px; font-weight: 500; letter-spacing: -.01em; text-shadow: 0 1px 2px rgba(0,0,0,.45); max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-ico { border-radius: 22.5% !important; }
+.ph-device[data-icons="rond"] .ph-ico { border-radius: 50% !important; } .ph-device[data-icons="carre"] .ph-ico { border-radius: 8px !important; }
+.ph-dock { border-radius: 30px; background: rgba(255,255,255,.22); backdrop-filter: blur(24px) saturate(1.6); }
+.ph-search { align-self: center; margin: 4px 0 8px; padding: 5px 14px; border: 0; border-radius: 999px; background: rgba(255,255,255,.22); backdrop-filter: blur(14px); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ph-dots i.lib { border-radius: 2px; }
+/* 📚 bibliothèque d'apps */
+.ph-grid.al { grid-template-columns: 1fr 1fr !important; gap: 14px; align-content: start; }
+.al-search { grid-column: span 2; padding: 9px 12px; border-radius: 12px; background: rgba(255,255,255,.22); backdrop-filter: blur(14px); color: rgba(255,255,255,.85); font-size: 13px; cursor: pointer; }
+.al-box { display: flex; flex-direction: column; align-items: center; gap: 4px; } .al-box small { color: #fff; font-size: 11px; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.al-icons { width: 100%; aspect-ratio: 1; padding: 10px; border-radius: 24px; background: rgba(255,255,255,.22); backdrop-filter: blur(14px); display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.al-icons button { border: 0; background: none; padding: 0; cursor: pointer; } .al-icons .ph-ico { width: 100% !important; height: auto !important; aspect-ratio: 1; font-size: 22px !important; }
+/* 🗂️ multitâche */
+.ph-overlay.sws { background: rgba(0,0,0,.35); backdrop-filter: blur(18px); animation: ccIn .2s ease; }
+.sws-panel { height: 100%; display: flex; flex-direction: column; justify-content: center; } .sws-cards { display: flex; gap: 14px; overflow-x: auto; padding: 20px 40px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.sws-card { flex: 0 0 62%; scroll-snap-align: center; display: flex; flex-direction: column; gap: 8px; transition: transform .25s, opacity .25s; touch-action: pan-x; } .sws-card.gone { transform: translateY(-120%); opacity: 0; }
+.sws-top { display: flex; align-items: center; gap: 8px; color: #fff; font-size: 14px; } .sws-ico { width: 30px !important; height: 30px !important; font-size: 16px !important; }
+.sws-shot { aspect-ratio: 9/18; border: 0; border-radius: 26px; background: linear-gradient(170deg, #fff, color-mix(in srgb, var(--c) 25%, #fff)); box-shadow: 0 16px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; } .sws-shot span { font-size: 64px; } .sws-shot small { color: #8e8e93; }
+/* 🔍 Spotlight */
+.sp-panel { padding: 56px 14px 20px; height: 100%; overflow-y: auto; } .sp-bar { display: flex; gap: 8px; align-items: center; }
+.sp-in { flex: 1; padding: 10px 14px; border-radius: 12px; border: 0; background: rgba(255,255,255,.25); color: #fff; font-size: 16px; } .sp-in::placeholder { color: rgba(255,255,255,.7); }
+.sp-cancel { border: 0; background: none; color: #fff; font-size: 14px; cursor: pointer; }
+.sp-h { display: block; margin: 16px 4px 6px; color: rgba(255,255,255,.75); font-size: 12px; font-weight: 700; }
+.sp-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 12px; border-radius: 18px; background: rgba(255,255,255,.16); }
+.sp-calc { margin-top: 14px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.85); color: #111; } .sp-calc b { display: block; font-size: 28px; font-weight: 300; }
+.sp-res .lock-notif { margin-bottom: 6px; }
+/* 🔮 Siri */
+.ph-overlay.siri { background: linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.75)); backdrop-filter: blur(10px); animation: ccIn .2s ease; }
+.siri-panel { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 0 16px 60px; color: #fff; }
+.siri-say { font-size: 20px; font-weight: 600; line-height: 1.3; } .siri-you { font-size: 14px; opacity: .7; font-style: italic; }
+.siri-sug { display: flex; flex-wrap: wrap; gap: 6px; } .siri-sug button { border: 0; border-radius: 999px; padding: 6px 11px; background: rgba(255,255,255,.18); color: #fff; font-size: 12px; cursor: pointer; }
+.siri-row { display: flex; gap: 8px; } .siri-in { flex: 1; padding: 11px 14px; border-radius: 999px; border: 0; background: rgba(255,255,255,.2); color: #fff; font-size: 15px; } .siri-in::placeholder { color: rgba(255,255,255,.65); }
+.siri-mic { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.2); font-size: 18px; cursor: pointer; }
+.siri-orb { position: absolute; left: 50%; bottom: 14px; width: 64px; height: 64px; margin-left: -32px; border-radius: 50%; background: conic-gradient(from 0deg, #ff2d55, #af52de, #007aff, #34c759, #ffcc00, #ff2d55); filter: blur(1px); box-shadow: 0 0 30px #af52de; animation: siriSpin 2.5s linear infinite, siriPulse 1.6s ease-in-out infinite; }
+.siri-orb.listen { animation-duration: .8s, .5s; }
+@keyframes siriSpin { to { transform: rotate(360deg); } } @keyframes siriPulse { 50% { box-shadow: 0 0 50px #007aff, 0 0 80px #ff2d55; } }
+/* ⚙️ nouveaux réglages */
+.ios-appico { width: 29px !important; height: 29px !important; font-size: 16px !important; flex: none; }
+.ios-badge { min-width: 20px; height: 20px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; padding: 0 6px; }
+.st-bar { display: flex; width: 100%; height: 12px; border-radius: 6px; overflow: hidden; background: #e5e5ea; margin: 8px 0; } .st-bar i { display: block; height: 100%; transition: width .15s; }
+.st-bar.boot { width: 160px; height: 5px; background: #333; } .boot-scr { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; background: #000; } .boot-logo { font-size: 74px; color: #fff; }
+.ph-device.bold .ph-screen { font-weight: 600; } .ph-device.zoomed .ph-screen { zoom: 1.12; } .ph-device.hc .ph-screen { filter: contrast(1.25) !important; }
+/* 🏝️ la Dynamic Island vivante */
+.ph-island.live { width: 170px; justify-content: space-between; padding: 0 12px; } .ph-island.live .ph-cam { display: none; }
+.ph-live { display: contents; } .ph-live-ico { font-size: 14px; } .ph-live-eq { display: flex; gap: 2px; align-items: center; height: 14px; }
+.ph-live-eq i { width: 3px; border-radius: 2px; background: #ff375f; animation: liveEq .9s ease-in-out infinite; } .ph-live-eq i:nth-child(2) { animation-delay: -.3s; } .ph-live-eq i:nth-child(3) { animation-delay: -.6s; } .ph-live-eq i:nth-child(4) { animation-delay: -.15s; }
+@keyframes liveEq { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+.ph-island.big .ph-live { display: none; }
+.ph-home { overflow: hidden !important; }
+.ph-pagewrap { flex: 1; min-height: 0; } .ph-pages { flex: 1; min-height: 0; height: 100%; } .ph-pages > .ph-grid { overflow-y: auto; scrollbar-width: none; max-height: 100%; }
+.ph-pagewrap { display: flex; flex-direction: column; }

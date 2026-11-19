@@ -23,7 +23,7 @@ const Phone = (() => {
   };
   const opt = (k, d) => { try { return localStorage.getItem('ph_' + k) || d; } catch (e) { return d; } };
   const setOpt = (k, v) => { try { localStorage.setItem('ph_' + k, v); } catch (e) {} };
-  const time = () => new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const time = () => { const d = new Date(); if (opt('h24', '1') === '0') { const h = d.getHours() % 12 || 12; return `${h}:${String(d.getMinutes()).padStart(2, '0')}`; } return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
   const ago = ts => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? 'à l\'instant' : s < 3600 ? `il y a ${Math.floor(s / 60)} min` : s < 86400 ? `il y a ${Math.floor(s / 3600)} h` : new Date(ts).toLocaleDateString('fr-FR'); };
   const friends = () => (state.friends?.friends || []).map(f => ({ ...f, online: (state.online || []).some(o => o.id === f.id) }));
   const back = () => { stack.pop(); stopCam(); const f = stack.pop(); f ? go(f.fn, f.title) : home(); };
@@ -37,7 +37,7 @@ const Phone = (() => {
         el('div', { class: 'ph-status' }, el('b', { class: 'ph-time' }, time()), el('span', { class: 'ph-island' }, el('i', { class: 'ph-cam' }), el('span', { class: 'ph-island-txt' })), el('span', { class: 'ph-icons' }, el('span', { class: 'ph-sig' }, el('i'), el('i'), el('i'), el('i')), ' 5G ', el('span', { class: 'ph-bat' }, el('i')))),
         // les vrais boutons sur les côtés : volume + / − et le bouton latéral (verrouiller)
         el('button', { class: 'ph-side ph-side-l1', title: 'Volume +', onclick: () => volume(1) }), el('button', { class: 'ph-side ph-side-l2', title: 'Volume −', onclick: () => volume(-1) }),
-        el('button', { class: 'ph-side ph-side-r', title: 'Bouton latéral : verrouiller', onclick: () => power() }), el('span', { class: 'ph-side ph-side-cam' }),
+        el('button', { class: 'ph-side ph-side-r', title: 'Bouton latéral : verrouiller (appui long : Siri)', onclick: () => { if (sideLong) { sideLong = false; return; } power(); }, onpointerdown: () => { clearTimeout(sideT); sideT = setTimeout(() => { sideLong = true; if (!screenOff) siri(); }, 600); }, onpointerup: () => clearTimeout(sideT), onpointerleave: () => clearTimeout(sideT) }), el('span', { class: 'ph-side ph-side-cam' }),
         screen = el('div', { class: 'ph-screen' }),
         // les zones à toucher ou glisser en haut : notifications (à gauche) et centre de contrôle (à droite)
         el('div', { class: 'ph-edge ph-edge-l', title: 'Centre de notifications' }), el('div', { class: 'ph-edge ph-edge-r', title: 'Centre de contrôle' }),
@@ -201,14 +201,19 @@ const Phone = (() => {
     const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); ghost.remove(); drag = null; home(); };
     addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   }
+  // 🎨 une icône d'appli : la vraie icône dessinée (comme sur iOS) quand elle existe, sinon l'émoji
+  function icoEl(k, cls = '', ...kids) {
+    const a = APPS[k], real = window.PhoneIcons?.has(k);
+    return el('span', { class: 'ph-ico' + (real ? ' real' : '') + (cls ? ' ' + cls : ''), style: real ? `--c:${a.c};background:${PhoneIcons.bg(k)}` : `--c:${a.c}` }, real ? PhoneIcons.svg(k) : a.icon, ...kids);
+  }
   function appIcon(k, small) {
     const a = APPS[k], n = a.badge ? a.badge() : 0;
     let press = 0, long = false;
     // 👆 appui long : les icônes se mettent à trembler et on peut supprimer une appli (comme sur iPhone)
-    const b = el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), 'data-k': k, onclick: () => { if (long) { long = false; return; } if (jiggle) return; a.open(); },
+    const b = el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), 'data-k': k, onclick: () => { if (long) { long = false; return; } if (jiggle) return; markRecent(k); a.open(); },
       onpointerdown: e => { if (jiggle && !e.target.closest('.ph-del')) { e.preventDefault(); return startDrag(e, k); } clearTimeout(press); press = setTimeout(() => { long = true; if (!jiggle) { jiggle = true; try { navigator.vibrate?.(30); } catch (e) {} home(); } }, 550); },
       onpointerup: () => clearTimeout(press), onpointerleave: () => clearTimeout(press) },
-      el('span', { class: 'ph-ico', style: `--c:${a.c}` }, a.icon, n ? el('i', {}, n > 99 ? '99+' : n) : null,
+      icoEl(k, '', n ? el('i', {}, n > 99 ? '99+' : n) : null,
         jiggle && !SYSTEM.includes(k) ? el('b', { class: 'ph-del', onclick: e => { e.stopPropagation(); uninstall(k); home(); toast(`🗑️ « ${a.name} » supprimée (tu peux la retélécharger dans l'App Store)`); } }, '−') : null),
       small ? null : el('small', {}, a.name));
     return b;
@@ -228,10 +233,12 @@ const Phone = (() => {
         for (let i = 0; i < Math.max(1, list.length); i += per) pages.push(list.slice(i, i + per));
         const dots = el('div', { class: 'ph-dots' + (pages.length < 2 ? ' hidden' : '') }, ...pages.map((_, i) => el('i', { class: i === homePage ? 'on' : '' })));
         const wrap = el('div', { class: 'ph-pages', onscroll: e => { const i = Math.round(e.target.scrollLeft / e.target.clientWidth); if (i !== homePage) { homePage = i; dots.querySelectorAll('i').forEach((d, j) => d.classList.toggle('on', j === i)); } } },
-          ...pages.map(p => el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...p.map(k => appIcon(k)))));
+          ...pages.map(p => el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...p.map(k => appIcon(k)))), jiggle ? null : appLibrary());
+        if (!jiggle) dots.append(el('i', { class: 'lib' + (homePage === pages.length ? ' on' : '') }));
         homePage = Math.min(homePage, pages.length - 1); setTimeout(() => { wrap.scrollLeft = homePage * wrap.clientWidth; }, 0);
         return el('div', { class: 'ph-pagewrap' }, wrap, dots);
       })(),
+      jiggle ? null : el('button', { class: 'ph-search', onclick: spotlight }, '🔍 Rechercher'),
       el('div', { class: 'ph-dock' + (jiggle ? ' jiggle' : '') }, ...dockList().map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {
@@ -432,7 +439,7 @@ const Phone = (() => {
     const d = root?.querySelector('.ph-device'); if (!d) return;
     d.style.setProperty('--frame', (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[1]);
     d.dataset.icons = opt('icons', 'arrondi'); d.dataset.cols = opt('cols', '4'); d.dataset.text = opt('text', 'normal'); d.dataset.theme = opt('theme', 'clair');
-    d.dataset.size = opt('size', 'm'); d.classList.toggle('eco', opt('eco', '0') === '1');
+    d.dataset.size = opt('size', 'm'); d.classList.toggle('eco', opt('eco', '0') === '1'); d.classList.toggle('bold', opt('bold', '0') === '1'); d.classList.toggle('zoomed', opt('zoom', '0') === '1'); d.classList.toggle('hc', opt('hc', '0') === '1');
     const sc = root.querySelector('.ph-screen'); if (sc) sc.style.filter = `brightness(${(+opt('bright', '100')) / 100})${opt('night', '0') === '1' ? ' sepia(.35) saturate(1.2)' : ''}`;
     const ic = root.querySelector('.ph-icons'); if (ic) { ic.querySelector('.ph-plane')?.remove(); ic.querySelector('.ph-pct')?.remove(); if (opt('plane', '0') === '1') ic.prepend(el('span', { class: 'ph-plane' }, '✈️')); if (opt('batpct', '0') === '1') { const p = el('span', { class: 'ph-pct' }, '87'); ic.append(p); (navigator.getBattery ? navigator.getBattery() : Promise.reject()).then(b => { p.textContent = Math.round(b.level * 100); }).catch(() => {}); } ic.querySelector('.ph-sig')?.classList.toggle('hidden', opt('plane', '0') === '1'); }
   }
@@ -522,7 +529,7 @@ const Phone = (() => {
     } }, 'OBTENIR');
     return b;
   }
-  const storeRow = k => { const [n, cat, desc, r] = STORE[k], a = APPS[k]; return el('div', { class: 'as-row', onclick: () => go(b => appPage(b, k), '') }, el('span', { class: 'ph-ico as-ico', style: `--c:${a.c}` }, a.icon), el('div', { class: 'as-txt' }, el('b', {}, n), el('small', {}, desc), el('em', {}, `${stars(r)} ${r.toFixed(1)} · ${cat}`)), getBtn(k)); };
+  const storeRow = k => { const [n, cat, desc, r] = STORE[k], a = APPS[k]; return el('div', { class: 'as-row', onclick: () => go(b => appPage(b, k), '') }, icoEl(k, 'as-ico'), el('div', { class: 'as-txt' }, el('b', {}, n), el('small', {}, desc), el('em', {}, `${stars(r)} ${r.toFixed(1)} · ${cat}`)), getBtn(k)); };
   let asTab = 'today', asQuery = '';
   function appStore(body) {
     screen.style.background = '';
@@ -549,7 +556,7 @@ const Phone = (() => {
   function appPage(body, k) {
     const [n, cat, desc, r] = STORE[k], a = APPS[k];
     const draw = () => body.replaceChildren(el('div', { class: 'as as-page' },
-      el('div', { class: 'as-top' }, el('span', { class: 'ph-ico as-big', style: `--c:${a.c}` }, a.icon), el('div', {}, el('b', {}, n), el('small', {}, `The Paradise · ${cat}`), getBtn(k, draw))),
+      el('div', { class: 'as-top' }, icoEl(k, 'as-big'), el('div', {}, el('b', {}, n), el('small', {}, `The Paradise · ${cat}`), getBtn(k, draw))),
       el('div', { class: 'as-stats' }, el('div', {}, el('b', {}, r.toFixed(1)), el('small', {}, stars(r))), el('div', {}, el('b', {}, fakeCount(k)), el('small', {}, 'notes')), el('div', {}, el('b', {}, '4+'), el('small', {}, 'âge')), el('div', {}, el('b', {}, 'Gratuit'), el('small', {}, 'prix'))),
       el('div', { class: 'as-shot', style: `--c:${a.c}` }, el('span', {}, a.icon), el('small', {}, desc)),
       el('h3', { class: 'as-h3' }, 'Description'), el('p', { class: 'as-desc' }, `${desc}. Une appli de ton téléphone Paradise, gratuite et sans pub 😉`),
@@ -718,7 +725,9 @@ const Phone = (() => {
         row('🔆', '#007aff', 'Luminosité et affichage', null, () => go(displayPage, 'Luminosité et affichage')),
         row('🖼️', '#32ade6', 'Fond d\'écran', null, () => go(wallPage, 'Fond d\'écran')),
         row('🧩', '#af52de', 'Écran d\'accueil et widgets', null, () => go(widgetPage, 'Écran d\'accueil'))),
-      group(row('🔒', '#ff3b30', 'Face ID et code', el('span', { class: 'ios-val' }, pinOn ? 'Activé' : 'Non'), () => go(pinPage, 'Face ID et code')),
+      group(row('🔔', '#ff3b30', 'Notifications', null, () => go(notifPage, 'Notifications')), row('🔮', '#af52de', 'Siri et recherche', null, () => siri())),
+      group(row('🔒', '#ff3b30', 'Face ID et code', el('span', { class: 'ios-val' }, pinOn ? 'Activé' : 'Non'), () => go(pinPage, 'Face ID et code')), row('✋', '#007aff', 'Confidentialité et sécurité', null, () => go(privacyPage, 'Confidentialité')), row('♿', '#007aff', 'Accessibilité', null, () => go(a11yPage, 'Accessibilité'))),
+      group(row('⚙️', '#8e8e93', 'Mise à jour logicielle', el('span', { class: 'ios-badge' }, '1'), () => go(updatePage, 'Mise à jour logicielle')), row('🕐', '#8e8e93', 'Date et heure', null, () => go(datePage, 'Date et heure')), row('💾', '#8e8e93', 'Stockage iPhone', null, () => go(storagePage, 'Stockage')),
         row('📱', '#8e8e93', 'Général', null, () => go(aboutPage, 'Général')))));
   }
   function batteryPage(body) {
@@ -794,7 +803,7 @@ const Phone = (() => {
   }
   function aboutPage(body) {
     const n = installed().length + SYSTEM.length;
-    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('div', { class: 'ph-about-ico', style: 'font-size:40px' }, ''), el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS 18.2')),
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('div', { class: 'ph-about-ico', style: 'font-size:40px' }, ''), el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS ' + opt('osv', '18.2'))),
       group(el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Modèle'), el('span', { class: 'ios-val' }, 'iPhone 18 Pro')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Couleur'), el('span', { class: 'ios-val' }, (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[0])), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Stockage'), el('span', { class: 'ios-val' }, '1 To')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Applis installées'), el('span', { class: 'ios-val' }, n)), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Numéro'), el('span', { class: 'ios-val' }, '06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 ')))),
       el('h4', { class: 'ios-head' }, 'NOM'), el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => setOpt('name', e.target.value.trim() || 'iPhone 18 Pro') }),
       el('h4', { class: 'ios-head' }, 'RÉINITIALISER'),
@@ -1074,7 +1083,7 @@ const Phone = (() => {
     // 8. Les applis à installer
     steps.push(() => {
       const keys = Object.keys(STORE);
-      const grid = el('div', { class: 'sw-apps' }, ...keys.map(k => el('button', { class: 'sw-app' + (draft.apps.includes(k) ? ' on' : ''), onclick: e => { draft.apps = draft.apps.includes(k) ? draft.apps.filter(x => x !== k) : [...draft.apps, k]; e.currentTarget.classList.toggle('on'); } }, el('span', { class: 'ph-ico', style: `--c:${APPS[k].c}` }, APPS[k].icon), el('small', {}, APPS[k].name))));
+      const grid = el('div', { class: 'sw-apps' }, ...keys.map(k => el('button', { class: 'sw-app' + (draft.apps.includes(k) ? ' on' : ''), onclick: e => { draft.apps = draft.apps.includes(k) ? draft.apps.filter(x => x !== k) : [...draft.apps, k]; e.currentTarget.classList.toggle('on'); } }, icoEl(k), el('small', {}, APPS[k].name))));
       page('', el('h2', {}, 'Tes applis'), el('p', {}, 'Choisis les applis à mettre sur ton écran d\'accueil. Les autres restent dans l\'App Store.'), grid,
         next('Continuer', go3, skip('Tout prendre', () => { draft.apps = [...keys]; go3(); })));
     });
@@ -1095,16 +1104,146 @@ const Phone = (() => {
     go3();
   }
 
+  // =================== 🗂️ Multitâche (les applis récentes) ===================
+  let recent = [];
+  const markRecent = k => { if (SYSTEM.includes(k) && k === 'settings') {} recent = [k, ...recent.filter(x => x !== k)].slice(0, 8); };
+  function switcher() {
+    if (!recent.length) { home(); return toast('Aucune appli ouverte récemment'); }
+    const cards = el('div', { class: 'sws-cards' }, ...recent.map(k => {
+      const a = APPS[k]; let y0 = null;
+      const c = el('div', { class: 'sws-card' }, el('div', { class: 'sws-top' }, icoEl(k, 'sws-ico'), el('b', {}, a.name)), el('button', { class: 'sws-shot', style: `--c:${a.c}`, onclick: () => { hideOverlay(); a.open(); } }, el('span', {}, a.icon), el('small', {}, 'Touche pour ouvrir')));
+      c.addEventListener('pointerdown', e => { y0 = e.clientY; });
+      c.addEventListener('pointerup', e => { if (y0 != null && y0 - e.clientY > 60) { c.classList.add('gone'); recent = recent.filter(x => x !== k); setTimeout(() => { c.remove(); if (!recent.length) hideOverlay(); }, 250); } y0 = null; });
+      return c;
+    }));
+    showOverlay('sws', el('div', { class: 'sws-panel' }, cards, el('small', { class: 'cc-hint' }, 'Glisse une appli vers le haut pour la fermer')));
+  }
+  // =================== 🔍 Spotlight (la recherche) ===================
+  function spotlight() {
+    const res = el('div', { class: 'sp-res' });
+    const SETTINGS = [['Fond d\'écran', wallPage], ['Sons et vibrations', soundPage], ['Luminosité et affichage', displayPage], ['Face ID et code', pinPage], ['Batterie', batteryPage], ['Notifications', notifPage], ['Date et heure', datePage], ['Stockage', storagePage], ['Mise à jour logicielle', updatePage], ['Confidentialité', privacyPage], ['Accessibilité', a11yPage]];
+    const inp = el('input', { class: 'sp-in', placeholder: '🔍 Rechercher', autocomplete: 'off', oninput: () => draw() });
+    const draw = () => {
+      const q = inp.value.trim().toLowerCase(), out = [];
+      if (/^[\d\s+\-*/().,]+$/.test(q) && /[+\-*/]/.test(q)) { try { const v = Function('"use strict";return (' + q.replace(/,/g, '.') + ')')(); if (Number.isFinite(v)) out.push(el('div', { class: 'sp-calc' }, el('small', {}, '🧮 Calculette'), el('b', {}, '= ' + String(Math.round(v * 1e6) / 1e6).replace('.', ',')))); } catch (e) {} }
+      const apps = Object.keys(APPS).filter(k => APPS[k].name.toLowerCase().includes(q) || (STORE[k]?.[2] || '').toLowerCase().includes(q));
+      if (apps.length) out.push(el('small', { class: 'sp-h' }, 'Applis'), el('div', { class: 'sp-apps' }, ...apps.slice(0, 8).map(k => el('button', { class: 'ph-appicon', onclick: () => { hideOverlay(); if (isInst(k)) { markRecent(k); APPS[k].open(); } else go(b => appPage(b, k), ''); } }, icoEl(k), el('small', {}, APPS[k].name)))));
+      const fr = q ? friends().filter(u => u.username.toLowerCase().includes(q)).slice(0, 5) : [];
+      if (fr.length) out.push(el('small', { class: 'sp-h' }, 'Contacts'), ...fr.map(u => el('button', { class: 'lock-notif', onclick: () => { hideOverlay(); go(b => conversation(b, u), u.username); } }, el('b', {}, '💬 Message'), el('span', {}, u.username))));
+      const st = q ? SETTINGS.filter(([n]) => n.toLowerCase().includes(q)) : [];
+      if (st.length) out.push(el('small', { class: 'sp-h' }, 'Réglages'), ...st.map(([n, fn]) => el('button', { class: 'lock-notif', onclick: () => { hideOverlay(); go(fn, n); } }, el('b', {}, '⚙️ Réglages'), el('span', {}, n))));
+      if (!q) out.unshift(el('small', { class: 'sp-h' }, 'Suggestions Siri'));
+      res.replaceChildren(...(out.length ? out : [el('div', { class: 'ph-wait', style: 'color:#fff' }, 'Aucun résultat')]));
+    };
+    showOverlay('nc', el('div', { class: 'sp-panel', onclick: e => e.stopPropagation() }, el('div', { class: 'sp-bar' }, inp, el('button', { class: 'sp-cancel', onclick: hideOverlay }, 'Annuler')), res));
+    draw(); setTimeout(() => inp.focus(), 80);
+  }
+  // =================== 🔮 Siri ===================
+  function siri() {
+    hideOverlay();
+    const say = el('div', { class: 'siri-say' }, 'Que puis-je faire pour toi ?');
+    const you = el('div', { class: 'siri-you' });
+    const answer = t => { say.textContent = t; if ('speechSynthesis' in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t.replace(/[^\p{L}\p{N}\s,.'?!:%-]/gu, '')); u.lang = 'fr-FR'; u.rate = 1.05; speechSynthesis.speak(u); } };
+    const run = q0 => {
+      const q = q0.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); you.textContent = '« ' + q0 + ' »';
+      const find = () => Object.keys(APPS).find(k => q.includes(APPS[k].name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')));
+      let m;
+      if (/heure/.test(q)) return answer(`Il est ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`);
+      if (/date|jour sommes|on est quel/.test(q)) return answer(`Nous sommes le ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}.`);
+      if (/meteo|temps qu|fait-il|fait il/.test(q)) { const d = new Date().getDate(); return answer(`Il fait ${18 + d % 9} degrés au Paradise, avec ${['du soleil', 'quelques nuages', 'des éclaircies'][d % 3]}.`); }
+      if ((m = q.match(/minuteur (?:de )?(\d+)/))) { const n = +m[1]; setTimeout(() => { island(`⏰ Minuteur de ${n} min terminé !`); ringTone(); toast(`⏰ Minuteur de ${n} min terminé !`); }, n * 60000); return answer(`C'est parti, minuteur de ${n} minute${n > 1 ? 's' : ''}.`); }
+      if (/blague/.test(q)) { const B = ['Pourquoi les plongeurs plongent-ils en arrière ? Parce que sinon ils tombent dans le bateau !', 'Que fait une fraise sur un cheval ? Tagada tagada !', 'Quel est le comble pour un électricien ? Ne pas être au courant.']; return answer(B[Math.floor(Math.random() * B.length)]); }
+      if (/qui es|t'es qui|tu es qui/.test(q)) return answer('Je suis Siri, ton assistante sur The Paradise 💜');
+      if (/merci/.test(q)) return answer('Avec plaisir !');
+      if (/mode avion/.test(q)) { const on = !/desactive|enleve|coupe le/.test(q); setOpt('plane', on ? '1' : '0'); applyLook(); return answer(on ? 'Mode avion activé.' : 'Mode avion désactivé.'); }
+      if (/lampe|torche/.test(q)) { setTimeout(() => APPS.torch.open(), 800); return answer('J\'allume la lampe.'); }
+      if ((m = q.match(/(?:message|ecris|ecrire) (?:a |pour )?(\w+)/)) || (m = q.match(/appelle (\w+)/))) { const u = friends().find(f => f.username.toLowerCase().startsWith(m[1])); if (!u) return answer(`Je ne trouve pas ${m[1]} dans tes contacts.`); if (/appelle/.test(q)) { setTimeout(() => window.Call?.start(u, false), 900); return answer(`J'appelle ${u.username}.`); } setTimeout(() => { hideOverlay(); go(b => conversation(b, u), u.username); }, 900); return answer(`J'ouvre ta conversation avec ${u.username}.`); }
+      const k = /ouvre|lance|va dans|montre/.test(q) || true ? find() : null;
+      if (k) { if (!isInst(k)) return answer(`${APPS[k].name} n'est pas installée. Elle est dans l'App Store.`); setTimeout(() => { hideOverlay(); markRecent(k); APPS[k].open(); }, 700); return answer(`J'ouvre ${APPS[k].name}.`); }
+      answer('Je n\'ai pas bien compris. Essaie : « quelle heure est-il », « ouvre la calculette », « minuteur de 5 minutes », « raconte une blague »…');
+    };
+    const inp = el('input', { class: 'siri-in', placeholder: 'Écris à Siri…', onkeydown: e => { if (e.key === 'Enter' && inp.value.trim()) { run(inp.value.trim()); inp.value = ''; } } });
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const mic = R ? el('button', { class: 'siri-mic', onclick: () => { const r = new R(); r.lang = 'fr-FR'; orb.classList.add('listen'); r.onresult = e => run(e.results[0][0].transcript); r.onend = () => orb.classList.remove('listen'); try { r.start(); } catch (e) {} } }, '🎙️') : null;
+    const orb = el('div', { class: 'siri-orb' });
+    showOverlay('siri', el('div', { class: 'siri-panel', onclick: e => e.stopPropagation() }, say, you, el('div', { class: 'siri-sug' }, ...['Quelle heure est-il ?', 'Ouvre la calculette', 'Raconte une blague', 'Minuteur de 3 minutes'].map(t => el('button', { onclick: () => run(t) }, t))), el('div', { class: 'siri-row' }, inp, mic), orb));
+    try { navigator.vibrate?.(20); } catch (e) {}
+    setTimeout(() => inp.focus(), 100);
+  }
+  // =================== 📚 La bibliothèque d'apps (la dernière page) ===================
+  function appLibrary() {
+    const inst = [...SYSTEM, ...installed()].filter(k => APPS[k]);
+    const cats = {};
+    for (const k of inst) { const c = STORE[k]?.[1] || (['messages', 'phone', 'snap', 'contacts'].includes(k) ? 'Réseaux sociaux' : 'Utilitaires'); (cats[c] = cats[c] || []).push(k); }
+    return el('div', { class: 'ph-grid al' }, el('div', { class: 'al-search', onclick: spotlight }, '🔍 Bibliothèque d\'apps'),
+      ...Object.entries(cats).map(([c, ks]) => el('div', { class: 'al-box' }, el('div', { class: 'al-icons' }, ...ks.slice(0, 4).map(k => el('button', { onclick: () => { markRecent(k); APPS[k].open(); } }, icoEl(k)))), el('small', {}, c))));
+  }
+
+  // =================== ⚙️ Les nouveaux réglages ===================
+  function notifPage(body) {
+    body.replaceChildren(el('div', { class: 'ios' }, el('h4', { class: 'ios-head' }, 'AFFICHER LES ALERTES DE'),
+      group(...['messages', 'snap', 'phone', 'shop', 'games', 'city', 'quests', 'pet', 'clock'].filter(k => isInst(k)).map(k => el('div', { class: 'ios-row' }, icoEl(k, 'ios-appico'), el('span', { class: 'ios-lbl' }, APPS[k].name), sw('notif_' + k, '1')))),
+      group(row('🔔', '#ff3b30', 'Aperçus des messages', sw('preview', '1')), row('📳', '#ff9500', 'Vibrer pour les alertes', sw('vibe', '1')))));
+  }
+  function datePage(body) {
+    body.replaceChildren(el('div', { class: 'ios' }, group(row('🕐', '#8e8e93', 'Format 24 heures', sw('h24', '1', () => { const t = root.querySelector('.ph-time'); if (t) t.textContent = time(); })), row('🌍', '#007aff', 'Réglage automatique', sw('autotime', '1'))),
+      el('div', { class: 'ios-card' }, el('small', {}, 'Fuseau horaire : Paris'), el('b', { class: 'ios-big' }, time()), el('small', {}, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })))));
+  }
+  function storagePage(body) {
+    const inst = [...SYSTEM, ...installed()].filter(k => APPS[k]), size = k => { let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) % 997; return 0.15 + h / 997 * 2.4; };
+    const used = inst.reduce((s, k) => s + size(k), 0) + 23.4, tot = 1024;
+    const C = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'];
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('small', {}, 'iPhone'), el('b', {}, `${used.toFixed(1)} Go utilisés sur ${tot} Go`),
+      el('div', { class: 'st-bar' }, el('i', { style: 'width:2.3%;background:#8e8e93' }), ...inst.slice(0, 6).map((k, i) => el('i', { style: `width:${size(k) / tot * 100 * 6}%;background:${C[i]}` })))),
+      el('h4', { class: 'ios-head' }, 'APPLIS'), group(...inst.sort((a, b) => size(b) - size(a)).map(k => el('div', { class: 'ios-row' }, icoEl(k, 'ios-appico'), el('span', { class: 'ios-lbl' }, APPS[k].name), el('span', { class: 'ios-val' }, size(k).toFixed(1) + ' Go'))))));
+  }
+  function privacyPage(body) {
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('span', { class: 'ios-face' }, '✋'), el('small', {}, 'Ton iPhone Paradise ne vend jamais tes données. Choisis ce que les applis peuvent utiliser.')),
+      group(row('📍', '#007aff', 'Localisation', sw('p_loc', '0')), row('📷', '#8e8e93', 'Appareil photo', sw('p_cam', '1')), row('🎙️', '#ff9500', 'Micro', sw('p_mic', '1')), row('🖼️', '#ff2d55', 'Photos', sw('p_photos', '1')), row('🚫', '#5856d6', 'Demander aux applis de ne pas me suivre', sw('p_track', '1')))));
+  }
+  function a11yPage(body) {
+    body.replaceChildren(el('div', { class: 'ios' }, group(row('🔠', '#007aff', 'Texte en gras', sw('bold', '0')), row('🔍', '#34c759', 'Loupe (zoom)', sw('zoom', '0')), row('🧘', '#5856d6', 'Réduire les animations', sw('eco', '0')), row('◐', '#111', 'Contraste augmenté', sw('hc', '0'))),
+      group(row('♿', '#007aff', 'Accessibilité du site', null, () => { close(); window.A11y?.open(); }))));
+  }
+  function updatePage(body) {
+    const cur = opt('osv', '18.2'), nextV = (+cur.split('.')[1] + 1);
+    const card = el('div', { class: 'ios-card' });
+    const idle = () => card.replaceChildren(el('div', { class: 'ph-about-ico', style: 'font-size:40px' }, '⚙️'), el('b', {}, `Paradise OS 18.${nextV}`), el('small', {}, 'Nouveautés : des icônes encore plus belles, des corrections et plein de petites surprises ✨'), el('button', { class: 'sw-btn', onclick: dl }, 'Télécharger et installer'));
+    const dl = () => {
+      let p = 0; const bar = el('div', { class: 'st-bar' }, el('i', { style: 'width:0%;background:#007aff' })), lab = el('small', {}, 'Téléchargement…');
+      card.replaceChildren(el('b', {}, `Paradise OS 18.${nextV}`), bar, lab);
+      const iv = setInterval(() => { p += 4 + Math.random() * 7; bar.firstChild.style.width = Math.min(100, p) + '%'; lab.textContent = p < 100 ? `Téléchargement… ${Math.min(99, Math.round(p))} %` : 'Préparation…'; if (p >= 100) { clearInterval(iv); setTimeout(reboot, 900); } }, 160);
+      timers.push(iv);
+    };
+    const reboot = () => {
+      setOpt('osv', '18.' + nextV);
+      screen.style.background = '#000'; dark(true);
+      const b = el('div', { class: 'st-bar boot' }, el('i', { style: 'width:0%;background:#fff' }));
+      screen.replaceChildren(el('div', { class: 'boot-scr' }, el('div', { class: 'boot-logo' }, ''), b));
+      let p = 0; const iv = setInterval(() => { p += 3 + Math.random() * 5; b.firstChild.style.width = Math.min(100, p) + '%'; if (p >= 100) { clearInterval(iv); setTimeout(() => { unlocked = false; lockScreen(() => { home(); island(`✅ Paradise OS 18.${nextV} installé`); }); }, 600); } }, 140);
+    };
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('small', {}, 'Version actuelle'), el('b', {}, 'Paradise OS ' + cur)), card, group(row('🔄', '#34c759', 'Mises à jour automatiques', sw('autoupd', '1')))));
+    idle();
+  }
   // =================== 🖐️ Gestes, Centre de contrôle, Centre de notifications, boutons ===================
-  let closedAt = 0, screenOff = false, homePage = 0;
+  let closedAt = 0, screenOff = false, homePage = 0, sideT = 0, sideLong = false;
   function swipeDown(elm, fn) { let y0 = null; elm.addEventListener('pointerdown', e => { y0 = e.clientY; elm.setPointerCapture?.(e.pointerId); }); elm.addEventListener('pointerup', e => { if (y0 == null) return; const d = e.clientY - y0; y0 = null; if (d > 25 || Math.abs(d) < 6) fn(); }); }
+  // 🏝️ la Dynamic Island « vivante » : quand la radio joue, elle montre la musique en cours
+  setInterval(() => {
+    const i = root?.querySelector('.ph-island'); if (!i || !isOpen()) return;
+    const on = !!(window.Media?.playing && opt('island', '1') === '1');
+    i.classList.toggle('live', on);
+    let lv = i.querySelector('.ph-live'); if (on && !lv) { lv = el('span', { class: 'ph-live' }, el('span', { class: 'ph-live-ico' }, '📻'), el('span', { class: 'ph-live-eq' }, el('i'), el('i'), el('i'), el('i'))); i.append(lv); } else if (!on && lv) lv.remove();
+  }, 1500);
   function setupGestures() {
     swipeDown(root.querySelector('.ph-edge-l'), () => !screenOff && !screen.querySelector('.lock') && notifCenter());
     swipeDown(root.querySelector('.ph-edge-r'), () => !screenOff && controlCenter());
     // la barre du bas
     const hb = root.querySelector('.ph-homebar'); let y0 = null;
     hb.addEventListener('pointerdown', e => { y0 = e.clientY; hb.setPointerCapture?.(e.pointerId); });
-    hb.addEventListener('pointerup', e => { if (y0 == null) return; const d = y0 - e.clientY; y0 = null; if (d < -10) return; if (!root.querySelector('.ph-overlay').classList.contains('hidden')) return hideOverlay(); if (screen.querySelector('.lock')) return; if (jiggle) { jiggle = false; return home(); } if (screen.querySelector('.ph-home')) { close(); showReturn(); return; } home(); });
+    hb.addEventListener('pointerup', e => { if (y0 == null) return; const d = y0 - e.clientY; y0 = null; if (d < -10) return; if (d > 110 && !screen.querySelector('.lock') && !screen.querySelector('.sw')) return switcher(); /* grand glissé vers le haut = multitâche */ if (!root.querySelector('.ph-overlay').classList.contains('hidden')) return hideOverlay(); if (screen.querySelector('.lock')) return; if (jiggle) { jiggle = false; return home(); } if (screen.querySelector('.ph-home')) { close(); showReturn(); return; } home(); });
+    // glisser vers le bas au milieu de l'accueil = Spotlight
+    let sy = null; screen.addEventListener('pointerdown', e => { sy = screen.querySelector('.ph-home') && !jiggle && !e.target.closest('.ph-appicon, .wdg, .ph-dock') ? e.clientY : null; }); screen.addEventListener('pointerup', e => { if (sy != null && e.clientY - sy > 70) spotlight(); sy = null; });
     // depuis le bord gauche d'une appli : glisser vers la droite = retour
     let x0 = null, ya = 0;
     screen.addEventListener('pointerdown', e => { const r = screen.getBoundingClientRect(); x0 = e.clientX - r.left < 24 ? e.clientX : null; ya = e.clientY; });
@@ -1126,7 +1265,7 @@ const Phone = (() => {
           tile('🌙', 'Concentration', state.me.presence === 'dnd', b => { const on = state.me.presence !== 'dnd'; window.setPresence?.(on ? 'dnd' : 'auto'); b.classList.toggle('on', on); }, '#5856d6'),
           tile('🔒', 'Verrouiller', false, () => power(), '#8e8e93'),
           slider('🔆', 'bright', '100', 35), slider('🔊', 'vol', '7', 0, () => ringTone()),
-          tile('🔦', 'Lampe', false, () => APPS.torch.open()), tile('⏰', 'Minuteur', false, () => APPS.clock.open()), tile('🧮', 'Calculs', false, () => APPS.calc.open()), tile('📷', 'Photo', false, () => APPS.camera.open())),
+          tile('🗂️', 'Multitâche', false, () => switcher(), '#8e8e93'), tile('🔮', 'Siri', false, () => siri(), '#af52de'), tile('🔦', 'Lampe', false, () => APPS.torch.open()), tile('⏰', 'Minuteur', false, () => APPS.clock.open()), tile('🧮', 'Calculs', false, () => APPS.calc.open()), tile('📷', 'Photo', false, () => APPS.camera.open())),
         el('small', { class: 'cc-hint' }, 'Touche en dehors pour fermer')));
   }
   async function notifCenter() {
@@ -1185,7 +1324,7 @@ const Phone = (() => {
   function hideReturn() { retBtn?.classList.add('hidden'); }
   // ---------- Petits outils ----------
   function avatarOn(u, online) { const a = LC.avatar(u); if (online) a.append(el('span', { class: 'on' })); return a; }
-  function ping(text, onclick) { if (opt('plane', '0') === '1') return; ringTone(); island(text); const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
+  function ping(text, onclick) { if (opt('plane', '0') === '1') return; if (/^💬/.test(text) && opt('notif_messages', '1') === '0') return; if (/^👻|👀/.test(text) && opt('notif_snap', '1') === '0') return; if (opt('preview', '1') === '0') text = text.split(':')[0]; ringTone(); island(text); const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
   // 🏝️ La Dynamic Island : elle s'agrandit pour afficher une alerte
   function island(text) { const i = root?.querySelector('.ph-island'); if (!i || opt('island', '1') !== '1') return; i.querySelector('.ph-island-txt').textContent = text; i.classList.add('big'); clearTimeout(i._t); i._t = setTimeout(() => i.classList.remove('big'), 3200); }
   function pickFriend(title, cb) { go(body => body.replaceChildren(...(friends().length ? friends().map(u => el('button', { class: 'ph-row', onclick: () => cb(u) }, avatarOn(u, u.online), el('div', { class: 'ph-row-txt' }, el('b', {}, u.username)))) : [el('div', { class: 'ph-wait' }, 'Ajoute des amis d\'abord 🤝')])), title); }

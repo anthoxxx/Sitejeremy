@@ -844,4 +844,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 58,
+    date: '2026-11-19',
+    title: 'Un iPhone encore plus réaliste : Siri, Spotlight, multitâche… 📱✨',
+    added: [
+      '🎨 Les vraies icônes de l\'iPhone : Messages, Téléphone, Appareil photo, Réglages, App Store… L\'icône Horloge donne la vraie heure et Calendrier affiche le jour d\'aujourd\'hui',
+      '🗂️ Le multitâche : glisse la barre du bas bien haut pour voir tes applis ouvertes, touche une carte pour y revenir ou jette-la vers le haut pour la fermer',
+      '🔍 Spotlight : glisse vers le bas sur l\'accueil (ou touche « 🔍 Rechercher ») pour trouver une appli, un ami, un réglage… et même faire un calcul',
+      '🎙️ Siri : reste appuyé sur le bouton du côté droit. Demande l\'heure, la météo, une blague, un minuteur, d\'allumer la lampe, d\'appeler ou d\'écrire à un ami, d\'ouvrir une appli…',
+      '📚 La Bibliothèque d\'apps : la dernière page de l\'accueil range toutes tes applis par catégorie',
+      '🏝️ La Dynamic Island s\'anime quand la radio joue',
+      '⚙️ Nouveaux réglages : Notifications (appli par appli), Date et heure (format 24 h), Stockage, Confidentialité, Accessibilité (texte en gras, zoom, contraste) et Mise à jour logicielle (avec le redémarrage du téléphone !)',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
