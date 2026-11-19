@@ -900,4 +900,16 @@ module.exports = [
     changed: ['En « Ne pas déranger » ou avec le son coupé, tu n\'entends pas les sons d\'arrivée'],
     removed: [],
   },
+  {
+    id: 62,
+    date: '2026-11-19',
+    title: 'Une couleur autour de ton pseudo ⭕🌈',
+    added: [
+      '⭕ Nouveau dans ton profil (onglet 🎨 Apparence) : « Couleur autour du pseudo ». Choisis un style et la couleur que tu veux',
+      '7 styles : ⭕ Contour, ✨ Halo, 💬 Bulle, 💡 Néon (qui clignote doucement), ◎ Double, 🌅 Dégradé (avec la couleur de ton pseudo) et 🌈 Arc-en-ciel (qui change de couleur tout seul)',
+      '👀 Tout le monde le voit : dans les messages, la liste des membres, ton profil…',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

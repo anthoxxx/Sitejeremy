@@ -337,6 +337,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, id);
 addColumn('stations', 'status', "TEXT DEFAULT 'unknown'");
 addColumn('stations', 'checked_at', 'INTEGER DEFAULT 0');
 addColumn('stations', 'check_note', "TEXT DEFAULT ''");
+addColumn('users', 'name_ring', "TEXT NOT NULL DEFAULT ''"); // ⭕ la couleur autour du pseudo (style:#couleur)
 addColumn('users', 'join_sound', "TEXT NOT NULL DEFAULT ''"); // 🔔 le son que les autres entendent quand on arrive dans un salon
 addColumn('users', 'panel', 'INTEGER DEFAULT 0'); // compte de l'espace admin (identifiant + mot de passe du serveur)
 

@@ -238,6 +238,21 @@ function openMyProfile() {
       } }, 'Changer'));
     })(), 'Tu peux changer de pseudo quand tu veux, autant de fois que tu veux.') : null,
     f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
+    f('⭕ Couleur autour du pseudo', (() => {
+      const RING = [['', '🚫 Rien'], ['contour', '⭕ Contour'], ['halo', '✨ Halo'], ['bulle', '💬 Bulle'], ['neon', '💡 Néon'], ['double', '◎ Double'], ['degrade', '🌅 Dégradé'], ['arcenciel', '🌈 Arc-en-ciel']];
+      const COLS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#32ade6', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#ff5fa2', '#ffffff', '#c0c0c0', '#d4af37', '#8b4513', '#000000'];
+      const box = el('div', { class: 'nr-pick' });
+      const draw = () => {
+        const [st, col = '#ff5fa2'] = String(d.nameRing || '').split(':');
+        const set = (s, c) => { d.nameRing = !s ? '' : s === 'arcenciel' ? 'arcenciel' : s + ':' + c; draw(); refresh(); };
+        const inp = el('input', { type: 'color', class: 'color-input', value: col, onchange: e => set(st || 'contour', e.target.value) });
+        box.replaceChildren(
+          el('div', { class: 'nr-prev' }, LC.name({ username: d.username, color: d.color, nameEffect: d.nameEffect, nameRing: d.nameRing })),
+          el('div', { class: 'nr-styles' }, ...RING.map(([v, l]) => el('button', { type: 'button', class: 'btn btn-sm' + ((st || '') === v ? ' btn-primary' : ''), onclick: () => set(v, col) }, l))),
+          st && st !== 'arcenciel' ? el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (col === c ? ' active' : ''), style: `background:${c}`, title: c, onclick: () => set(st, c) })), inp) : null);
+      };
+      draw(); return box;
+    })(), 'Une couleur autour de ton pseudo, visible par tout le monde (messages, liste des membres, profil…).'),
     f('🖌️ Couleur du profil', colorPick('accent'), 'Couleur des contours et des étiquettes de ta carte.'),
     f('✍️ Style d\'écriture de mes messages', choice(LC.MSG_FONTS, 'msgFont', (v, label) => el('span', { class: v ? 'mf-' + v : '' }, label))),
     f('🎨 Couleur d\'écriture', el('div', {}, colorPick('msgColor'), el('button', { type: 'button', class: 'btn btn-sm', style: 'margin-top:6px', onclick: e => { d.msgColor = ''; refresh(); e.target.textContent = '✅ Couleur normale'; } }, '↺ Couleur normale')), 'Tes messages s\'afficheront avec ce style et cette couleur, pour tout le monde.'),
@@ -333,7 +348,7 @@ function openMyProfile() {
             try {
               const { user } = await api('/api/me', { method: 'PUT', body: {
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
-                nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
+                nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', nameRing: d.nameRing || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
               } });

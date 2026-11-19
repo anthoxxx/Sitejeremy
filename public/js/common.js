@@ -247,7 +247,8 @@ window.LC = {
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
     const nn = fx ? '' : LC.neonOf(u);
-    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` }, u.username);
+    const [rs, rc] = String(u.nameRing || '').split(':'); /* ⭕ la couleur autour du pseudo */
+    const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (rs ? ' nr nr-' + rs : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` + (rc ? `;--nr:${rc}` : '') }, u.username);
     // badge acheté dans la boutique 💰
     const badge = u.shopBadge ? LC.el('span', { class: 'shop-badge', title: 'Badge de la boutique' }, u.shopBadge) : null;
     if (!u.isBirthday && !badge) return n;
