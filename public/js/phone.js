@@ -40,9 +40,10 @@ const Phone = (() => {
     if (!root) build();
     root.classList.remove('hidden'); document.body.classList.add('phone-open'); hideReturn();
     refreshBadges();
-    if (app && APPS[app]) APPS[app].open(); else home();
+    const go2 = () => (app && APPS[app] ? APPS[app].open() : home());
+    if (opt('pin', '') && !unlocked) lockScreen(go2); else go2();
   }
-  function close() { if (!root) return; stopCam(); clearTimers(); convOpen = null; root.classList.add('hidden'); document.body.classList.remove('phone-open'); }
+  function close() { if (!root) return; if (opt('pin', '')) unlocked = false; /* 🔒 il se reverrouille quand on le range */ stopCam(); clearTimers(); convOpen = null; root.classList.add('hidden'); document.body.classList.remove('phone-open'); }
   const isOpen = () => root && !root.classList.contains('hidden');
   function go(fn, title, actions) {
     stopCam(); clearTimers();
@@ -90,6 +91,16 @@ const Phone = (() => {
     map: { icon: '🗺️', name: 'Plans', c: '#34c759', open: () => go(mapApp, '🗺️ Plans') },
     compass: { icon: '🧭', name: 'Boussole', c: '#1c1c24', open: () => go(compass, '') },
     level: { icon: '📏', name: 'Niveau', c: '#ff9500', open: () => go(levelApp, '') },
+    snake: { icon: '🐍', name: 'Serpent', c: '#2bb866', open: () => go(snakeGame, '🐍 Serpent') },
+    whack: { icon: '🐹', name: 'Tape-taupe', c: '#a0522d', open: () => go(whack, '🐹 Tape-taupe') },
+    simon: { icon: '🧠', name: 'Simon', c: '#ff3b30', open: () => go(simon, '🧠 Simon') },
+    tictac: { icon: '⭕', name: 'Morpion', c: '#5856d6', open: () => go(tictac, '⭕ Morpion') },
+    memory: { icon: '🃏', name: 'Memory', c: '#ff2d55', open: () => go(memory, '🃏 Memory') },
+    breakout: { icon: '🧱', name: 'Casse-briques', c: '#ff9500', open: () => go(breakout, '🧱 Casse-briques') },
+    recorder: { icon: '🎙️', name: 'Dictaphone', c: '#1c1c24', open: () => go(recorder, '🎙️ Dictaphone') },
+    converter: { icon: '📐', name: 'Convertisseur', c: '#ff9500', open: () => go(converter, '📐 Convertisseur') },
+    radio: { icon: '📻', name: 'Radio', c: '#ff2d55', open: () => go(radioApp, '📻 Radio') },
+    quotes: { icon: '💡', name: 'Citations', c: '#ffcc00', open: () => go(quotes, '💡 Citations') },
   };
   // 📲 Les applis installées (gardées sur cet appareil). Certaines sont là dès le départ, comme sur un vrai iPhone.
   const SYSTEM = ['messages', 'phone', 'snap', 'camera', 'contacts', 'settings', 'appstore'];
@@ -103,8 +114,12 @@ const Phone = (() => {
     paint: ['Dessin', 'Créativité', 'Dessine avec tes doigts, envoie en snap', 4.8], dice: ['Hasard', 'Divertissement', 'Dé, pile ou face, roue de la décision', 4.5], translate: ['Traduction', 'Utilitaires', 'Traduis dans 20 langues (et écoute)', 4.7],
     g2048: ['2048', 'Jeux', 'Le célèbre jeu de chiffres', 4.8], flappy: ['Flappy Paradise', 'Jeux', 'Fais voler le poussin entre les tuyaux', 4.6], breathe: ['Zen', 'Santé', 'Respire et détends-toi en 1 minute', 4.9],
     horoscope: ['Horoscope', 'Style de vie', 'Ton horoscope du jour', 4.4], map: ['Plans', 'Navigation', 'Tous les lieux de la Ville', 4.7], compass: ['Boussole', 'Navigation', 'Trouve le nord', 4.2], level: ['Niveau à bulle', 'Utilitaires', 'Vérifie si c\'est bien droit', 4.1],
+    snake: ['Serpent', 'Jeux', 'Le grand classique : mange les pommes', 4.7], whack: ['Tape-taupe', 'Jeux', 'Tape les hamsters avant qu\'ils se cachent', 4.6], simon: ['Simon', 'Jeux', 'Retiens l\'ordre des couleurs', 4.5],
+    tictac: ['Morpion', 'Jeux', 'Bats le téléphone au morpion', 4.4], memory: ['Memory', 'Jeux', 'Retrouve les paires d\'animaux', 4.6], breakout: ['Casse-briques', 'Jeux', 'Casse toutes les briques avec la balle', 4.8],
+    recorder: ['Dictaphone', 'Utilitaires', 'Enregistre des mémos vocaux', 4.5], converter: ['Convertisseur', 'Utilitaires', 'Longueurs, poids, températures, monnaies', 4.6],
+    radio: ['Radio', 'Musique', 'Toutes les radios du site', 4.7], quotes: ['Citations', 'Style de vie', 'Une belle phrase pour chaque jour', 4.4],
   };
-  const FEATURED = ['g2048', 'paint', 'flappy', 'breathe', 'translate', 'map'];
+  const FEATURED = ['g2048', 'paint', 'flappy', 'breathe', 'translate', 'map', 'breakout', 'snake', 'whack', 'radio', 'memory', 'simon'];
   const instKey = () => 'ph_apps_' + (state.me?.id || 0);
   function installed() {
     let l = null; try { l = JSON.parse(localStorage.getItem(instKey()) || 'null'); } catch (e) {}
@@ -130,10 +145,11 @@ const Phone = (() => {
   }
   function home() {
     stopCam(); clearTimers(); stack = []; convOpen = null;
-    screen.style.background = WALLS[opt('wall', 'neon')] || WALLS.neon; dark(true);
+    screen.style.background = wallBg(); dark(true);
     const d = new Date();
     screen.replaceChildren(el('div', { class: 'ph-home' },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
+      jiggle ? null : widgets(),
       jiggle ? el('button', { class: 'ph-done', onclick: () => { jiggle = false; home(); } }, 'OK') : null,
       el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...['messages', 'snap', 'contacts', 'appstore', ...installed(), 'settings'].map(k => appIcon(k))),
       el('div', { class: 'ph-dock' }, ...['phone', 'messages', 'snap', 'camera'].map(k => appIcon(k, true)))));
@@ -143,7 +159,7 @@ const Phone = (() => {
     pmUnread = [...(state.convs?.values?.() || [])].reduce((s, c) => s + (c.unread || 0), 0);
     const n = snapsUnread + pmUnread;
     for (const b of [$('phoneBtn'), document.querySelector('.isl-phone')]) { const c = b?.querySelector('.notif-count'); if (c) { c.textContent = n; c.classList.toggle('hidden', !n); } }
-    if (isOpen() && !stack.length) home();
+    if (isOpen() && !stack.length && !screen.querySelector('.lock')) home(); // (pas par-dessus l'écran verrouillé)
   }
 
   // ---------- 💬 Messages ----------
@@ -336,25 +352,10 @@ const Phone = (() => {
     const d = root?.querySelector('.ph-device'); if (!d) return;
     d.style.setProperty('--frame', (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[1]);
     d.dataset.icons = opt('icons', 'arrondi'); d.dataset.cols = opt('cols', '4'); d.dataset.text = opt('text', 'normal'); d.dataset.theme = opt('theme', 'clair');
+    d.dataset.size = opt('size', 'm'); d.classList.toggle('eco', opt('eco', '0') === '1');
+    const sc = root.querySelector('.ph-screen'); if (sc) sc.style.filter = `brightness(${(+opt('bright', '100')) / 100})${opt('night', '0') === '1' ? ' sepia(.35) saturate(1.2)' : ''}`;
+    const ic = root.querySelector('.ph-icons'); if (ic) { ic.querySelector('.ph-plane')?.remove(); ic.querySelector('.ph-pct')?.remove(); if (opt('plane', '0') === '1') ic.prepend(el('span', { class: 'ph-plane' }, '✈️')); if (opt('batpct', '0') === '1') { const p = el('span', { class: 'ph-pct' }, '87'); ic.append(p); (navigator.getBattery ? navigator.getBattery() : Promise.reject()).then(b => { p.textContent = Math.round(b.level * 100); }).catch(() => {}); } ic.querySelector('.ph-sig')?.classList.toggle('hidden', opt('plane', '0') === '1'); }
   }
-  function settings(body) {
-    const seg = (key, def, list, after) => el('div', { class: 'ph-seg' }, ...list.map(([v, l]) => el('button', { class: opt(key, def) === v ? 'on' : '', onclick: () => { setOpt(key, v); applyLook(); after ? after() : settings(body); } }, l)));
-    body.replaceChildren(
-      el('div', { class: 'ph-about' }, el('div', { class: 'ph-about-ico' }, ''), el('div', {}, el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS 18 · 1 To · ' + (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[0]))),
-      el('h4', { class: 'ph-h' }, '🖼️ Fond d\'écran'),
-      el('div', { class: 'ph-walls' }, ...Object.entries(WALLS).map(([k, v]) => el('button', { class: 'ph-wall' + (opt('wall', 'neon') === k ? ' on' : ''), style: `background:${v}`, onclick: () => { setOpt('wall', k); settings(body); } }))),
-      el('h4', { class: 'ph-h' }, '📱 Couleur du téléphone'),
-      el('div', { class: 'ph-frames' }, ...Object.entries(FRAME_COLORS).map(([k, [n, c]]) => el('button', { class: 'ph-frame' + (opt('frame', 'titane') === k ? ' on' : ''), title: n, style: `--fc:${c}`, onclick: () => { setOpt('frame', k); applyLook(); settings(body); } }))),
-      el('h4', { class: 'ph-h' }, '🔲 Forme des icônes'), seg('icons', 'arrondi', [['arrondi', 'Arrondies'], ['rond', 'Rondes'], ['carre', 'Carrées']]),
-      el('h4', { class: 'ph-h' }, '🔢 Icônes par ligne'), seg('cols', '4', [['3', '3 (grandes)'], ['4', '4'], ['5', '5 (petites)']]),
-      el('h4', { class: 'ph-h' }, '🔠 Taille du texte'), seg('text', 'normal', [['petit', 'Petit'], ['normal', 'Normal'], ['grand', 'Grand']]),
-      el('h4', { class: 'ph-h' }, '🌗 Apparence des applis'), seg('theme', 'clair', [['clair', '☀️ Claire'], ['sombre', '🌙 Sombre']]),
-      el('h4', { class: 'ph-h' }, '🏝️ Dynamic Island'), seg('island', '1', [['1', 'Animée'], ['0', 'Discrète']], () => { settings(body); island('🏝️ La Dynamic Island est animée !'); }),
-      el('h4', { class: 'ph-h' }, '✏️ Nom du téléphone'),
-      el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => { setOpt('name', e.target.value.trim() || 'iPhone 18 Pro'); settings(body); } }),
-      el('h4', { class: 'ph-h' }, '👤 Mon téléphone'), el('div', { class: 'ph-row' }, LC.avatar(state.me), el('div', { class: 'ph-row-txt' }, el('b', {}, state.me.username), el('small', {}, 'Ton numéro : ' + ('06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 '))))));
-  }
-
   // ---------- 🧮 Calculette ----------
   function calculator(body) {
     let expr = '';
@@ -616,6 +617,276 @@ const Phone = (() => {
     sensor(body, e => { const x = Math.max(-45, Math.min(45, e.gamma || 0)), y = Math.max(-45, Math.min(45, (e.beta || 0))); bub.style.transform = `translate(${x * 2}px, ${y * 2}px)`; const t = Math.round(Math.hypot(x, y)); val.textContent = t + '°'; bub.classList.toggle('ok', t <= 1); });
   }
 
+  // =================== ⚙️ Les réglages (comme sur iPhone : une liste, puis une page par réglage) ===================
+  const RINGS = { cristal: [880, 1320], marimba: [523, 659, 784], radar: [988, 988, 988], harpe: [392, 523, 659, 784, 1047], aucune: [] };
+  function ringTone(name = opt('ring', 'cristal')) {
+    const notes = RINGS[name] || []; if (!notes.length) return;
+    try { const A = new (window.AudioContext || window.webkitAudioContext)(); notes.forEach((f, i) => { const o = A.createOscillator(), g = A.createGain(); o.type = name === 'radar' ? 'square' : 'sine'; o.frequency.value = f; const t = A.currentTime + i * .14; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.12 * (+opt('vol', '7') / 10), t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(g).connect(A.destination); o.start(t); o.stop(t + .32); }); } catch (e) {}
+    if (opt('vibe', '1') === '1') try { navigator.vibrate?.(120); } catch (e) {}
+  }
+  const sw = (key, def, after) => el('label', { class: 'ios-sw' }, el('input', { type: 'checkbox', checked: opt(key, def) === '1', onchange: e => { setOpt(key, e.target.checked ? '1' : '0'); applyLook(); after && after(e.target.checked); } }), el('i'));
+  const row = (ico, c, label, right, fn) => el(fn ? 'button' : 'div', { class: 'ios-row', onclick: fn || null }, el('span', { class: 'ios-ico', style: `background:${c}` }, ico), el('span', { class: 'ios-lbl' }, label), right ?? null, fn ? el('span', { class: 'ios-chev' }, '›') : null);
+  const group = (...rows) => el('div', { class: 'ios-group' }, ...rows.filter(Boolean));
+  function settings(body) {
+    const pinOn = !!opt('pin', '');
+    body.replaceChildren(el('div', { class: 'ios' },
+      el('div', { class: 'ios-me', onclick: () => go(aboutPage, 'Général') }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('small', {}, 'Identifiant Paradise, iCloud+, contenus multimédias'))),
+      group(row('✈️', '#ff9500', 'Mode avion', sw('plane', '0', on => toast(on ? '✈️ Mode avion : plus d\'alertes sur ton téléphone' : '✈️ Mode avion désactivé'))),
+        row('🔋', '#34c759', 'Batterie', null, () => go(batteryPage, 'Batterie')),
+        row('🌙', '#5856d6', 'Concentration (ne pas déranger)', el('span', { class: 'ios-val' }, state.me.presence === 'dnd' ? 'Activé' : 'Non'), () => { window.setPresence?.(state.me.presence === 'dnd' ? 'auto' : 'dnd'); setTimeout(() => settings(body), 400); })),
+      group(row('🔊', '#ff2d55', 'Sons et vibrations', null, () => go(soundPage, 'Sons et vibrations')),
+        row('🔆', '#007aff', 'Luminosité et affichage', null, () => go(displayPage, 'Luminosité et affichage')),
+        row('🖼️', '#32ade6', 'Fond d\'écran', null, () => go(wallPage, 'Fond d\'écran')),
+        row('🧩', '#af52de', 'Écran d\'accueil et widgets', null, () => go(widgetPage, 'Écran d\'accueil'))),
+      group(row('🔒', '#ff3b30', 'Face ID et code', el('span', { class: 'ios-val' }, pinOn ? 'Activé' : 'Non'), () => go(pinPage, 'Face ID et code')),
+        row('📱', '#8e8e93', 'Général', null, () => go(aboutPage, 'Général')))));
+  }
+  function batteryPage(body) {
+    const pct = el('b', { class: 'ios-big' }, '…');
+    (navigator.getBattery ? navigator.getBattery() : Promise.reject()).then(b => { pct.textContent = Math.round(b.level * 100) + ' %' + (b.charging ? ' ⚡' : ''); }).catch(() => { pct.textContent = '87 %'; });
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('small', {}, 'Niveau de la batterie'), pct),
+      group(row('💯', '#34c759', 'Afficher le pourcentage', sw('batpct', '0')), row('🔋', '#ffcc00', 'Mode économie d\'énergie', sw('eco', '0', on => toast(on ? '🔋 Économie d\'énergie : moins d\'animations' : 'Mode normal'))))));
+  }
+  function soundPage(body) {
+    body.replaceChildren(el('div', { class: 'ios' },
+      el('h4', { class: 'ios-head' }, 'VOLUME DES ALERTES'),
+      group(el('div', { class: 'ios-row' }, el('span', {}, '🔈'), el('input', { type: 'range', min: 0, max: 10, value: opt('vol', '7'), class: 'ios-range', onchange: e => { setOpt('vol', e.target.value); ringTone(); } }), el('span', {}, '🔊'))),
+      el('h4', { class: 'ios-head' }, 'SONNERIE'),
+      group(...Object.keys(RINGS).map(k => row(opt('ring', 'cristal') === k ? '✔️' : '🎵', '#ff2d55', k[0].toUpperCase() + k.slice(1), null, () => { setOpt('ring', k); ringTone(k); soundPage(body); }))),
+      group(row('📳', '#ff9500', 'Vibrations', sw('vibe', '1')), row('⌨️', '#8e8e93', 'Clics du clavier', sw('keyclick', '0')))));
+  }
+  function displayPage(body) {
+    const seg = (key, def, list) => el('div', { class: 'ph-seg' }, ...list.map(([v, l]) => el('button', { class: opt(key, def) === v ? 'on' : '', onclick: () => { setOpt(key, v); applyLook(); displayPage(body); } }, l)));
+    body.replaceChildren(el('div', { class: 'ios' },
+      el('h4', { class: 'ios-head' }, 'LUMINOSITÉ'),
+      group(el('div', { class: 'ios-row' }, el('span', {}, '🔅'), el('input', { type: 'range', min: 35, max: 100, value: opt('bright', '100'), class: 'ios-range', oninput: e => { setOpt('bright', e.target.value); applyLook(); } }), el('span', {}, '🔆'))),
+      el('h4', { class: 'ios-head' }, 'APPARENCE'), seg('theme', 'clair', [['clair', '☀️ Claire'], ['sombre', '🌙 Sombre']]),
+      group(row('🌅', '#ff9500', 'Night Shift (écran plus chaud)', sw('night', '0'))),
+      el('h4', { class: 'ios-head' }, 'TAILLE DU TEXTE'), seg('text', 'normal', [['petit', 'Petit'], ['normal', 'Normal'], ['grand', 'Grand']]),
+      el('h4', { class: 'ios-head' }, 'TAILLE DU TÉLÉPHONE (sur ordinateur)'), seg('size', 'm', [['s', 'Petit'], ['m', 'Normal'], ['l', 'Grand']]),
+      el('h4', { class: 'ios-head' }, 'COULEUR DU TÉLÉPHONE'),
+      el('div', { class: 'ph-frames' }, ...Object.entries(FRAME_COLORS).map(([k, [n, c]]) => el('button', { class: 'ph-frame' + (opt('frame', 'titane') === k ? ' on' : ''), title: n, style: `--fc:${c}`, onclick: () => { setOpt('frame', k); applyLook(); displayPage(body); } }))),
+      el('h4', { class: 'ios-head' }, 'DYNAMIC ISLAND'), seg('island', '1', [['1', 'Animée'], ['0', 'Discrète']])));
+  }
+  function wallPage(body) {
+    const file = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => {
+      const f = file.files[0]; if (!f) return;
+      const img = await createImageBitmap(f).catch(() => null); if (!img) return toast('Image illisible');
+      const c = document.createElement('canvas'), k = Math.min(1, 720 / Math.max(img.width, img.height)); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      try { localStorage.setItem('ph_wallimg', c.toDataURL('image/jpeg', .8)); setOpt('wall', 'photo'); toast('🖼️ Ta photo est ton fond d\'écran !'); } catch (e) { toast('Photo trop lourde'); }
+      wallPage(body);
+    } });
+    let mine = ''; try { mine = localStorage.getItem('ph_wallimg') || ''; } catch (e) {}
+    body.replaceChildren(el('div', { class: 'ios' },
+      el('div', { class: 'ph-walls' }, ...Object.entries(WALLS).map(([k, v]) => el('button', { class: 'ph-wall' + (opt('wall', 'neon') === k ? ' on' : ''), style: `background:${v}`, onclick: () => { setOpt('wall', k); wallPage(body); } })),
+        mine ? el('button', { class: 'ph-wall' + (opt('wall', 'neon') === 'photo' ? ' on' : ''), style: `background:url(${mine}) center/cover`, onclick: () => { setOpt('wall', 'photo'); wallPage(body); } }) : null),
+      file, el('button', { class: 'ph-pill go', style: 'margin-top:12px;width:100%', onclick: () => file.click() }, '📷 Mettre une de mes photos')));
+  }
+  function widgetPage(body) {
+    body.replaceChildren(el('div', { class: 'ios' }, el('h4', { class: 'ios-head' }, 'WIDGETS SUR L\'ÉCRAN D\'ACCUEIL'),
+      group(row('⛅', '#2f9bff', 'Météo', sw('w_weather', '1')), row('📅', '#ff3b30', 'Calendrier', sw('w_cal', '0')), row('🔋', '#34c759', 'Batterie', sw('w_bat', '0')), row('💰', '#ffcc00', 'Mes pièces', sw('w_coins', '1'))),
+      el('h4', { class: 'ios-head' }, 'APPLIS'), group(row('🔲', '#8e8e93', 'Forme des icônes', null, () => go(iconsPage, 'Icônes')), row('↺', '#ff9500', 'Remettre les applis de départ', null, () => { if (confirm('Remettre l\'écran d\'accueil comme au départ ?')) { setInstalled([...STARTER]); toast('↺ Écran d\'accueil remis à zéro'); } }))));
+  }
+  function iconsPage(body) {
+    const seg = (key, def, list) => el('div', { class: 'ph-seg' }, ...list.map(([v, l]) => el('button', { class: opt(key, def) === v ? 'on' : '', onclick: () => { setOpt(key, v); applyLook(); iconsPage(body); } }, l)));
+    body.replaceChildren(el('div', { class: 'ios' }, el('h4', { class: 'ios-head' }, 'FORME'), seg('icons', 'arrondi', [['arrondi', 'Arrondies'], ['rond', 'Rondes'], ['carre', 'Carrées']]), el('h4', { class: 'ios-head' }, 'PAR LIGNE'), seg('cols', '4', [['3', '3 (grandes)'], ['4', '4'], ['5', '5 (petites)']])));
+  }
+  function pinPage(body) {
+    const cur = opt('pin', '');
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('span', { class: 'ios-face' }, '🙂'), el('small', {}, 'Protège ton téléphone avec un code à 4 chiffres. Face ID 🙂 le déverrouille aussi.')),
+      group(cur ? row('🔓', '#ff3b30', 'Désactiver le code', null, () => { setOpt('pin', ''); unlocked = true; toast('🔓 Code désactivé'); pinPage(body); }) : row('🔒', '#34c759', 'Activer un code', null, () => askPin('Choisis un code à 4 chiffres', p => askPin('Confirme ton code', p2 => { if (p !== p2) return toast('Les codes ne sont pas pareils'); setOpt('pin', p); unlocked = true; toast('🔒 Code activé !'); go(pinPage, 'Face ID et code'); })))),
+      cur ? group(row('😊', '#34c759', 'Face ID', sw('faceid', '1'))) : null));
+  }
+  function aboutPage(body) {
+    const n = installed().length + SYSTEM.length;
+    body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('div', { class: 'ph-about-ico', style: 'font-size:40px' }, ''), el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS 18.2')),
+      group(el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Modèle'), el('span', { class: 'ios-val' }, 'iPhone 18 Pro')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Couleur'), el('span', { class: 'ios-val' }, (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[0])), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Stockage'), el('span', { class: 'ios-val' }, '1 To')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Applis installées'), el('span', { class: 'ios-val' }, n)), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Numéro'), el('span', { class: 'ios-val' }, '06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 ')))),
+      el('h4', { class: 'ios-head' }, 'NOM'), el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => setOpt('name', e.target.value.trim() || 'iPhone 18 Pro') })));
+  }
+  // 🔒 le clavier du code
+  function askPin(title, cb) {
+    let v = '';
+    const dots = el('div', { class: 'pin-dots' }, ...[0, 1, 2, 3].map(() => el('i')));
+    const draw = () => dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < v.length));
+    const press = k => { if (k === '⌫') v = v.slice(0, -1); else if (v.length < 4) v += k; draw(); if (v.length === 4) setTimeout(() => cb(v), 150); };
+    go(b => b.replaceChildren(el('div', { class: 'pin' }, el('b', {}, title), dots, el('div', { class: 'pin-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map(k => k ? el('button', { onclick: () => press(k) }, k) : el('span'))))), '');
+  }
+  // 🔒 l'écran verrouillé
+  let unlocked = false;
+  function lockScreen(then) {
+    stopCam(); clearTimers(); stack = [];
+    screen.style.background = wallBg(); dark(true);
+    let v = '';
+    const dots = el('div', { class: 'pin-dots' }, ...[0, 1, 2, 3].map(() => el('i')));
+    const ok = () => { unlocked = true; island('🔓 Déverrouillé'); then(); };
+    const press = k => { if (k === '⌫') v = v.slice(0, -1); else if (v.length < 4) v += k; dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < v.length)); if (v.length === 4) { if (v === opt('pin', '')) ok(); else { dots.classList.add('bad'); try { navigator.vibrate?.([60, 40, 60]); } catch (e) {} setTimeout(() => { v = ''; dots.classList.remove('bad'); dots.querySelectorAll('i').forEach(d => d.classList.remove('on')); }, 500); } } };
+    const n = snapsUnread + pmUnread;
+    screen.replaceChildren(el('div', { class: 'lock' }, el('div', { class: 'lock-ico' }, '🔒'), el('b', { class: 'lock-time' }, time()), el('small', {}, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })),
+      n ? el('div', { class: 'lock-notif' }, `💬 ${n} nouvelle${n > 1 ? 's' : ''} notification${n > 1 ? 's' : ''}`) : null,
+      opt('faceid', '1') === '1' ? el('button', { class: 'lock-face', onclick: e => { e.currentTarget.classList.add('scan'); setTimeout(ok, 900); } }, '🙂', el('small', {}, 'Face ID')) : null,
+      dots, el('div', { class: 'pin-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map(k => k ? el('button', { onclick: () => press(k) }, k) : el('span')))));
+  }
+  const wallBg = () => { if (opt('wall', 'neon') === 'photo') { try { const u = localStorage.getItem('ph_wallimg'); if (u) return `url(${u}) center/cover`; } catch (e) {} } return WALLS[opt('wall', 'neon')] || WALLS.neon; };
+  // 🧩 les widgets de l'écran d'accueil
+  function widgets() {
+    const out = [];
+    if (opt('w_weather', '1') === '1') { const h = new Date().getHours(), d = new Date().getDate(), n = h < 7 || h >= 20; out.push(el('button', { class: 'wdg', onclick: () => APPS.weather.open() }, el('small', {}, '📍 Paradise'), el('b', {}, (18 + d % 9 - (n ? 6 : 0)) + '°'), el('span', {}, n ? '🌙 Nuit claire' : ['☀️ Soleil', '🌤️ Nuageux', '⛅ Éclaircies'][d % 3]))); }
+    if (opt('w_coins', '1') === '1') out.push(el('button', { class: 'wdg coins', onclick: () => APPS.shop.open() }, el('small', {}, '💰 Mes pièces'), el('b', {}, String(state.me?.coins ?? 0)), el('span', {}, 'Paradise Coins')));
+    if (opt('w_cal', '0') === '1') { const d = new Date(); out.push(el('button', { class: 'wdg cal', onclick: () => APPS.agenda.open() }, el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long' })), el('b', {}, d.getDate()), el('span', {}, d.toLocaleDateString('fr-FR', { month: 'long' })))); }
+    if (opt('w_bat', '0') === '1') { const w = el('button', { class: 'wdg bat' }, el('small', {}, '🔋 Batterie'), el('b', {}, '87 %'), el('span', {}, 'iPhone')); (navigator.getBattery ? navigator.getBattery() : Promise.reject()).then(b => { w.querySelector('b').textContent = Math.round(b.level * 100) + ' %'; }).catch(() => {}); out.push(w); }
+    return out.length ? el('div', { class: 'wdgs' }, ...out.slice(0, 4)) : null;
+  }
+
+  // =================== 🎮 Les nouveaux jeux ===================
+  // 🐍 Serpent
+  function snakeGame(body) {
+    const N = 16, cv = el('canvas', { class: 'ph-gcv', width: 320, height: 320 }), g = cv.getContext('2d');
+    let s = [[8, 8], [7, 8]], d = [1, 0], nd = [1, 0], food = [12, 8], score = 0, dead = false, best = +opt('bestSnake', '0');
+    const info = el('div', { class: 'g48-info' });
+    const place = () => { do food = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; while (s.some(p => p[0] === food[0] && p[1] === food[1])); };
+    const draw = () => { g.fillStyle = '#1b2a1b'; g.fillRect(0, 0, 320, 320); g.font = '18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🍎', food[0] * 20 + 10, food[1] * 20 + 11); s.forEach((p, i) => { g.fillStyle = i ? '#3fd16a' : '#9dff7a'; g.fillRect(p[0] * 20 + 1, p[1] * 20 + 1, 18, 18); }); info.replaceChildren(el('span', {}, `🍎 ${score}`), el('span', {}, `🏆 ${best}`)); if (dead) { g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, 320, 320); g.fillStyle = '#fff'; g.font = '900 26px Outfit'; g.fillText('Perdu ! Touche pour rejouer', 160, 160); } };
+    const step = () => { if (dead || !body.isConnected) return; d = nd; const h = [s[0][0] + d[0], s[0][1] + d[1]]; if (h[0] < 0 || h[1] < 0 || h[0] >= N || h[1] >= N || s.some(p => p[0] === h[0] && p[1] === h[1])) { dead = true; if (score > best) { best = score; setOpt('bestSnake', String(best)); } try { navigator.vibrate?.(100); } catch (e) {} return draw(); } s.unshift(h); if (h[0] === food[0] && h[1] === food[1]) { score++; place(); } else s.pop(); draw(); timers.push(setTimeout(step, Math.max(70, 150 - score * 4))); };
+    const turn = (x, y) => { if (dead) { s = [[8, 8], [7, 8]]; d = nd = [1, 0]; score = 0; dead = false; place(); step(); return; } if (x !== -d[0] || y !== -d[1]) nd = [x, y]; };
+    let sx = 0, sy = 0; cv.onpointerdown = e => { sx = e.clientX; sy = e.clientY; }; cv.onpointerup = e => { const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return dead && turn(0, 0); Math.abs(dx) > Math.abs(dy) ? turn(Math.sign(dx), 0) : turn(0, Math.sign(dy)); };
+    const key = e => { if (!body.isConnected) return document.removeEventListener('keydown', key); const m = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (m) { e.preventDefault(); turn(...m); } };
+    document.addEventListener('keydown', key);
+    const pad = el('div', { class: 'gpad' }, el('span'), el('button', { onclick: () => turn(0, -1) }, '▲'), el('span'), el('button', { onclick: () => turn(-1, 0) }, '◀'), el('span'), el('button', { onclick: () => turn(1, 0) }, '▶'), el('span'), el('button', { onclick: () => turn(0, 1) }, '▼'), el('span'));
+    body.replaceChildren(el('div', { class: 'g48-app' }, info, cv, pad)); draw(); step();
+  }
+  // 🔨 Tape-taupe
+  function whack(body) {
+    let score = 0, left = 30, mole = -1, best = +opt('bestWhack', '0'), run = false;
+    const holes = Array.from({ length: 9 }, (_, i) => el('button', { class: 'wh-hole', onclick: () => { if (!run || i !== mole) return; score++; mole = -1; holes[i].classList.add('hit'); setTimeout(() => holes[i].classList.remove('hit'), 200); try { navigator.vibrate?.(25); } catch (e) {} draw(); } }));
+    const info = el('div', { class: 'g48-info' });
+    const draw = () => { holes.forEach((h, i) => { h.textContent = i === mole ? '🐹' : ''; }); info.replaceChildren(el('span', {}, `🔨 ${score}`), el('span', {}, `⏱️ ${left} s`), el('span', {}, `🏆 ${best}`)); };
+    const pop = () => { if (!run || !body.isConnected) return; mole = Math.floor(Math.random() * 9); draw(); timers.push(setTimeout(pop, Math.max(420, 900 - score * 15))); };
+    const tick = () => { if (!run || !body.isConnected) return; left--; if (left <= 0) { run = false; mole = -1; if (score > best) { best = score; setOpt('bestWhack', String(best)); } draw(); btn.textContent = `🔁 Rejouer (score : ${score})`; btn.classList.remove('hidden'); return; } draw(); timers.push(setTimeout(tick, 1000)); };
+    const btn = el('button', { class: 'ph-pill go', onclick: () => { score = 0; left = 30; run = true; btn.classList.add('hidden'); pop(); timers.push(setTimeout(tick, 1000)); } }, '▶ Commencer');
+    body.replaceChildren(el('div', { class: 'g48-app' }, info, el('div', { class: 'wh-grid' }, ...holes), btn, el('small', { class: 'ph-wait' }, 'Tape les hamsters 🐹 avant qu\'ils se cachent ! 30 secondes'))); draw();
+  }
+  // 🧠 Simon
+  function simon(body) {
+    const C = ['#ff3b30', '#34c759', '#007aff', '#ffcc00'], F = [330, 392, 494, 587];
+    let seq = [], pos = 0, busy = true, best = +opt('bestSimon', '0');
+    const info = el('div', { class: 'g48-info' });
+    const beep = i => { try { const A = new (window.AudioContext || window.webkitAudioContext)(), o = A.createOscillator(), g = A.createGain(); o.frequency.value = F[i]; g.gain.setValueAtTime(.12, A.currentTime); g.gain.exponentialRampToValueAtTime(.001, A.currentTime + .35); o.connect(g).connect(A.destination); o.start(); o.stop(A.currentTime + .36); } catch (e) {} };
+    const flash = i => { pads[i].classList.add('on'); beep(i); setTimeout(() => pads[i].classList.remove('on'), 320); };
+    const pads = C.map((c, i) => el('button', { class: 'sm-pad', style: `background:${c}`, onclick: () => { if (busy) return; flash(i); if (i !== seq[pos]) { busy = true; if (seq.length - 1 > best) { best = seq.length - 1; setOpt('bestSimon', String(best)); } info.replaceChildren(el('span', {}, `❌ Perdu ! ${seq.length - 1} couleurs`), el('span', {}, `🏆 ${best}`)); btn.classList.remove('hidden'); return; } if (++pos >= seq.length) { busy = true; timers.push(setTimeout(next, 700)); } } }));
+    const next = () => { if (!body.isConnected) return; seq.push(Math.floor(Math.random() * 4)); pos = 0; busy = true; info.replaceChildren(el('span', {}, `🧠 ${seq.length - 1}`), el('span', {}, `🏆 ${best}`)); seq.forEach((v, k) => timers.push(setTimeout(() => flash(v), 500 + k * 550))); timers.push(setTimeout(() => { busy = false; }, 500 + seq.length * 550)); };
+    const btn = el('button', { class: 'ph-pill go', onclick: () => { seq = []; btn.classList.add('hidden'); next(); } }, '▶ Commencer');
+    body.replaceChildren(el('div', { class: 'g48-app' }, info, el('div', { class: 'sm-grid' }, ...pads), btn, el('small', { class: 'ph-wait' }, 'Retiens l\'ordre des couleurs et répète-le. Chaque tour, une couleur de plus !')));
+    info.replaceChildren(el('span', {}, '🧠 0'), el('span', {}, `🏆 ${best}`));
+  }
+  // ⭕ Morpion contre le téléphone
+  function tictac(body) {
+    let b = Array(9).fill(''), over = false;
+    const W = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+    const win = (p) => W.some(l => l.every(i => b[i] === p));
+    const msg = el('div', { class: 'g48-info' }, el('span', {}, 'Tu es ❌, à toi !'));
+    const ai = () => { const free = b.map((v, i) => v ? -1 : i).filter(i => i >= 0); for (const p of ['⭕', '❌']) for (const i of free) { b[i] = p; const w = win(p); b[i] = ''; if (w) return i; } if (!b[4]) return 4; return free[Math.floor(Math.random() * free.length)]; };
+    const end = t => { over = true; msg.replaceChildren(el('span', {}, t)); };
+    const cells = Array.from({ length: 9 }, (_, i) => el('button', { class: 'tt-c', onclick: () => {
+      if (over || b[i]) return; b[i] = '❌'; draw();
+      if (win('❌')) return end('🏆 Bravo, tu as gagné !'); if (!b.includes('')) return end('🤝 Égalité');
+      setTimeout(() => { b[ai()] = '⭕'; draw(); if (win('⭕')) end('📱 Le téléphone a gagné !'); else if (!b.includes('')) end('🤝 Égalité'); }, 350);
+    } }));
+    const draw = () => cells.forEach((c, i) => { c.textContent = b[i]; });
+    body.replaceChildren(el('div', { class: 'g48-app' }, msg, el('div', { class: 'tt-grid' }, ...cells), el('button', { class: 'ph-pill go', onclick: () => tictac(body) }, '🔁 Nouvelle partie')));
+  }
+  // 🃏 Memory
+  function memory(body) {
+    const E = ['🐱', '🐶', '🦊', '🐼', '🦄', '🐸', '🐙', '🦋'];
+    const deck = [...E, ...E].sort(() => Math.random() - .5);
+    let open = [], found = 0, moves = 0, lock = false;
+    const info = el('div', { class: 'g48-info' });
+    const draw = () => info.replaceChildren(el('span', {}, `🔁 ${moves} coups`), el('span', {}, `✅ ${found}/8`));
+    const cards = deck.map((e, i) => el('button', { class: 'mm-c', onclick: () => {
+      const c = cards[i]; if (lock || c.classList.contains('up')) return;
+      c.classList.add('up'); c.textContent = e; open.push(i);
+      if (open.length === 2) { moves++; const [a, b2] = open; open = []; if (deck[a] === deck[b2]) { found++; if (found === 8) { LC.confetti(['🃏', '🏆']); info.replaceChildren(el('span', {}, `🏆 Gagné en ${moves} coups !`)); return; } } else { lock = true; setTimeout(() => { [a, b2].forEach(k => { cards[k].classList.remove('up'); cards[k].textContent = ''; }); lock = false; }, 800); } draw(); }
+    } }));
+    body.replaceChildren(el('div', { class: 'g48-app' }, info, el('div', { class: 'mm-grid' }, ...cards), el('button', { class: 'ph-pill go', onclick: () => memory(body) }, '🔁 Nouvelle partie'))); draw();
+  }
+  // 🧱 Casse-briques
+  function breakout(body) {
+    const cv = el('canvas', { class: 'ph-gcv', width: 320, height: 460 }), g = cv.getContext('2d');
+    let px = 130, ball, bricks, score = 0, lives = 3, run = false, best = +opt('bestBreak', '0'), last = 0;
+    const reset = () => { ball = { x: 160, y: 380, vx: 2.6, vy: -3.4 }; };
+    const level = () => { bricks = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) bricks.push({ x: 8 + c * 44, y: 40 + r * 20, on: true, col: ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff'][r] }); };
+    level(); reset();
+    const move = e => { const r = cv.getBoundingClientRect(); px = Math.max(0, Math.min(260, (e.clientX - r.left) / r.width * 320 - 30)); };
+    cv.onpointermove = move; cv.onpointerdown = e => { move(e); if (!run) { if (lives <= 0) { lives = 3; score = 0; level(); } run = true; reset(); } };
+    const loop = ts => {
+      if (!body.isConnected) return; requestAnimationFrame(loop); const dt = Math.min(2, (ts - last) / 16.7 || 1); last = ts;
+      if (run) {
+        ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+        if (ball.x < 6 || ball.x > 314) ball.vx *= -1; if (ball.y < 6) ball.vy = Math.abs(ball.vy);
+        if (ball.y > 420 && ball.y < 432 && ball.x > px && ball.x < px + 60) { ball.vy = -Math.abs(ball.vy); ball.vx = (ball.x - px - 30) / 9; }
+        for (const b of bricks) if (b.on && ball.x > b.x && ball.x < b.x + 40 && ball.y > b.y && ball.y < b.y + 16) { b.on = false; ball.vy *= -1; score += 10; break; }
+        if (!bricks.some(b => b.on)) { level(); reset(); ball.vy *= 1.15; }
+        if (ball.y > 470) { lives--; run = false; if (lives <= 0 && score > best) { best = score; setOpt('bestBreak', String(best)); } }
+      }
+      g.fillStyle = '#10101a'; g.fillRect(0, 0, 320, 460);
+      for (const b of bricks) if (b.on) { g.fillStyle = b.col; g.fillRect(b.x, b.y, 40, 16); }
+      g.fillStyle = '#fff'; g.fillRect(px, 424, 60, 9); g.beginPath(); g.arc(ball.x, ball.y, 6, 0, 7); g.fill();
+      g.font = '800 14px Outfit'; g.textAlign = 'left'; g.fillText(`${score} pts   ${'❤️'.repeat(Math.max(0, lives))}`, 8, 22); g.textAlign = 'right'; g.fillText(`🏆 ${best}`, 312, 22);
+      if (!run) { g.textAlign = 'center'; g.font = '900 20px Outfit'; g.fillText(lives <= 0 ? 'Perdu ! Touche pour rejouer' : 'Touche pour lancer la balle', 160, 300); }
+    };
+    requestAnimationFrame(loop);
+    body.replaceChildren(el('div', { class: 'g48-app' }, cv, el('small', { class: 'ph-wait' }, 'Glisse ton doigt pour bouger la raquette')));
+  }
+
+  // =================== 🧰 Les nouvelles applis utiles ===================
+  // 🎙️ Dictaphone
+  function recorder(body) {
+    let rec = null, chunks = [], t0 = 0, tv = null;
+    const list = el('div', { class: 'ph-map-list' });
+    const memos = [];
+    const timeEl = el('b', { class: 'cmp-deg' }, '0:00');
+    const btn = el('button', { class: 'rec-btn', onclick: async () => {
+      if (rec) { rec.stop(); return; }
+      try {
+        const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+        rec = new MediaRecorder(st); chunks = [];
+        rec.ondataavailable = e => chunks.push(e.data);
+        rec.onstop = () => { st.getTracks().forEach(t => t.stop()); clearInterval(tv); const url = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType })); memos.unshift({ url, at: Date.now(), d: Math.round((Date.now() - t0) / 1000) }); rec = null; btn.classList.remove('on'); timeEl.textContent = '0:00'; draw(); };
+        rec.start(); t0 = Date.now(); btn.classList.add('on'); tv = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); timeEl.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }, 250);
+      } catch (e) { toast('🎙️ Autorise le micro pour enregistrer'); }
+    } });
+    const draw = () => list.replaceChildren(...(memos.length ? memos.map((m, i) => el('div', { class: 'ph-row' }, el('div', { class: 'ph-row-txt' }, el('b', {}, `Mémo ${memos.length - i}`), el('small', {}, `${new Date(m.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${m.d} s`)), el('audio', { src: m.url, controls: true, style: 'height:32px;max-width:160px' }))) : [el('div', { class: 'ph-wait' }, 'Appuie sur le bouton rouge pour enregistrer ta voix 🎙️')]));
+    body.replaceChildren(el('div', { class: 'rec' }, timeEl, btn, list)); draw();
+  }
+  // 📐 Convertisseur
+  function converter(body) {
+    const U = { 'Longueur': [['m', 1], ['km', 1000], ['cm', .01], ['mile', 1609.34], ['pied', .3048], ['pouce', .0254]], 'Poids': [['kg', 1], ['g', .001], ['livre', .4536], ['once', .02835]], 'Température': [['°C'], ['°F'], ['K']], 'Monnaie': [['€', 1], ['$', .92], ['£', 1.17], ['Paradise Coins 💰', .01]] };
+    let cat = 'Longueur';
+    const draw = () => {
+      const u = U[cat], val = el('input', { class: 'ph-input', type: 'number', value: '1' }), from = el('select', { class: 'ph-input' }, ...u.map(([n], i) => el('option', { value: i }, n))), to = el('select', { class: 'ph-input' }, ...u.map(([n], i) => el('option', { value: i, selected: i === 1 }, n))), out = el('div', { class: 'ph-tr-out', style: 'font-size:26px;text-align:center' });
+      const calc = () => { const v = parseFloat(val.value) || 0, a = +from.value, b = +to.value; let r; if (cat === 'Température') { const c = a === 0 ? v : a === 1 ? (v - 32) * 5 / 9 : v - 273.15; r = b === 0 ? c : b === 1 ? c * 9 / 5 + 32 : c + 273.15; } else r = v * u[a][1] / u[b][1]; out.textContent = `${(Math.round(r * 1000) / 1000).toLocaleString('fr-FR')} ${u[b][0]}`; };
+      [val, from, to].forEach(x => x.oninput = calc);
+      body.replaceChildren(el('div', { class: 'ph-tr' }, el('div', { class: 'ph-seg' }, ...Object.keys(U).map(k => el('button', { class: k === cat ? 'on' : '', onclick: () => { cat = k; draw(); } }, k))), val, from, el('div', { style: 'text-align:center' }, '⬇️'), to, out)); calc();
+    };
+    draw();
+  }
+  // 📻 Radio (les radios du site)
+  async function radioApp(body) {
+    if (!window.Media) return;
+    if (!Media.stations.length) await Media.load?.();
+    const draw = () => body.replaceChildren(el('div', { class: 'ph-map-list' }, el('div', { class: 'ios-card' }, el('small', {}, Media.playing ? '▶️ En écoute' : '⏸️ En pause'), el('b', {}, Media.current?.name || 'Choisis une radio'), Media.current ? el('button', { class: 'ph-pill go', onclick: () => { Media.toggle(); setTimeout(draw, 400); } }, Media.playing ? '⏸️ Pause' : '▶️ Écouter') : null),
+      Media.stations.length ? null : el('div', { class: 'ph-wait' }, '📻 Aucune radio pour le moment : un admin peut en ajouter dans l\'administration'),
+      ...Media.stations.map(st => el('button', { class: 'ph-row' + (Media.current?.url === st.url ? ' on' : ''), onclick: () => { Media.play(st); setTimeout(draw, 600); } }, el('span', {}, '📻'), el('div', { class: 'ph-row-txt' }, el('b', {}, st.name), el('small', {}, st.genre || st.country || 'Radio')), Media.current?.url === st.url && Media.playing ? el('span', {}, '🔊') : null))));
+    draw();
+  }
+  // 💡 Citations
+  function quotes(body) {
+    const Q = ['« Le bonheur est la seule chose qui se double si on le partage. » — Albert Schweitzer', '« Sois toi-même, les autres sont déjà pris. » — Oscar Wilde', '« La vie, c\'est comme une bicyclette, il faut avancer pour ne pas perdre l\'équilibre. » — Albert Einstein', '« On ne voit bien qu\'avec le cœur. » — Saint-Exupéry', '« Le meilleur moyen de prédire l\'avenir, c\'est de le créer. » — Peter Drucker', '« Un sourire coûte moins cher que l\'électricité, mais donne autant de lumière. » — Abbé Pierre', '« Il n\'y a pas de chemin vers le bonheur, le bonheur est le chemin. » — Bouddha', '« Tout ce que tu peux imaginer est réel. » — Picasso', '« Le succès, c\'est tomber sept fois et se relever huit. » — Proverbe japonais', '« La gentillesse est la langue que les sourds entendent et que les aveugles voient. » — Mark Twain'];
+    let i = new Date().getDate() % Q.length;
+    const card = el('div', { class: 'horo-card', style: 'font-size:18px;line-height:1.5;min-height:180px;justify-content:center' });
+    const draw = () => { card.textContent = Q[i]; };
+    body.replaceChildren(el('div', { class: 'ph-tr' }, el('small', {}, '💡 La citation du jour'), card, el('div', { class: 'ph-row-btns' }, el('button', { class: 'ph-pill go', onclick: () => { i = (i + 1) % Q.length; draw(); } }, '➡️ Une autre'), el('button', { class: 'ph-pill', onclick: () => { const st = window.state?.convs; navigator.clipboard?.writeText(Q[i]); toast('📋 Copiée !'); } }, '📋 Copier'))));
+    draw();
+  }
+
   // ---------- ↩️ Le bouton pour revenir au téléphone après avoir ouvert une appli ----------
   let retBtn = null;
   function showReturn() {
@@ -648,7 +919,7 @@ const Phone = (() => {
   function hideReturn() { retBtn?.classList.add('hidden'); }
   // ---------- Petits outils ----------
   function avatarOn(u, online) { const a = LC.avatar(u); if (online) a.append(el('span', { class: 'on' })); return a; }
-  function ping(text, onclick) { island(text); const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
+  function ping(text, onclick) { if (opt('plane', '0') === '1') return; ringTone(); island(text); const n = el('div', { class: 'ph-ping', onclick: () => { n.remove(); onclick && onclick(); } }, el('b', {}, '📱 The Paradise'), el('span', {}, text)); screen.append(n); setTimeout(() => n.remove(), 4500); }
   // 🏝️ La Dynamic Island : elle s'agrandit pour afficher une alerte
   function island(text) { const i = root?.querySelector('.ph-island'); if (!i || opt('island', '1') !== '1') return; i.querySelector('.ph-island-txt').textContent = text; i.classList.add('big'); clearTimeout(i._t); i._t = setTimeout(() => i.classList.remove('big'), 3200); }
   function pickFriend(title, cb) { go(body => body.replaceChildren(...(friends().length ? friends().map(u => el('button', { class: 'ph-row', onclick: () => cb(u) }, avatarOn(u, u.online), el('div', { class: 'ph-row-txt' }, el('b', {}, u.username)))) : [el('div', { class: 'ph-wait' }, 'Ajoute des amis d\'abord 🤝')])), title); }

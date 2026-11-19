@@ -778,4 +778,18 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 53,
+    date: '2026-11-19',
+    title: 'Ton iPhone 18 encore plus vrai 📱 : 10 nouvelles applis, des réglages, Face ID',
+    added: [
+      '🎮 6 nouveaux jeux dans l\'App Store : 🐍 Serpent, 🐹 Tape-taupe, 🧠 Simon, ⭕ Morpion contre le téléphone, 🃏 Memory et 🧱 Casse-briques (avec ton record)',
+      '🧰 4 nouvelles applis : 🎙️ Dictaphone (enregistre ta voix), 📐 Convertisseur (longueurs, poids, températures, monnaies), 📻 Radio (les radios du site) et 💡 Citations',
+      '⚙️ De nouveaux Réglages comme sur iPhone : ✈️ Mode avion, 🔋 Batterie (pourcentage, économie d\'énergie), 🔊 Sons et vibrations (5 sonneries, volume), 🔆 Luminosité et Night Shift, taille du téléphone',
+      '🔒 Face ID et code : protège ton téléphone avec un code à 4 chiffres, et déverrouille-le avec Face ID 🙂',
+      '🖼️ Mets ta propre photo en fond d\'écran, et 🧩 des widgets sur l\'écran d\'accueil (météo, tes pièces, calendrier, batterie)',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

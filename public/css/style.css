@@ -3325,3 +3325,43 @@ body.snow-hit #island::after { content: ''; position: absolute; inset: 0; pointe
 .cmp-needle { position: absolute; left: 50%; top: 30px; width: 6px; height: 90px; margin-left: -3px; border-radius: 3px; background: linear-gradient(#ff3b30, #ff3b30 50%, #fff 50%); }
 .lvl-box { position: relative; width: 240px; height: 240px; border-radius: 50%; border: 3px solid #fff; display: grid; place-items: center; } .lvl-cross { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 2px dashed rgba(255,255,255,.6); }
 .lvl-bub { width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #ffd34d); transition: transform .1s; } .lvl-bub.ok { background: radial-gradient(circle at 35% 35%, #fff, #2bd07a); box-shadow: 0 0 20px #2bd07a; }
+
+/* =================== ⚙️ Réglages façon iOS, 🔒 écran verrouillé, 🧩 widgets, nouveaux jeux =================== */
+.ph-app:has(.ios) { background: #f2f2f7 !important; color: #111; } .ph-device[data-theme="sombre"] .ph-app:has(.ios) { background: #000 !important; color: #fff; }
+.ios { display: flex; flex-direction: column; gap: 4px; padding-bottom: 20px; }
+.ios-me { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #fff; cursor: pointer; margin-bottom: 14px; } .ios-me .avatar { width: 56px !important; height: 56px !important; } .ios-me b { font-size: 18px; display: block; } .ios-me small { color: #8e8e93; font-size: 12px; }
+.ios-group { border-radius: 12px; background: #fff; overflow: hidden; margin-bottom: 14px; }
+.ph-device[data-theme="sombre"] .ios-group, .ph-device[data-theme="sombre"] .ios-me, .ph-device[data-theme="sombre"] .ios-card { background: #1c1c1e; color: #fff; }
+.ios-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px; text-align: left; border-bottom: 1px solid rgba(128,128,128,.15); cursor: default; } button.ios-row { cursor: pointer; } .ios-group > :last-child { border-bottom: 0; }
+.ios-ico { width: 29px; height: 29px; border-radius: 7px; display: grid; place-items: center; font-size: 16px; flex: none; } .ios-lbl { flex: 1; } .ios-val { color: #8e8e93; } .ios-chev { color: #c7c7cc; font-size: 20px; }
+.ios-head { margin: 10px 12px 4px; font-size: 11px; font-weight: 600; color: #8e8e93; letter-spacing: .03em; } .ios-range { flex: 1; accent-color: #007aff; }
+.ios-card { padding: 18px; border-radius: 14px; background: #fff; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 14px; } .ios-card small { color: #8e8e93; } .ios-big { font: 300 48px Outfit, sans-serif; } .ios-face { font-size: 50px; }
+.ios-sw { position: relative; width: 51px; height: 31px; flex: none; cursor: pointer; } .ios-sw input { display: none; } .ios-sw i { position: absolute; inset: 0; border-radius: 999px; background: #e9e9eb; transition: background .2s; } .ios-sw i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); transition: transform .2s; } .ios-sw input:checked + i { background: #34c759; } .ios-sw input:checked + i::after { transform: translateX(20px); }
+.ph-device[data-theme="sombre"] .ios-sw i { background: #39393d; }
+.ph-device[data-size="s"] { transform: scale(.85); transform-origin: center; } .ph-device[data-size="l"] { transform: scale(1.12); transform-origin: center; }
+@media (max-width: 600px) { .ph-device[data-size] { transform: none; } }
+.ph-device.eco *, .ph-device.eco *::before, .ph-device.eco *::after { animation-duration: .001s !important; }
+.ph-plane, .ph-pct { font-size: 11px; font-weight: 800; }
+/* 🔒 code */
+.pin, .lock { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 50px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.ph-app:has(.pin) { background: #1c1c1e !important; color: #fff; }
+.lock { padding-top: 46px; height: 100%; backdrop-filter: blur(6px); background: rgba(0,0,0,.25); } .lock-ico { font-size: 20px; } .lock-time { font: 300 72px Outfit, sans-serif; line-height: 1; } .lock-notif { padding: 10px 14px; border-radius: 16px; background: rgba(255,255,255,.22); backdrop-filter: blur(12px); font-size: 13px; }
+.lock-face { border: 0; background: rgba(255,255,255,.18); color: #fff; width: 70px; height: 70px; border-radius: 20px; font-size: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; } .lock-face small { font-size: 9px; } .lock-face.scan { animation: faceScan .9s ease; box-shadow: 0 0 0 3px #34c759; }
+@keyframes faceScan { 0% { transform: scale(1); } 50% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.pin-dots { display: flex; gap: 16px; } .pin-dots i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff; } .pin-dots i.on { background: #fff; } .pin-dots.bad { animation: wizzShake .45s ease; }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 70px); gap: 14px; } .pin-keys button { width: 70px; height: 70px; border-radius: 50%; border: 0; background: rgba(255,255,255,.2); color: #fff; font: 400 28px Outfit, sans-serif; backdrop-filter: blur(10px); cursor: pointer; } .pin-keys button:active { background: rgba(255,255,255,.45); }
+/* 🧩 widgets */
+.wdgs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.wdg { border: 0; border-radius: 20px; padding: 12px; text-align: left; color: #fff; background: linear-gradient(160deg, #4fb3ff, #2f6fd6); box-shadow: 0 6px 16px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 2px; cursor: pointer; font: inherit; }
+.wdg small { font-size: 11px; opacity: .9; text-transform: capitalize; } .wdg b { font: 300 32px Outfit, sans-serif; } .wdg span { font-size: 11px; }
+.wdg.coins { background: linear-gradient(160deg, #ffd76a, #d99a00); color: #3a2600; } .wdg.cal { background: #fff; color: #111; } .wdg.cal small { color: #ff3b30; font-weight: 800; } .wdg.bat { background: linear-gradient(160deg, #34c759, #1f8a4c); }
+/* 🎮 jeux */
+.ph-gcv { width: 100%; border-radius: 12px; touch-action: none; display: block; }
+.gpad { display: grid; grid-template-columns: repeat(3, 54px); gap: 6px; justify-content: center; } .gpad button { height: 46px; border-radius: 12px; border: 0; background: rgba(128,128,128,.2); font-size: 18px; cursor: pointer; color: inherit; }
+.wh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; border-radius: 18px; background: #7fc46a; }
+.wh-hole { aspect-ratio: 1; border-radius: 50%; border: 0; background: radial-gradient(ellipse at 50% 70%, #3b2615 55%, #5a3a20 56%); font-size: 40px; cursor: pointer; transition: transform .1s; } .wh-hole.hit { transform: scale(.85); background: radial-gradient(ellipse at 50% 70%, #ffd34d 40%, #5a3a20 41%); }
+.sm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .sm-pad { aspect-ratio: 1; border-radius: 22px; border: 0; opacity: .45; cursor: pointer; transition: opacity .1s, transform .1s; } .sm-pad.on { opacity: 1; transform: scale(1.04); box-shadow: 0 0 24px currentColor; }
+.tt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .tt-c { aspect-ratio: 1; border-radius: 14px; border: 0; background: rgba(88,86,214,.12); font-size: 42px; cursor: pointer; }
+.mm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; } .mm-c { aspect-ratio: 1; border-radius: 12px; border: 0; background: linear-gradient(145deg, #ff5fa2, #8b5cf6); font-size: 30px; cursor: pointer; } .mm-c.up { background: #fff; box-shadow: inset 0 0 0 2px #ff5fa2; }
+.rec { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 20px; } .rec-btn { width: 74px; height: 74px; border-radius: 50%; border: 4px solid #c7c7cc; background: radial-gradient(circle, #ff3b30 55%, transparent 56%); cursor: pointer; } .rec-btn.on { background: radial-gradient(circle, #ff3b30 30%, transparent 31%); animation: cgPulse 1s ease-in-out infinite; }
+.ph-row.on { box-shadow: inset 0 0 0 2px #ff2d55; }
