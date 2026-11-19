@@ -967,4 +967,33 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 68,
+    date: '2026-11-19',
+    title: 'Construis ta propre maison, sans limite 🧱🏠',
+    added: [
+      '🧱 Nouveau dans ta maison de la Ville : le bouton « Construire ». Dessine toi-même tes murs et tes sols, case par case, avec ton doigt ou la souris',
+      '14 matières : mur, mur en verre, parquet, bois foncé, carrelage, damier, marbre, moquette, tapis rouge, béton, herbe, sable, piscine 💧 et la gomme (vide)',
+      '🎨 Choisis la couleur de tes murs et du mur du fond. Pars de la maison de base, d\'un grand loft vide, ou d\'un terrain tout vide',
+      '🏢 Jusqu\'à 5 étages (dans « Ma maison »), et chaque étage se construit comme tu veux',
+      '🚶 Les personnages contournent tes murs tout seuls pour aller où tu touches. Tes visiteurs voient ta maison telle que tu l\'as construite',
+    ],
+    changed: ['Les meubles restent illimités (jusqu\'à 600)'],
+    removed: [],
+  },
+  {
+    id: 69,
+    date: '2026-11-19',
+    title: 'La météo arrive sur le site ⛅🌧️❄️',
+    added: [
+      '⛅ Le site a maintenant sa propre météo, la même pour tout le monde et en direct : soleil, éclaircies, nuages, pluie, orage avec des éclairs, neige, brouillard, grand vent, arc-en-ciel… et canicule l\'été',
+      '🌧️ La pluie, la neige et les éclairs tombent pour de vrai sur le site et dans la Ville. Dans les maisons, on les voit par les fenêtres',
+      '🌡️ En haut du site, la petite bulle météo montre le temps et la température. Touche-la pour voir les prévisions des prochaines heures',
+      '⚙️ Chacun règle pour lui : voir ou non les effets, la quantité de pluie ou de neige, et le bruit du tonnerre',
+      '📱 L\'appli Météo du téléphone et son widget montrent la vraie météo du site',
+      '🛡️ L\'équipe peut choisir la météo pour tout le site pendant un moment (par exemple de la neige pour une soirée)',
+    ],
+    changed: ['La météo change toute seule toutes les 40 minutes environ, selon la saison et l\'heure de Paris'],
+    removed: [],
+  },
 ];

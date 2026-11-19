@@ -509,7 +509,18 @@ const Island = (() => {
   // ======================================================================
   // 🏠 La grande maison : 4 pièces (chambre, salle de bain, salon, cuisine) séparées par des murs avec des portes
   const HOUSE_DOORS = { v1: [900, 480], v2: [900, 880], h1: [460, 650], h2: [1340, 650] };
+  // 🧱 Le plan dessiné par le propriétaire : 36 × 18 cases de 50 px par étage (sinon, la maison de base à 4 pièces)
+  const BC = 36, BR = 18, BS = 50, BLOCK = '#gx';
+  const curBuild = () => (building ? bdraft[floorNow] : house?.build?.f?.[floorNow]) || '';
+  const baseWalk = (x, y) => {
+    if (x < 40 || x > 1760 || y < 230 || y > 1080) return false;
+    if (Math.abs(x - 900) < 20 && !(Math.abs(y - 480) < 56 || Math.abs(y - 880) < 56)) return false;
+    if (Math.abs(y - 650) < 20 && !(Math.abs(x - 460) < 56 || Math.abs(x - 1340) < 56)) return false;
+    return true;
+  };
   const houseWalk = (x, y) => {
+    const s = curBuild();
+    if (s) { if (x < 20 || x > 1780 || y < 215 || y > 1090) return false; return !BLOCK.includes(s[Math.floor((y - 200) / BS) * BC + Math.floor(x / BS)] || 'x'); }
     if (x < 40 || x > 1760 || y < 230 || y > 1080) return false;
     if (Math.abs(x - 900) < 20 && !(Math.abs(y - 480) < 56 || Math.abs(y - 880) < 56)) return false;
     if (Math.abs(y - 650) < 20 && !(Math.abs(x - 460) < 56 || Math.abs(x - 1340) < 56)) return false;
@@ -517,7 +528,20 @@ const Island = (() => {
   };
   const houseRoom = (x, y) => (y < 650 ? 0 : 2) + (x < 900 ? 0 : 1); // 0 chambre · 1 salle de bain · 2 salon · 3 cuisine
   const ROOM_LINKS = { 0: { 1: 'v1', 2: 'h1' }, 1: { 0: 'v1', 3: 'h2' }, 2: { 0: 'h1', 3: 'v2' }, 3: { 1: 'h2', 2: 'v2' } };
+  // le chemin dans une maison dessinée : on cherche le passage case par case (comme un GPS)
+  function gridPath(s, ax, ay, bx, by) {
+    const idx = (x, y) => Math.max(0, Math.min(BR - 1, Math.floor((y - 200) / BS))) * BC + Math.max(0, Math.min(BC - 1, Math.floor(x / BS)));
+    const a = idx(ax, ay), b = idx(bx, by); if (a === b) return [];
+    const prev = new Int16Array(BC * BR).fill(-1); prev[a] = a; const q = [a];
+    for (let qi = 0; qi < q.length; qi++) { const i = q[qi]; if (i === b) break; const c = i % BC, r = (i / BC) | 0;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nc = c + dc, nr = r + dr; if (nc < 0 || nr < 0 || nc >= BC || nr >= BR) continue; const j = nr * BC + nc; if (prev[j] !== -1 || BLOCK.includes(s[j])) continue; prev[j] = i; q.push(j); } }
+    if (prev[b] === -1) return [];
+    const cells = []; for (let i = b; i !== a; i = prev[i]) cells.push(i); cells.reverse();
+    const pts = [a]; for (let k = 0; k < cells.length - 1; k++) { const p0 = k ? cells[k - 1] : a; if (cells[k] - p0 !== cells[k + 1] - cells[k]) pts.push(cells[k]); }
+    return pts.map(i => ({ x: (i % BC) * BS + 25, y: ((i / BC) | 0) * BS + 225 }));
+  }
   function housePath(ax, ay, bx, by) {
+    const s = curBuild(); if (s) return gridPath(s, ax, ay, bx, by);
     const a = houseRoom(ax, ay), b = houseRoom(bx, by), pt = k => ({ x: HOUSE_DOORS[k][0], y: HOUSE_DOORS[k][1] });
     if (a === b) return [];
     if (ROOM_LINKS[a][b]) return [pt(ROOM_LINKS[a][b])];
@@ -663,6 +687,7 @@ const Island = (() => {
     { t: 'kitchen', x: 1250, y: 740 }, { t: 'fridge', x: 1640, y: 760 }, { t: 'coffee', x: 1450, y: 740 }, { t: 'table', x: 1300, y: 950 }, { t: 'chair', x: 1170, y: 960 }, { t: 'chair', x: 1430, y: 960, f: 1 },
   ];
   let editing = false, draft = [], sel = -1, drag = null;
+  let building = false, bdraft = [], btool = '#', bbrush = 1, bwc = '#f3e2c7', bbw = '#f3e2c7', bFloor0 = 0; // 🧱 le mode Construire
   let floorNow = 0, houseZoom = 1, camEdit = { x: 900, y: 600 };
   const furnAll = () => (editing ? draft : house?.furniture || DEFAULT_FURN);
   const furn = () => furnAll().filter(f => (f.l || 0) === floorNow);
@@ -678,7 +703,9 @@ const Island = (() => {
       const s = furnSpot(f);
       out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
-    if (house?.floors === 2) out.unshift({ stairs: true, icon: floorNow ? '⬇️' : '⬆️', label: floorNow ? 'Descendre' : 'Monter à l\'étage', x: 130, y: 250 });
+    const nf = house?.floors || 1;
+    if (nf > 1 && floorNow > 0) out.unshift({ stairs: true, to: floorNow - 1, icon: '⬇️', label: floorNow === 1 ? 'Descendre au rez-de-chaussée' : `Descendre à l'étage ${floorNow - 1}`, x: 200, y: 262 });
+    if (nf > 1 && floorNow < nf - 1) out.unshift({ stairs: true, to: floorNow + 1, icon: '⬆️', label: `Monter à l'étage ${floorNow + 1}`, x: 90, y: 262 });
     if (!floorNow) out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 460, y: 1068 });
     return out;
   }
@@ -1005,6 +1032,52 @@ const Island = (() => {
     if (save) socket.emit('house_furniture', draft, r => { if (r?.error) return toast(r.error); toast('✅ Tes meubles sont en place !'); });
     editing = false; sel = -1; drag = null; root.querySelector('.isl-panel')?.remove(); renderUI();
   }
+  // ---------- 🧱 Construire sa maison : on dessine ses murs et ses sols, case par case ----------
+  // le plan de départ = la maison de base (4 pièces), pour ne pas partir de rien
+  function basePlan(fl) {
+    let s = '';
+    for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) { const x = c * BS + 25, y = 200 + r * BS + 25; s += !baseWalk(x, y) && !(y > 1050 && x > 400 && x < 550) ? '#' : y < 650 ? (x < 900 ? 'p' : 'c') : (x < 900 ? 'd' : 'n'); }
+    return s;
+  }
+  const loftPlan = () => { let s = ''; for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) s += (c === 0 || c === BC - 1 || r === BR - 1) && !(r === BR - 1 && c >= 8 && c <= 10) ? '#' : 'p'; return s; };
+  const emptyPlan = () => 'x'.repeat(BC * BR);
+  function startBuild() {
+    if (kind !== 'house' || house?.ownerId !== state.me.id) return;
+    const nf = house.floors || 1;
+    bdraft = Array.from({ length: nf }, (_, i) => house.build?.f?.[i] || basePlan(i));
+    bwc = house.build?.wc || '#f3e2c7'; bbw = house.build?.bw || bwc;
+    building = true; bFloor0 = floorNow; camEdit = { x: cam.x, y: cam.y }; houseZoom = Math.min(houseZoom, .8);
+    root.querySelector('.isl-panel')?.remove(); renderUI();
+    toast('🧱 Choisis un outil puis dessine avec ton doigt ou la souris · ✋ pour te déplacer · ＋ − pour zoomer');
+  }
+  function stopBuild(save) {
+    const done = () => { building = false; drag = null; floorNow = bFloor0; root.querySelector('.isl-panel')?.remove(); renderUI(); };
+    if (!save) return done();
+    socket.emit('house_build', { f: bdraft, wc: bwc, bw: bbw }, r => { if (r?.error) return toast(r.error); toast('✅ Ta maison est construite !'); LC.confetti?.(['🧱', '🏠', '✨']); done(); });
+  }
+  function paintAt(x, y) {
+    const s = bdraft[floorNow]; if (!s) return;
+    const c0 = Math.floor(x / BS), r0 = Math.floor((y - 200) / BS), h = bbrush - 1, a = s.split('');
+    for (let r = r0 - h; r <= r0 + h; r++) for (let c = c0 - h; c <= c0 + h; c++) {
+      if (c < 0 || r < 0 || c >= BC || r >= BR) continue;
+      if (BLOCK.includes(btool) && ((!floorNow && r >= 16 && c >= 8 && c <= 10) || ((house?.floors || 1) > 1 && r <= 2 && c <= 4))) continue; // la porte et l'escalier restent libres
+      a[r * BC + c] = btool;
+    }
+    bdraft[floorNow] = a.join('');
+  }
+  function buildPanel() {
+    const COLS = ['#f3e2c7', '#ffffff', '#ffe3a0', '#ffd1dc', '#cfe7f3', '#c8f0d0', '#e0d0ff', '#b57a45', '#8e8e96', '#3a3a44', '#1c1c24', '#c0392b', '#2f6fd6', '#d4af37'];
+    const row = (lbl, get, set) => el('div', {}, el('small', { class: 'bd-lbl' }, lbl), el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (get() === c ? ' active' : ''), style: `background:${c}`, onclick: () => { set(c); buildPanel(); } })), el('input', { type: 'color', class: 'color-input', value: get(), onchange: e => { set(e.target.value); buildPanel(); } })));
+    panel('🎨 Couleurs et modèles',
+      row('🧱 Couleur des murs', () => bwc, c => { bwc = c; }),
+      row('🖼️ Couleur du mur du fond', () => bbw, c => { bbw = c; }),
+      el('small', { class: 'bd-lbl' }, `📐 Partir d'un modèle (pour l'étage où tu es : ${floorNow ? 'étage ' + floorNow : 'rez-de-chaussée'})`),
+      el('div', { class: 'isl-menu' },
+        el('button', { type: 'button', class: 'isl-dish', onclick: () => { bdraft[floorNow] = basePlan(floorNow); toast('🏠 Maison de base (4 pièces)'); } }, el('span', {}, '🏠'), 'La maison de base'),
+        el('button', { type: 'button', class: 'isl-dish', onclick: () => { bdraft[floorNow] = loftPlan(); toast('⬜ Un grand loft tout ouvert'); } }, el('span', {}, '⬜'), 'Un grand loft vide'),
+        el('button', { type: 'button', class: 'isl-dish', onclick: () => { if (!confirm('Tout effacer à cet étage pour construire à partir de rien ?')) return; bdraft[floorNow] = emptyPlan(); toast('🕳️ Terrain vide : dessine tes sols et tes murs !'); } }, el('span', {}, '🕳️'), 'Tout effacer'),
+        el('button', { type: 'button', class: 'isl-dish', onclick: () => { if (!confirm('Remettre la maison de base partout (tous les étages) ?')) return; socket.emit('house_build', null, r => { if (r?.error) return toast(r.error); building = false; floorNow = bFloor0; toast('↺ Maison de base remise'); root.querySelector('.isl-panel')?.remove(); renderUI(); }); } }, el('span', {}, '↺'), 'Revenir à la maison de base')));
+  }
   function furniturePanel() {
     panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).filter(([, d]) => !d.advent || window.Shop?.owned(d.rare)).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
@@ -1084,10 +1157,55 @@ const Island = (() => {
   function drawHouse(t) {
     const th = THEME[house?.theme] || THEME.cosy;
     const n = nightLevel();
-    if (window.Decor) Decor.bigHouse(ctx, t, { style: house?.style, floors: house?.floors || 1, accent: th.accent, wall: th.wall, floor: th.floor }, floorNow, n, mix);
+    if (curBuild()) drawBuilt(t, th, n);
+    else if (window.Decor) Decor.bigHouse(ctx, t, { style: house?.style, floors: house?.floors || 1, accent: th.accent, wall: th.wall, floor: th.floor }, floorNow, n, mix);
+    if (building) { ctx.strokeStyle = 'rgba(255,255,255,.13)'; ctx.lineWidth = 1; ctx.beginPath(); for (let c = 0; c <= BC; c++) { ctx.moveTo(c * BS, 200); ctx.lineTo(c * BS, 1100); } for (let r = 0; r <= BR; r++) { ctx.moveTo(0, 200 + r * BS); ctx.lineTo(1800, 200 + r * BS); } ctx.stroke(); ctx.fillStyle = 'rgba(52,255,106,.16)'; if (!floorNow) ctx.fillRect(400, 1000, 150, 100); if ((house?.floors || 1) > 1) ctx.fillRect(0, 200, 250, 150); }
     // nom de la maison et porte
     neonText(house?.name || 'Ma maison', 900, 40, th.accent, 30);
 
+  }
+  // 🧱 la maison dessinée par son propriétaire
+  const TILES = {
+    p: ['🪵', 'Parquet', '#c99566'], d: ['🟫', 'Bois foncé', '#7a4a24'], c: ['🔷', 'Carrelage', '#cfe7f3'], n: ['🏁', 'Damier', '#3a3f4b'], b: ['⬜', 'Marbre', '#ece9e4'],
+    m: ['🧶', 'Moquette', null], t: ['🟥', 'Tapis rouge', '#b8333a'], k: ['🩶', 'Béton', '#8e8e96'], h: ['🌿', 'Herbe', '#5aa84f'], s: ['🏖️', 'Sable', '#e8d3a8'], w: ['💧', 'Piscine', '#2fa8ff'],
+    '#': ['🧱', 'Mur', null], g: ['🪟', 'Mur en verre', '#bfe8ff'], x: ['🕳️', 'Vide (gomme)', '#0d0a16'] };
+  function drawBuilt(t, th, n) {
+    const s = curBuild(), wc = (building ? bwc : house?.build?.wc) || '#f3e2c7', bw = (building ? bbw : house?.build?.bw) || wc;
+    const dk = (h, k) => { const v = parseInt(h.slice(1), 16); const f = x => Math.max(0, Math.min(255, Math.round(x * k))); return `rgb(${f(v >> 16)},${f((v >> 8) & 255)},${f(v & 255)})`; };
+    // le mur du fond et ses fenêtres (le ciel suit l'heure)
+    ctx.fillStyle = bw; ctx.fillRect(0, 0, 1800, 200); ctx.fillStyle = dk(bw, .8); ctx.fillRect(0, 186, 1800, 14);
+    const sky = mix('#8fd8ff', '#1a3a8a', n * .7);
+    for (const wx of [380, 760, 1150, 1520]) { ctx.fillStyle = sky; ctx.fillRect(wx - 70, 40, 140, 100); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.strokeRect(wx - 70, 40, 140, 100); ctx.beginPath(); ctx.moveTo(wx, 40); ctx.lineTo(wx, 140); ctx.stroke(); }
+    if (window.Weather) Weather.drawWindows?.(ctx, [380, 760, 1150, 1520].map(x => [x - 70, 40, 140, 100]), t);
+    // les sols
+    for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) {
+      const k = s[r * BC + c], x = c * BS, y = 200 + r * BS;
+      if (k === '#') continue;
+      const col = k === 'm' ? dk(th.accent, .75) : TILES[k]?.[2] || '#c99566';
+      ctx.fillStyle = col; ctx.fillRect(x, y, BS, BS);
+      if (k === 'p' || k === 'd') { ctx.fillStyle = 'rgba(60,30,8,.18)'; ctx.fillRect(x, y + 16, BS, 2); ctx.fillRect(x, y + 33, BS, 2); ctx.fillRect(x + ((r % 2) ? 12 : 34), y, 2, 16); }
+      else if (k === 'c') { ctx.fillStyle = (r + c) % 2 ? '#e6f4fb' : '#cfe7f3'; ctx.fillRect(x, y, BS, BS); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, BS - 1, BS - 1); }
+      else if (k === 'n') { ctx.fillStyle = (r + c) % 2 ? '#f4f1ea' : '#2a2f3b'; ctx.fillRect(x, y, BS, BS); }
+      else if (k === 'b') { ctx.strokeStyle = 'rgba(150,150,160,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y + (c * 7 % 40)); ctx.quadraticCurveTo(x + 25, y + 10 + (r * 11 % 30), x + BS, y + (r * 5 % 45)); ctx.stroke(); ctx.strokeStyle = 'rgba(0,0,0,.06)'; ctx.strokeRect(x, y, BS, BS); }
+      else if (k === 'm' || k === 't') { ctx.fillStyle = 'rgba(255,255,255,.06)'; for (let i = 0; i < 4; i++) ctx.fillRect(x + (i * 13 + r * 3) % 46, y + (i * 17 + c * 5) % 46, 3, 3); }
+      else if (k === 'k') { ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.strokeRect(x + .5, y + .5, BS - 1, BS - 1); }
+      else if (k === 'h') { ctx.fillStyle = '#4e9c46'; for (let i = 0; i < 6; i++) ctx.fillRect(x + (i * 17 + r * 7) % 46, y + (i * 11 + c * 13) % 44, 2, 6); }
+      else if (k === 's') { ctx.fillStyle = 'rgba(160,120,60,.25)'; for (let i = 0; i < 6; i++) ctx.fillRect(x + (i * 19 + c * 7) % 48, y + (i * 13 + r * 11) % 48, 2, 2); }
+      else if (k === 'w') { const wv = Math.sin(t * 2 + c * .7 + r * .5); ctx.fillStyle = `rgba(255,255,255,${.12 + wv * .08})`; ctx.fillRect(x + 6, y + 18 + wv * 4, 30, 3); ctx.fillRect(x + 22, y + 36 - wv * 3, 22, 2); }
+      else if (k === 'g') { ctx.fillStyle = 'rgba(191,232,255,.55)'; ctx.fillRect(x, y, BS, BS); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.strokeRect(x + 2, y + 2, BS - 4, BS - 4); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillRect(x + 8, y + 8, 6, 26); }
+      else if (k === 'x') { ctx.fillStyle = '#0d0a16'; ctx.fillRect(x, y, BS, BS); }
+    }
+    // les murs, avec un peu de relief
+    for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) {
+      if (s[r * BC + c] !== '#') continue; const x = c * BS, y = 200 + r * BS;
+      ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 6, y + 10, BS, BS);
+      ctx.fillStyle = dk(wc, .82); ctx.fillRect(x, y, BS, BS);
+      ctx.fillStyle = wc; ctx.fillRect(x, y - 10, BS, BS - 4);
+      ctx.fillStyle = dk(wc, 1.08); ctx.fillRect(x, y - 10, BS, 4);
+    }
+    // la porte d'entrée et l'escalier
+    if (!floorNow) { ctx.fillStyle = '#c0392b'; roundRect(410, 1050, 130, 40, 8); ctx.fill(); ctx.fillStyle = '#ffd34d'; ctx.font = '700 14px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BIENVENUE', 475, 1071); }
+    if ((house?.floors || 1) > 1) for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#8a5a2b' : '#a86b3a'; ctx.fillRect(20 + i * 6, 214 + i * 20, 220 - i * 12, 18); }
   }
   function neonText(text, x, y, col, size) {
     ctx.font = `900 ${size}px Outfit, Inter, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1105,7 +1223,7 @@ const Island = (() => {
     }
   }
   function drawHots(t) {
-    if (editing) return;
+    if (editing || building) return;
     for (const h of hots()) {
       if (h.x == null) continue;
       const pulse = 1 + Math.sin(t * 3 + h.x) * .08;
@@ -1312,7 +1430,7 @@ const Island = (() => {
       const fit = Math.min(vw / sc.W, avail / sc.H);
       // dans la maison : on voit en grand (même en rangeant ses meubles), et sur téléphone encore plus près
       const z = kind === 'house' ? Math.max(fit, (vw < 600 ? Math.min(vw / 560, avail / 520) : Math.min(vw / 980, avail / 620)) * houseZoom) : editing ? fit : Math.max(fit, Math.min(avail / sc.H, vw / ((screenRect()?.w || 460) + 40)));
-      const C = kind === 'house' && editing ? camEdit : cam;
+      const C = kind === 'house' && (editing || building) ? camEdit : cam;
       const ox = sc.W * z <= vw ? (vw - sc.W * z) / 2 : Math.min(0, Math.max(vw - sc.W * z, vw / 2 - C.x * z));
       const oy = sc.H * z <= avail ? top + (avail - sc.H * z) / 2 : Math.min(top, Math.max(top + avail - sc.H * z, top + avail / 2 - C.y * z));
       view = { z, ox, oy };
@@ -1403,7 +1521,7 @@ const Island = (() => {
     if (h.exit) return exitScene();
     if (h.babyfoot) return window.Babyfoot?.open(scene);
     if (h.hidden) { Hub.open(); return Solo.start('cache'); }
-    if (h.stairs) return socket.emit('house_floor', floorNow ? 0 : 1);
+    if (h.stairs) return socket.emit('house_floor', h.to ?? (floorNow ? 0 : 1));
     if (h.game) return socket.emit('inst_game', h.game);
     if (h.menu) return menuPanel();
     mine.action = h.action;
@@ -1593,7 +1711,7 @@ const Island = (() => {
     panel('⚙️ Ma maison',
       el('label', {}, 'Le nom de ma maison'), name,
       el('label', {}, 'Le style de la maison'), chips(Object.entries(Decor.STYLES).map(([k, v]) => [k, `${v.icon} ${v.name}`]), () => style, v => (style = v)),
-      el('label', {}, 'Les étages'), chips([[1, '🏠 Plain-pied'], [2, '🏘️ Avec un étage (escalier)']], () => floors, v => (floors = v)),
+      el('label', {}, 'Les étages'), chips([[1, '🏠 Plain-pied'], [2, '🏘️ 1 étage'], [3, '🏢 2 étages'], [4, '🏢 3 étages'], [5, '🏙️ 4 étages'], [6, '🏙️ 5 étages']], () => floors, v => (floors = v)),
       el('label', {}, 'Les couleurs'), chips(Object.entries(THEME).map(([k, v]) => [k, v.name]), () => theme, v => (theme = v)),
       el('label', {}, 'Qui peut entrer ?'), chips([['all', '🔓 Tout le monde entre'], ['friends', '👥 Mes amis entrent, les autres sonnent'], ['bell', '🔔 Tout le monde sonne'], ['closed', '🔕 Ne pas déranger']], () => access, v => (access = v)),
       el('button', { class: 'btn btn-primary', onclick: () => socket.emit('house_settings', { name: name.value, theme, access, style, floors }, r => { if (r?.error) return toast(r.error); toast('✅ Maison enregistrée'); root.querySelector('.isl-panel')?.remove(); }) }, '💾 Enregistrer'),
@@ -1608,6 +1726,20 @@ const Island = (() => {
     root.classList.toggle('inside', kind !== 'island');
     root.querySelector('.isl-zoom').classList.toggle('hidden', kind !== 'island' && kind !== 'house');
     root.querySelector('.isl-amb').classList.toggle('hidden', kind === 'island');
+    if (building) {
+      requestAnimationFrame(arrows);
+      const nf = house?.floors || 1;
+      const tool = (k) => el('button', { type: 'button', class: 'isl-act bd-tool' + (btool === k ? ' on' : ''), onclick: () => { btool = k; renderUI(); } }, el('span', {}, TILES[k][0]), TILES[k][1]);
+      root.querySelector('.isl-actions').replaceChildren(
+        el('button', { type: 'button', class: 'isl-act exit', onclick: () => stopBuild(true) }, el('span', {}, '💾'), 'Enregistrer'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => stopBuild(false) }, el('span', {}, '✖'), 'Annuler'),
+        el('button', { type: 'button', class: 'isl-act' + (btool === 'move' ? ' on' : ''), onclick: () => { btool = 'move'; renderUI(); } }, el('span', {}, '✋'), 'Se déplacer'),
+        ...['#', 'g', 'p', 'd', 'c', 'n', 'b', 'm', 't', 'k', 'h', 's', 'w', 'x'].map(tool),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => { bbrush = bbrush % 3 + 1; renderUI(); } }, el('span', {}, ['•', '●', '⬤'][bbrush - 1]), `Pinceau ${bbrush}×${bbrush}`),
+        el('button', { type: 'button', class: 'isl-act media', onclick: () => buildPanel() }, el('span', {}, '🎨'), 'Couleurs et modèles'),
+        nf > 1 ? el('button', { type: 'button', class: 'isl-act', onclick: () => { floorNow = (floorNow + 1) % nf; toast(floorNow ? `🏢 Tu construis l'étage ${floorNow}` : '🏠 Tu construis le rez-de-chaussée'); renderUI(); } }, el('span', {}, '🏢'), floorNow ? `Étage ${floorNow}` : 'Rez-de-chaussée') : null);
+      return renderAmb();
+    }
     if (editing) {
       requestAnimationFrame(arrows);
       root.querySelector('.isl-actions').replaceChildren(
@@ -1625,7 +1757,7 @@ const Island = (() => {
     if (kind !== 'island' && screenRect()) acts.unshift(el('button', { type: 'button', class: 'isl-act media', onclick: () => mediaPanel() }, el('span', {}, kind === 'cinema' ? '🎬' : kind === 'house' ? '📺' : '🎵'), kind === 'cinema' ? 'Choisir un film' : kind === 'house' ? 'La télé' : 'Mettre un son'));
     if (kind !== 'island') acts.unshift(
       el('button', { type: 'button', class: 'isl-act', onclick: () => { muted = !muted; try { localStorage.setItem('islMute', muted ? '1' : '0'); } catch (e) {} if (muted) ytSend('mute'); else { soundOk = true; soundOn(); } renderUI(); } }, el('span', {}, muted ? '🔇' : '🔊'), muted ? 'Son coupé' : 'Son'));
-    if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
+    if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => startBuild() }, el('span', {}, '🧱'), 'Construire'), el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island' && window.CityGames?.winter()) acts.push(el('button', { type: 'button', class: 'isl-act snow' + (window.CityGames.snowOn() ? ' on' : ''), onclick: e => { window.CityGames.toggleSnow(); e.currentTarget.classList.toggle('on', window.CityGames.snowOn()); } }, el('span', {}, '⛄'), 'Boules de neige'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
@@ -1688,6 +1820,12 @@ const Island = (() => {
       root.querySelector('.isl-hint').classList.add('gone');
       root.querySelector('.isl-panel')?.remove();
       if (kind === 'island' && window.CityGames?.snowOn()) { window.CityGames.throwAt(x, y); return; } // ⛄ mode boules de neige : on lance au lieu de marcher
+      if (building) {
+        if (btool === 'move') drag = { id: e.pointerId, pan: true, sx: e.clientX, sy: e.clientY, cx: camEdit.x, cy: camEdit.y };
+        else { drag = { id: e.pointerId, paint: true }; paintAt(x, y); }
+        try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+        return;
+      }
       if (editing) {
         const prev = draft[sel];
         if (prev && FURN[prev.t]) { const hp = rotHandle(prev); if (Math.hypot(hp.x - x, hp.y - y) < 26) { drag = { id: e.pointerId, rotate: true }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} return; } }
@@ -1731,7 +1869,8 @@ const Island = (() => {
     bar.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
     window.addEventListener('resize', arrows);
     cv.addEventListener('pointermove', e => {
-      if (editing && drag?.pan && e.pointerId === drag.id) { camEdit.x = Math.max(0, Math.min(1800, drag.cx - (e.clientX - drag.sx) / view.z)); camEdit.y = Math.max(0, Math.min(1100, drag.cy - (e.clientY - drag.sy) / view.z)); return; }
+      if (building && drag?.paint && e.pointerId === drag.id) { const r = cv.getBoundingClientRect(), q = toWorld(e.clientX - r.left, e.clientY - r.top); paintAt(q.x, q.y); return; }
+      if ((editing || building) && drag?.pan && e.pointerId === drag.id) { camEdit.x = Math.max(0, Math.min(1800, drag.cx - (e.clientX - drag.sx) / view.z)); camEdit.y = Math.max(0, Math.min(1100, drag.cy - (e.clientY - drag.sy) / view.z)); return; }
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
       if (drag.rotate) { const f = draft[sel], a = Math.atan2(x - f.x, -(y - f.y)); f.r = Math.round(a / (Math.PI / 36)) * (Math.PI / 36); return; }
@@ -1781,7 +1920,7 @@ const Island = (() => {
   socket.on('island_floor', ({ id, floor }) => {
     const p = players.get(id); if (!p) return;
     p.floor = floor; p.action = '';
-    if (id === me) { floorNow = floor; target = null; const s = floor ? { x: 150, y: 300 } : { x: 150, y: 300 }; p.x = p.dx = s.x; p.y = p.dy = s.y; renderUI(); toast(floor ? '⬆️ Tu es à l\'étage' : '⬇️ Tu es au rez-de-chaussée'); }
+    if (id === me) { floorNow = floor; target = null; const s = floor ? { x: 150, y: 300 } : { x: 150, y: 300 }; p.x = p.dx = s.x; p.y = p.dy = s.y; renderUI(); toast(floor ? `⬆️ Tu es à l'étage ${floor}` : '⬇️ Tu es au rez-de-chaussée'); }
   });
   socket.on('island_scene', d => {
     if (!open || !d) return;
@@ -1793,7 +1932,7 @@ const Island = (() => {
     if (d.media) { media = d.media; mediaOffset = (d.media.serverNow || Date.now()) - Date.now(); } else media = null;
     const m = players.get(me); if (m) { cam.x = m.x; cam.y = m.y; }
     floorNow = m?.floor || 0;
-    target = null; near = null; confetti = []; fx = []; editing = false; sel = -1;
+    target = null; near = null; confetti = []; fx = []; editing = false; building = false; sel = -1;
     ball = d.ball ? { ...d.ball, at: d.ball.at - ((d.ball.serverNow || Date.now()) - Date.now()) } : null;
     arcadeBoard = d.board || null;
     root.querySelector('.isl-enter').classList.add('hidden');

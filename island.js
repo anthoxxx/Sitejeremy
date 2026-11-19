@@ -111,6 +111,23 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   try { db.exec("ALTER TABLE houses ADD COLUMN style TEXT NOT NULL DEFAULT 'cosy'"); } catch (e) {}
   try { db.exec('ALTER TABLE houses ADD COLUMN floors INTEGER NOT NULL DEFAULT 1'); } catch (e) {}
   try { db.exec('ALTER TABLE houses ADD COLUMN layout INTEGER NOT NULL DEFAULT 1'); } catch (e) {}
+  try { db.exec("ALTER TABLE houses ADD COLUMN build TEXT NOT NULL DEFAULT ''"); } catch (e) {} // 🧱 le plan dessiné par le propriétaire (murs et sols)
+  // 🧱 Le plan d'une maison : une grille de 36 × 18 cases (50 px) par étage, chaque case = un sol, un mur ou du vide
+  const BCOLS = 36, BROWS = 18, BCELLS = BCOLS * BROWS, BCHARS = /^[pcmbnhwskdt#gx]+$/, MAX_FLOORS = 6;
+  const floorsOf = h => Math.max(1, Math.min(MAX_FLOORS, Number(h?.floors) || 1));
+  function cleanBuild(b, floors) {
+    if (!b || !Array.isArray(b.f)) return null;
+    const f = b.f.slice(0, floors).map((s, i) => {
+      if (typeof s !== 'string' || s.length !== BCELLS || !BCHARS.test(s)) return '';
+      const a = s.split('');
+      const free = (c0, c1, r0, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if ('#gx'.includes(a[r * BCOLS + c])) a[r * BCOLS + c] = 'p'; };
+      if (i === 0) free(8, 10, 16, 17);          // la porte d'entrée reste toujours libre
+      if (floors > 1) free(0, 4, 0, 2);          // et l'escalier aussi
+      return a.join('');
+    });
+    const hex = v => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : null);
+    return { f, wc: hex(b.wc) || '#f3e2c7', bw: hex(b.bw) || hex(b.wc) || '#f3e2c7' };
+  }
   try { if (!db.prepare("SELECT 1 FROM settings WHERE key='houseBellFix'").get()) { db.prepare("UPDATE houses SET access='bell' WHERE access='friends'").run(); db.prepare("INSERT INTO settings (key,value) VALUES ('houseBellFix','1')").run(); } } catch (e) {}
   const houseRow = uid => db.prepare('SELECT * FROM houses WHERE user_id=?').get(uid);
   function houseInfo(uid) {
@@ -120,7 +137,18 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     let furniture = null; try { furniture = h.furniture ? JSON.parse(h.furniture) : null; } catch (e) {}
     // les meubles placés dans l'ancienne petite maison sont répartis dans la nouvelle grande maison
     if (furniture && (h.layout || 1) < 2) furniture = furniture.map(f => ({ ...f, x: Math.round(f.x * 1800 / 1100), y: f.y < 250 ? Math.round(f.y * .8) : Math.round(240 + (f.y - 250) * 820 / 470) }));
-    return { ownerId: uid, owner: u.username, ownerGender: u.gender, ownerColor: u.color, ownerAvatar: u.avatar || '', name: h.name || `La maison de ${u.username}`, theme: THEMES.includes(h.theme) ? h.theme : 'cosy', access: ACCESS.includes(h.access) ? h.access : 'bell', visitors: inScene('house:' + uid).length, furniture, style: HOUSE_STYLES.includes(h.style) ? h.style : 'cosy', floors: h.floors === 2 ? 2 : 1 };
+    let build = null; try { build = h.build ? cleanBuild(JSON.parse(h.build), floorsOf(h)) : null; } catch (e) {}
+    return { build, ownerId: uid, owner: u.username, ownerGender: u.gender, ownerColor: u.color, ownerAvatar: u.avatar || '', name: h.name || `La maison de ${u.username}`, theme: THEMES.includes(h.theme) ? h.theme : 'cosy', access: ACCESS.includes(h.access) ? h.access : 'bell', visitors: inScene('house:' + uid).length, furniture, style: HOUSE_STYLES.includes(h.style) ? h.style : 'cosy', floors: floorsOf(h) };
+  }
+  // 🧱 on peut marcher partout sauf dans les murs et le vide du plan (sinon : la maison de base à 4 pièces)
+  const buildCache = new Map();
+  function houseWalkAt(owner, floor, x, y) {
+    if (!buildCache.has(owner)) { const h = houseInfo(owner); buildCache.set(owner, h?.build || null); }
+    const b = buildCache.get(owner), s = b?.f?.[floor];
+    if (!s) return SCENES.house.walk(x, y);
+    if (x < 20 || x > 1780 || y < 215 || y > 1090) return false;
+    const c = Math.floor(x / 50), r = Math.floor((y - 200) / 50);
+    return !'#gx'.includes(s[r * BCOLS + c] || 'x');
   }
   // Ceux à qui le propriétaire a ouvert la porte (valable 3 heures)
   const passes = new Map(); // ownerId -> Map(visitorId -> expiration)
@@ -271,7 +299,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       // pas de téléportation : 60 px au maximum entre deux mises à jour
       const dx = x - p.x, dy = y - p.y, d = Math.hypot(dx, dy);
       if (d > 60) { x = p.x + dx / d * 60; y = p.y + dy / d * 60; }
-      if (!S.walk(x, y)) return;
+      if (!(p.scene.startsWith('house:') ? houseWalkAt(Number(p.scene.slice(6)), p.floor || 0, x, y) : S.walk(x, y))) return;
       p.x = x; p.y = y;
       if (p.scene === 'island') { try { onMove(uid, x, y); } catch (e) {} }
       if (p.action && d > 4) { p.action = ''; emitScene(p.scene, 'island_action', { id: uid, action: '' }); }
@@ -367,10 +395,11 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const h = houseInfo(uid);
       const name = s.name != null ? (modScan ? modScan(String(s.name).replace(/\s+/g, ' ').trim().slice(0, 40)).text : String(s.name).slice(0, 40)) : h.name;
       const theme = THEMES.includes(s.theme) ? s.theme : h.theme, access = ACCESS.includes(s.access) ? s.access : h.access;
-      const style = HOUSE_STYLES.includes(s.style) ? s.style : h.style, floors = Number(s.floors) === 2 ? 2 : Number(s.floors) === 1 ? 1 : h.floors;
+      const style = HOUSE_STYLES.includes(s.style) ? s.style : h.style, floors = s.floors != null && Number(s.floors) >= 1 ? floorsOf({ floors: s.floors }) : h.floors;
       db.prepare('INSERT INTO houses (user_id,name,theme,access,style,floors,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name, theme=excluded.theme, access=excluded.access, style=excluded.style, floors=excluded.floors, updated_at=excluded.updated_at').run(uid, name, theme, access, style, floors, now());
       // plus d'étage : ceux qui étaient en haut redescendent
-      if (floors === 1) for (const q of inScene('house:' + uid)) if (q.floor) { q.floor = 0; emitScene('house:' + uid, 'island_floor', { id: q.id, floor: 0 }); }
+      for (const q of inScene('house:' + uid)) if ((q.floor || 0) >= floors) { q.floor = 0; emitScene('house:' + uid, 'island_floor', { id: q.id, floor: 0 }); }
+      buildCache.delete(uid);
       if (access === 'closed') passes.delete(uid);
       const scene = 'house:' + uid, info = houseInfo(uid);
       emitScene(scene, 'house_info', info);
@@ -396,7 +425,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const p = me();
       if (!p || !p.scene.startsWith('house:')) return;
       const h = houseInfo(Number(p.scene.slice(6)));
-      const f = floor === 1 && h?.floors === 2 ? 1 : 0;
+      const f = Math.max(0, Math.min((h?.floors || 1) - 1, Math.round(Number(floor)) || 0));
       if ((p.floor || 0) === f) return;
       p.floor = f; p.action = ''; p.x = 150; p.y = 300;
       emitScene(p.scene, 'island_floor', { id: uid, floor: f });
@@ -443,7 +472,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         const x = Math.round(Number(f.x)), y = Math.round(Number(f.y));
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
         if (f.t === 'tv' && clean.some(c => c.t === 'tv')) continue; // une seule télé
-        const item = { t: f.t, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1100, y)), f: f.f ? 1 : 0, l: f.l === 1 ? 1 : 0 };
+        const item = { t: f.t, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1100, y)), f: f.f ? 1 : 0, l: Math.max(0, Math.min(MAX_FLOORS - 1, Math.round(Number(f.l)) || 0)) };
         const r = Number(f.r); if (Number.isFinite(r) && r && f.t !== 'tv') item.r = Math.round(Math.max(-Math.PI, Math.min(Math.PI, r)) * 1000) / 1000;
         if (NEONS.includes(f.t) && /^#[0-9a-f]{6}$/i.test(String(f.c || ''))) item.c = String(f.c).toLowerCase();
         clean.push(item);
@@ -451,6 +480,19 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       houseInfo(uid);
       db.prepare("INSERT INTO houses (user_id,furniture,access,layout,updated_at) VALUES (?,?,'bell',2,?) ON CONFLICT(user_id) DO UPDATE SET furniture=excluded.furniture, layout=2, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
       bfCache.delete('house:' + uid);
+      emitScene('house:' + uid, 'house_info', houseInfo(uid));
+      track(uid, 'house_deco');
+      ack(cb, { ok: true });
+    });
+    // 🧱 Enregistrer le plan de sa maison (murs, sols, couleurs), sans limite de forme
+    socket.on('house_build', (b, cb) => {
+      const h = houseInfo(uid); if (!h) return;
+      if (b === null) { db.prepare("UPDATE houses SET build='' WHERE user_id=?").run(uid); }
+      else {
+        const clean = cleanBuild(b, h.floors); if (!clean) return ack(cb, { error: 'Plan invalide' });
+        db.prepare("INSERT INTO houses (user_id,build,access,layout,updated_at) VALUES (?,?,'bell',2,?) ON CONFLICT(user_id) DO UPDATE SET build=excluded.build, updated_at=excluded.updated_at").run(uid, JSON.stringify(clean), now());
+      }
+      bfCache.delete('house:' + uid); buildCache.delete(uid);
       emitScene('house:' + uid, 'house_info', houseInfo(uid));
       track(uid, 'house_deco');
       ack(cb, { ok: true });

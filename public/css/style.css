@@ -3725,3 +3725,22 @@ body { background:
 .composer #input.inn-deux { background: linear-gradient(var(--inbg), var(--inbg)) padding-box, conic-gradient(from var(--sna), var(--n1), var(--n2), var(--n1), var(--n2), var(--n1)) border-box; box-shadow: -8px 0 var(--nglow) color-mix(in srgb, var(--n1) calc(var(--np) * 70%), transparent), 8px 0 var(--nglow) color-mix(in srgb, var(--n2) calc(var(--np) * 70%), transparent); }
 @property --sna { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 @media (prefers-reduced-motion: reduce) { .composer #input.in-neon { animation: none !important; } }
+/* 🧱 le mode Construire sa maison */
+.isl-act.bd-tool.on, .isl-act.on { outline: 3px solid #ffd34d; outline-offset: -3px; background: rgba(255, 211, 77, .2); }
+.bd-lbl { display: block; font-weight: 800; font-size: .8rem; margin: 10px 0 4px; opacity: .8; }
+/* =================== ⛅ la météo du site =================== */
+.wx-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 95; } body.island-open .wx-canvas { z-index: 950; }
+.wx-btn { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 10px; font-weight: 800; }
+.wx-btn .wx-ico { font-size: 1.15em; }
+.wx { max-width: 520px; }
+.wx-head { display: grid; justify-items: center; gap: 2px; padding: 18px 12px; border-radius: 18px; color: #fff; text-align: center; background: linear-gradient(180deg, #4fb3ff, #2f6fd6); }
+.wx-head.night { background: linear-gradient(180deg, #0b1640, #2a1050); }
+.wx-head.wx-pluie, .wx-head.wx-orage { background: linear-gradient(180deg, #4a5a78, #253048); } .wx-head.wx-neige { background: linear-gradient(180deg, #9fb6d6, #5e7aa6); }
+.wx-head.wx-brouillard, .wx-head.wx-nuageux { background: linear-gradient(180deg, #8a94a8, #586276); } .wx-head.wx-canicule { background: linear-gradient(180deg, #ff9f43, #e8471c); }
+.wx-head.wx-arcenciel { background: linear-gradient(180deg, #4fb3ff, #af52de); } .wx-head.wx-vent { background: linear-gradient(180deg, #6fa8c8, #3a6a8a); }
+.wx-head small { opacity: .85; } .wx-big { font-size: 60px; line-height: 1.1; } .wx-temp { font-size: 46px; line-height: 1; }
+.wx-h { margin: 14px 0 6px; }
+.wx-fc { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; text-align: center; } .wx-fc div { display: grid; gap: 2px; padding: 8px 2px; border-radius: 12px; background: var(--panel); } .wx-fc span { font-size: 22px; } .wx-fc small { color: var(--muted); font-size: .7rem; }
+.wx-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; } .wx-row input[type=range] { flex: 1; }
+.wx-set { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 600px) { .wx-btn b { font-size: .8rem; } .wx-fc { grid-template-columns: repeat(3, 1fr); } }

@@ -484,11 +484,12 @@ const Phone = (() => {
   function weather(body) {
     const h = new Date().getHours(), night = h < 7 || h >= 20, seed = new Date().getDate();
     const conds = night ? [['🌙', 'Nuit étoilée'], ['✨', 'Ciel dégagé'], ['🌌', 'Aurore boréale']] : [['☀️', 'Grand soleil'], ['🌤️', 'Quelques nuages'], ['🌈', 'Arc-en-ciel'], ['⛅', 'Éclaircies']];
-    const [ic, txt] = conds[seed % conds.length], t = 18 + (seed % 9) - (night ? 6 : 0);
+    let [ic, txt] = conds[seed % conds.length], t = 18 + (seed % 9) - (night ? 6 : 0);
+    const W = window.Weather?.data?.(); if (W?.now) { ic = W.now.icon; txt = W.now.name; t = W.now.temp; } /* ⛅ la vraie météo du site */
     screen.style.background = night ? 'linear-gradient(180deg, #0b1640, #2a1050)' : 'linear-gradient(180deg, #4fb3ff, #2f6fd6 60%, #6a5cff)';
     body.replaceChildren(el('div', { class: 'ph-weather' },
       el('small', {}, '📍 Ville du Paradise'), el('div', { class: 'ph-w-ico' }, ic), el('b', { class: 'ph-w-t' }, t + '°'), el('div', {}, txt), el('small', {}, `Max ${t + 3}° · Min ${t - 5}°`),
-      el('div', { class: 'ph-w-hours' }, ...Array.from({ length: 6 }, (_, i) => { const hh = (h + i) % 24, n = hh < 7 || hh >= 20; return el('div', {}, el('small', {}, i ? hh + ' h' : 'Maint.'), el('span', {}, n ? '🌙' : ['☀️', '🌤️', '⛅'][(seed + i) % 3]), el('b', {}, (t + (i % 3) - 1) + '°')); })),
+      W?.forecast ? el('div', { class: 'ph-w-hours' }, el('div', {}, el('small', {}, 'Maint.'), el('span', {}, ic), el('b', {}, t + '°')), ...W.forecast.slice(0, 5).map(f => el('div', {}, el('small', {}, new Date(f.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })), el('span', {}, f.icon), el('b', {}, f.temp + '°'))), el('div', {}, el('small', {}, '💨'), el('span', {}, W.now.wind), el('b', {}, 'km/h'))) : el('div', { class: 'ph-w-hours' }, ...Array.from({ length: 6 }, (_, i) => { const hh = (h + i) % 24, n = hh < 7 || hh >= 20; return el('div', {}, el('small', {}, i ? hh + ' h' : 'Maint.'), el('span', {}, n ? '🌙' : ['☀️', '🌤️', '⛅'][(seed + i) % 3]), el('b', {}, (t + (i % 3) - 1) + '°')); })),
       el('div', { class: 'ph-w-days' }, ...['Demain', 'Après-demain', 'Dans 3 jours'].map((dd, i) => el('div', {}, el('span', {}, dd), el('span', {}, ['☀️', '🌦️', '🌈'][(seed + i) % 3]), el('b', {}, `${t - 2 + i}° / ${t + 4 + i}°`))))));
   }
   // ---------- ⏰ Horloge : heure, chrono et minuteur ----------
@@ -881,7 +882,7 @@ const Phone = (() => {
   // 🧩 les widgets de l'écran d'accueil
   function widgets() {
     const out = [];
-    if (opt('w_weather', '1') === '1') { const h = new Date().getHours(), d = new Date().getDate(), n = h < 7 || h >= 20; out.push(el('button', { class: 'wdg', onclick: () => APPS.weather.open() }, el('small', {}, '📍 Paradise'), el('b', {}, (18 + d % 9 - (n ? 6 : 0)) + '°'), el('span', {}, n ? '🌙 Nuit claire' : ['☀️ Soleil', '🌤️ Nuageux', '⛅ Éclaircies'][d % 3]))); }
+    if (opt('w_weather', '1') === '1') { const h = new Date().getHours(), d = new Date().getDate(), n = h < 7 || h >= 20; const W = window.Weather?.now?.(); out.push(el('button', { class: 'wdg', onclick: () => APPS.weather.open() }, el('small', {}, '📍 Paradise'), el('b', {}, (W ? W.temp : 18 + d % 9 - (n ? 6 : 0)) + '°'), el('span', {}, W ? `${W.icon} ${W.name}` : n ? '🌙 Nuit claire' : ['☀️ Soleil', '🌤️ Nuageux', '⛅ Éclaircies'][d % 3]))); }
     if (opt('w_coins', '1') === '1') out.push(el('button', { class: 'wdg coins', onclick: () => APPS.shop.open() }, el('small', {}, '💰 Mes pièces'), el('b', {}, String(state.me?.coins ?? 0)), el('span', {}, 'Paradise Coins')));
     if (opt('w_cal', '0') === '1') { const d = new Date(); out.push(el('button', { class: 'wdg cal', onclick: () => APPS.agenda.open() }, el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long' })), el('b', {}, d.getDate()), el('span', {}, d.toLocaleDateString('fr-FR', { month: 'long' })))); }
     if (opt('w_bat', '0') === '1') { const w = el('button', { class: 'wdg bat' }, el('small', {}, '🔋 Batterie'), el('b', {}, '87 %'), el('span', {}, 'iPhone')); (navigator.getBattery ? navigator.getBattery() : Promise.reject()).then(b => { w.querySelector('b').textContent = Math.round(b.level * 100) + ' %'; }).catch(() => {}); out.push(w); }

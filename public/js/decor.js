@@ -322,7 +322,7 @@ const Decor = (() => {
     const label = (txt, x, y) => { g.font = '800 18px Outfit, sans-serif'; const tw = g.measureText(txt).width + 24; g.fillStyle = 'rgba(20,12,40,.55)'; roundRect(g, x - tw / 2, y - 15, tw, 30, 15); g.fill(); g.fillStyle = '#ffffff'; g.fillText(txt, x, y); };
     label(floor ? '🛏️ Chambre d\'amis' : '🛏️ Chambre', 120, 225); label('🛁 Salle de bain', 1680, 225); label(floor ? '🎮 Salle de jeux' : '🛋️ Salon', 820, 680); label(floor ? '🎨 Atelier' : '🍳 Cuisine', 1700, 680);
     // l'escalier (maison à étage)
-    if (hs.floors === 2) { g.save(); g.translate(40, 0); for (let i = 0; i < 7; i++) wood(g, 0, 186 - i * 26, 150 - i * 8, 22, floor ? '#6b4423' : '#8a5a2b', 2); g.restore(); g.font = '900 16px Outfit, sans-serif'; g.fillStyle = '#ffffff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 4; const lab = floor ? '⬇️ Rez-de-chaussée' : '⬆️ Étage'; g.strokeText(lab, 120, 18); g.fillText(lab, 120, 18); }
+    if (hs.floors >= 2) { g.save(); g.translate(40, 0); for (let i = 0; i < 7; i++) wood(g, 0, 186 - i * 26, 150 - i * 8, 22, floor ? '#6b4423' : '#8a5a2b', 2); g.restore(); g.font = '900 16px Outfit, sans-serif'; g.fillStyle = '#ffffff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 4; const lab = floor ? '⬇️ Rez-de-chaussée' : '⬆️ Étage'; g.strokeText(lab, 120, 18); g.fillText(lab, 120, 18); }
   }
 
   // ---------- Les façades (aperçu dans la liste des maisons, et le quartier sur l'Île) ----------

@@ -2779,6 +2779,9 @@ const TheVoice = require('./thevoice')({ io, db, coins: Coins, notify: (...a) =>
 // 🎄 Le Calendrier de l'Avent
 const Advent = AdventRef = require('./advent')({ db, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id) });
 Advent.routes(app, auth);
+// ⛅ La météo du site (la même pour tout le monde)
+const Weather = require('./weather')({ io, getSettings, setSetting, isStaff: u => isStaff(u), log: (...a) => log(...a) });
+Weather.routes(app, auth);
 // 🎉 Les soirées événements
 const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 
@@ -3279,6 +3282,7 @@ io.on('connection', socket => {
 
   socket.on('pm_typing', to => emitToUser(parseInt(to, 10), 'pm_typing', { from: uid }));
 
+  Weather.onConnection(socket, uid, current);
   Games.onConnection(socket, uid, current);
   Jukebox.onConnection(socket, uid, current);
   TvBot.onConnection(socket, uid, current);
