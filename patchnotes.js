@@ -792,4 +792,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 54,
+    date: '2026-11-19',
+    title: 'Les fonds d\'écran comme tu veux 🖼️',
+    added: [
+      '🖼️ Réglages → Fond d\'écran : mets tes propres photos (jusqu\'à 6 gardées sur ton téléphone) et passe de l\'une à l\'autre',
+      '🔒 Un fond d\'écran différent pour l\'écran verrouillé et pour l\'écran d\'accueil, avec un aperçu des deux',
+      '🎨 10 nouveaux fonds d\'écran : aurore boréale, coucher de soleil, galaxie, lave, arc-en-ciel, bonbon, menthe, titane, rose et noir',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

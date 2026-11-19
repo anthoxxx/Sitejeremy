@@ -10,6 +10,16 @@ const Phone = (() => {
     foret: 'linear-gradient(160deg, #2bd07a, #1c7a4a 55%, #0f2e22)',
     or: 'linear-gradient(160deg, #ffe08a, #d99a00 55%, #4a2c00)',
     nuit: 'radial-gradient(circle at 70% 20%, #ffffff22 0, transparent 20%), linear-gradient(180deg, #0b1640, #1a0b2e)',
+    aurore: 'linear-gradient(180deg, #0b1d3a 0%, #1d6f6a 35%, #6fe3a6 55%, #3a1d6a 80%, #0b0b24 100%)',
+    coucher: 'linear-gradient(180deg, #2a1050 0%, #b02a6a 40%, #ff8a3d 70%, #ffd36e 100%)',
+    rose: 'radial-gradient(circle at 30% 30%, #ffd1e8, transparent 50%), linear-gradient(160deg, #ff9ac9, #c86bff)',
+    lave: 'radial-gradient(circle at 50% 110%, #ff6a00, transparent 55%), linear-gradient(180deg, #1a0505, #5a0f0f 60%, #b02a0a)',
+    galaxie: 'radial-gradient(circle at 25% 30%, #ffffff33 0 1px, transparent 2px), radial-gradient(circle at 70% 60%, #ffffff44 0 1px, transparent 2px), radial-gradient(circle at 60% 40%, #c86bff88, transparent 40%), linear-gradient(160deg, #05021a, #1a0b4a 60%, #3a0b5a)',
+    menthe: 'linear-gradient(160deg, #d4fff0, #6fe3c4 50%, #1f8a7a)',
+    titane: 'linear-gradient(150deg, #e8e4dc, #b9b2a6 45%, #6e675c)',
+    noir: 'radial-gradient(circle at 50% 30%, #2a2a32, #000 70%)',
+    arcenciel: 'linear-gradient(160deg, #ff2d55, #ff9500, #ffe600, #34c759, #2fa8ff, #af52de)',
+    bonbon: 'repeating-linear-gradient(45deg, #ffd1e8 0 22px, #c9f1ff 22px 44px, #fff3b0 44px 66px)',
   };
   const opt = (k, d) => { try { return localStorage.getItem('ph_' + k) || d; } catch (e) { return d; } };
   const setOpt = (k, v) => { try { localStorage.setItem('ph_' + k, v); } catch (e) {} };
@@ -668,18 +678,32 @@ const Phone = (() => {
       el('div', { class: 'ph-frames' }, ...Object.entries(FRAME_COLORS).map(([k, [n, c]]) => el('button', { class: 'ph-frame' + (opt('frame', 'titane') === k ? ' on' : ''), title: n, style: `--fc:${c}`, onclick: () => { setOpt('frame', k); applyLook(); displayPage(body); } }))),
       el('h4', { class: 'ios-head' }, 'DYNAMIC ISLAND'), seg('island', '1', [['1', 'Animée'], ['0', 'Discrète']])));
   }
+  // 🖼️ les fonds d'écran : modèles, ou jusqu'à 6 photos à soi ; un pour l'accueil et un pour l'écran verrouillé
+  const myWalls = () => { try { const l = JSON.parse(localStorage.getItem('ph_wallimgs') || 'null'); if (Array.isArray(l)) return l; const old = localStorage.getItem('ph_wallimg'); return old ? [old] : []; } catch (e) { return []; } };
+  const saveWalls = l => { try { localStorage.setItem('ph_wallimgs', JSON.stringify(l)); return true; } catch (e) { toast('📦 Plus de place sur l\'appareil : supprime une photo'); return false; } };
   function wallPage(body) {
+    let target = body.dataset.target || 'wall'; // 'wall' = accueil, 'lockwall' = écran verrouillé
     const file = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => {
-      const f = file.files[0]; if (!f) return;
+      const f = file.files[0]; file.value = ''; if (!f) return;
       const img = await createImageBitmap(f).catch(() => null); if (!img) return toast('Image illisible');
-      const c = document.createElement('canvas'), k = Math.min(1, 720 / Math.max(img.width, img.height)); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      try { localStorage.setItem('ph_wallimg', c.toDataURL('image/jpeg', .8)); setOpt('wall', 'photo'); toast('🖼️ Ta photo est ton fond d\'écran !'); } catch (e) { toast('Photo trop lourde'); }
+      const c = document.createElement('canvas'), k = Math.min(1, 900 / Math.max(img.width, img.height)); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const l = myWalls(); l.unshift(c.toDataURL('image/jpeg', .78)); if (l.length > 6) l.length = 6;
+      if (saveWalls(l)) { setOpt(target, 'photo:0'); toast('🖼️ Ta photo est ton fond d\'écran !'); }
       wallPage(body);
     } });
-    let mine = ''; try { mine = localStorage.getItem('ph_wallimg') || ''; } catch (e) {}
-    body.replaceChildren(el('div', { class: 'ios' },
-      el('div', { class: 'ph-walls' }, ...Object.entries(WALLS).map(([k, v]) => el('button', { class: 'ph-wall' + (opt('wall', 'neon') === k ? ' on' : ''), style: `background:${v}`, onclick: () => { setOpt('wall', k); wallPage(body); } })),
-        mine ? el('button', { class: 'ph-wall' + (opt('wall', 'neon') === 'photo' ? ' on' : ''), style: `background:url(${mine}) center/cover`, onclick: () => { setOpt('wall', 'photo'); wallPage(body); } }) : null),
+    const cur = opt(target, target === 'lockwall' ? 'same' : 'neon'), mine = myWalls();
+    const pick = v => { setOpt(target, v); wallPage(body); };
+    const preview = el('div', { class: 'wp-prev' }, el('div', { class: 'wp-phone', style: `background:${bgOf(opt('lockwall', 'same') === 'same' ? opt('wall', 'neon') : opt('lockwall', 'same'))}` }, el('b', {}, time()), el('small', {}, '🔒 Verrouillé')), el('div', { class: 'wp-phone', style: `background:${bgOf(opt('wall', 'neon'))}` }, el('i'), el('i'), el('i'), el('i'), el('small', {}, '🏠 Accueil')));
+    body.dataset.target = target;
+    body.replaceChildren(el('div', { class: 'ios' }, preview,
+      el('div', { class: 'ph-seg' }, ...[['wall', '🏠 Écran d\'accueil'], ['lockwall', '🔒 Écran verrouillé']].map(([v, l]) => el('button', { class: target === v ? 'on' : '', onclick: () => { body.dataset.target = v; wallPage(body); } }, l))),
+      el('h4', { class: 'ios-head' }, 'MES PHOTOS'),
+      el('div', { class: 'ph-walls' }, el('button', { class: 'ph-wall wp-add', onclick: () => file.click() }, '＋', el('small', {}, 'Ajouter')),
+        ...mine.map((u, i) => el('div', { class: 'wp-mine' }, el('button', { class: 'ph-wall' + (cur === 'photo:' + i ? ' on' : ''), style: `background:url(${u}) center/cover`, onclick: () => pick('photo:' + i) }),
+          el('button', { class: 'wp-x', title: 'Supprimer', onclick: () => { const l = myWalls(); l.splice(i, 1); saveWalls(l); for (const t of ['wall', 'lockwall']) if (opt(t, '').startsWith('photo:')) setOpt(t, t === 'wall' ? 'neon' : 'same'); wallPage(body); } }, '✕')))),
+      el('h4', { class: 'ios-head' }, 'MODÈLES'),
+      el('div', { class: 'ph-walls' }, target === 'lockwall' ? el('button', { class: 'ph-wall wp-add' + (cur === 'same' ? ' on' : ''), onclick: () => pick('same') }, '=', el('small', {}, 'Comme l\'accueil')) : null,
+        ...Object.entries(WALLS).map(([k, v]) => el('button', { class: 'ph-wall' + (cur === k ? ' on' : ''), style: `background:${v}`, title: k, onclick: () => pick(k) }))),
       file, el('button', { class: 'ph-pill go', style: 'margin-top:12px;width:100%', onclick: () => file.click() }, '📷 Mettre une de mes photos')));
   }
   function widgetPage(body) {
@@ -715,7 +739,7 @@ const Phone = (() => {
   let unlocked = false;
   function lockScreen(then) {
     stopCam(); clearTimers(); stack = [];
-    screen.style.background = wallBg(); dark(true);
+    screen.style.background = lockBg(); dark(true);
     let v = '';
     const dots = el('div', { class: 'pin-dots' }, ...[0, 1, 2, 3].map(() => el('i')));
     const ok = () => { unlocked = true; island('🔓 Déverrouillé'); then(); };
@@ -726,7 +750,9 @@ const Phone = (() => {
       opt('faceid', '1') === '1' ? el('button', { class: 'lock-face', onclick: e => { e.currentTarget.classList.add('scan'); setTimeout(ok, 900); } }, '🙂', el('small', {}, 'Face ID')) : null,
       dots, el('div', { class: 'pin-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map(k => k ? el('button', { onclick: () => press(k) }, k) : el('span')))));
   }
-  const wallBg = () => { if (opt('wall', 'neon') === 'photo') { try { const u = localStorage.getItem('ph_wallimg'); if (u) return `url(${u}) center/cover`; } catch (e) {} } return WALLS[opt('wall', 'neon')] || WALLS.neon; };
+  function bgOf(v) { if (v === 'photo') v = 'photo:0'; if (String(v).startsWith('photo:')) { const u = myWalls()[+v.slice(6)]; if (u) return `url(${u}) center/cover`; } return WALLS[v] || WALLS.neon; }
+  const wallBg = () => bgOf(opt('wall', 'neon'));
+  const lockBg = () => { const l = opt('lockwall', 'same'); return l === 'same' ? wallBg() : bgOf(l); };
   // 🧩 les widgets de l'écran d'accueil
   function widgets() {
     const out = [];
