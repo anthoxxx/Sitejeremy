@@ -804,4 +804,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 55,
+    date: '2026-11-19',
+    title: 'Range les applis de ton iPhone comme tu veux 🔀',
+    added: [
+      '🔀 Garde le doigt appuyé sur une appli : les icônes tremblent, puis fais-la glisser où tu veux sur l\'écran d\'accueil',
+      '⚓ Tu peux aussi mettre une appli dans le dock du bas (4 places) : celle qui y était remonte sur l\'écran',
+      '💾 Ton rangement est gardé sur ton appareil',
+    ],
+    changed: ['Les applis du dock (Téléphone, Messages, Snap, Appareil photo) ne sont plus en double sur l\'écran d\'accueil'],
+    removed: [],
+  },
 ];

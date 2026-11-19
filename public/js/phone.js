@@ -141,15 +141,64 @@ const Phone = (() => {
   const install = k => { const l = installed(); if (!l.includes(k)) { l.push(k); setInstalled(l); } };
   const uninstall = k => setInstalled(installed().filter(x => x !== k));
   let jiggle = false;
+  // 🔀 l'ordre des applis sur l'écran d'accueil et dans le dock (gardé sur cet appareil)
+  const DOCK0 = ['phone', 'messages', 'snap', 'camera'];
+  const ordKey = () => 'ph_order_' + (state.me?.id || 0), dockKey = () => 'ph_dock_' + (state.me?.id || 0);
+  const readL = k => { try { const l = JSON.parse(localStorage.getItem(k) || 'null'); return Array.isArray(l) ? l : null; } catch (e) { return null; } };
+  const writeL = (k, l) => { try { localStorage.setItem(k, JSON.stringify(l)); } catch (e) {} };
+  function dockList() { return (readL(dockKey()) || DOCK0).filter(k => APPS[k] && isInst(k)).slice(0, 4); }
+  function gridList() {
+    const all = ['messages', 'snap', 'contacts', 'appstore', ...installed(), 'settings', 'phone', 'camera'].filter((k, i, a) => a.indexOf(k) === i);
+    const dock = dockList(), saved = readL(ordKey()) || ['messages', 'snap', 'contacts', 'appstore', ...installed(), 'settings'];
+    const out = saved.filter(k => APPS[k] && isInst(k) && !dock.includes(k));
+    for (const k of all) if (!out.includes(k) && !dock.includes(k)) out.push(k); // les nouvelles applis arrivent à la fin
+    return out;
+  }
+  // déplacer une appli : on la glisse sur une autre (ou dans le dock), comme sur iPhone
+  let drag = null;
+  function startDrag(e, k) {
+    const src = e.currentTarget, ico = src.querySelector('.ph-ico'), r = ico.getBoundingClientRect();
+    const ghost = ico.cloneNode(true); ghost.classList.add('ph-ghost'); ghost.querySelector('.ph-del')?.remove();
+    Object.assign(ghost.style, { width: r.width + 'px', height: r.height + 'px', left: r.left + 'px', top: r.top + 'px' });
+    document.body.append(ghost);
+    drag = { k, ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false, last: '' };
+    src.classList.add('dragging');
+    const move = ev => {
+      if (!drag) return;
+      if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 6) drag.moved = true;
+      ghost.style.left = (ev.clientX - drag.dx) + 'px'; ghost.style.top = (ev.clientY - drag.dy) + 'px';
+      ghost.style.display = 'none'; const under = document.elementFromPoint(ev.clientX, ev.clientY); ghost.style.display = '';
+      const t = under?.closest?.('.ph-appicon[data-k]'), inDock = !!under?.closest?.('.ph-dock');
+      const key = t ? t.dataset.k + (inDock ? '@d' : '') : inDock ? '@dock' : '';
+      if (!key || key === drag.last || t?.dataset.k === k) return;
+      drag.last = key;
+      let grid = gridList(), dock = dockList();
+      const wasDock = dock.includes(k);
+      grid = grid.filter(x => x !== k); dock = dock.filter(x => x !== k);
+      if (inDock) {
+        const i = t ? dock.indexOf(t.dataset.k) : dock.length;
+        dock.splice(i < 0 ? dock.length : i, 0, k);
+        if (dock.length > 4) { const out = dock.splice(dock.indexOf(k) === 4 ? 3 : 4, 1)[0]; grid.push(out); } // le dock a 4 places : celle qui dépasse remonte
+      } else {
+        const i = grid.indexOf(t.dataset.k); grid.splice(i < 0 ? grid.length : i + (wasDock ? 0 : (gridList().indexOf(k) < gridList().indexOf(t.dataset.k) ? 1 : 0)), 0, k);
+      }
+      writeL(ordKey(), grid); writeL(dockKey(), dock);
+      try { navigator.vibrate?.(8); } catch (er) {}
+      home();
+      screen.querySelector(`.ph-appicon[data-k="${k}"]`)?.classList.add('dragging');
+    };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); ghost.remove(); drag = null; home(); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  }
   function appIcon(k, small) {
     const a = APPS[k], n = a.badge ? a.badge() : 0;
     let press = 0, long = false;
     // 👆 appui long : les icônes se mettent à trembler et on peut supprimer une appli (comme sur iPhone)
-    const b = el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), onclick: () => { if (long) { long = false; return; } if (jiggle) return; a.open(); },
-      onpointerdown: () => { clearTimeout(press); press = setTimeout(() => { long = true; if (!jiggle) { jiggle = true; try { navigator.vibrate?.(30); } catch (e) {} home(); } }, 550); },
+    const b = el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), 'data-k': k, onclick: () => { if (long) { long = false; return; } if (jiggle) return; a.open(); },
+      onpointerdown: e => { if (jiggle && !e.target.closest('.ph-del')) { e.preventDefault(); return startDrag(e, k); } clearTimeout(press); press = setTimeout(() => { long = true; if (!jiggle) { jiggle = true; try { navigator.vibrate?.(30); } catch (e) {} home(); } }, 550); },
       onpointerup: () => clearTimeout(press), onpointerleave: () => clearTimeout(press) },
       el('span', { class: 'ph-ico', style: `--c:${a.c}` }, a.icon, n ? el('i', {}, n > 99 ? '99+' : n) : null,
-        jiggle && !SYSTEM.includes(k) && !small ? el('b', { class: 'ph-del', onclick: e => { e.stopPropagation(); uninstall(k); home(); toast(`🗑️ « ${a.name} » supprimée (tu peux la retélécharger dans l'App Store)`); } }, '−') : null),
+        jiggle && !SYSTEM.includes(k) ? el('b', { class: 'ph-del', onclick: e => { e.stopPropagation(); uninstall(k); home(); toast(`🗑️ « ${a.name} » supprimée (tu peux la retélécharger dans l'App Store)`); } }, '−') : null),
       small ? null : el('small', {}, a.name));
     return b;
   }
@@ -160,9 +209,9 @@ const Phone = (() => {
     screen.replaceChildren(el('div', { class: 'ph-home' },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
       jiggle ? null : widgets(),
-      jiggle ? el('button', { class: 'ph-done', onclick: () => { jiggle = false; home(); } }, 'OK') : null,
-      el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...['messages', 'snap', 'contacts', 'appstore', ...installed(), 'settings'].map(k => appIcon(k))),
-      el('div', { class: 'ph-dock' }, ...['phone', 'messages', 'snap', 'camera'].map(k => appIcon(k, true)))));
+      jiggle ? el('div', { class: 'ph-jhint' }, el('span', {}, '✋ Fais glisser une appli pour la déplacer'), el('button', { class: 'ph-done', onclick: () => { jiggle = false; home(); } }, 'OK')) : null,
+      el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...gridList().map(k => appIcon(k))),
+      el('div', { class: 'ph-dock' + (jiggle ? ' jiggle' : '') }, ...dockList().map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {
     try { const d = await api('/api/phone/badge'); snapsUnread = d.snaps; } catch (e) {}

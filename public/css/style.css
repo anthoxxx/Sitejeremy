@@ -3372,3 +3372,9 @@ body.snow-hit #island::after { content: ''; position: absolute; inset: 0; pointe
 .wp-add { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 28px; color: #007aff; background: rgba(0,122,255,.1) !important; border: 2px dashed #007aff !important; } .wp-add small { font-size: 10px; }
 .wp-mine { position: relative; } .wp-mine .ph-wall { width: 100%; } .wp-x { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: #ff3b30; color: #fff; font-weight: 900; cursor: pointer; }
 .ios .ph-walls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; } .ios .ph-wall { aspect-ratio: 9/16; height: auto; width: 100%; }
+/* 🔀 déplacer les applis */
+.ph-ghost { position: fixed; z-index: 3000; pointer-events: none; transform: scale(1.15); box-shadow: 0 14px 30px rgba(0,0,0,.45) !important; animation: none !important; }
+.ph-appicon.dragging { opacity: .25; }
+.ph-dock.jiggle .ph-ico { animation: phJiggle .28s ease-in-out infinite alternate; }
+.ph-grid.jiggle .ph-appicon, .ph-dock.jiggle .ph-appicon { touch-action: none; cursor: grab; }
+.ph-jhint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -40px 0 10px; color: #fff; font-size: 11px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.5); z-index: 3; } .ph-jhint .ph-done { margin: 0; }
