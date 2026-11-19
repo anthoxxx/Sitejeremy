@@ -871,4 +871,21 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 60,
+    date: '2026-11-19',
+    title: 'Le téléphone grandit : 7 applis, 7 jeux et plein de réglages 📱🎮⚙️',
+    added: [
+      '🖼️ Photos : toutes les photos que tu prends avec l\'Appareil photo sont rangées ici. Mets-les en favori ♥ ou en fond d\'écran',
+      '💳 Cartes : ta carte Paradise Coins (avec tes pièces), ta carte de membre avec son code et ton Pass Ville',
+      '✅ Rappels, ❤️ Santé (anneaux d\'activité, pas, verres d\'eau et humeur du jour), 🎹 Piano (4 sons), 🪞 Miroir et 🥁 Métronome dans l\'App Store',
+      '🎮 7 nouveaux jeux dans l\'App Store : 💣 Démineur, 🪢 Le Pendu, 🧩 Taquin, ✊ Chifoumi, 🏃 La Course, ➗ Calcul mental et 🔴 Puissance 4 contre le téléphone',
+      '📶 Réglages Wi‑Fi (choisis ton réseau, l\'icône Wi‑Fi s\'affiche en haut), 🔵 Bluetooth (connecte tes AirPods, ta montre…) et 📡 Données cellulaires',
+      '🔘 Le Bouton Action : un nouveau petit bouton en haut à gauche du téléphone. Choisis ce qu\'il fait : mode silencieux 🔕, lampe, appareil photo, Siri…',
+      '⏳ Temps d\'écran : le temps que tu passes vraiment sur ton téléphone, jour par jour et appli par appli (avec un rappel « Pause » si tu veux)',
+      '🔮 Réglages Siri (voix, appui long) et 🌐 Langue et région',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
