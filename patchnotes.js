@@ -996,4 +996,16 @@ module.exports = [
     changed: ['La météo change toute seule toutes les 40 minutes environ, selon la saison et l\'heure de Paris'],
     removed: [],
   },
+  {
+    id: 70,
+    date: '2026-11-19',
+    title: 'Ta maison comme tu veux : étages, escaliers, portes, fenêtres 🏢🪜',
+    added: [
+      '➕ Dans « Construire », ajoute ou enlève des étages directement (jusqu\'à 9 étages au-dessus du rez-de-chaussée) et passe d\'un étage à l\'autre avec 🔼 🔽',
+      '🪜 Place tes escaliers où tu veux : « ⬆️ Escalier qui monte » en bas, « ⬇️ Escalier qui descend » en haut. Marche dessus pour changer d\'étage, et tu arrives sur l\'escalier de l\'autre étage',
+      '🚪 Nouvelles pièces de construction : la porte et le mur avec fenêtre 🖼️ (on voit le ciel dedans)',
+    ],
+    changed: ['🖌️ Le pinceau suit tout ton trait, même quand tu dessines vite : plus de trous dans les murs'],
+    removed: [],
+  },
 ];

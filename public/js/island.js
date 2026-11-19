@@ -510,7 +510,7 @@ const Island = (() => {
   // 🏠 La grande maison : 4 pièces (chambre, salle de bain, salon, cuisine) séparées par des murs avec des portes
   const HOUSE_DOORS = { v1: [900, 480], v2: [900, 880], h1: [460, 650], h2: [1340, 650] };
   // 🧱 Le plan dessiné par le propriétaire : 36 × 18 cases de 50 px par étage (sinon, la maison de base à 4 pièces)
-  const BC = 36, BR = 18, BS = 50, BLOCK = '#gx';
+  const BC = 36, BR = 18, BS = 50, BLOCK = '#gxf';
   const curBuild = () => (building ? bdraft[floorNow] : house?.build?.f?.[floorNow]) || '';
   const baseWalk = (x, y) => {
     if (x < 40 || x > 1760 || y < 230 || y > 1080) return false;
@@ -539,6 +539,18 @@ const Island = (() => {
     const cells = []; for (let i = b; i !== a; i = prev[i]) cells.push(i); cells.reverse();
     const pts = [a]; for (let k = 0; k < cells.length - 1; k++) { const p0 = k ? cells[k - 1] : a; if (cells[k] - p0 !== cells[k + 1] - cells[k]) pts.push(cells[k]); }
     return pts.map(i => ({ x: (i % BC) * BS + 25, y: ((i / BC) | 0) * BS + 225 }));
+  }
+  const stairCache = new Map();
+  function stairGroups(plan) {
+    if (!plan) return []; if (stairCache.has(plan)) return stairCache.get(plan);
+    const seen = new Uint8Array(BC * BR), out = [];
+    for (let i = 0; i < plan.length; i++) {
+      const k = plan[i]; if ((k !== 'u' && k !== 'v') || seen[i]) continue;
+      const q = [i]; seen[i] = 1; let sx = 0, sy = 0;
+      for (let qi = 0; qi < q.length; qi++) { const j = q[qi], c = j % BC, r = (j / BC) | 0; sx += c; sy += r; for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nc = c + dc, nr = r + dr, n = nr * BC + nc; if (nc >= 0 && nr >= 0 && nc < BC && nr < BR && !seen[n] && plan[n] === k) { seen[n] = 1; q.push(n); } } }
+      out.push({ k, x: sx / q.length * BS + 25, y: 200 + sy / q.length * BS + 25 });
+    }
+    if (stairCache.size > 30) stairCache.clear(); stairCache.set(plan, out); return out;
   }
   function housePath(ax, ay, bx, by) {
     const s = curBuild(); if (s) return gridPath(s, ax, ay, bx, by);
@@ -704,6 +716,11 @@ const Island = (() => {
       out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
     const nf = house?.floors || 1;
+    // 🪜 les escaliers dessinés dans le plan (chaque groupe de cases = un escalier)
+    if (nf > 1 && !building) for (const g of stairGroups(house?.build?.f?.[floorNow] || '')) {
+      const to = g.k === 'u' ? floorNow + 1 : floorNow - 1; if (to < 0 || to >= nf) continue;
+      out.push({ stairs: true, to, icon: g.k === 'u' ? '⬆️' : '⬇️', label: `🪜 Escalier : ${to ? `${g.k === 'u' ? 'monter' : 'descendre'} à l'étage ${to}` : 'descendre au rez-de-chaussée'}`, x: g.x, y: g.y });
+    }
     if (nf > 1 && floorNow > 0) out.unshift({ stairs: true, to: floorNow - 1, icon: '⬇️', label: floorNow === 1 ? 'Descendre au rez-de-chaussée' : `Descendre à l'étage ${floorNow - 1}`, x: 200, y: 262 });
     if (nf > 1 && floorNow < nf - 1) out.unshift({ stairs: true, to: floorNow + 1, icon: '⬆️', label: `Monter à l'étage ${floorNow + 1}`, x: 90, y: 262 });
     if (!floorNow) out.push({ exit: true, icon: '🚪', label: 'Sortir', x: 460, y: 1068 });
@@ -1065,6 +1082,20 @@ const Island = (() => {
     }
     bdraft[floorNow] = a.join('');
   }
+  // ➕ ajouter / enlever un étage directement en construisant (jusqu'à 9 étages au-dessus du rez-de-chaussée)
+  function addFloor() {
+    const nf = house?.floors || 1; if (nf >= 10) return toast('🏙️ 10 niveaux, c\'est le maximum… pour l\'instant 😄');
+    socket.emit('house_settings', { floors: nf + 1 }, r => {
+      if (r?.error) return toast(r.error);
+      bdraft[nf] = loftPlan(); if (house) house.floors = nf + 1; floorNow = nf;
+      toast(`➕ Nouvel étage ${nf} ! Mets un ⬆️ escalier en bas et un ⬇️ escalier ici pour passer de l'un à l'autre`); renderUI();
+    });
+  }
+  function removeFloor() {
+    const nf = house?.floors || 1; if (nf <= 1) return;
+    if (!confirm(`Enlever l'étage ${nf - 1} ? Son plan sera effacé (les meubles de cet étage seront cachés).`)) return;
+    socket.emit('house_settings', { floors: nf - 1 }, r => { if (r?.error) return toast(r.error); bdraft.length = nf - 1; if (house) house.floors = nf - 1; floorNow = Math.min(floorNow, nf - 2); toast('➖ Étage enlevé'); renderUI(); });
+  }
   function buildPanel() {
     const COLS = ['#f3e2c7', '#ffffff', '#ffe3a0', '#ffd1dc', '#cfe7f3', '#c8f0d0', '#e0d0ff', '#b57a45', '#8e8e96', '#3a3a44', '#1c1c24', '#c0392b', '#2f6fd6', '#d4af37'];
     const row = (lbl, get, set) => el('div', {}, el('small', { class: 'bd-lbl' }, lbl), el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (get() === c ? ' active' : ''), style: `background:${c}`, onclick: () => { set(c); buildPanel(); } })), el('input', { type: 'color', class: 'color-input', value: get(), onchange: e => { set(e.target.value); buildPanel(); } })));
@@ -1168,7 +1199,7 @@ const Island = (() => {
   const TILES = {
     p: ['🪵', 'Parquet', '#c99566'], d: ['🟫', 'Bois foncé', '#7a4a24'], c: ['🔷', 'Carrelage', '#cfe7f3'], n: ['🏁', 'Damier', '#3a3f4b'], b: ['⬜', 'Marbre', '#ece9e4'],
     m: ['🧶', 'Moquette', null], t: ['🟥', 'Tapis rouge', '#b8333a'], k: ['🩶', 'Béton', '#8e8e96'], h: ['🌿', 'Herbe', '#5aa84f'], s: ['🏖️', 'Sable', '#e8d3a8'], w: ['💧', 'Piscine', '#2fa8ff'],
-    '#': ['🧱', 'Mur', null], g: ['🪟', 'Mur en verre', '#bfe8ff'], x: ['🕳️', 'Vide (gomme)', '#0d0a16'] };
+    '#': ['🧱', 'Mur', null], g: ['🪟', 'Mur en verre', '#bfe8ff'], f: ['🖼️', 'Mur avec fenêtre', null], o: ['🚪', 'Porte', '#8a5a2b'], u: ['⬆️', 'Escalier qui monte', '#a86b3a'], v: ['⬇️', 'Escalier qui descend', '#8a5a2b'], x: ['🕳️', 'Vide (gomme)', '#0d0a16'] };
   function drawBuilt(t, th, n) {
     const s = curBuild(), wc = (building ? bwc : house?.build?.wc) || '#f3e2c7', bw = (building ? bbw : house?.build?.bw) || wc;
     const dk = (h, k) => { const v = parseInt(h.slice(1), 16); const f = x => Math.max(0, Math.min(255, Math.round(x * k))); return `rgb(${f(v >> 16)},${f((v >> 8) & 255)},${f(v & 255)})`; };
@@ -1180,7 +1211,7 @@ const Island = (() => {
     // les sols
     for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) {
       const k = s[r * BC + c], x = c * BS, y = 200 + r * BS;
-      if (k === '#') continue;
+      if (k === '#' || k === 'f') continue;
       const col = k === 'm' ? dk(th.accent, .75) : TILES[k]?.[2] || '#c99566';
       ctx.fillStyle = col; ctx.fillRect(x, y, BS, BS);
       if (k === 'p' || k === 'd') { ctx.fillStyle = 'rgba(60,30,8,.18)'; ctx.fillRect(x, y + 16, BS, 2); ctx.fillRect(x, y + 33, BS, 2); ctx.fillRect(x + ((r % 2) ? 12 : 34), y, 2, 16); }
@@ -1194,14 +1225,17 @@ const Island = (() => {
       else if (k === 'w') { const wv = Math.sin(t * 2 + c * .7 + r * .5); ctx.fillStyle = `rgba(255,255,255,${.12 + wv * .08})`; ctx.fillRect(x + 6, y + 18 + wv * 4, 30, 3); ctx.fillRect(x + 22, y + 36 - wv * 3, 22, 2); }
       else if (k === 'g') { ctx.fillStyle = 'rgba(191,232,255,.55)'; ctx.fillRect(x, y, BS, BS); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.strokeRect(x + 2, y + 2, BS - 4, BS - 4); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillRect(x + 8, y + 8, 6, 26); }
       else if (k === 'x') { ctx.fillStyle = '#0d0a16'; ctx.fillRect(x, y, BS, BS); }
+      else if (k === 'o') { ctx.fillStyle = '#c99566'; ctx.fillRect(x, y, BS, BS); ctx.fillStyle = '#6b4423'; ctx.fillRect(x + 4, y + 4, BS - 8, BS - 8); ctx.fillStyle = '#8a5a2b'; ctx.fillRect(x + 8, y + 8, BS - 16, BS - 16); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(x + BS - 14, y + BS / 2, 3, 0, 7); ctx.fill(); }
+      else if (k === 'u' || k === 'v') { for (let i = 0; i < 5; i++) { ctx.fillStyle = i % 2 ? '#8a5a2b' : '#a86b3a'; ctx.fillRect(x, y + i * 10, BS, 10); } ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x, y, 4, BS); ctx.font = '20px "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(k === 'u' ? '⬆️' : '⬇️', x + 25, y + 26); }
     }
     // les murs, avec un peu de relief
     for (let r = 0; r < BR; r++) for (let c = 0; c < BC; c++) {
-      if (s[r * BC + c] !== '#') continue; const x = c * BS, y = 200 + r * BS;
+      const kk = s[r * BC + c]; if (kk !== '#' && kk !== 'f') continue; const x = c * BS, y = 200 + r * BS;
       ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 6, y + 10, BS, BS);
       ctx.fillStyle = dk(wc, .82); ctx.fillRect(x, y, BS, BS);
       ctx.fillStyle = wc; ctx.fillRect(x, y - 10, BS, BS - 4);
       ctx.fillStyle = dk(wc, 1.08); ctx.fillRect(x, y - 10, BS, 4);
+      if (kk === 'f') { ctx.fillStyle = mix('#8fd8ff', '#1a3a8a', n * .7); ctx.fillRect(x + 8, y - 4, BS - 16, BS - 18); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(x + 8, y - 4, BS - 16, BS - 18); ctx.beginPath(); ctx.moveTo(x + 25, y - 4); ctx.lineTo(x + 25, y + BS - 22); ctx.stroke(); }
     }
     // la porte d'entrée et l'escalier
     if (!floorNow) { ctx.fillStyle = '#c0392b'; roundRect(410, 1050, 130, 40, 8); ctx.fill(); ctx.fillStyle = '#ffd34d'; ctx.font = '700 14px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BIENVENUE', 475, 1071); }
@@ -1711,7 +1745,7 @@ const Island = (() => {
     panel('⚙️ Ma maison',
       el('label', {}, 'Le nom de ma maison'), name,
       el('label', {}, 'Le style de la maison'), chips(Object.entries(Decor.STYLES).map(([k, v]) => [k, `${v.icon} ${v.name}`]), () => style, v => (style = v)),
-      el('label', {}, 'Les étages'), chips([[1, '🏠 Plain-pied'], [2, '🏘️ 1 étage'], [3, '🏢 2 étages'], [4, '🏢 3 étages'], [5, '🏙️ 4 étages'], [6, '🏙️ 5 étages']], () => floors, v => (floors = v)),
+      el('label', {}, 'Les étages'), chips([[1, '🏠 Plain-pied'], ...Array.from({ length: 9 }, (_, i) => [i + 2, `🏢 ${i + 1} étage${i ? 's' : ''}`])], () => floors, v => (floors = v)),
       el('label', {}, 'Les couleurs'), chips(Object.entries(THEME).map(([k, v]) => [k, v.name]), () => theme, v => (theme = v)),
       el('label', {}, 'Qui peut entrer ?'), chips([['all', '🔓 Tout le monde entre'], ['friends', '👥 Mes amis entrent, les autres sonnent'], ['bell', '🔔 Tout le monde sonne'], ['closed', '🔕 Ne pas déranger']], () => access, v => (access = v)),
       el('button', { class: 'btn btn-primary', onclick: () => socket.emit('house_settings', { name: name.value, theme, access, style, floors }, r => { if (r?.error) return toast(r.error); toast('✅ Maison enregistrée'); root.querySelector('.isl-panel')?.remove(); }) }, '💾 Enregistrer'),
@@ -1734,10 +1768,14 @@ const Island = (() => {
         el('button', { type: 'button', class: 'isl-act exit', onclick: () => stopBuild(true) }, el('span', {}, '💾'), 'Enregistrer'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => stopBuild(false) }, el('span', {}, '✖'), 'Annuler'),
         el('button', { type: 'button', class: 'isl-act' + (btool === 'move' ? ' on' : ''), onclick: () => { btool = 'move'; renderUI(); } }, el('span', {}, '✋'), 'Se déplacer'),
-        ...['#', 'g', 'p', 'd', 'c', 'n', 'b', 'm', 't', 'k', 'h', 's', 'w', 'x'].map(tool),
+        ...['#', 'f', 'g', 'o', ...(nf > 1 ? ['u', 'v'] : []), 'p', 'd', 'c', 'n', 'b', 'm', 't', 'k', 'h', 's', 'w', 'x'].map(tool),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { bbrush = bbrush % 3 + 1; renderUI(); } }, el('span', {}, ['•', '●', '⬤'][bbrush - 1]), `Pinceau ${bbrush}×${bbrush}`),
         el('button', { type: 'button', class: 'isl-act media', onclick: () => buildPanel() }, el('span', {}, '🎨'), 'Couleurs et modèles'),
-        nf > 1 ? el('button', { type: 'button', class: 'isl-act', onclick: () => { floorNow = (floorNow + 1) % nf; toast(floorNow ? `🏢 Tu construis l'étage ${floorNow}` : '🏠 Tu construis le rez-de-chaussée'); renderUI(); } }, el('span', {}, '🏢'), floorNow ? `Étage ${floorNow}` : 'Rez-de-chaussée') : null);
+        nf > 1 ? el('button', { type: 'button', class: 'isl-act', onclick: () => { floorNow = Math.max(0, floorNow - 1); toast(floorNow ? `🏢 Tu construis l'étage ${floorNow}` : '🏠 Tu construis le rez-de-chaussée'); renderUI(); } }, el('span', {}, '🔽'), 'Étage du dessous') : null,
+        el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (nf <= 1) return; floorNow = (floorNow + 1) % nf; renderUI(); } }, el('span', {}, '🏢'), floorNow ? `Étage ${floorNow} / ${nf - 1}` : `Rez-de-chaussée${nf > 1 ? ` (${nf - 1} étage${nf > 2 ? 's' : ''})` : ''}`),
+        nf > 1 ? el('button', { type: 'button', class: 'isl-act', onclick: () => { floorNow = Math.min(nf - 1, floorNow + 1); toast(`🏢 Tu construis l'étage ${floorNow}`); renderUI(); } }, el('span', {}, '🔼'), 'Étage du dessus') : null,
+        el('button', { type: 'button', class: 'isl-act', onclick: () => addFloor() }, el('span', {}, '➕'), 'Ajouter un étage'),
+        nf > 1 ? el('button', { type: 'button', class: 'isl-act', onclick: () => removeFloor() }, el('span', {}, '➖'), 'Enlever le dernier étage') : null);
       return renderAmb();
     }
     if (editing) {
@@ -1822,7 +1860,7 @@ const Island = (() => {
       if (kind === 'island' && window.CityGames?.snowOn()) { window.CityGames.throwAt(x, y); return; } // ⛄ mode boules de neige : on lance au lieu de marcher
       if (building) {
         if (btool === 'move') drag = { id: e.pointerId, pan: true, sx: e.clientX, sy: e.clientY, cx: camEdit.x, cy: camEdit.y };
-        else { drag = { id: e.pointerId, paint: true }; paintAt(x, y); }
+        else { drag = { id: e.pointerId, paint: true, lx: x, ly: y }; paintAt(x, y); }
         try { cv.setPointerCapture(e.pointerId); } catch (err) {}
         return;
       }
@@ -1869,7 +1907,7 @@ const Island = (() => {
     bar.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
     window.addEventListener('resize', arrows);
     cv.addEventListener('pointermove', e => {
-      if (building && drag?.paint && e.pointerId === drag.id) { const r = cv.getBoundingClientRect(), q = toWorld(e.clientX - r.left, e.clientY - r.top); paintAt(q.x, q.y); return; }
+      if (building && drag?.paint && e.pointerId === drag.id) { const r = cv.getBoundingClientRect(), q = toWorld(e.clientX - r.left, e.clientY - r.top); const n = Math.ceil(Math.hypot(q.x - drag.lx, q.y - drag.ly) / 20) || 1; for (let i = 1; i <= n; i++) paintAt(drag.lx + (q.x - drag.lx) * i / n, drag.ly + (q.y - drag.ly) * i / n); drag.lx = q.x; drag.ly = q.y; return; } // le pinceau suit tout le trait, sans trous
       if ((editing || building) && drag?.pan && e.pointerId === drag.id) { camEdit.x = Math.max(0, Math.min(1800, drag.cx - (e.clientX - drag.sx) / view.z)); camEdit.y = Math.max(0, Math.min(1100, drag.cy - (e.clientY - drag.sy) / view.z)); return; }
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
@@ -1917,10 +1955,10 @@ const Island = (() => {
   }
   // Le serveur m'envoie la pièce où je suis (à l'arrivée et à chaque changement de lieu)
   socket.on('island_fw', d => { if (!open) return; fwUntil = Date.now() + 25000; fwColors = d.colors; fwBy = d.by; });
-  socket.on('island_floor', ({ id, floor }) => {
+  socket.on('island_floor', ({ id, floor, x, y }) => {
     const p = players.get(id); if (!p) return;
     p.floor = floor; p.action = '';
-    if (id === me) { floorNow = floor; target = null; const s = floor ? { x: 150, y: 300 } : { x: 150, y: 300 }; p.x = p.dx = s.x; p.y = p.dy = s.y; renderUI(); toast(floor ? `⬆️ Tu es à l'étage ${floor}` : '⬇️ Tu es au rez-de-chaussée'); }
+    if (id === me) { floorNow = floor; target = null; const s = Number.isFinite(x) ? { x, y } : { x: 150, y: 300 }; p.x = p.dx = s.x; p.y = p.dy = s.y; renderUI(); toast(floor ? `⬆️ Tu es à l'étage ${floor}` : '⬇️ Tu es au rez-de-chaussée'); }
   });
   socket.on('island_scene', d => {
     if (!open || !d) return;

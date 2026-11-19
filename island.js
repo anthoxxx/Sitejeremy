@@ -113,14 +113,14 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   try { db.exec('ALTER TABLE houses ADD COLUMN layout INTEGER NOT NULL DEFAULT 1'); } catch (e) {}
   try { db.exec("ALTER TABLE houses ADD COLUMN build TEXT NOT NULL DEFAULT ''"); } catch (e) {} // 🧱 le plan dessiné par le propriétaire (murs et sols)
   // 🧱 Le plan d'une maison : une grille de 36 × 18 cases (50 px) par étage, chaque case = un sol, un mur ou du vide
-  const BCOLS = 36, BROWS = 18, BCELLS = BCOLS * BROWS, BCHARS = /^[pcmbnhwskdt#gx]+$/, MAX_FLOORS = 6;
+  const BCOLS = 36, BROWS = 18, BCELLS = BCOLS * BROWS, BCHARS = /^[pcmbnhwskdt#gxofuv]+$/, MAX_FLOORS = 10;
   const floorsOf = h => Math.max(1, Math.min(MAX_FLOORS, Number(h?.floors) || 1));
   function cleanBuild(b, floors) {
     if (!b || !Array.isArray(b.f)) return null;
     const f = b.f.slice(0, floors).map((s, i) => {
       if (typeof s !== 'string' || s.length !== BCELLS || !BCHARS.test(s)) return '';
       const a = s.split('');
-      const free = (c0, c1, r0, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if ('#gx'.includes(a[r * BCOLS + c])) a[r * BCOLS + c] = 'p'; };
+      const free = (c0, c1, r0, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if ('#gxf'.includes(a[r * BCOLS + c])) a[r * BCOLS + c] = 'p'; };
       if (i === 0) free(8, 10, 16, 17);          // la porte d'entrée reste toujours libre
       if (floors > 1) free(0, 4, 0, 2);          // et l'escalier aussi
       return a.join('');
@@ -148,7 +148,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     if (!s) return SCENES.house.walk(x, y);
     if (x < 20 || x > 1780 || y < 215 || y > 1090) return false;
     const c = Math.floor(x / 50), r = Math.floor((y - 200) / 50);
-    return !'#gx'.includes(s[r * BCOLS + c] || 'x');
+    return !'#gxf'.includes(s[r * BCOLS + c] || 'x');
   }
   // Ceux à qui le propriétaire a ouvert la porte (valable 3 heures)
   const passes = new Map(); // ownerId -> Map(visitorId -> expiration)
@@ -427,9 +427,13 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       const h = houseInfo(Number(p.scene.slice(6)));
       const f = Math.max(0, Math.min((h?.floors || 1) - 1, Math.round(Number(floor)) || 0));
       if ((p.floor || 0) === f) return;
-      p.floor = f; p.action = ''; p.x = 150; p.y = 300;
-      emitScene(p.scene, 'island_floor', { id: uid, floor: f });
-      emitScene(p.scene, 'island_move', { id: uid, x: 150, y: 300 });
+      // 🪜 on arrive sur l'escalier qu'on a dessiné à cet étage (sinon, en haut à gauche)
+      const up = f > (p.floor || 0), plan = h?.build?.f?.[f] || '';
+      let i = plan ? plan.indexOf(up ? 'v' : 'u') : -1; if (i < 0 && plan) i = plan.indexOf(up ? 'u' : 'v');
+      const pos = i >= 0 ? { x: (i % BCOLS) * 50 + 25, y: 200 + Math.floor(i / BCOLS) * 50 + 25 } : { x: 150, y: 300 };
+      p.floor = f; p.action = ''; p.x = pos.x; p.y = pos.y;
+      emitScene(p.scene, 'island_floor', { id: uid, floor: f, x: pos.x, y: pos.y });
+      emitScene(p.scene, 'island_move', { id: uid, x: pos.x, y: pos.y });
     });
     // 🔔 La sonnette : on sonne, le propriétaire ouvre (ou pas)
     socket.on('house_ring', (ownerId, cb) => {
