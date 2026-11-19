@@ -3524,3 +3524,13 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .ph-home { overflow: hidden !important; }
 .ph-pagewrap { flex: 1; min-height: 0; } .ph-pages { flex: 1; min-height: 0; height: 100%; } .ph-pages > .ph-grid { overflow-y: auto; scrollbar-width: none; max-height: 100%; }
 .ph-pagewrap { display: flex; flex-direction: column; }
+
+/* 🎧 les pseudos de ceux qui écoutent le vocal */
+.voice-listeners { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; white-space: normal; }
+.vl-lbl { white-space: nowrap; margin-right: 2px; }
+.vl-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 2px; border-radius: 999px; background: var(--panel); opacity: .85; cursor: pointer; font-size: .75rem; font-weight: 600; color: var(--text); }
+.vl-chip .avatar { width: 18px; height: 18px; font-size: .55rem; }
+.vl-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-more { font-size: .75rem; font-weight: 700; }
+/* ✕ pour ranger le téléphone, aussi sur portable */
+@media (max-width: 600px) { .ph-dock { margin-bottom: 22px; } .ph-close { display: flex !important; align-items: center; justify-content: center; top: auto; bottom: max(2px, env(safe-area-inset-bottom)); right: 10px; width: 30px !important; height: 30px !important; font-size: 14px !important; background: rgba(0,0,0,.55) !important; border: 1px solid rgba(255,255,255,.25); z-index: 30; } }

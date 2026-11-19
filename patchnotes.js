@@ -860,4 +860,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 59,
+    date: '2026-11-19',
+    title: 'On voit qui écoute le vocal 🎧 + une croix pour ranger le téléphone',
+    added: [
+      '🎧 Dans la barre du vocal, on voit maintenant le pseudo (et la photo) de chaque personne qui écoute, pas seulement leur nombre. Touche un pseudo pour ouvrir son profil',
+      '✕ Sur portable, une petite croix en bas à droite du téléphone le range et te ramène tout de suite sur le site',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

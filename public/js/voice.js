@@ -448,7 +448,11 @@ function renderVoice() {
   if (!speakers.length && !inThis) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
   const manage = canManage(r);
-  const listenInfo = listeners.length ? el('span', { class: 'voice-listeners', title: 'En écoute : ' + listeners.map(p => p.username).join(', ') }, `🎧 ${listeners.length} écoute${listeners.length > 1 ? 'nt' : ''}`) : null;
+  /* 🎧 ceux qui écoutent : on voit leur pseudo (les 8 premiers, puis « +N ») */
+  const listenInfo = listeners.length ? el('div', { class: 'voice-listeners', title: 'En écoute : ' + listeners.map(p => p.username).join(', ') },
+    el('span', { class: 'vl-lbl' }, `🎧 ${listeners.length} écoute${listeners.length > 1 ? 'nt' : ''} :`),
+    ...listeners.slice(0, 8).map(p => el('span', { class: 'vl-chip', title: p.username + ' écoute', onclick: () => typeof openProfile === 'function' && openProfile(p.userId) }, LC.avatar(p), el('span', { class: 'vl-name' }, p.username))),
+    listeners.length > 8 ? el('span', { class: 'vl-more' }, '+' + (listeners.length - 8)) : null) : null;
   let ctrl;
   if (speaking) {
     ctrl = el('div', { class: 'voice-ctrl' },
