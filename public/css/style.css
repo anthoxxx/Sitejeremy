@@ -3703,7 +3703,7 @@ body { background:
   content: ''; position: absolute; inset: 0; padding: var(--nw); animation: snTurn calc(var(--nsp) * 1.5) linear infinite;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
 .site-neon[data-style="tourne"]::after, .site-neon[data-style="arcenciel"]::after, .site-neon[data-style="deux"]::after { padding: calc(var(--nw) + var(--nglow) * .5); filter: blur(calc(var(--nglow) * .45)); opacity: var(--np); }
-.site-neon[data-style="tourne"]::before, .site-neon[data-style="tourne"]::after { background: conic-gradient(from var(--sna), var(--n1), transparent 22%, transparent 50%, var(--n1) 60%, transparent 82%, var(--n1)); }
+.site-neon[data-style="tourne"]::before, .site-neon[data-style="tourne"]::after { background: conic-gradient(from var(--sna), var(--n1), transparent 12%, transparent 45%, var(--n1) 50%, transparent 62%, transparent 95%, var(--n1)); }
 .site-neon[data-style="arcenciel"]::before, .site-neon[data-style="arcenciel"]::after { background: conic-gradient(from var(--sna), #ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30); }
 .site-neon[data-style="deux"]::before, .site-neon[data-style="deux"]::after { background: conic-gradient(from var(--sna), var(--n1), var(--n2), var(--n1), var(--n2), var(--n1)); }
 @keyframes snTurn { to { --sna: 360deg; } }
@@ -3712,3 +3712,16 @@ body { background:
 .sn { max-width: 520px; } .sn h3 { margin: 0 0 4px; } .sn-styles { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .sn-lbl { display: block; color: var(--muted); font-weight: 700; font-size: .78rem; margin: 10px 0 4px; }
 .sn-sl > div { display: flex; align-items: center; gap: 8px; } .sn-sl input { flex: 1; }
+/* 💬 le néon autour de la zone « Message » */
+.ph-seg.sn-tabs { display: flex; gap: 4px; margin: 8px 0; } .sn-tabs button { flex: 1; }
+.composer #input.in-neon { animation: none; --bw: min(var(--nw), 5px); border: var(--bw) solid var(--n1); box-shadow: 0 0 var(--nglow) color-mix(in srgb, var(--n1) calc(var(--np) * 100%), transparent), inset 0 0 8px color-mix(in srgb, var(--n1) calc(var(--np) * 40%), transparent); }
+.composer #input.inn-pulse { animation: innPulse var(--nsp) ease-in-out infinite; }
+@keyframes innPulse { 50% { box-shadow: 0 0 2px color-mix(in srgb, var(--n1) 40%, transparent); border-color: color-mix(in srgb, var(--n1) 55%, transparent); } }
+.composer #input.inn-clignote { animation: innBlink calc(var(--nsp) * 1.6) steps(1) infinite; }
+@keyframes innBlink { 20%, 62% { border-color: color-mix(in srgb, var(--n1) 25%, transparent); box-shadow: none; } }
+.composer #input.inn-tourne, .composer #input.inn-arcenciel, .composer #input.inn-deux { border-color: transparent; animation: snTurn calc(var(--nsp) * 1.5) linear infinite; }
+.composer #input.inn-tourne { background: linear-gradient(var(--inbg), var(--inbg)) padding-box, conic-gradient(from var(--sna), var(--n1), transparent 12%, transparent 45%, var(--n1) 50%, transparent 62%, transparent 95%, var(--n1)) border-box; }
+.composer #input.inn-arcenciel { background: linear-gradient(var(--inbg), var(--inbg)) padding-box, conic-gradient(from var(--sna), #ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30) border-box; box-shadow: 0 0 var(--nglow) color-mix(in srgb, #af52de calc(var(--np) * 80%), transparent); }
+.composer #input.inn-deux { background: linear-gradient(var(--inbg), var(--inbg)) padding-box, conic-gradient(from var(--sna), var(--n1), var(--n2), var(--n1), var(--n2), var(--n1)) border-box; box-shadow: -8px 0 var(--nglow) color-mix(in srgb, var(--n1) calc(var(--np) * 70%), transparent), 8px 0 var(--nglow) color-mix(in srgb, var(--n2) calc(var(--np) * 70%), transparent); }
+@property --sna { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@media (prefers-reduced-motion: reduce) { .composer #input.in-neon { animation: none !important; } }

@@ -956,4 +956,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 67,
+    date: '2026-11-19',
+    title: 'Un néon autour de la zone « Message » 💬💡',
+    added: [
+      '💬 Tu peux aussi mettre un néon autour de la zone où tu écris tes messages, avec les mêmes styles : fixe, qui respire, clignote, qui tourne, arc-en-ciel ou deux couleurs',
+      '📍 Menu → « 💡 Néons » → onglet « 💬 Autour de « Message » ». Le néon autour du site et celui de « Message » se règlent chacun de leur côté',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
