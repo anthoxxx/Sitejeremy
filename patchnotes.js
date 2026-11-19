@@ -907,7 +907,7 @@ module.exports = [
     added: [
       '⭕ Nouveau dans ton profil (onglet 🎨 Apparence) : « Couleur autour du pseudo ». Choisis un style et la couleur que tu veux',
       '7 styles : ⭕ Contour, ✨ Halo, 💬 Bulle, 💡 Néon (qui clignote doucement), ◎ Double, 🌅 Dégradé (avec la couleur de ton pseudo) et 🌈 Arc-en-ciel (qui change de couleur tout seul)',
-      '👀 Tout le monde le voit : dans les messages, la liste des membres, ton profil…',
+      '👀 Tout le monde le voit : dans la liste des connectés, la couleur entoure toute ta ligne (ta photo + ton pseudo) ; dans les messages, elle entoure ton pseudo',
     ],
     changed: [],
     removed: [],

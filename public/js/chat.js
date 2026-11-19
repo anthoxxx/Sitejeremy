@@ -569,8 +569,8 @@ function renderUsers() {
   // 💤 les membres déconnectés récemment, grisés en dessous
   const onIds = new Set(state.online.map(u => u.id));
   const away = (state.filter && state.filter !== 'all' && state.filter !== 'f' && state.filter !== 'h') ? [] : (state.recent || []).filter(u => !onIds.has(u.id) && !state.blocked.has(u.id) && (!q || u.username.toLowerCase().includes(q)) && (state.filter !== 'f' && state.filter !== 'h' || u.gender === state.filter));
-  const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away', 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
-    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
+  const awayRows = away.length ? [el('div', { class: 'away-title' }, `💤 Déconnectés (${away.length})`), ...away.map(u => el('div', { class: 'list-item is-away' + LC.ringRow(u).cls, style: LC.ringRow(u).style || null, 'data-uid': u.id, onclick: () => openProfile(u.id) }, LC.avatar(u),
+    el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name({ ...u, nameRing: '' }), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u))), el('div', { class: 'sub' }, '⚪ Déconnecté · ' + timeAgo(u.lastSeen)))))] : [];
   if (!users.length) return $('userList').replaceChildren(el('div', { class: 'empty' }, 'Personne ici pour le moment'), ...awayRows);
   $('userList').replaceChildren(...users.map(u => {
     const av = LC.avatar(u); av.append(dotFor(u.id));
@@ -578,10 +578,10 @@ function renderUsers() {
     const staffRole = ['admin', 'superadmin', 'moderator'].includes(u.role);
     // Douane : super-admin seulement ; validation voix/caméra : toute l'équipe
     const toCheck = !staffRole && (state.customs?.enabled ? isSuperMe() && !u.verified : state.customs?.media && isStaff() && !(u.voiceOk && u.camOk));
-    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : ''), 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
+    return el('div', { class: 'list-item' + (u.ghost ? ' is-ghost' : '') + (muted ? ' is-muted' : '') + LC.ringRow(u).cls, style: LC.ringRow(u).style || null, 'data-uid': u.id, title: u.ghost ? 'En mode fantôme (visible seulement par les super-admins)' : '', onclick: () => openProfile(u.id) },
       av,
       el('div', { class: 'meta' },
-        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name(u), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
+        el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name({ ...u, nameRing: '' }), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         LC.badgesRow(u.badges, true),
         el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),

@@ -247,7 +247,7 @@ function openMyProfile() {
         const set = (s, c) => { d.nameRing = !s ? '' : s === 'arcenciel' ? 'arcenciel' : s + ':' + c; draw(); refresh(); };
         const inp = el('input', { type: 'color', class: 'color-input', value: col, onchange: e => set(st || 'contour', e.target.value) });
         box.replaceChildren(
-          el('div', { class: 'nr-prev' }, LC.name({ username: d.username, color: d.color, nameEffect: d.nameEffect, nameRing: d.nameRing })),
+          el('div', { class: 'nr-prev' }, el('small', {}, 'Dans la liste des connectés :'), el('div', { class: 'list-item' + LC.ringRow(d).cls, style: LC.ringRow(d).style || null }, LC.avatar(d), el('div', { class: 'meta' }, el('div', { class: 'name' }, LC.name({ ...d, nameRing: '' })), el('div', { class: 'sub' }, '🟢 En ligne'))), el('small', {}, 'Dans les messages :'), el('div', {}, LC.name({ username: d.username, color: d.color, nameEffect: d.nameEffect, nameRing: d.nameRing }))),
           el('div', { class: 'nr-styles' }, ...RING.map(([v, l]) => el('button', { type: 'button', class: 'btn btn-sm' + ((st || '') === v ? ' btn-primary' : ''), onclick: () => set(v, col) }, l))),
           st && st !== 'arcenciel' ? el('div', { class: 'swatches' }, ...COLS.map(c => el('button', { type: 'button', class: 'swatch' + (col === c ? ' active' : ''), style: `background:${c}`, title: c, onclick: () => set(st, c) })), inp) : null);
       };

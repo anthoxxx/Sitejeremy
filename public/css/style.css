@@ -3635,5 +3635,17 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .uname.nr-degrade { box-shadow: 0 0 0 2px var(--nr), 0 0 0 4px color-mix(in srgb, var(--c) 70%, transparent), 0 0 12px 3px color-mix(in srgb, var(--c) 45%, transparent); }
 .uname.nr-arcenciel { box-shadow: 0 0 0 2px #ff3b30, 0 0 8px #ff3b30; animation: nrRainbow 3s linear infinite; }
 @keyframes nrRainbow { 0%, 100% { box-shadow: 0 0 0 2px #ff3b30, 0 0 8px #ff3b30; } 17% { box-shadow: 0 0 0 2px #ff9500, 0 0 8px #ff9500; } 33% { box-shadow: 0 0 0 2px #ffcc00, 0 0 8px #ffcc00; } 50% { box-shadow: 0 0 0 2px #34c759, 0 0 8px #34c759; } 67% { box-shadow: 0 0 0 2px #007aff, 0 0 8px #007aff; } 83% { box-shadow: 0 0 0 2px #af52de, 0 0 8px #af52de; } }
-.nr-pick { display: grid; gap: 8px; } .nr-prev { padding: 12px; border-radius: 12px; background: var(--panel); text-align: center; font-size: 1.15rem; } .nr-styles { display: flex; flex-wrap: wrap; gap: 6px; }
+.nr-pick { display: grid; gap: 8px; } .nr-prev { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--panel); font-size: 1.05rem; } .nr-prev small { color: var(--muted); font-size: .75rem; } .nr-prev .list-item { cursor: default; } .nr-styles { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (prefers-reduced-motion: reduce) { .uname.nr-neon, .uname.nr-arcenciel { animation: none; } }
+/* ⭕ la couleur autour de la ligne entière (photo + pseudo) dans la liste des connectés */
+.list-item.nrr { margin: 4px 2px; border-radius: 16px; }
+.list-item.nrr-contour { box-shadow: inset 0 0 0 2px var(--nr); }
+.list-item.nrr-halo { box-shadow: inset 0 0 0 1.5px var(--nr), 0 0 10px color-mix(in srgb, var(--nr) 70%, transparent), inset 0 0 12px color-mix(in srgb, var(--nr) 35%, transparent); }
+.list-item.nrr-bulle { background: color-mix(in srgb, var(--nr) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nr) 55%, transparent); }
+.list-item.nrr-neon { box-shadow: inset 0 0 0 1.5px var(--nr), 0 0 8px var(--nr), inset 0 0 10px color-mix(in srgb, var(--nr) 45%, transparent); animation: nrrNeon 2.2s ease-in-out infinite; }
+@keyframes nrrNeon { 50% { box-shadow: inset 0 0 0 1.5px var(--nr), 0 0 2px var(--nr), inset 0 0 4px color-mix(in srgb, var(--nr) 25%, transparent); } }
+.list-item.nrr-double { box-shadow: inset 0 0 0 2px var(--nr), inset 0 0 0 4px var(--bg), inset 0 0 0 6px var(--nr); }
+.list-item.nrr-degrade { background: linear-gradient(90deg, color-mix(in srgb, var(--nr) 30%, transparent), color-mix(in srgb, var(--c) 18%, transparent)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--nr) 80%, transparent); }
+.list-item.nrr-arcenciel { animation: nrrRainbow 3s linear infinite; }
+@keyframes nrrRainbow { 0%, 100% { box-shadow: inset 0 0 0 2px #ff3b30, 0 0 7px #ff3b30; } 17% { box-shadow: inset 0 0 0 2px #ff9500, 0 0 7px #ff9500; } 33% { box-shadow: inset 0 0 0 2px #ffcc00, 0 0 7px #ffcc00; } 50% { box-shadow: inset 0 0 0 2px #34c759, 0 0 7px #34c759; } 67% { box-shadow: inset 0 0 0 2px #007aff, 0 0 7px #007aff; } 83% { box-shadow: inset 0 0 0 2px #af52de, 0 0 7px #af52de; } }
+@media (prefers-reduced-motion: reduce) { .list-item.nrr-neon, .list-item.nrr-arcenciel { animation: none; } }

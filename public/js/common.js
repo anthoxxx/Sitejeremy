@@ -244,6 +244,8 @@ window.LC = {
   // Badge V : photo de profil vérifiée par le staff
   photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, LC.el('i', { class: 'di' }, 'V')); },
   // Pseudo avec sa couleur et son effet
+  // ⭕ la couleur autour de toute la ligne (photo + pseudo) dans la liste des connectés
+  ringRow(u) { const [rs, rc] = String(u?.nameRing || '').split(':'); return rs ? { cls: ' nrr nrr-' + rs, style: `--nr:${rc || '#ff5fa2'};--c:${u.color || '#8b6cff'}` } : { cls: '', style: '' }; },
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';
     const nn = fx ? '' : LC.neonOf(u);
