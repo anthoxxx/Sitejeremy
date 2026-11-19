@@ -3617,3 +3617,10 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .st-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; } .st-col i { width: 100%; background: #5ac8fa; border-radius: 4px; } .st-col.today i { background: #007aff; } .st-col small { opacity: .5; font-weight: 700; }
 .ac-big { font-size: 40px; }
 .ph-device[data-theme="sombre"] .rm-card, .ph-device[data-theme="sombre"] .st-chart { background: #1c1c1e; color: #fff; }
+/* 🔔 les sons d'arrivée */
+.jsd { max-width: 520px; } .jsd h3 { margin: 0 0 6px; } .jsd-h { margin: 16px 0 8px; }
+.jsd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; max-height: 236px; overflow-y: auto; padding: 2px; }
+.jsd-s { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; border: 2px solid transparent; background: var(--panel); color: var(--text); cursor: pointer; font: inherit; }
+.jsd-s span { font-size: 26px; } .jsd-s small { font-size: .72rem; font-weight: 700; text-align: center; line-height: 1.15; }
+.jsd-s.on { border-color: var(--accent, #ff5fa2); box-shadow: 0 0 0 3px rgba(255,95,162,.25); } .jsd-s:active { transform: scale(.95); }
+.jsd-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; } .jsd-vol { display: flex; align-items: center; gap: 8px; margin-top: 10px; } .jsd-vol input { flex: 1; }

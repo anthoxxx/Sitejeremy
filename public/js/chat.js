@@ -678,6 +678,7 @@ function toggleUserMenu() {
     !state.me.isGuest ? item('💰', 'Mes pièces et la boutique', () => Shop.open(), 'mobile-only') : null,
     item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
+    item('🔔', 'Sons d\'arrivée (klaxon, fanfare…)', () => JoinSounds.open()),
     item('♿', 'Accessibilité (voir, entendre, parler)', () => A11y.open()),
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     state.me.googleOn && !state.me.googleLinked && !state.me.isGuest ? item('🔐', 'Relier mon compte Google', () => { location.href = '/auth/google'; }) : null,
@@ -929,9 +930,9 @@ socket.on('message', m => {
     typers.delete(m.username); renderTyping();
   }
 });
-socket.on('system', ({ room, text }) => {
+socket.on('system', ({ room, text, joinSound }) => {
   if (!room) return toast(text);
-  if (state.view?.type === 'room' && state.view.slug === room) addSys(text);
+  if (state.view?.type === 'room' && state.view.slug === room) { addSys(text); if (joinSound && state.sound && state.me?.presence !== 'dnd' && !document.hidden) window.JoinSounds?.onArrive(joinSound); } // 🔔 le son d'arrivée choisi par la personne
 });
 socket.on('typing', ({ room, username }) => {
   const who = state.online.find(u => u.username === username);

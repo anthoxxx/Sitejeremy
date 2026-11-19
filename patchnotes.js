@@ -888,4 +888,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 61,
+    date: '2026-11-19',
+    title: 'Choisis ton son d\'arrivée dans les salons 🚗🎺',
+    added: [
+      '🔔 Nouveau : choisis le bruit que tout le monde entend quand tu arrives dans un salon ! 20 sons : klaxon 🚗, pouet de clown 🤡, sonnette, fanfare 🎺, tadaaa, coin-coin 🦆, laser, boing, roulement de tambour 🥁, applaudissements 👏, train, moto, bisou 💋, sirène…',
+      '👂 Tu choisis aussi ce que TU entends quand quelqu\'un arrive : le son de chaque personne, toujours le même son, ou aucun son. Avec le volume',
+      '📍 C\'est dans ton menu (en haut, sur ton pseudo) → « 🔔 Sons d\'arrivée », ou dans le téléphone : Réglages → Sons et vibrations',
+    ],
+    changed: ['En « Ne pas déranger » ou avec le son coupé, tu n\'entends pas les sons d\'arrivée'],
+    removed: [],
+  },
 ];

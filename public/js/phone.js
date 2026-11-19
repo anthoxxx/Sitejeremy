@@ -770,6 +770,7 @@ const Phone = (() => {
       group(el('div', { class: 'ios-row' }, el('span', {}, '🔈'), el('input', { type: 'range', min: 0, max: 10, value: opt('vol', '7'), class: 'ios-range', onchange: e => { setOpt('vol', e.target.value); ringTone(); } }), el('span', {}, '🔊'))),
       el('h4', { class: 'ios-head' }, 'SONNERIE'),
       group(...Object.keys(RINGS).map(k => row(opt('ring', 'cristal') === k ? '✔️' : '🎵', '#ff2d55', k[0].toUpperCase() + k.slice(1), null, () => { setOpt('ring', k); ringTone(k); soundPage(body); }))),
+      group(row('🔔', '#ff9500', 'Mon son d\'arrivée dans les salons', null, () => { close(); window.JoinSounds?.open(); })),
       group(row('📳', '#ff9500', 'Vibrations', sw('vibe', '1')), row('⌨️', '#8e8e93', 'Clics du clavier', sw('keyclick', '0')))));
   }
   function displayPage(body) {

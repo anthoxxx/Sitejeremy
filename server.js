@@ -19,6 +19,7 @@ const rank = u => ROLES.indexOf(u?.role);
 const GENDERS = ['h', 'f', 'x']; // homme, femme, autre (les identités gay, bi, trans… se choisissent dans le profil)
 const IDENTITIES = ['', 'gay', 'lesbienne', 'bi', 'pan', 'trans', 'trav', 'queer', 'nonbinaire', 'hetero'];
 const LIKES = require('./public/js/likes.js');
+const JOIN_SOUNDS = require('./public/js/joinsounds.js');
 const MSG_FONTS = ['', 'manuscrite', 'machine', 'fantaisie', 'pixel', 'elegante', 'bd', 'gras', 'italique'];
 const GENDER_FR = { h: 'Homme', f: 'Femme', g: 'Gay', v: 'Trav', t: 'Trans', x: 'Autre' };
 // Couleur du pseudo par défaut selon le genre : bleu (homme), rose (femme), violet (autre)
@@ -114,7 +115,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', googleLinked: !!u.google_id, perks: hasPerks(u), canBlack: canBlack(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', joinSound: u.join_sound || 'ding', googleLinked: !!u.google_id, perks: hasPerks(u), canBlack: canBlack(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -746,6 +747,7 @@ app.put('/api/me', auth, (req, res) => {
   db.prepare('UPDATE users SET birth_day=?, birth_month=?, show_birthday=? WHERE id=?').run(bd, bm,
     b.showBirthday !== undefined ? (b.showBirthday ? 1 : 0) : u.show_birthday, u.id);
   if (b.identity !== undefined) db.prepare('UPDATE users SET identity=? WHERE id=?').run(IDENTITIES.includes(b.identity) ? b.identity : '', u.id);
+  if (b.joinSound !== undefined) db.prepare('UPDATE users SET join_sound=? WHERE id=?').run(JOIN_SOUNDS.includes(b.joinSound) ? b.joinSound : '', u.id);
   if (b.likes !== undefined && Array.isArray(b.likes)) db.prepare('UPDATE users SET likes=? WHERE id=?').run(JSON.stringify([...new Set(b.likes.map(String))].filter(x => LIKES.includes(x)).slice(0, 12)), u.id);
   if (b.msgFont !== undefined) db.prepare('UPDATE users SET msg_font=? WHERE id=?').run(MSG_FONTS.includes(b.msgFont) ? b.msgFont : '', u.id);
   if (b.msgColor !== undefined) db.prepare('UPDATE users SET msg_color=? WHERE id=?').run(/^#[0-9a-f]{6}$/i.test(b.msgColor || '') ? b.msgColor.toLowerCase() : '', u.id);
@@ -3089,7 +3091,7 @@ io.on('connection', socket => {
     if (quick) { clearTimeout(quick.timer); recentLeave.delete(uid); if (!silent && !entry.ghost) io.to('room:' + quick.room).emit('system', { room: quick.room, text: `${u.username} a quitté le salon` }); }
     if (prev !== room.slug && !entry.ghost && !silent && room.slug !== PATCH_SLUG && prev !== PATCH_SLUG) {
       if (prev) io.to('room:' + prev).emit('system', { room: prev, text: `${u.username} a quitté le salon` });
-      socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon` });
+      socket.to('room:' + room.slug).emit('system', { room: room.slug, text: `${u.username} a rejoint le salon`, joinSound: u.join_sound || 'ding' });
       // 🎬 Entrée en scène achetée dans la boutique
       if (u.shop_entry && !throttled(`entry:${uid}:${room.slug}`, 60000)) io.to('room:' + room.slug).emit('entry_fx', { room: room.slug, username: u.username, fx: u.shop_entry, color: u.color });
     }
@@ -3305,7 +3307,7 @@ io.on('connection', socket => {
       // Pour les autres, c'est comme s'il venait de partir (et inversement)
       if (entry.room) io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} s'est déconnecté` });
     } else if (entry.room) {
-      io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} a rejoint le salon` });
+      io.to('room:' + entry.room).except('supers').emit('system', { room: entry.room, text: `${u.username} a rejoint le salon`, joinSound: u.join_sound || 'ding' });
     }
     log(u, 'ghost', wanted ? 'Mode fantôme activé 👻' : 'Mode fantôme désactivé');
     emitToUser(uid, 'ghost_state', { ghost: wanted });
