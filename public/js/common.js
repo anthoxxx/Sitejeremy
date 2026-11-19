@@ -245,6 +245,8 @@ window.LC = {
   photoBadge(u) { return LC.el('span', { class: 'dbadge vphoto' + (u.photoOk ? ' ok' : ''), title: u.photoOk ? 'Photo de profil vérifiée par le staff' : 'Photo de profil pas encore vérifiée' }, LC.el('i', { class: 'di' }, 'V')); },
   // Pseudo avec sa couleur et son effet
   // ⭕ la couleur autour de toute la ligne (photo + pseudo) dans la liste des connectés
+  // 📱💻 connecté sur téléphone, tablette ou ordinateur
+  deviceTag(u) { const D = { phone: ['📱', 'sur téléphone'], tablet: ['📲', 'sur tablette'], pc: ['💻', 'sur ordinateur'] }; const l = (u?.devices || []).filter(d => D[d]); if (!l.length) return null; return LC.el('span', { class: 'dev-tag', title: 'Connecté ' + l.map(d => D[d][1]).join(' et ') }, l.map(d => D[d][0]).join('')); },
   ringRow(u) { const [rs, rc, rc2] = String(u?.nameRing || '').split(':'); return rs ? { cls: ' nrr nrr-' + rs + (rc2 ? ' nrr2' : ''), style: `--nr:${rc || '#ff5fa2'};--c:${u.color || '#8b6cff'}` + (rc2 ? `;--nr2:${rc2}` : '') } : { cls: '', style: '' }; },
   name(u, extraClass = '') {
     const fx = u.nameEffect && u.nameEffect !== 'none' ? ' fx fx-' + u.nameEffect : '';

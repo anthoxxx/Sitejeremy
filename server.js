@@ -2783,9 +2783,12 @@ Advent.routes(app, auth);
 const Events = require('./events')({ io, db, getSettings, setSetting, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a), getOnline: () => online, earn: (...a) => Coins.earn(...a), track, island: Island, search: (q, max) => Jukebox.playableSearch(q, max), log: (...a) => log(...a) });
 
 // 🟢 Le statut comme sur Discord : en ligne, 🌙 absent (choisi, ou tout seul après 5 minutes sans bouger), ⛔ ne pas déranger
+// 📱💻 sur quoi la personne est connectée (téléphone, tablette ou ordinateur), d'après son navigateur
+const deviceOfUA = ua => { ua = String(ua || ''); if (/iPad|Tablet|PlayBook|Silk|Kindle/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) return 'tablet'; if (/Mobi|iPhone|iPod|Android|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua)) return 'phone'; return 'pc'; };
+const devicesOf = entry => [...new Set([...(entry.devices?.values() || [])])].sort();
 const statusOf = entry => { const p = entry.user.presence || 'auto'; return p === 'dnd' ? 'dnd' : p === 'away' || entry.idle ? 'away' : 'online'; };
 function onlineOut(entry) {
-  return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost, status: statusOf(entry) };
+  return { ...publicUser(entry.user), room: entry.room, ghost: !!entry.ghost, status: statusOf(entry), devices: devicesOf(entry) };
 }
 // Mode fantôme : le super-admin est invisible pour tout le monde sauf les autres super-admins
 const isGhost = id => !!online.get(id)?.ghost;
@@ -3048,6 +3051,7 @@ io.on('connection', socket => {
   if (firstSocket && !entry.user.is_guest && !entry.user.welcomed) welcomeNewcomer(entry.user);
   if (firstSocket && !entry.user.is_guest) setTimeout(() => { Progress.award(uid, 'member'); if (isVerified(entry.user)) Progress.award(uid, 'verified'); if (entry.user.avatar) Progress.award(uid, 'photo'); }, 4000);
   entry.sockets.add(socket.id);
+  (entry.devices = entry.devices || new Map()).set(socket.id, deviceOfUA(socket.handshake.headers['user-agent']));
   if (isSuper(entry.user)) socket.join('supers');
   // Les amis en ligne sont prévenus quand tu arrives (une fois par heure au maximum)
   if (firstSocket && !entry.ghost && !entry.user.is_guest && !throttled('online:' + uid, 3600000)) {
@@ -3558,7 +3562,7 @@ io.on('connection', socket => {
     leaveVoiceBySocket(socket.id, null);
     const cid = callOfSocket.get(socket.id);
     if (cid) endCall(cid, { by: socket.id, reason: 'Ton correspondant s\'est déconnecté' });
-    entry.sockets.delete(socket.id);
+    entry.sockets.delete(socket.id); entry.devices?.delete(socket.id);
     if (entry.sockets.size === 0) {
       online.delete(uid);
       Games.onUserGone(uid);

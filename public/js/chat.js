@@ -583,7 +583,7 @@ function renderUsers() {
       el('div', { class: 'meta' },
         el('div', { class: 'name' }, u.ghost ? '👻 ' : '', state.customs?.enabled && !u.verified ? (u.refused ? '❌ ' : '🛂 ') : '', LC.name({ ...u, nameRing: '' }), ' ', el('span', { class: 'g-' + u.gender }, LC.heartOf(u)), ' ', LC.badge(u), roomModBadge(u.id), (state.customs?.enabled ? !u.verified && !u.refused : state.customs?.media && !['admin', 'superadmin', 'moderator'].includes(u.role)) ? LC.douaneBadges(u, false) : null, u.photoOk ? LC.photoBadge(u) : null),
         LC.badgesRow(u.badges, true),
-        el('div', { class: 'sub' }, muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
+        el('div', { class: 'sub' }, LC.deviceTag(u), muted ? el('span', { class: 'mute-left', 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)) : (u.statusText || u.statusEmoji ? `${u.statusEmoji} ${u.statusText}`.trim()
           : [u.age ? u.age + ' ans' : '', u.city, roomName(u.room)].filter(Boolean).join(' · ')))),
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.voiceOk ? ' on' : ''), title: u.voiceOk ? 'Voix validée (cliquer pour retirer)' : 'Valider la voix', onclick: e => { e.stopPropagation(); setBadge(u, 'voice', !u.voiceOk); } }, '🎙️') : null,
       toCheck ? el('button', { class: 'btn btn-sm verify-btn' + (u.camOk ? ' on' : ''), title: u.camOk ? 'Caméra validée (cliquer pour retirer)' : 'Valider la caméra', onclick: e => { e.stopPropagation(); setBadge(u, 'cam', !u.camOk); } }, '📷') : null,

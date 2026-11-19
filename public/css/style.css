@@ -3684,3 +3684,5 @@ body { background:
   .sidebar.right { background: color-mix(in srgb, #3a2c1e 78%, transparent); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
   :root[data-theme="light"] .sidebar.right { background: color-mix(in srgb, #d9c3a3 80%, transparent); }
 }
+/* 📱💻 sur quoi la personne est connectée */
+.dev-tag { display: inline-block; margin-right: 4px; font-size: .9em; filter: saturate(1.1); cursor: help; }

@@ -932,4 +932,15 @@ module.exports = [
     changed: ['🤎 La colonne de droite (les connectés) a maintenant le même effet « verre » que la colonne des salons à gauche, mais teinté beige foncé, avec de légers reflets dorés derrière'],
     removed: [],
   },
+  {
+    id: 65,
+    date: '2026-11-19',
+    title: 'Téléphone ou ordinateur ? 📱💻',
+    added: [
+      '📱💻 Dans la liste des connectés, une petite icône montre sur quoi chaque personne est connectée : 📱 téléphone, 📲 tablette ou 💻 ordinateur',
+      'Si quelqu\'un est connecté sur deux appareils en même temps, tu vois les deux icônes. Passe la souris dessus pour le voir écrit',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
