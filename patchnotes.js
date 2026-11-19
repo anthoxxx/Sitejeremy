@@ -764,4 +764,18 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 52,
+    date: '2026-11-19',
+    title: 'L\'App Store arrive sur ton iPhone 18 📲',
+    added: [
+      '🅰️ L\'App Store dans ton téléphone : « Aujourd\'hui » avec l\'app du jour, « Jeux », « Apps » et « Recherche ». Touche « OBTENIR » pour télécharger une appli, elle arrive sur ton écran d\'accueil',
+      '🆕 10 nouvelles applis à télécharger : 🎨 Dessin (envoie ton dessin à un ami), 🎲 Hasard (dé, pile ou face, roue de la décision), 🌐 Traduction (20 langues, et on peut l\'écouter), 🔢 2048, 🐤 Flappy Paradise, 🧘 Zen (respiration), ♈ Horoscope, 🗺️ Plans de la Ville, 🧭 Boussole et 📏 Niveau à bulle',
+      '📱 Comme sur un vrai iPhone : garde le doigt appuyé sur une appli, les icônes tremblent et tu peux la supprimer avec le « − » (elle se retélécharge dans l\'App Store)',
+    ],
+    changed: [
+      'Ton écran d\'accueil ne montre plus que les applis que tu as installées : toutes les autres sont dans l\'App Store',
+    ],
+    removed: [],
+  },
 ];

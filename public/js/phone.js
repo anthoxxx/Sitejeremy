@@ -78,11 +78,55 @@ const Phone = (() => {
     agenda: { icon: '📅', name: 'Calendrier', c: '#ff3b30', open: () => go(calendar, '📅 Calendrier') },
     torch: { icon: '🔦', name: 'Lampe', c: '#5856d6', open: () => go(torch, '') },
     settings: { icon: '⚙️', name: 'Réglages', c: '#6b7280', open: () => go(settings, '⚙️ Réglages') },
+    appstore: { icon: '🅰️', name: 'App Store', c: '#1a8cff', open: () => go(appStore, '') },
+    // 🆕 les applis à télécharger dans l'App Store
+    paint: { icon: '🎨', name: 'Dessin', c: '#ff5fa2', open: () => go(paint, '🎨 Dessin') },
+    dice: { icon: '🎲', name: 'Hasard', c: '#8b5cf6', open: () => go(dice, '🎲 Hasard') },
+    translate: { icon: '🌐', name: 'Traduction', c: '#2f6fd6', open: () => go(translateApp, '🌐 Traduction') },
+    g2048: { icon: '🔢', name: '2048', c: '#edc22e', open: () => go(game2048, '🔢 2048') },
+    flappy: { icon: '🐤', name: 'Flappy', c: '#38c0e6', open: () => go(flappy, '') },
+    breathe: { icon: '🧘', name: 'Zen', c: '#2bd07a', open: () => go(breathe, '') },
+    horoscope: { icon: '♈', name: 'Horoscope', c: '#c64dff', open: () => go(horoscope, '♈ Horoscope') },
+    map: { icon: '🗺️', name: 'Plans', c: '#34c759', open: () => go(mapApp, '🗺️ Plans') },
+    compass: { icon: '🧭', name: 'Boussole', c: '#1c1c24', open: () => go(compass, '') },
+    level: { icon: '📏', name: 'Niveau', c: '#ff9500', open: () => go(levelApp, '') },
   };
+  // 📲 Les applis installées (gardées sur cet appareil). Certaines sont là dès le départ, comme sur un vrai iPhone.
+  const SYSTEM = ['messages', 'phone', 'snap', 'camera', 'contacts', 'settings', 'appstore'];
+  const STARTER = ['city', 'games', 'shop', 'weather', 'clock', 'calc', 'notes'];
+  const STORE = {
+    city: ['Ville du Paradise', 'Voyage', 'Promène-toi dans la grande ville', 4.9], games: ['Mini-jeux', 'Jeux', 'Bowling, billard, serpent, quiz…', 4.8], shop: ['Boutique Paradise', 'Shopping', 'Cadres, badges, effets de pseudo', 4.6],
+    quests: ['Quêtes & Badges', 'Jeux', 'Tes défis du jour', 4.5], pet: ['Mon animal', 'Divertissement', 'Nourris et câline ton compagnon', 4.8], fortune: ['La Voyante', 'Style de vie', 'Madame Paradisia lit ton avenir', 4.4],
+    advent: ['Calendrier de l\'Avent', 'Style de vie', 'Une surprise chaque jour de décembre', 4.9], pageant: ['Miss & Mister', 'Réseaux sociaux', 'Vote pour les plus beaux du mois', 4.3], notifs: ['Notifications', 'Utilitaires', 'Toutes tes alertes', 4.2],
+    weather: ['Météo', 'Météo', 'Le temps qu\'il fait au Paradise', 4.6], clock: ['Horloge', 'Utilitaires', 'Chrono et minuteur', 4.7], calc: ['Calculette', 'Utilitaires', 'Pour tous tes calculs', 4.7], notes: ['Notes', 'Productivité', 'Écris tes idées', 4.6],
+    agenda: ['Calendrier', 'Productivité', 'Les soirées et anniversaires', 4.5], torch: ['Lampe torche', 'Utilitaires', 'Pour voir dans le noir', 4.3],
+    paint: ['Dessin', 'Créativité', 'Dessine avec tes doigts, envoie en snap', 4.8], dice: ['Hasard', 'Divertissement', 'Dé, pile ou face, roue de la décision', 4.5], translate: ['Traduction', 'Utilitaires', 'Traduis dans 20 langues (et écoute)', 4.7],
+    g2048: ['2048', 'Jeux', 'Le célèbre jeu de chiffres', 4.8], flappy: ['Flappy Paradise', 'Jeux', 'Fais voler le poussin entre les tuyaux', 4.6], breathe: ['Zen', 'Santé', 'Respire et détends-toi en 1 minute', 4.9],
+    horoscope: ['Horoscope', 'Style de vie', 'Ton horoscope du jour', 4.4], map: ['Plans', 'Navigation', 'Tous les lieux de la Ville', 4.7], compass: ['Boussole', 'Navigation', 'Trouve le nord', 4.2], level: ['Niveau à bulle', 'Utilitaires', 'Vérifie si c\'est bien droit', 4.1],
+  };
+  const FEATURED = ['g2048', 'paint', 'flappy', 'breathe', 'translate', 'map'];
+  const instKey = () => 'ph_apps_' + (state.me?.id || 0);
+  function installed() {
+    let l = null; try { l = JSON.parse(localStorage.getItem(instKey()) || 'null'); } catch (e) {}
+    if (!Array.isArray(l)) l = [...STARTER];
+    return l.filter(k => APPS[k] && !SYSTEM.includes(k));
+  }
+  const setInstalled = l => { try { localStorage.setItem(instKey(), JSON.stringify(l)); } catch (e) {} };
+  const isInst = k => SYSTEM.includes(k) || installed().includes(k);
+  const install = k => { const l = installed(); if (!l.includes(k)) { l.push(k); setInstalled(l); } };
+  const uninstall = k => setInstalled(installed().filter(x => x !== k));
+  let jiggle = false;
   function appIcon(k, small) {
     const a = APPS[k], n = a.badge ? a.badge() : 0;
-    return el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), onclick: () => a.open() },
-      el('span', { class: 'ph-ico', style: `--c:${a.c}` }, a.icon, n ? el('i', {}, n > 99 ? '99+' : n) : null), small ? null : el('small', {}, a.name));
+    let press = 0, long = false;
+    // 👆 appui long : les icônes se mettent à trembler et on peut supprimer une appli (comme sur iPhone)
+    const b = el('button', { class: 'ph-appicon' + (small ? ' dock' : ''), onclick: () => { if (long) { long = false; return; } if (jiggle) return; a.open(); },
+      onpointerdown: () => { clearTimeout(press); press = setTimeout(() => { long = true; if (!jiggle) { jiggle = true; try { navigator.vibrate?.(30); } catch (e) {} home(); } }, 550); },
+      onpointerup: () => clearTimeout(press), onpointerleave: () => clearTimeout(press) },
+      el('span', { class: 'ph-ico', style: `--c:${a.c}` }, a.icon, n ? el('i', {}, n > 99 ? '99+' : n) : null,
+        jiggle && !SYSTEM.includes(k) && !small ? el('b', { class: 'ph-del', onclick: e => { e.stopPropagation(); uninstall(k); home(); toast(`🗑️ « ${a.name} » supprimée (tu peux la retélécharger dans l'App Store)`); } }, '−') : null),
+      small ? null : el('small', {}, a.name));
+    return b;
   }
   function home() {
     stopCam(); clearTimers(); stack = []; convOpen = null;
@@ -90,7 +134,8 @@ const Phone = (() => {
     const d = new Date();
     screen.replaceChildren(el('div', { class: 'ph-home' },
       el('div', { class: 'ph-clock' }, el('b', {}, time()), el('small', {}, d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
-      el('div', { class: 'ph-grid' }, ...['messages', 'snap', 'phone', 'contacts', 'camera', 'city', 'games', 'shop', 'quests', 'pet', 'fortune', 'advent', 'pageant', 'notifs', 'weather', 'clock', 'calc', 'notes', 'agenda', 'torch', 'settings'].map(k => appIcon(k))),
+      jiggle ? el('button', { class: 'ph-done', onclick: () => { jiggle = false; home(); } }, 'OK') : null,
+      el('div', { class: 'ph-grid' + (jiggle ? ' jiggle' : '') }, ...['messages', 'snap', 'contacts', 'appstore', ...installed(), 'settings'].map(k => appIcon(k))),
       el('div', { class: 'ph-dock' }, ...['phone', 'messages', 'snap', 'camera'].map(k => appIcon(k, true)))));
   }
   async function refreshBadges() {
@@ -382,6 +427,193 @@ const Phone = (() => {
     let on = true;
     const t = el('div', { class: 'ph-torch on', onclick: () => { on = !on; t.classList.toggle('on', on); screen.style.background = on ? '#fffbe8' : '#000'; } }, el('span', {}, '🔦'), el('small', {}, 'Touche pour allumer / éteindre'));
     screen.style.background = '#fffbe8'; body.replaceChildren(t);
+  }
+
+  // =================== 🅰️ L'App Store ===================
+  const stars = r => '★★★★★'.slice(0, Math.round(r)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(r));
+  const fakeCount = k => { let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) % 9000; return (h + 800).toLocaleString('fr-FR'); };
+  function getBtn(k, onDone) {
+    if (isInst(k)) return el('button', { class: 'as-get open', onclick: e => { e.stopPropagation(); APPS[k].open(); } }, 'OUVRIR');
+    const b = el('button', { class: 'as-get', onclick: e => {
+      e.stopPropagation(); if (b.classList.contains('loading')) return;
+      b.classList.add('loading'); b.replaceChildren(el('i', { class: 'as-ring' }));
+      setTimeout(() => { install(k); try { navigator.vibrate?.(20); } catch (er) {} island(`📲 « ${APPS[k].name} » est installée !`); b.classList.remove('loading'); b.classList.add('open'); b.textContent = 'OUVRIR'; b.onclick = ev => { ev.stopPropagation(); APPS[k].open(); }; onDone && onDone(); }, 1600);
+    } }, 'OBTENIR');
+    return b;
+  }
+  const storeRow = k => { const [n, cat, desc, r] = STORE[k], a = APPS[k]; return el('div', { class: 'as-row', onclick: () => go(b => appPage(b, k), '') }, el('span', { class: 'ph-ico as-ico', style: `--c:${a.c}` }, a.icon), el('div', { class: 'as-txt' }, el('b', {}, n), el('small', {}, desc), el('em', {}, `${stars(r)} ${r.toFixed(1)} · ${cat}`)), getBtn(k)); };
+  let asTab = 'today', asQuery = '';
+  function appStore(body) {
+    screen.style.background = '';
+    const tabs = [['today', '📰', 'Aujourd\'hui'], ['games', '🎮', 'Jeux'], ['apps', '📚', 'Apps'], ['search', '🔍', 'Recherche']];
+    const keys = Object.keys(STORE);
+    let content;
+    if (asTab === 'today') {
+      const day = new Date().getDate(), star = FEATURED[day % FEATURED.length], a = APPS[star];
+      content = [el('div', { class: 'as-date' }, new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })), el('h2', { class: 'as-h' }, 'Aujourd\'hui'),
+        el('div', { class: 'as-hero', style: `--c:${a.c}`, onclick: () => go(b => appPage(b, star), '') }, el('small', {}, '⭐ L\'APP DU JOUR'), el('b', {}, STORE[star][0]), el('span', {}, STORE[star][2]), el('div', { class: 'as-hero-ico' }, a.icon)),
+        el('h3', { class: 'as-h3' }, '🔥 Les plus téléchargées'), ...keys.slice().sort((x, y) => STORE[y][3] - STORE[x][3]).slice(0, 6).map(storeRow)];
+    } else if (asTab === 'search') {
+      const inp = el('input', { class: 'ph-input', placeholder: '🔍 Jeux, applis…', value: asQuery, oninput: e => { asQuery = e.target.value; list.replaceChildren(...found()); } });
+      const found = () => keys.filter(k => (STORE[k][0] + ' ' + STORE[k][1] + ' ' + STORE[k][2]).toLowerCase().includes(asQuery.toLowerCase())).map(storeRow);
+      const list = el('div', {}, ...found());
+      content = [el('h2', { class: 'as-h' }, 'Recherche'), inp, list]; setTimeout(() => inp.focus(), 50);
+    } else {
+      const games = asTab === 'games', sel = keys.filter(k => (STORE[k][1] === 'Jeux') === games);
+      content = [el('h2', { class: 'as-h' }, games ? 'Jeux' : 'Apps'), ...sel.map(storeRow)];
+    }
+    body.replaceChildren(el('div', { class: 'as' }, el('div', { class: 'as-body' }, ...content),
+      el('div', { class: 'as-tabs' }, ...tabs.map(([t, i, l]) => el('button', { class: asTab === t ? 'on' : '', onclick: () => { asTab = t; appStore(body); } }, el('span', {}, i), l)))));
+  }
+  function appPage(body, k) {
+    const [n, cat, desc, r] = STORE[k], a = APPS[k];
+    const draw = () => body.replaceChildren(el('div', { class: 'as as-page' },
+      el('div', { class: 'as-top' }, el('span', { class: 'ph-ico as-big', style: `--c:${a.c}` }, a.icon), el('div', {}, el('b', {}, n), el('small', {}, `The Paradise · ${cat}`), getBtn(k, draw))),
+      el('div', { class: 'as-stats' }, el('div', {}, el('b', {}, r.toFixed(1)), el('small', {}, stars(r))), el('div', {}, el('b', {}, fakeCount(k)), el('small', {}, 'notes')), el('div', {}, el('b', {}, '4+'), el('small', {}, 'âge')), el('div', {}, el('b', {}, 'Gratuit'), el('small', {}, 'prix'))),
+      el('div', { class: 'as-shot', style: `--c:${a.c}` }, el('span', {}, a.icon), el('small', {}, desc)),
+      el('h3', { class: 'as-h3' }, 'Description'), el('p', { class: 'as-desc' }, `${desc}. Une appli de ton téléphone Paradise, gratuite et sans pub 😉`),
+      isInst(k) && !SYSTEM.includes(k) ? el('button', { class: 'as-del', onclick: () => { uninstall(k); draw(); toast(`🗑️ « ${a.name} » supprimée`); } }, '🗑️ Supprimer l\'app') : null));
+    draw();
+  }
+
+  // =================== 🎨 Dessin ===================
+  function paint(body) {
+    const cv = el('canvas', { class: 'ph-paint', width: 640, height: 860 }), g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 860); g.lineCap = g.lineJoin = 'round';
+    let color = '#ff2d55', size = 10, last = null;
+    const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 640, (e.clientY - r.top) / r.height * 860]; };
+    cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); last = pos(e); g.fillStyle = color; g.beginPath(); g.arc(last[0], last[1], size / 2, 0, 7); g.fill(); };
+    cv.onpointermove = e => { if (!last) return; const p = pos(e); g.strokeStyle = color; g.lineWidth = size; g.beginPath(); g.moveTo(...last); g.lineTo(...p); g.stroke(); last = p; };
+    cv.onpointerup = () => { last = null; };
+    const COLS = ['#111111', '#ff2d55', '#ff9500', '#ffd34d', '#2bd07a', '#2fa8ff', '#8b5cf6', '#ff5fa2', '#8a5a2b', '#ffffff'];
+    const bar = el('div', { class: 'ph-pbar' }, ...COLS.map(c => el('button', { class: 'ph-pc' + (c === color ? ' on' : ''), style: `background:${c}`, onclick: e => { color = c; bar.querySelectorAll('.ph-pc').forEach(x => x.classList.toggle('on', x === e.currentTarget)); } })));
+    const sz = el('input', { type: 'range', min: 3, max: 40, value: size, oninput: e => { size = +e.target.value; } });
+    const send = async () => {
+      pickFriend('Envoyer mon dessin à…', async u => {
+        try { const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .9)); const url = await upload(blob); socket.emit('pm', { to: u.id, image: { url }, text: '🎨 Mon dessin' }, r => r?.error ? toast(r.error) : toast(`🎨 Dessin envoyé à ${u.username} !`)); back(); } catch (e) { toast(e.message); }
+      });
+    };
+    body.replaceChildren(el('div', { class: 'ph-paintapp' }, cv, bar, el('div', { class: 'ph-row-btns' }, el('span', {}, '✏️'), sz, el('button', { class: 'ph-pill', onclick: () => { g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 860); } }, '🧽 Effacer'), el('button', { class: 'ph-pill go', onclick: send }, '📤 Envoyer'))));
+  }
+  // =================== 🎲 Hasard ===================
+  function dice(body) {
+    const out = el('div', { class: 'ph-dice-out' }, '🎲');
+    const roll = (fn, spins = 10) => { let i = 0; const iv = setInterval(() => { out.textContent = fn(); out.classList.toggle('spin'); if (++i >= spins) clearInterval(iv); }, 80); };
+    const face = () => '⚀⚁⚂⚃⚄⚅'[Math.floor(Math.random() * 6)];
+    const choices = el('input', { class: 'ph-input', placeholder: 'Pizza, Sushi, Burger… (séparés par des virgules)' });
+    body.replaceChildren(el('div', { class: 'ph-dice' }, out,
+      el('div', { class: 'ph-row-btns' }, el('button', { class: 'ph-pill go', onclick: () => roll(face) }, '🎲 Lancer le dé'), el('button', { class: 'ph-pill', onclick: () => roll(() => Math.random() < .5 ? '🪙 Pile' : '🪙 Face') }, '🪙 Pile ou face'), el('button', { class: 'ph-pill', onclick: () => roll(() => String(1 + Math.floor(Math.random() * 100))) }, '🔢 1 à 100')),
+      el('h4', { class: 'ph-h' }, '🎡 La roue de la décision'), choices,
+      el('button', { class: 'ph-pill go', style: 'margin-top:8px', onclick: () => { const l = choices.value.split(',').map(x => x.trim()).filter(Boolean); if (l.length < 2) return toast('Écris au moins 2 choix'); roll(() => l[Math.floor(Math.random() * l.length)], 16); } }, '🎡 Faire tourner')));
+  }
+  // =================== 🌐 Traduction ===================
+  function translateApp(body) {
+    const langs = window.Translator?.LANGS || [['en', '🇬🇧 English'], ['fr', '🇫🇷 Français']];
+    const sel = el('select', { class: 'ph-input' }, ...langs.map(([v, l]) => el('option', { value: v, selected: v === 'en' }, l)));
+    const inp = el('textarea', { class: 'ph-input', rows: 4, placeholder: 'Écris ici…' });
+    const out = el('div', { class: 'ph-tr-out' });
+    const go2 = async () => { if (!inp.value.trim()) return; out.textContent = '…'; try { const r = await api('/api/translate', { method: 'POST', body: { text: inp.value, to: sel.value } }); out.textContent = r.text; } catch (e) { out.textContent = e.message; } };
+    body.replaceChildren(el('div', { class: 'ph-tr' }, inp, el('div', { class: 'ph-row-btns' }, el('span', {}, '➡️'), sel, el('button', { class: 'ph-pill go', onclick: go2 }, 'Traduire')), out,
+      el('button', { class: 'ph-pill', onclick: () => { if (!out.textContent || !('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(out.textContent); u.lang = sel.value; speechSynthesis.speak(u); } }, '🔊 Écouter')));
+  }
+  // =================== 🔢 2048 ===================
+  function game2048(body) {
+    let b = Array(16).fill(0), score = 0, best = +(opt('best2048', '0')), over = false;
+    const add = () => { const e = b.map((v, i) => v ? -1 : i).filter(i => i >= 0); if (e.length) b[e[Math.floor(Math.random() * e.length)]] = Math.random() < .9 ? 2 : 4; };
+    const line = l => { l = l.filter(Boolean); for (let i = 0; i < l.length - 1; i++) if (l[i] === l[i + 1]) { l[i] *= 2; score += l[i]; l.splice(i + 1, 1); } while (l.length < 4) l.push(0); return l; };
+    const move = dir => {
+      if (over) return; const old = b.join();
+      for (let k = 0; k < 4; k++) {
+        const idx = [0, 1, 2, 3].map(j => dir === 'l' ? k * 4 + j : dir === 'r' ? k * 4 + 3 - j : dir === 'u' ? j * 4 + k : (3 - j) * 4 + k);
+        line(idx.map(i => b[i])).forEach((v, j) => { b[idx[j]] = v; });
+      }
+      if (b.join() !== old) add();
+      if (!b.includes(0) && ![0, 1, 2, 3].some(r => [0, 1, 2].some(c => b[r * 4 + c] === b[r * 4 + c + 1] || b[c * 4 + r] === b[(c + 1) * 4 + r]))) over = true;
+      if (score > best) { best = score; setOpt('best2048', String(best)); }
+      draw();
+    };
+    const grid = el('div', { class: 'g48' }), info = el('div', { class: 'g48-info' });
+    const draw = () => { info.replaceChildren(el('span', {}, `Score ${score}`), el('span', {}, `🏆 ${best}`)); grid.replaceChildren(...b.map(v => el('div', { class: 'g48-c v' + v }, v || ''))); if (over) grid.append(el('div', { class: 'g48-over' }, 'Perdu ! 😅', el('button', { class: 'ph-pill go', onclick: () => game2048(body) }, '🔁 Rejouer'))); };
+    let sx = 0, sy = 0;
+    grid.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
+    grid.addEventListener('pointerup', e => { const dx = e.clientX - sx, dy = e.clientY - sy; if (Math.max(Math.abs(dx), Math.abs(dy)) < 25) return; move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u')); });
+    const key = e => { if (!body.isConnected) return document.removeEventListener('keydown', key); const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd' }[e.key]; if (m) { e.preventDefault(); move(m); } };
+    document.addEventListener('keydown', key);
+    add(); add(); draw();
+    body.replaceChildren(el('div', { class: 'g48-app' }, info, grid, el('small', { class: 'ph-wait' }, 'Glisse ton doigt (ou les flèches du clavier) pour rassembler les chiffres. Objectif : 2048 !')));
+  }
+  // =================== 🐤 Flappy Paradise ===================
+  function flappy(body) {
+    const cv = el('canvas', { class: 'ph-flappy', width: 360, height: 600 }), g = cv.getContext('2d');
+    let y = 280, v = 0, pipes = [], score = 0, best = +(opt('bestFlappy', '0')), state0 = 'ready', last = 0;
+    const flap = () => { if (state0 === 'over') { y = 280; v = 0; pipes = []; score = 0; state0 = 'ready'; return; } state0 = 'play'; v = -7.4; };
+    cv.onpointerdown = flap;
+    const loop = ts => {
+      if (!body.isConnected) return;
+      requestAnimationFrame(loop); const dt = Math.min(2, (ts - last) / 16.7 || 1); last = ts;
+      const sky = g.createLinearGradient(0, 0, 0, 600); sky.addColorStop(0, '#6fd3f5'); sky.addColorStop(1, '#c9f1ff'); g.fillStyle = sky; g.fillRect(0, 0, 360, 600);
+      g.fillStyle = '#7fc46a'; g.fillRect(0, 560, 360, 40); g.fillStyle = '#d9b97a'; g.fillRect(0, 556, 360, 6);
+      if (state0 === 'play') {
+        v += .42 * dt; y += v * dt;
+        if (!pipes.length || pipes[pipes.length - 1].x < 160) pipes.push({ x: 380, gap: 130 + Math.random() * 300, done: false });
+        for (const p of pipes) { p.x -= 2.6 * dt; if (!p.done && p.x < 70) { p.done = true; score++; } }
+        pipes = pipes.filter(p => p.x > -70);
+        if (y > 540 || y < 0 || pipes.some(p => p.x < 100 && p.x > 20 && (y < p.gap - 70 || y > p.gap + 70))) { state0 = 'over'; if (score > best) { best = score; setOpt('bestFlappy', String(best)); } try { navigator.vibrate?.(80); } catch (e) {} }
+      }
+      for (const p of pipes) { g.fillStyle = '#2bb866'; g.fillRect(p.x, 0, 56, p.gap - 70); g.fillRect(p.x, p.gap + 70, 56, 556 - p.gap - 70); g.fillStyle = '#1f8a4c'; g.fillRect(p.x - 4, p.gap - 92, 64, 22); g.fillRect(p.x - 4, p.gap + 70, 64, 22); }
+      g.save(); g.translate(70, y); g.rotate(Math.max(-.5, Math.min(1.2, v / 10))); g.font = '38px "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000'; g.fillText('🐤', 0, 0); g.restore();
+      g.font = '900 44px Outfit, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 5; g.strokeText(score, 180, 80); g.fillText(score, 180, 80);
+      if (state0 !== 'play') { g.font = '900 24px Outfit, sans-serif'; const t = state0 === 'ready' ? 'Touche pour voler !' : `Perdu ! Record : ${best}`; g.strokeText(t, 180, 300); g.fillText(t, 180, 300); }
+    };
+    requestAnimationFrame(loop);
+    body.replaceChildren(el('div', { class: 'ph-flappy-app' }, cv));
+  }
+  // =================== 🧘 Zen ===================
+  function breathe(body) {
+    screen.style.background = 'radial-gradient(circle at 50% 40%, #2a6f5a, #0b2a24)';
+    const c = el('div', { class: 'zen-c' }), t = el('b', { class: 'zen-t' }, 'Inspire…');
+    let i = 0; const steps = [['Inspire…', 4000], ['Retiens…', 2000], ['Expire…', 5000]];
+    const next = () => { if (!body.isConnected) return; const [l, ms] = steps[i % 3]; t.textContent = l; c.style.transition = `transform ${ms}ms ease-in-out`; c.style.transform = i % 3 === 0 ? 'scale(1.8)' : i % 3 === 2 ? 'scale(1)' : c.style.transform; i++; timers.push(setTimeout(next, ms)); };
+    body.replaceChildren(el('div', { class: 'zen' }, c, t, el('small', {}, 'Suis le cercle : respire avec lui pendant une minute 🌿')));
+    setTimeout(next, 300);
+  }
+  // =================== ♈ Horoscope ===================
+  function horoscope(body) {
+    const SIGNS = ['♈ Bélier', '♉ Taureau', '♊ Gémeaux', '♋ Cancer', '♌ Lion', '♍ Vierge', '♎ Balance', '♏ Scorpion', '♐ Sagittaire', '♑ Capricorne', '♒ Verseau', '♓ Poissons'];
+    const L = ['Une belle rencontre t\'attend dans un salon du Paradise 💞', 'Ta bonne humeur sera contagieuse aujourd\'hui ☀️', 'Un message inattendu va te faire sourire 💌', 'C\'est le jour parfait pour tenter ta chance à la Chasse au trésor 🗺️', 'Prends soin de toi : une pause s\'impose ☕', 'Tes amis comptent sur toi : passe leur dire bonjour 👋', 'La chance est avec toi aux mini-jeux aujourd\'hui 🍀', 'Ose chanter au micro, tu vas briller 🎤', 'Une surprise t\'attend ce soir 🎁', 'Ton charme est irrésistible aujourd\'hui 😎'];
+    const day = new Date().getDate() + new Date().getMonth() * 31;
+    let sign = +(opt('sign', '0'));
+    const draw = () => body.replaceChildren(el('div', { class: 'horo' }, el('div', { class: 'horo-signs' }, ...SIGNS.map((s, i) => el('button', { class: 'ph-pill' + (i === sign ? ' go' : ''), onclick: () => { sign = i; setOpt('sign', String(i)); draw(); } }, s))),
+      el('div', { class: 'horo-card' }, el('b', {}, SIGNS[sign]), el('div', {}, '💞 Amour : ', L[(day + sign) % L.length]), el('div', {}, '💼 Travail : ', L[(day * 3 + sign) % L.length]), el('div', {}, '🍀 Chance : ', '⭐'.repeat(1 + (day + sign * 7) % 5)), el('small', {}, `Ton chiffre porte-bonheur : ${1 + (day * 7 + sign) % 9}`))));
+    draw();
+  }
+  // =================== 🗺️ Plans ===================
+  function mapApp(body) {
+    const places = (window.Island?.PLACES || []).filter(p => p.x != null);
+    const box = el('div', { class: 'ph-map' }, ...[200, 1000, 1800, 2600, 3400, 4000].map(x => el('i', { class: 'ph-map-st v', style: `left:${x / 42}%` })), ...[260, 980, 1700, 2420, 2790].map(y => el('i', { class: 'ph-map-st h', style: `top:${y / 29}%` })), el('i', { class: 'ph-map-lake' }), ...places.map(p => el('button', { class: 'ph-map-pin', style: `left:${p.x / 4200 * 100}%;top:${p.y / 2900 * 100}%`, title: p.label, onclick: () => info(p) }, p.icon)));
+    const card = el('div', { class: 'ph-map-card' }, 'Touche un lieu pour le voir 📍');
+    const info = p => card.replaceChildren(el('b', {}, `${p.icon} ${p.label}`), el('button', { class: 'ph-pill go', onclick: () => { window.Island?.open(); if (innerWidth <= 600) { close(); showReturn(); } } }, '🏙️ Aller dans la Ville'));
+    body.replaceChildren(el('div', { class: 'ph-mapapp' }, box, card, el('div', { class: 'ph-map-list' }, ...places.map(p => el('button', { class: 'ph-row', onclick: () => info(p) }, el('span', {}, p.icon), el('div', { class: 'ph-row-txt' }, el('b', {}, p.label)))))));
+  }
+  // =================== 🧭 Boussole & 📏 Niveau (avec les capteurs du téléphone) ===================
+  function sensor(body, fn) {
+    const h = e => { if (!body.isConnected) return removeEventListener('deviceorientation', h); fn(e); };
+    const start = () => { addEventListener('deviceorientation', h); };
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) body.append(el('button', { class: 'ph-pill go', style: 'margin:10px auto;display:block', onclick: e => DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') { start(); e.target.remove(); } }).catch(() => {}) }, '📲 Autoriser les capteurs'));
+    else start();
+  }
+  function compass(body) {
+    screen.style.background = '#000';
+    const rose = el('div', { class: 'cmp-rose' }, el('i', { class: 'n' }, 'N'), el('i', { class: 'e' }, 'E'), el('i', { class: 's' }, 'S'), el('i', { class: 'w' }, 'O'), el('span', { class: 'cmp-needle' }));
+    const deg = el('b', { class: 'cmp-deg' }, '0°');
+    body.replaceChildren(el('div', { class: 'cmp' }, deg, rose, el('small', {}, 'Tiens ton téléphone à plat 📱 (sur ordinateur, la boussole ne bouge pas)')));
+    sensor(body, e => { const a = e.webkitCompassHeading ?? (360 - (e.alpha || 0)); rose.style.transform = `rotate(${-a}deg)`; deg.textContent = Math.round(a) + '°'; });
+  }
+  function levelApp(body) {
+    screen.style.background = '#000';
+    const bub = el('div', { class: 'lvl-bub' }), val = el('b', { class: 'cmp-deg' }, '0°');
+    body.replaceChildren(el('div', { class: 'cmp' }, val, el('div', { class: 'lvl-box' }, el('div', { class: 'lvl-cross' }), bub), el('small', {}, 'Pose ton téléphone sur une surface : la bulle est au centre quand c\'est bien droit')));
+    sensor(body, e => { const x = Math.max(-45, Math.min(45, e.gamma || 0)), y = Math.max(-45, Math.min(45, (e.beta || 0))); bub.style.transform = `translate(${x * 2}px, ${y * 2}px)`; const t = Math.round(Math.hypot(x, y)); val.textContent = t + '°'; bub.classList.toggle('ok', t <= 1); });
   }
 
   // ---------- ↩️ Le bouton pour revenir au téléphone après avoir ouvert une appli ----------
