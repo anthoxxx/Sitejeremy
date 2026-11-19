@@ -90,3 +90,4 @@ new MutationObserver(list => {
   if (!Translator.auto) return;
   for (const mu of list) for (const n of mu.addedNodes) if (n.nodeType === 1 && (n.classList.contains('msg') || n.classList.contains('bubble-row'))) setTimeout(() => Translator.onNewRow(n), 0);
 }).observe($('messages'), { childList: true });
+window.Translator = Translator; // pour le téléphone, la traduction du vocal…

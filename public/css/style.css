@@ -3434,3 +3434,34 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .ph-hud i { flex: 1; width: 8px; border-radius: 4px; background: rgba(255,255,255,.25); position: relative; overflow: hidden; } .ph-hud i b { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; }
 .cc-slider::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: var(--v, 50%); background: rgba(255,255,255,.92); pointer-events: none; }
 .cc-slider span { filter: grayscale(1) brightness(.4); }
+
+/* =================== 📲 L'assistant de configuration de l'iPhone =================== */
+.sw { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 64px 22px 54px; color: #111; overflow-y: auto; animation: swIn .35s ease; }
+@keyframes swIn { from { opacity: 0; transform: translateX(30px); } }
+.sw h2 { margin: 8px 0 4px; font: 800 26px Outfit, sans-serif; } .sw p { color: #6b6b75; font-size: 14px; margin: 0 0 14px; }
+.sw-ico { font-size: 52px; }
+.sw.hello { color: #fff; justify-content: center; background: radial-gradient(circle at 50% 40%, #1a1a2e, #000); }
+.sw-logo { font-size: 46px; margin-bottom: 18px; } .sw-hello { font: 300 44px Outfit, sans-serif; background: linear-gradient(90deg, #ff6aa8, #ffd36e, #6fe3a6, #4fb3ff, #c86bff); -webkit-background-clip: text; background-clip: text; color: transparent; } .sw-hello.in { animation: swHello 1.2s ease; }
+@keyframes swHello { from { opacity: 0; filter: blur(8px); transform: scale(.94); } }
+.sw-up { margin-top: auto; border: 0; background: none; color: #fff; display: flex; flex-direction: column; align-items: center; cursor: pointer; animation: lockBounce 1.6s ease-in-out infinite; } .sw-up span { font-size: 26px; } .sw-up small { font-size: 12px; opacity: .8; }
+.sw.sw-end p { color: rgba(255,255,255,.75); margin-top: 10px; }
+.sw-foot { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; padding-top: 16px; }
+.sw-btn { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #007aff; color: #fff; font: 700 16px Outfit, sans-serif; cursor: pointer; } .sw-btn:disabled { opacity: .5; }
+.sw-skip { border: 0; background: none; color: #007aff; font: 600 14px Outfit, sans-serif; cursor: pointer; padding: 6px; }
+.sw-list { width: 100%; border-radius: 12px; background: #f2f2f7; overflow: hidden; text-align: left; } .sw-opt { display: block; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #e5e5ea; background: none; font: 15px Outfit, sans-serif; color: #111; text-align: left; cursor: pointer; } .sw-opt.on { color: #007aff; font-weight: 700; }
+.sw-phone { width: 96px; height: 190px; border-radius: 22px; margin: 10px 0; background: linear-gradient(145deg, color-mix(in srgb, var(--fc) 100%, white 30%), var(--fc), color-mix(in srgb, var(--fc) 65%, black)); box-shadow: 0 16px 32px rgba(0,0,0,.3), inset 0 0 0 2px rgba(255,255,255,.3); position: relative; transition: background .3s; }
+.sw-phone i { position: absolute; top: 12px; left: 12px; width: 34px; height: 34px; border-radius: 10px; background: rgba(0,0,0,.35); box-shadow: 0 0 0 3px rgba(255,255,255,.25); }
+.sw-frames { justify-content: center; margin-top: 12px; }
+.sw-face { position: relative; width: 170px; height: 170px; margin: 18px 0; display: grid; place-items: center; } .sw-face span { font-size: 70px; transition: transform .3s; } .sw-face.scan span { animation: swTurn 1.7s ease-in-out; }
+@keyframes swTurn { 25% { transform: rotate(-14deg) translateX(-6px); } 50% { transform: rotate(0) translateY(-6px); } 75% { transform: rotate(14deg) translateX(6px); } }
+.sw-face i { position: absolute; left: 50%; top: 50%; width: 4px; height: 16px; margin: -8px -2px; border-radius: 2px; background: #d1d1d6; transform: rotate(var(--a)) translateY(-78px); } .sw-face i.ok { background: #34c759; } .sw-face.done i { background: #34c759; }
+.sw.sw-pin { color: #111; } .sw-dots i { border-color: #111 !important; } .sw-dots i.on { background: #111 !important; }
+.sw-keys button { background: #e5e5ea !important; color: #111 !important; backdrop-filter: none !important; } .sw-keys { margin-top: 18px; }
+.sw-looks { display: flex; gap: 16px; margin: 10px 0; } .sw-look { border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; gap: 8px; align-items: center; color: #111; font: 600 13px Outfit, sans-serif; }
+.sw-look > div { width: 104px; height: 200px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 18px; border: 3px solid transparent; box-shadow: 0 6px 16px rgba(0,0,0,.15); } .sw-look > div i { width: 70%; height: 28px; border-radius: 8px; background: currentColor; opacity: .12; }
+.sw-look.on > div { border-color: #007aff; }
+.sw-walls { width: 100%; grid-template-columns: repeat(4, 1fr) !important; } .sw-walls .ph-wall { aspect-ratio: 9/16; height: auto; }
+.sw-apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 6px; width: 100%; } .sw-app { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; color: #111; position: relative; }
+.sw-app .ph-ico { width: 50px; height: 50px; font-size: 26px; opacity: .35; filter: grayscale(.6); transition: .15s; } .sw-app small { font-size: 10px; color: #6b6b75; } .sw-app.on .ph-ico { opacity: 1; filter: none; } .sw-app.on::after { content: '✓'; position: absolute; top: -4px; right: 8px; width: 18px; height: 18px; border-radius: 50%; background: #007aff; color: #fff; font: 900 11px/18px Outfit, sans-serif; }
+.sw-input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #d1d1d6; background: #f2f2f7; font: 16px Outfit, sans-serif; text-align: center; }
+.sw-opt.on::after { content: ' ✓'; float: right; }

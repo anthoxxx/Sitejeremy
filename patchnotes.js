@@ -831,4 +831,17 @@ module.exports = [
     changed: ['Les boutons ‹ et ✕ sous l\'écran sont remplacés par la barre de l\'iPhone (sur ordinateur, un petit ✕ à côté du téléphone le range)'],
     removed: [],
   },
+  {
+    id: 57,
+    date: '2026-11-19',
+    title: 'Configure ton iPhone comme un vrai téléphone neuf 📲',
+    added: [
+      '📲 La première fois que tu allumes ton téléphone, l\'assistant de configuration t\'accueille : « Bonjour » dans toutes les langues ✨',
+      'Puis tu choisis : ta langue 🌐, la couleur de ton iPhone 🎨, tu configures Face ID 🙂 (le cercle se remplit) et ton code 🔒, l\'apparence claire ou sombre 🌗, ton fond d\'écran 🖼️, tes applis 📱 et le nom de ton téléphone ✏️',
+      '🎉 Et pour finir : « Bienvenue sur ton iPhone » !',
+      '↺ Réglages → Général → « Effacer et reconfigurer l\'iPhone » pour tout recommencer (tes messages et tes snaps ne sont pas effacés)',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

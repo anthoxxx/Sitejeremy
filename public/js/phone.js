@@ -60,6 +60,7 @@ const Phone = (() => {
     // 🔒 comme un vrai iPhone : il faut le déverrouiller (avec code si tu en as mis un), sauf si tu l'as rangé il y a moins de 2 minutes
     const stale = Date.now() - closedAt > 120000;
     if (screenOff) { screenOff = false; root.querySelector('.ph-device').classList.remove('off'); }
+    if (!opt('setup', '')) return setupWizard(() => { unlocked = true; go2(); }); // 📲 la première fois : on configure son iPhone tout neuf
     if ((opt('pin', '') && !unlocked) || (!opt('pin', '') && opt('lockopen', '1') === '1' && stale && !app)) lockScreen(go2); else go2();
   }
   function close() { if (!root) return; closedAt = Date.now(); hideOverlay(); if (opt('pin', '')) unlocked = false; /* 🔒 il se reverrouille quand on le range */ stopCam(); clearTimers(); convOpen = null; root.classList.add('hidden'); document.body.classList.remove('phone-open'); }
@@ -238,7 +239,7 @@ const Phone = (() => {
     pmUnread = [...(state.convs?.values?.() || [])].reduce((s, c) => s + (c.unread || 0), 0);
     const n = snapsUnread + pmUnread;
     for (const b of [$('phoneBtn'), document.querySelector('.isl-phone')]) { const c = b?.querySelector('.notif-count'); if (c) { c.textContent = n; c.classList.toggle('hidden', !n); } }
-    if (isOpen() && !stack.length && !screen.querySelector('.lock')) home(); // (pas par-dessus l'écran verrouillé)
+    if (isOpen() && !stack.length && screen.querySelector('.ph-home') && !jiggle) home(); // seulement si l'accueil est déjà affiché
   }
 
   // ---------- 💬 Messages ----------
@@ -795,7 +796,9 @@ const Phone = (() => {
     const n = installed().length + SYSTEM.length;
     body.replaceChildren(el('div', { class: 'ios' }, el('div', { class: 'ios-card' }, el('div', { class: 'ph-about-ico', style: 'font-size:40px' }, ''), el('b', {}, opt('name', 'iPhone 18 Pro de ' + state.me.username)), el('small', {}, 'Paradise OS 18.2')),
       group(el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Modèle'), el('span', { class: 'ios-val' }, 'iPhone 18 Pro')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Couleur'), el('span', { class: 'ios-val' }, (FRAME_COLORS[opt('frame', 'titane')] || FRAME_COLORS.titane)[0])), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Stockage'), el('span', { class: 'ios-val' }, '1 To')), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Applis installées'), el('span', { class: 'ios-val' }, n)), el('div', { class: 'ios-row' }, el('span', { class: 'ios-lbl' }, 'Numéro'), el('span', { class: 'ios-val' }, '06 ' + String(1000000 + state.me.id * 7919 % 9000000).replace(/(\d{2})(?=\d)/g, '$1 ')))),
-      el('h4', { class: 'ios-head' }, 'NOM'), el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => setOpt('name', e.target.value.trim() || 'iPhone 18 Pro') })));
+      el('h4', { class: 'ios-head' }, 'NOM'), el('input', { class: 'ph-input', maxlength: 40, value: opt('name', 'iPhone 18 Pro de ' + state.me.username), onchange: e => setOpt('name', e.target.value.trim() || 'iPhone 18 Pro') }),
+      el('h4', { class: 'ios-head' }, 'RÉINITIALISER'),
+      el('div', { class: 'ios-group' }, el('button', { class: 'ios-row', onclick: () => { if (!confirm('Effacer ton iPhone et le reconfigurer comme un téléphone neuf ? (tes messages et snaps restent sur le site)')) return; for (const k of Object.keys(localStorage)) if (k.startsWith('ph_')) try { localStorage.removeItem(k); } catch (e) {} unlocked = false; applyLook(); setupWizard(home); } }, el('span', { class: 'ios-ico', style: 'background:#ff3b30' }, '↺'), el('span', { class: 'ios-lbl', style: 'color:#ff3b30' }, 'Effacer et reconfigurer l\'iPhone')))));
   }
   // 🔒 le clavier du code
   function askPin(title, cb) {
@@ -995,6 +998,101 @@ const Phone = (() => {
     const draw = () => { card.textContent = Q[i]; };
     body.replaceChildren(el('div', { class: 'ph-tr' }, el('small', {}, '💡 La citation du jour'), card, el('div', { class: 'ph-row-btns' }, el('button', { class: 'ph-pill go', onclick: () => { i = (i + 1) % Q.length; draw(); } }, '➡️ Une autre'), el('button', { class: 'ph-pill', onclick: () => { const st = window.state?.convs; navigator.clipboard?.writeText(Q[i]); toast('📋 Copiée !'); } }, '📋 Copier'))));
     draw();
+  }
+
+  // =================== 📲 L'assistant de configuration (comme quand on allume un iPhone neuf) ===================
+  function setupWizard(done) {
+    stopCam(); clearTimers(); stack = []; hideOverlay();
+    const draft = { lang: window.Translator?.lang || 'fr', frame: opt('frame', 'titane'), theme: opt('theme', 'clair'), wall: opt('wall', 'neon'), apps: [...installed()], name: 'iPhone 18 Pro de ' + state.me.username, pin: '' };
+    const page = (cls, ...kids) => { screen.style.background = cls === 'hello' ? '#000' : '#fff'; dark(cls === 'hello'); screen.replaceChildren(el('div', { class: 'sw ' + cls }, ...kids)); };
+    const next = (label, fn, extra) => el('div', { class: 'sw-foot' }, el('button', { class: 'sw-btn', onclick: fn }, label || 'Continuer'), extra || null);
+    const skip = (label, fn) => el('button', { class: 'sw-skip', onclick: fn }, label);
+    const steps = [];
+    let i = 0; const go3 = () => steps[i++]();
+    // 1. Bonjour dans toutes les langues
+    steps.push(() => {
+      const words = ['Bonjour', 'Hello', 'Hola', 'Ciao', 'Hallo', 'Olá', 'مرحبا', 'こんにちは', '안녕하세요', 'Привет', '你好', 'Merhaba'];
+      const w = el('b', { class: 'sw-hello' }, words[0]); let k = 0;
+      const iv = setInterval(() => { if (!w.isConnected) return clearInterval(iv); k = (k + 1) % words.length; w.classList.remove('in'); void w.offsetWidth; w.textContent = words[k]; w.classList.add('in'); }, 1300);
+      timers.push(iv);
+      page('hello', el('div', { class: 'sw-logo' }, ''), w, el('button', { class: 'sw-up', onclick: () => { clearInterval(iv); go3(); } }, el('span', {}, '⌃'), el('small', {}, 'Touche pour commencer')));
+    });
+    // 2. La langue
+    steps.push(() => {
+      const L = (window.Translator?.LANGS || [['fr', '🇫🇷 Français'], ['en', '🇬🇧 English']]).slice(0, 12);
+      const list = el('div', { class: 'sw-list' }, ...L.map(([v, l]) => el('button', { class: 'sw-opt' + (draft.lang === v ? ' on' : ''), onclick: e => { draft.lang = v; list.querySelectorAll('.sw-opt').forEach(b => b.classList.toggle('on', b === e.currentTarget)); } }, l)));
+      page('', el('div', { class: 'sw-ico' }, '🌐'), el('h2', {}, 'Choisis ta langue'), el('p', {}, 'Les messages des autres pourront être traduits dans cette langue.'), list, next('Continuer', go3));
+    });
+    // 3. La couleur du téléphone
+    steps.push(() => {
+      const prev = el('div', { class: 'sw-phone', style: `--fc:${FRAME_COLORS[draft.frame][1]}` }, el('i'));
+      const lab = el('b', {}, FRAME_COLORS[draft.frame][0]);
+      page('', el('h2', {}, 'Ton iPhone 18 Pro'), el('p', {}, 'Choisis sa couleur.'), prev, lab,
+        el('div', { class: 'ph-frames sw-frames' }, ...Object.entries(FRAME_COLORS).map(([k, [n, c]]) => el('button', { class: 'ph-frame' + (draft.frame === k ? ' on' : ''), style: `--fc:${c}`, title: n, onclick: e => { draft.frame = k; prev.style.setProperty('--fc', c); lab.textContent = n; e.currentTarget.parentNode.querySelectorAll('.ph-frame').forEach(b => b.classList.toggle('on', b === e.currentTarget)); setOpt('frame', k); applyLook(); } }))),
+        next('Continuer', go3));
+    });
+    // 4. Face ID
+    steps.push(() => {
+      const ring = el('div', { class: 'sw-face' }, el('span', {}, '🙂'), ...Array.from({ length: 24 }, (_, k) => el('i', { style: `--a:${k * 15}deg` })));
+      const txt = el('p', {}, 'Bouge doucement la tête pour compléter le cercle.');
+      const btn = el('button', { class: 'sw-btn', onclick: () => {
+        btn.disabled = true; let k = 0; ring.classList.add('scan');
+        const iv = setInterval(() => { const t = ring.querySelectorAll('i')[k++]; if (t) t.classList.add('ok'); if (k >= 24) { clearInterval(iv); ring.classList.add('done'); ring.querySelector('span').textContent = '✅'; txt.textContent = 'Face ID est configuré !'; try { navigator.vibrate?.([30, 40, 30]); } catch (e) {} draft.face = true; btn.textContent = 'Continuer'; btn.disabled = false; btn.onclick = go3; } }, 70);
+        timers.push(iv);
+      } }, 'Commencer');
+      page('', el('h2', {}, 'Face ID'), txt, ring, el('div', { class: 'sw-foot' }, btn, skip('Configurer plus tard', go3)));
+    });
+    // 5. Le code
+    steps.push(() => {
+      let v = '', first = '';
+      const t = el('h2', {}, 'Crée un code'), sub = el('p', {}, 'Un code à 4 chiffres protège ton téléphone.');
+      const dots = el('div', { class: 'pin-dots sw-dots' }, ...[0, 1, 2, 3].map(() => el('i')));
+      const press = k => {
+        if (k === '⌫') v = v.slice(0, -1); else if (v.length < 4) v += k;
+        dots.querySelectorAll('i').forEach((d, j) => d.classList.toggle('on', j < v.length));
+        if (v.length < 4) return;
+        setTimeout(() => {
+          if (!first) { first = v; v = ''; t.textContent = 'Confirme ton code'; sub.textContent = 'Tape-le une deuxième fois.'; }
+          else if (first === v) { draft.pin = v; go3(); return; }
+          else { first = ''; v = ''; t.textContent = 'Les codes ne sont pas pareils'; sub.textContent = 'Recommence.'; dots.classList.add('bad'); setTimeout(() => dots.classList.remove('bad'), 500); }
+          dots.querySelectorAll('i').forEach(d => d.classList.remove('on'));
+        }, 150);
+      };
+      page('sw-pin', el('div', { class: 'sw-ico' }, '🔒'), t, sub, dots, el('div', { class: 'pin-keys sw-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map(k => k ? el('button', { onclick: () => press(k) }, k) : el('span'))), skip('Ne pas mettre de code', go3));
+    });
+    // 6. Clair ou sombre
+    steps.push(() => {
+      const card = (v, l, bg, fg) => el('button', { class: 'sw-look' + (draft.theme === v ? ' on' : ''), onclick: e => { draft.theme = v; e.currentTarget.parentNode.querySelectorAll('.sw-look').forEach(b => b.classList.toggle('on', b === e.currentTarget)); } }, el('div', { style: `background:${bg};color:${fg}` }, el('b', {}, '9:41'), el('i'), el('i')), el('small', {}, l));
+      page('', el('h2', {}, 'Apparence'), el('p', {}, 'Choisis l\'apparence de tes applis.'), el('div', { class: 'sw-looks' }, card('clair', '☀️ Claire', '#f2f2f7', '#111'), card('sombre', '🌙 Sombre', '#1c1c1e', '#fff')), next('Continuer', go3));
+    });
+    // 7. Le fond d'écran
+    steps.push(() => {
+      page('', el('h2', {}, 'Fond d\'écran'), el('p', {}, 'Tu pourras mettre tes photos plus tard dans les Réglages.'),
+        el('div', { class: 'ph-walls sw-walls' }, ...Object.entries(WALLS).slice(0, 12).map(([k, v]) => el('button', { class: 'ph-wall' + (draft.wall === k ? ' on' : ''), style: `background:${v}`, onclick: e => { draft.wall = k; e.currentTarget.parentNode.querySelectorAll('.ph-wall').forEach(b => b.classList.toggle('on', b === e.currentTarget)); } }))),
+        next('Continuer', go3));
+    });
+    // 8. Les applis à installer
+    steps.push(() => {
+      const keys = Object.keys(STORE);
+      const grid = el('div', { class: 'sw-apps' }, ...keys.map(k => el('button', { class: 'sw-app' + (draft.apps.includes(k) ? ' on' : ''), onclick: e => { draft.apps = draft.apps.includes(k) ? draft.apps.filter(x => x !== k) : [...draft.apps, k]; e.currentTarget.classList.toggle('on'); } }, el('span', { class: 'ph-ico', style: `--c:${APPS[k].c}` }, APPS[k].icon), el('small', {}, APPS[k].name))));
+      page('', el('h2', {}, 'Tes applis'), el('p', {}, 'Choisis les applis à mettre sur ton écran d\'accueil. Les autres restent dans l\'App Store.'), grid,
+        next('Continuer', go3, skip('Tout prendre', () => { draft.apps = [...keys]; go3(); })));
+    });
+    // 9. Le nom
+    steps.push(() => {
+      const inp = el('input', { class: 'sw-input', maxlength: 40, value: draft.name });
+      page('', el('div', { class: 'sw-ico' }, '✏️'), el('h2', {}, 'Le nom de ton iPhone'), el('p', {}, 'Tu pourras le changer quand tu veux.'), inp, next('Continuer', () => { draft.name = inp.value.trim() || draft.name; go3(); }));
+    });
+    // 10. Bienvenue !
+    steps.push(() => {
+      if (window.Translator && draft.lang && window.Translator.lang !== draft.lang) { window.Translator.lang = draft.lang; window.Translator.save?.(); }
+      setOpt('frame', draft.frame); setOpt('theme', draft.theme); setOpt('wall', draft.wall); setOpt('name', draft.name); setOpt('faceid', draft.face ? '1' : '0');
+      if (draft.pin) setOpt('pin', draft.pin);
+      setInstalled(draft.apps); setOpt('setup', String(Date.now())); applyLook();
+      page('hello sw-end', el('div', { class: 'sw-logo' }, ''), el('b', { class: 'sw-hello in' }, 'Bienvenue sur ton iPhone'), el('p', {}, `${draft.name} est prêt ✨`),
+        el('button', { class: 'sw-up', onclick: () => { LC.confetti(['📱', '✨', '🎉']); done(); } }, el('span', {}, '⌃'), el('small', {}, 'Touche pour commencer')));
+    });
+    go3();
   }
 
   // =================== 🖐️ Gestes, Centre de contrôle, Centre de notifications, boutons ===================
