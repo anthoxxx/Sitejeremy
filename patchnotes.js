@@ -924,4 +924,12 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 64,
+    date: '2026-11-19',
+    title: 'La colonne des membres en verre beige 🤎',
+    added: [],
+    changed: ['🤎 La colonne de droite (les connectés) a maintenant le même effet « verre » que la colonne des salons à gauche, mais teinté beige foncé, avec de légers reflets dorés derrière'],
+    removed: [],
+  },
 ];

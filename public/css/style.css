@@ -3666,3 +3666,21 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .uname.nr2.nr-degrade { box-shadow: 0 0 12px 3px color-mix(in srgb, var(--nr2) 45%, transparent); }
 .list-item.nrr2.nrr-degrade { background: linear-gradient(90deg, color-mix(in srgb, var(--nr) 30%, transparent), color-mix(in srgb, var(--nr2) 30%, transparent)); box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .uname.nr2.nr-neon, .list-item.nrr2.nrr-neon { animation: none; } }
+/* ---------- Colonne des membres (à droite) : effet verre trempé, teinté beige foncé ---------- */
+body { background:
+  radial-gradient(900px 600px at -10% 10%, rgba(255, 95, 162, .26), transparent 60%),
+  radial-gradient(700px 500px at 10% 95%, rgba(124, 200, 255, .22), transparent 60%),
+  radial-gradient(600px 500px at 30% 50%, rgba(255, 166, 60, .14), transparent 65%),
+  radial-gradient(800px 600px at 110% 20%, rgba(196, 160, 112, .22), transparent 60%),
+  radial-gradient(600px 500px at 95% 90%, rgba(150, 110, 70, .2), transparent 60%),
+  var(--bg) fixed; }
+.sidebar.right { background: linear-gradient(180deg, rgba(160, 124, 82, .24), rgba(120, 90, 58, .2)); backdrop-filter: blur(10px) saturate(1.1); -webkit-backdrop-filter: blur(10px) saturate(1.1); border-left-color: rgba(214, 180, 135, .16); }
+.sidebar.right .list-item:hover { background: rgba(196, 160, 112, .12); }
+.sidebar.right .list-item.active { background: rgba(196, 160, 112, .18); }
+.sidebar.right .input, .sidebar.right input[type=search] { background: rgba(120, 92, 60, .18); }
+:root[data-theme="light"] .sidebar.right { background: rgba(166, 128, 86, .16); border-left-color: rgba(110, 80, 45, .12); }
+:root[data-theme="light"] .sidebar.right .list-item:hover { background: rgba(140, 100, 60, .1); }
+@media (max-width: 900px) {
+  .sidebar.right { background: color-mix(in srgb, #3a2c1e 78%, transparent); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+  :root[data-theme="light"] .sidebar.right { background: color-mix(in srgb, #d9c3a3 80%, transparent); }
+}
