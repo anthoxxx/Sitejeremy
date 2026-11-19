@@ -3686,3 +3686,29 @@ body { background:
 }
 /* 📱💻 sur quoi la personne est connectée */
 .dev-tag { display: inline-block; margin-right: 4px; font-size: .9em; filter: saturate(1.1); cursor: help; }
+/* =================== 💡 le néon tout autour du site (chacun choisit le sien) =================== */
+@property --sna { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.site-neon { position: fixed; inset: 0; pointer-events: none; z-index: 2147483000; border-radius: 0; }
+.site-neon.hidden { display: none; }
+.site-neon[data-style="fixe"], .site-neon[data-style="pulse"], .site-neon[data-style="clignote"] {
+  box-shadow: inset 0 0 0 var(--nw) var(--n1), inset 0 0 var(--nglow) calc(var(--nw) * .6) color-mix(in srgb, var(--n1) calc(var(--np) * 100%), transparent); }
+.site-neon[data-style="pulse"] { animation: snPulse var(--nsp) ease-in-out infinite; }
+@keyframes snPulse { 50% { box-shadow: inset 0 0 0 calc(var(--nw) * .6) color-mix(in srgb, var(--n1) 60%, transparent), inset 0 0 calc(var(--nglow) * .3) color-mix(in srgb, var(--n1) calc(var(--np) * 50%), transparent); } }
+.site-neon[data-style="clignote"] { animation: snBlink calc(var(--nsp) * 1.6) steps(1) infinite; }
+@keyframes snBlink { 0%, 18%, 22%, 60%, 64%, 100% { opacity: 1; } 20%, 62% { opacity: .2; } 21% { opacity: .9; } }
+/* qui tourne / arc-en-ciel / deux couleurs : une lumière qui fait le tour de l'écran */
+.site-neon[data-style="tourne"]::before, .site-neon[data-style="tourne"]::after,
+.site-neon[data-style="arcenciel"]::before, .site-neon[data-style="arcenciel"]::after,
+.site-neon[data-style="deux"]::before, .site-neon[data-style="deux"]::after {
+  content: ''; position: absolute; inset: 0; padding: var(--nw); animation: snTurn calc(var(--nsp) * 1.5) linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.site-neon[data-style="tourne"]::after, .site-neon[data-style="arcenciel"]::after, .site-neon[data-style="deux"]::after { padding: calc(var(--nw) + var(--nglow) * .5); filter: blur(calc(var(--nglow) * .45)); opacity: var(--np); }
+.site-neon[data-style="tourne"]::before, .site-neon[data-style="tourne"]::after { background: conic-gradient(from var(--sna), var(--n1), transparent 22%, transparent 50%, var(--n1) 60%, transparent 82%, var(--n1)); }
+.site-neon[data-style="arcenciel"]::before, .site-neon[data-style="arcenciel"]::after { background: conic-gradient(from var(--sna), #ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff2d55, #ff3b30); }
+.site-neon[data-style="deux"]::before, .site-neon[data-style="deux"]::after { background: conic-gradient(from var(--sna), var(--n1), var(--n2), var(--n1), var(--n2), var(--n1)); }
+@keyframes snTurn { to { --sna: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .site-neon, .site-neon::before, .site-neon::after { animation: none !important; } }
+/* la fenêtre de réglage */
+.sn { max-width: 520px; } .sn h3 { margin: 0 0 4px; } .sn-styles { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.sn-lbl { display: block; color: var(--muted); font-weight: 700; font-size: .78rem; margin: 10px 0 4px; }
+.sn-sl > div { display: flex; align-items: center; gap: 8px; } .sn-sl input { flex: 1; }

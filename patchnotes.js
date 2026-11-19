@@ -943,4 +943,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 66,
+    date: '2026-11-19',
+    title: 'Un néon tout autour du site 💡🌈',
+    added: [
+      '💡 Nouveau : mets un néon lumineux tout autour du site ! Dans ton menu (en haut, sur ton pseudo) → « 💡 Néon autour du site »',
+      '6 styles : 💡 Fixe, 💓 Qui respire, ⚡ Clignote, 🔄 Qui tourne autour de l\'écran, 🌈 Arc-en-ciel et 🎨 Deux couleurs',
+      'Tu choisis la couleur (ou les deux couleurs), la force de la lumière, l\'épaisseur et la vitesse',
+      '😉 Il est rien que pour toi : chacun choisit le néon qu\'il veut voir (ou aucun). Il reste même quand tu reviens sur le site',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

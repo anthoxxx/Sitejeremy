@@ -679,6 +679,7 @@ function toggleUserMenu() {
     item('🛡️', 'Équipe de modération', () => Team.open()),
     isStaff() ? item('🛡️', 'Administration', () => { location.href = '/admin'; }) : null,
     item('🔔', 'Sons d\'arrivée (klaxon, fanfare…)', () => JoinSounds.open()),
+    item('💡', 'Néon autour du site', () => SiteNeon.open()),
     item('♿', 'Accessibilité (voir, entendre, parler)', () => A11y.open()),
     item('🌓', 'Changer le thème', () => LC.toggleTheme()),
     state.me.googleOn && !state.me.googleLinked && !state.me.isGuest ? item('🔐', 'Relier mon compte Google', () => { location.href = '/auth/google'; }) : null,
