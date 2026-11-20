@@ -1085,4 +1085,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 77,
+    date: '2026-11-20',
+    title: 'La Ville en 3D réparée 🛠️🎥',
+    added: [],
+    changed: [
+      '🧍 Ton personnage s\'affiche bien en 3ᵉ personne, même quand tu reviens d\'une maison où tu étais assis (avant, il disparaissait)',
+      '🎥 Quand un bâtiment est entre toi et la caméra, elle monte au-dessus des toits pour ne jamais te perdre de vue',
+      '🏢 Les bâtiments ont maintenant des fenêtres sur les côtés et à l\'arrière (allumées la nuit), avec un toit',
+      '📍 Les lieux (club, café, kiosques…) sont toujours tournés vers toi : plus de « cartons » plats vus de profil',
+    ],
+    removed: [],
+  },
 ];

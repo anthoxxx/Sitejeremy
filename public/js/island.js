@@ -2082,7 +2082,7 @@ const Island = (() => {
   function sprite3d(fn, x, y, W2, H2, AX, AY, k = innerWidth < 700 ? 1 : 1.5) {
     const c = document.createElement('canvas'); c.width = Math.round(W2 * k); c.height = Math.round(H2 * k);
     const real = ctx; ctx = c.getContext('2d'); ctx.scale(k, k); ctx.translate(AX - x, AY - y);
-    try { fn(); } catch (e) {} finally { ctx = real; }
+    try { fn(); } catch (e) { if (!sprite3d.warned) { sprite3d.warned = 1; console.warn('3D sprite', e); } } finally { ctx = real; }
     return c;
   }
   function moveMine(x, y) {
