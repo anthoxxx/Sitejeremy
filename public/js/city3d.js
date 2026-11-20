@@ -8,6 +8,7 @@ const City3D = (() => {
   let yaw = 0, pitch = -0.08, pos = { x: 0, y: 0 }, bob = 0;
   const bills = [], people = new Map(), held = new Set(), solids = [];
   const mobile = () => innerWidth < 700;
+  const PS = .6; // 🧍 la taille des personnages en 3D (plus petits que sur la carte, pour faire vrai à côté des bâtiments)
 
   function loadThree() {
     if (window.THREE) return Promise.resolve(window.THREE);
@@ -135,15 +136,15 @@ const City3D = (() => {
       const c = document.createElement('canvas'); const k = mobile() ? 1 : 1.5; c.width = 300 * k; c.height = 230 * k;
       const geo = new THREE.PlaneGeometry(300, 230); geo.translate(0, 160 - 115 + 38, 0); // les pieds posés sur le sol
       const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, alphaTest: .3, side: THREE.DoubleSide })); scene.add(m);
-      o = { c, k, m, at: 0, x: p.x, y: p.y }; people.set(p.id, o);
+      m.scale.setScalar(PS); o = { c, k, m, at: 0, x: p.x, y: p.y }; people.set(p.id, o);
     }
     const tx = p.id === A.me ? pos.x : p.x, ty = p.id === A.me ? pos.y : p.y;
     o.x += (tx - o.x) * .25; o.y += (ty - o.y) * .25;
     o.m.position.set(o.x, 0, o.y);
-    tag(p, o); o.tag.position.set(o.x, 152, o.y);
+    tag(p, o); o.tag.position.set(o.x, 62, o.y);
     if (t - o.at > .12) { // on redessine le personnage 8 fois par seconde (il bouge, il danse…)
       o.at = t; const g = o.c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, o.c.width, o.c.height);
-      const img = A.sprite3d(() => A.draw.player({ ...p, dx: tx, dy: ty, pose: null, action: p.action === 'sit' || p.action === 'sleep' ? '' : p.action }, t), tx, ty, 300, 230, 150, 160, o.k);
+      const img = A.sprite3d(() => A.draw.player({ ...p, dx: tx, dy: ty, pose: null, said: '', action: p.action === 'sit' || p.action === 'sleep' ? '' : p.action }, t), tx, ty, 300, 230, 150, 160, o.k);
       g.drawImage(img, 0, 0); o.m.material.map.needsUpdate = true;
     }
     return o;
@@ -168,7 +169,7 @@ const City3D = (() => {
       g.fillStyle = '#ffffff'; rr(W / 2 - bw / 2, by, bw, bh, 22); g.fill(); g.beginPath(); g.moveTo(W / 2 - 12, by + bh); g.lineTo(W / 2, by + bh + 14); g.lineTo(W / 2 + 12, by + bh); g.fill();
       g.fillStyle = '#1c1430'; L.forEach((l, i) => g.fillText(l, W / 2, by + 30 + i * 40));
     }
-    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false })); o.tag.scale.set(128, 64, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
+    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false })); o.tag.scale.set(110, 55, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
     else o.tag.material.map.needsUpdate = true;
   }
   // ---------- 🎮 les flèches à l'écran (téléphone) ----------
@@ -193,17 +194,17 @@ const City3D = (() => {
       pos = { x: m.x, y: m.y }; bob += dt * 10;
     }
     // la caméra
-    const eye = 118 + (mode === 'first' && (fwd || back) ? Math.sin(bob) * 3 : 0);
+    const eye = 96 + (mode === 'first' && (fwd || back) ? Math.sin(bob) * 3 : 0);
     if (mode === 'first') { camera.position.set(pos.x, eye, pos.y); camera.lookAt(pos.x + dir.x * 100, eye + Math.tan(pitch) * 100, pos.y + dir.y * 100); }
     else {
       // la caméra derrière moi… mais si un bâtiment est entre nous, elle se rapproche pour ne pas me perdre de vue
-      let d = 320; const h = Math.max(40, 200 - pitch * 260), head = new THREE.Vector3(pos.x, 110, pos.y), want = new THREE.Vector3(pos.x - dir.x * d, h, pos.y - dir.y * d);
+      let d = 240; const h = Math.max(30, 150 - pitch * 220), head = new THREE.Vector3(pos.x, 70, pos.y), want = new THREE.Vector3(pos.x - dir.x * d, h, pos.y - dir.y * d);
       ray = ray || new THREE.Raycaster(); const v = want.clone().sub(head), len = v.length(); ray.set(head, v.normalize()); ray.far = len;
       const hit = ray.intersectObjects(solids, false)[0];
       // un bâtiment gêne : la caméra monte au-dessus des toits et regarde vers le bas (en douceur)
       lift += ((hit ? 1 : 0) - lift) * Math.min(1, dt * 4);
-      const dd = 320 - lift * 120, hh = h + lift * 230;
-      camera.position.set(pos.x - dir.x * dd, hh, pos.y - dir.y * dd); camera.lookAt(pos.x, 95 - lift * 30, pos.y);
+      const dd = 240 - lift * 90, hh = h + lift * 230;
+      camera.position.set(pos.x - dir.x * dd, hh, pos.y - dir.y * dd); camera.lookAt(pos.x, 62 - lift * 25, pos.y);
     }
     // les images « face caméra »
     const cx = camera.position.x, cz = camera.position.z;

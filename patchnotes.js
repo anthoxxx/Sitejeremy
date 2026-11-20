@@ -1109,4 +1109,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 79,
+    date: '2026-11-20',
+    title: 'Des personnages à la bonne taille en 3D 🧍',
+    added: [],
+    changed: [
+      '🧍 En 3D, les personnages sont plus petits, à la bonne taille à côté des bâtiments, et la caméra est un peu plus proche de toi',
+      '🏷️ Le pseudo est juste au-dessus de la tête, et la bulle de discussion ne s\'affiche plus en double',
+    ],
+    removed: [],
+  },
 ];
