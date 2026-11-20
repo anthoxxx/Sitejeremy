@@ -1144,6 +1144,23 @@ module.exports = [
     removed: [],
   },
   {
+    id: 85,
+    date: '2026-11-20',
+    title: 'Ville 3D : de vrais humains, de vraies voitures, un vrai ciel 🌤️🚗',
+    added: [
+      '🧍 De vrais personnages en 3D (homme et femme), avec de vraies animations : ils respirent sans bouger, marchent, courent et dansent la samba',
+      '🏎️ De vraies voitures de sport qui roulent dans les rues, chacune avec sa couleur, ses jantes chromées, ses phares et ses vitres teintées. Et tu conduis la tienne !',
+      '🌤️ Un vrai ciel en photo le jour, avec ses nuages et sa lumière, qui se reflète sur les voitures et les vitres',
+      '🛣️ De vraies matières : une herbe en photo, une route en asphalte avec ses petits graviers, des trottoirs en dalles',
+      '🌳 Des arbres avec un vrai feuillage (des milliers de feuilles) et leur ombre au sol',
+      '📜 Merci aux créateurs des modèles : personnages et animations de Mixamo, voiture « Ferrari 458 Italia » par vicent091036 (CC BY 4.0), ciel de Poly Haven (CC0), herbe d\'OpenGameArt (CC BY 3.0)',
+    ],
+    changed: [
+      '⏳ La première ouverture de la 3D prend quelques secondes de chargement (le temps de télécharger les modèles), ensuite c\'est immédiat',
+    ],
+    removed: [],
+  },
+  {
     id: 84,
     date: '2026-11-20',
     title: 'Ville 3D : des proportions réalistes et une plus belle ville 🌳',

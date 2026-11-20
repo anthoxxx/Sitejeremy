@@ -1,0 +1,7 @@
+Ville 3D — origine des fichiers de ce dossier
+
+- man.glb, woman.glb : personnages et animations de Mixamo (Adobe), tirés des exemples three.js (Soldier, Michelle). Allégés pour le web.
+- car_hi.glb, car_lo.glb : « Ferrari 458 Italia » par vicent091036 (https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6), licence CC BY 4.0. Modèle allégé (intérieur retiré, moins de triangles).
+- sky.hdr : « Blouberg Sunrise 2 » de Poly Haven (https://polyhaven.com), licence CC0.
+- grass.jpg : « Dark grass » sur OpenGameArt (http://opengameart.org/content/dark-grass), licence CC BY 3.0. Redimensionnée.
+- La bibliothèque three.js (dossier js/vendor) est sous licence MIT.
