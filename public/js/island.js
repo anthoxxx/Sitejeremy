@@ -1139,6 +1139,21 @@ const Island = (() => {
 
   // la poignée ronde au-dessus du meuble sélectionné : on la fait tourner pour pivoter le meuble
   const rotHandle = f => { const d = FURN[f.t], o = rot(0, -d.h / 2 - 34, f.r || 0); return { x: f.x + o.x, y: f.y + o.y }; };
+  // ↗️ mettre le meuble en diagonale (45°, puis 135°, -135°, -45°, et retour droit)
+  const setAngle = deg => { const f = draft[sel]; if (!f) { toast('Touche d\'abord un meuble'); return false; } if (f.t === 'tv') { toast('📺 La télé reste droite'); return false; } let a = ((deg + 180) % 360 + 360) % 360 - 180; f.r = Math.round(a * Math.PI / 180 * 1000) / 1000; if (!f.r) delete f.r; return true; };
+  const angleOf = f => Math.round((f?.r || 0) * 180 / Math.PI);
+  function diagonal() { const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); const cur = angleOf(f), seq = [45, 135, -135, -45, 0], i = seq.indexOf(cur); if (setAngle(seq[(i + 1) % seq.length])) toast(`◇ ${angleOf(f)}°`); }
+  function anglePanel() {
+    const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); if (f.t === 'tv') return toast('📺 La télé reste droite');
+    const val = el('b', { class: 'ang-val' }, angleOf(f) + '°');
+    const range = el('input', { type: 'range', class: 'ang-range', min: -180, max: 180, step: 1, value: angleOf(f), oninput: e => { setAngle(+e.target.value); val.textContent = angleOf(f) + '°'; } });
+    const put = d => { setAngle(d); range.value = angleOf(f); val.textContent = angleOf(f) + '°'; };
+    panel(`📐 Faire tourner : ${FURN[f.t]?.name || 'le meuble'}`,
+      el('div', { class: 'ang-top' }, el('button', { class: 'btn btn-sm', onclick: () => put(angleOf(f) - 1) }, '−1°'), val, el('button', { class: 'btn btn-sm', onclick: () => put(angleOf(f) + 1) }, '+1°')),
+      range,
+      el('div', { class: 'ang-presets' }, ...[[0, '⬆️ Droit'], [45, '↗️ 45°'], [90, '➡️ 90°'], [135, '↘️ 135°'], [180, '⬇️ 180°'], [-135, '↙️ −135°'], [-90, '⬅️ −90°'], [-45, '↖️ −45°']].map(([d, l]) => el('button', { class: 'btn btn-sm', onclick: () => put(d) }, l))),
+      el('p', { class: 'help' }, 'Astuce : tu peux aussi attraper la poignée jaune ⟳ au-dessus du meuble et la faire tourner avec ton doigt.'));
+  }
   function turn(dir) { const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); if (f.t === 'tv') return toast('📺 La télé reste droite'); f.r = Math.round(((f.r || 0) + dir * Math.PI / 12) * 1000) / 1000; if (f.r > Math.PI) f.r -= Math.PI * 2; if (f.r < -Math.PI) f.r += Math.PI * 2; }
   const furnDepth = f => f.y + (FURN[f.t]?.flat ? -999 : FURN[f.t]?.h / 2 || 0);
   function hitFurn(x, y) {
@@ -1539,7 +1554,7 @@ const Island = (() => {
     if (kind === 'island') try { window.CityGames?.drawTop(ctx, t, players.get(me)); } catch (e) {}
     if (kind === 'island') { const x0 = cam.x - vw / 2 / zoom - 20, x1 = cam.x + vw / 2 / zoom + 20, y0 = cam.y - vh / 2 / zoom - 20, y1 = cam.y + vh / 2 / zoom + 20; drawSky(t, Math.max(nightLevel(), window.EventState?.live ? .6 : 0), x0, y0, x1, y1); }
     if (kind === 'island' && xmas()) { ctx.save(); ctx.setTransform(DPR(), 0, 0, DPR(), 0, 0); drawSanta(t, vw, vh); ctx.restore(); }
-    if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.setLineDash([]); if (f.t !== 'tv') { ctx.beginPath(); ctx.moveTo(0, -d.h / 2 - 4); ctx.lineTo(0, -d.h / 2 - 22); ctx.stroke(); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -d.h / 2 - 34, 13, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1404'; ctx.font = '900 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⟳', 0, -d.h / 2 - 33); } ctx.restore(); }
+    if (kind === 'house' && editing && sel >= 0 && draft[sel]) { const f = draft[sel], d = FURN[f.t]; ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.t === 'tv' ? 0 : f.r || 0); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.strokeRect(-d.w / 2 - 4, -d.h / 2 - 4, d.w + 8, d.h + 8); ctx.setLineDash([]); if (f.t !== 'tv') { ctx.beginPath(); ctx.moveTo(0, -d.h / 2 - 4); ctx.lineTo(0, -d.h / 2 - 22); ctx.stroke(); ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, -d.h / 2 - 34, 13, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1404'; ctx.font = '900 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⟳', 0, -d.h / 2 - 33); } ctx.restore(); if (f.t !== 'tv' && f.r) { const deg = Math.round(f.r * 180 / Math.PI); ctx.font = '900 18px Outfit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const tw = ctx.measureText(deg + '°').width + 16; ctx.fillStyle = 'rgba(20,10,0,.8)'; roundRect(f.x - tw / 2, f.y + d.h / 2 + 10, tw, 26, 13); ctx.fill(); ctx.fillStyle = '#ffd34d'; ctx.fillText(deg + '°', f.x, f.y + d.h / 2 + 23); } }
     drawFx(t);
     // shooter dans le ballon en marchant dessus
     if (kind === 'pool' && ball && mine?.moving && ts - lastKick > 350) { const b = ballAt(ball, Date.now()); if (Math.hypot(b.x - mine.x, b.y - mine.y) < 46) { lastKick = ts; socket.emit('inst_kick'); } }
@@ -1802,8 +1817,10 @@ const Island = (() => {
       requestAnimationFrame(arrows);
       root.querySelector('.isl-actions').replaceChildren(
         el('button', { type: 'button', class: 'isl-act media', onclick: () => furniturePanel() }, el('span', {}, '➕'), 'Ajouter un meuble'),
-        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(-1) }, el('span', {}, '⟲'), 'Tourner'),
-        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(1) }, el('span', {}, '⟳'), 'Tourner'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(-1) }, el('span', {}, '⟲'), 'Tourner 15°'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => turn(1) }, el('span', {}, '⟳'), 'Tourner 15°'),
+        el('button', { type: 'button', class: 'isl-act', onclick: () => diagonal() }, el('span', {}, '◇'), 'En diagonale'),
+        el('button', { type: 'button', class: 'isl-act media', onclick: () => anglePanel() }, el('span', {}, '📐'), 'Angle précis'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) draft[sel].f = draft[sel].f ? 0 : 1; else toast('Touche d\'abord un meuble'); } }, el('span', {}, '↔️'), 'Retourner'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { const f = draft[sel]; if (!f || !FURN[f.t]?.neon) return toast('Touche d\'abord un néon 💡'); const L = Decor.NEON; f.c = L[(L.indexOf(f.c) + 1) % L.length]; } }, el('span', {}, '🎨'), 'Couleur du néon'),
         el('button', { type: 'button', class: 'isl-act', onclick: () => { if (draft[sel]) { draft.splice(sel, 1); sel = -1; } else toast('Touche d\'abord un meuble'); } }, el('span', {}, '🗑️'), 'Retirer'),
@@ -1931,7 +1948,7 @@ const Island = (() => {
       if ((editing || building) && drag?.pan && e.pointerId === drag.id) { camEdit.x = Math.max(0, Math.min(1800, drag.cx - (e.clientX - drag.sx) / view.z)); camEdit.y = Math.max(0, Math.min(1100, drag.cy - (e.clientY - drag.sy) / view.z)); return; }
       if (!editing || !drag || e.pointerId !== drag.id || !draft[sel]) return;
       const r = cv.getBoundingClientRect(), { x, y } = toWorld(e.clientX - r.left, e.clientY - r.top);
-      if (drag.rotate) { const f = draft[sel], a = Math.atan2(x - f.x, -(y - f.y)); f.r = Math.round(a / (Math.PI / 36)) * (Math.PI / 36); return; }
+      if (drag.rotate) { const f = draft[sel], a = Math.atan2(x - f.x, -(y - f.y)); let dg = Math.round(a * 180 / Math.PI); for (const m of [0, 45, 90, 135, 180, -45, -90, -135, -180]) if (Math.abs(dg - m) <= 3) dg = m; /* petit aimant sur les angles ronds */ f.r = dg * Math.PI / 180; return; }
       draft[sel].x = Math.round(Math.max(0, Math.min(1800, x - drag.dx)) / 5) * 5; draft[sel].y = Math.round(Math.max(0, Math.min(1100, y - drag.dy)) / 5) * 5;
     });
     const drop = () => { drag = null; };

@@ -3792,3 +3792,9 @@ body { background:
 /* 🛋️ la liste des meubles : les onglets ne sont plus écrasés */
 .isl-pbody .fp-tabs { flex: none; min-height: 34px; }
 .isl-pbody .fp-search { flex: none; }
+/* 📐 faire tourner un meuble */
+.ang-top { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ang-val { font-size: 1.8rem; font-weight: 900; color: #ffd34d; min-width: 80px; text-align: center; }
+.ang-range { width: 100%; accent-color: #ffd34d; }
+.ang-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ang-presets .btn { padding: 6px 2px; font-size: .78rem; }

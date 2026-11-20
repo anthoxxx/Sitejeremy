@@ -1035,4 +1035,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 73,
+    date: '2026-11-20',
+    title: 'Tourne tes meubles comme tu veux, même en diagonale 📐',
+    added: [
+      '◇ Nouveau bouton « En diagonale » dans « Mes meubles » : touche un meuble puis ce bouton pour le mettre à 45°, 135°, −135°, −45°… et une dernière fois pour le remettre droit',
+      '📐 « Angle précis » : règle l\'angle au degré près avec une barre, des boutons −1° / +1° et des angles tout prêts (droit, 45°, 90°, 135°, 180°…)',
+      '🔢 L\'angle du meuble s\'affiche à côté de lui quand tu le tournes',
+    ],
+    changed: ['⟳ La poignée jaune au-dessus du meuble tourne maintenant au degré près, avec un petit aimant sur les angles ronds (0°, 45°, 90°…)'],
+    removed: [],
+  },
 ];
