@@ -1144,6 +1144,20 @@ module.exports = [
     removed: [],
   },
   {
+    id: 88,
+    date: '2026-11-20',
+    title: 'Ville 3D : plus de vide au bord de la Ville 🌆',
+    added: [
+      '🌆 Tout autour de la Ville, la grande ville continue : des rues avec leurs pointillés, des trottoirs, et des quartiers entiers d\'immeubles (qui s\'allument la nuit)',
+      '🏙️ Au loin, de grands gratte-ciel bien posés sur le sol, jusqu\'à l\'horizon',
+    ],
+    changed: [
+      '🕳️ Fini les « trous » gris au bord de la Ville et les immeubles qui flottaient dans le vide',
+      '⚡ Les immeubles lointains sont regroupés : la Ville est plus légère pour les téléphones',
+    ],
+    removed: [],
+  },
+  {
     id: 87,
     date: '2026-11-20',
     title: 'Nouveau : le Laser Game en 3D ! 🔫',

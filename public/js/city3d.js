@@ -159,6 +159,53 @@ const City3D = (() => {
   const noise = (g, w, h, n, a, s = 2) => { for (let i = 0; i < n; i++) { g.fillStyle = `rgba(${rnd() < .5 ? '255,255,255' : '0,0,0'},${rnd() * a})`; g.fillRect(rnd() * w, rnd() * h, s, s); } };
   const STD = (o) => new THREE.MeshStandardMaterial(o);
 
+  // 🌆 la suite de la ville tout autour : sol, rues qui continuent, quartiers d'immeubles, puis les gratte-ciel au loin.
+  // Les immeubles lointains sont regroupés par style en un seul objet chacun (8 en tout) : c'est très léger, même sur téléphone.
+  function outerCity() {
+    const SP = 800, X = [...A.STREETS_X], Y = [...A.STREETS_Y];
+    for (let k = 1; k <= 3; k++) { X.unshift(A.STREETS_X[0] - k * SP); X.push(A.STREETS_X[A.STREETS_X.length - 1] + k * SP); Y.unshift(A.STREETS_Y[0] - k * SP); Y.push(A.STREETS_Y[A.STREETS_Y.length - 1] + k * SP); }
+    const gx0 = X[0] - SP, gx1 = X[X.length - 1] + SP, gz0 = Y[0] - SP, gz1 = Y[Y.length - 1] + SP, G = -1;
+    // le sol : des dalles de trottoir partout
+    const pt = paverTex(); pt.repeat.set(60000 / 90, 60000 / 90);
+    const gm = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000), STD({ map: pt, color: 0xb9b9b9, roughness: .95 })); gm.rotation.x = -Math.PI / 2; gm.position.set(A.W / 2, G, A.H / 2); gm.receiveShadow = SH; scene.add(gm);
+    // les rues qui continuent, avec leurs pointillés
+    const road = horiz => { const [c, g] = cnv(horiz ? 512 : 128, horiz ? 128 : 512); g.fillStyle = '#35373b'; g.fillRect(0, 0, c.width, c.height); for (let i = 0; i < 9000; i++) { const v = 35 + rnd() * 60 | 0; g.fillStyle = `rgba(${v},${v},${v + 3},.6)`; g.fillRect(rnd() * c.width, rnd() * c.height, 2, 2); } g.fillStyle = 'rgba(235,235,230,.9)'; if (horiz) { g.fillRect(0, 62, 260, 4); g.fillRect(0, 6, 512, 3); g.fillRect(0, 119, 512, 3); } else { g.fillRect(62, 0, 4, 260); g.fillRect(6, 0, 3, 512); g.fillRect(119, 0, 3, 512); } const t = tex(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
+    const rh = road(true), rv = road(false);
+    for (const x of X) { const L = gz1 - gz0, t = rv.clone(); t.needsUpdate = true; t.repeat.set(1, L / 420); const m = new THREE.Mesh(new THREE.PlaneGeometry(RW, L), STD({ map: t, roughness: .9 })); m.rotation.x = -Math.PI / 2; m.position.set(x, G + .25, (gz0 + gz1) / 2); m.receiveShadow = SH; scene.add(m); }
+    for (const z of Y) { const L = gx1 - gx0, t = rh.clone(); t.needsUpdate = true; t.repeat.set(L / 420, 1); const m = new THREE.Mesh(new THREE.PlaneGeometry(L, RW), STD({ map: t, roughness: .9 })); m.rotation.x = -Math.PI / 2; m.position.set((gx0 + gx1) / 2, G + .3, z); m.receiveShadow = SH; scene.add(m); }
+    // les immeubles, rangés par style
+    const parts = STYLES.map(() => []);
+    const box = (cx, cz, w, h, d, si, y0 = G) => {
+      const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv, fl = h / FLOOR;
+      for (let f = 0; f < 6; f++) for (let v = 0; v < 4; v++) { const i = f * 4 + v; if (f === 2 || f === 3) uv.setXY(i, .04, .5); else uv.setXY(i, uv.getX(i) * Math.max(1, Math.round((f < 2 ? d : w) / 64)), uv.getY(i) * fl / 2); }
+      g.translate(cx, y0 + h / 2, cz); parts[si].push(g);
+    };
+    const city = { x0: -30, x1: A.W + 30, z0: -30, z1: A.H + 30 };
+    const near = mobile() ? .75 : 1;
+    for (let a = 0; a < X.length - 1; a++) for (let b = 0; b < Y.length - 1; b++) {
+      let x0 = X[a] + 80, x1 = X[a + 1] - 80, z0 = Y[b] + 80, z1 = Y[b + 1] - 80;
+      const inX = x0 < city.x1 && x1 > city.x0, inZ = z0 < city.z1 && z1 > city.z0;
+      if (inX && inZ) { // le pâté de maisons touche la Ville : on ne garde que la partie dehors
+        const opts = [[x0, Math.min(x1, city.x0), z0, z1], [Math.max(x0, city.x1), x1, z0, z1], [x0, x1, z0, Math.min(z1, city.z0)], [x0, x1, Math.max(z0, city.z1), z1]].filter(o => o[1] - o[0] > 120 && o[3] - o[2] > 120);
+        if (!opts.length) continue; [x0, x1, z0, z1] = opts.sort((p, q) => (q[1] - q[0]) * (q[3] - q[2]) - (p[1] - p[0]) * (p[3] - p[2]))[0];
+      }
+      const w = x1 - x0, h = z1 - z0, n = Math.max(1, Math.round(w / 230)), m = Math.max(1, Math.round(h / 230));
+      const dd = Math.max(0, city.x0 - x1, x0 - city.x1, city.z0 - z1, z0 - city.z1); // loin de la Ville = plus haut
+      for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
+        if (rnd() > near) continue;
+        const lw = w / n, lh = h / m, bw = lw - 14 - rnd() * 30, bd = lh - 14 - rnd() * 30, cx = x0 + lw * (i + .5), cz = z0 + lh * (j + .5);
+        const floors = Math.round(4 + rnd() * 7 + Math.min(26, dd / 90) * (.5 + rnd() * .7)), si = floors > 18 && rnd() < .5 ? 7 : Math.floor(rnd() * 7), H = floors * FLOOR;
+        box(cx, cz, bw, H, bd, si);
+        if (floors > 12 && rnd() < .45) { const f2 = Math.round(floors * (.25 + rnd() * .3)); box(cx, cz, bw * .7, f2 * FLOOR, bd * .7, si, G + H); }
+      }
+    }
+    // tout au loin : les gratte-ciel de l'horizon
+    for (let i = 0; i < (mobile() ? 70 : 120); i++) {
+      const a = rnd() * Math.PI * 2, r = 1 + rnd() * .5, x = A.W / 2 + Math.cos(a) * (gx1 - gx0) / 2 * r, z = A.H / 2 + Math.sin(a) * (gz1 - gz0) / 2 * r, w = 160 + rnd() * 220;
+      box(x, z, w, (20 + rnd() * 40) * FLOOR, w * (.7 + rnd() * .5), rnd() < .5 ? 7 : Math.floor(rnd() * 7));
+    }
+    parts.forEach((list, si) => { if (!list.length) return; const geo = LIB.BGU.mergeGeometries(list); list.forEach(g => g.dispose()); const mesh = new THREE.Mesh(geo, material(si, 1, 1)); mesh.castShadow = mesh.receiveShadow = SH; scene.add(mesh); });
+  }
   // de vraies matières qui se répètent : l'asphalte (avec ses petits graviers) et les dalles du trottoir
   function asphaltTex() {
     const [c, g] = cnv(512, 512); g.fillStyle = '#35373b'; g.fillRect(0, 0, 512, 512);
@@ -313,7 +360,7 @@ const City3D = (() => {
     const ct = tex(cc);
     for (let i = 0; i < 26; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, fog: false, depthWrite: false, opacity: .85 })); const a = rnd() * 6.28, r = 3500 + rnd() * 4500; s.position.set(A.W / 2 + Math.cos(a) * r, 1700 + rnd() * 1500, A.H / 2 + Math.sin(a) * r); s.scale.set(2200 + rnd() * 2000, 900 + rnd() * 600, 1); scene.add(s); clouds.push(s); }
     // la mer
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), STD({ color: 0x1b5f93, roughness: .15, metalness: .3 })); sea.rotation.x = -Math.PI / 2; sea.position.set(A.W / 2, -4, A.H / 2); scene.add(sea);
+    outerCity(); // autour : la suite de la grande ville (plus de vide au bord)
     // les trottoirs en relief, avec leur bordure
     if (ASSET) { const at = asphaltTex(), mk = (rx, ry) => { const t = at.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return STD({ map: t, roughness: .92 }); }, mh = mk(A.W / 140, RW / 140), mv = mk(RW / 140, A.H / 140);
       for (const y of A.STREETS_Y) { const r = new THREE.Mesh(new THREE.PlaneGeometry(A.W, RW), mh); r.rotation.x = -Math.PI / 2; r.position.set(A.W / 2, -.1, y); r.receiveShadow = SH; scene.add(r); }
@@ -349,12 +396,6 @@ const City3D = (() => {
     if (ASSET) { const gt = ASSET.grass.clone(); gt.needsUpdate = true; gt.repeat.set(A.W / 260, A.H / 260); const gm = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), STD({ map: gt, color: 0xc4cfb0, roughness: 1 })); gm.rotation.x = -Math.PI / 2; gm.position.set(A.W / 2, -.3, A.H / 2); gm.receiveShadow = SH; scene.add(gm); }
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), STD({ map: tex(makeGround()), roughness: .95, transparent: !!ASSET }));
     ground.rotation.x = -Math.PI / 2; ground.position.set(A.W / 2, 0, A.H / 2); ground.receiveShadow = SH; scene.add(ground);
-    // 🌆 au loin, les gratte-ciel de la grande ville
-    for (let i = 0; i < (mobile() ? 64 : 110); i++) {
-      const sd = i % 4, t = rnd(), far = 240 + rnd() * 1100;
-      const x = sd === 0 ? t * A.W : sd === 1 ? A.W + far : sd === 2 ? t * A.W : -far, z = sd === 0 ? -far : sd === 1 ? t * A.H : sd === 2 ? A.H + far : t * A.H, w = 130 + rnd() * 170;
-      building(x, z, w, w * (.7 + rnd() * .5), 12 + Math.round(rnd() * 36), rnd() < .45 ? 7 : Math.floor(rnd() * 7), { far: true });
-    }
     // 🌳 les arbres : tronc + plusieurs boules de feuillage
     const N = trees.length;
     if (N) {
