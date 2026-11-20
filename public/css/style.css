@@ -3436,15 +3436,15 @@ button.ph-side { border: 0; padding: 0; cursor: pointer; z-index: 2 !important; 
 .cc-slider span { filter: grayscale(1) brightness(.4); }
 
 /* =================== 📲 L'assistant de configuration de l'iPhone =================== */
-.sw { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 64px 22px 54px; color: #111; overflow-y: auto; animation: swIn .35s ease; }
+.ph-screen .sw { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 64px 22px 54px; color: #111; overflow-y: auto; animation: swIn .35s ease; }
 @keyframes swIn { from { opacity: 0; transform: translateX(30px); } }
-.sw h2 { margin: 8px 0 4px; font: 800 26px Outfit, sans-serif; } .sw p { color: #6b6b75; font-size: 14px; margin: 0 0 14px; }
+.ph-screen .sw h2 { margin: 8px 0 4px; font: 800 26px Outfit, sans-serif; } .ph-screen .sw p { color: #6b6b75; font-size: 14px; margin: 0 0 14px; }
 .sw-ico { font-size: 52px; }
-.sw.hello { color: #fff; justify-content: center; background: radial-gradient(circle at 50% 40%, #1a1a2e, #000); }
+.ph-screen .sw.hello { color: #fff; justify-content: center; background: radial-gradient(circle at 50% 40%, #1a1a2e, #000); }
 .sw-logo { font-size: 46px; margin-bottom: 18px; } .sw-hello { font: 300 44px Outfit, sans-serif; background: linear-gradient(90deg, #ff6aa8, #ffd36e, #6fe3a6, #4fb3ff, #c86bff); -webkit-background-clip: text; background-clip: text; color: transparent; } .sw-hello.in { animation: swHello 1.2s ease; }
 @keyframes swHello { from { opacity: 0; filter: blur(8px); transform: scale(.94); } }
 .sw-up { margin-top: auto; border: 0; background: none; color: #fff; display: flex; flex-direction: column; align-items: center; cursor: pointer; animation: lockBounce 1.6s ease-in-out infinite; } .sw-up span { font-size: 26px; } .sw-up small { font-size: 12px; opacity: .8; }
-.sw.sw-end p { color: rgba(255,255,255,.75); margin-top: 10px; }
+.ph-screen .sw.sw-end p { color: rgba(255,255,255,.75); margin-top: 10px; }
 .sw-foot { margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; padding-top: 16px; }
 .sw-btn { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #007aff; color: #fff; font: 700 16px Outfit, sans-serif; cursor: pointer; } .sw-btn:disabled { opacity: .5; }
 .sw-skip { border: 0; background: none; color: #007aff; font: 600 14px Outfit, sans-serif; cursor: pointer; padding: 6px; }
@@ -3749,3 +3749,46 @@ body { background:
 .fp-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 6px; scrollbar-width: thin; }
 .fp-tabs button { flex: none; border: 0; border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.1); color: inherit; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
 .fp-tabs button.on { background: #ffd34d; color: #2a1404; }
+/* =================== 📱 Réajustement téléphone (novembre) =================== */
+@media (max-width: 760px) {
+  /* l'en-tête : tout tient sur la ligne, ta photo n'est plus coupée */
+  .app-header .wx-btn { flex: none; padding: 3px 7px; min-height: 30px; gap: 2px; font-size: .74rem; margin: 0 1px; }
+  .app-header .wx-btn .wx-ico { font-size: 1rem; }
+  .app-header .me-chip { margin-left: auto; }
+  .app-header > .spacer { flex: 1 1 0; min-width: 0; }
+}
+@media (max-width: 430px) {
+  .app-header .logo img { width: 32px; height: 32px; }
+  .app-header .btn-icon { width: 32px !important; height: 34px !important; font-size: .98rem !important; }
+  .app-header .me-chip .avatar { width: 32px; height: 32px; }
+  .coins-btn { padding: 3px 6px !important; font-size: .72rem !important; }
+}
+@media (max-width: 370px) {
+  .app-header .wx-btn b { display: none; } /* tout petit écran : juste l'icône de la météo */
+  .app-header .logo img { width: 28px; height: 28px; }
+}
+/* les fenêtres : jamais plus larges que l'écran, et les titres ne passent plus sous la croix */
+@media (max-width: 600px) {
+  .modal-back { padding: 8px; }
+  .modal-back > * { max-width: 100%; }
+  .adv-head h3 { font-size: 1.15rem; padding-right: 36px; }
+  .pg-head h3 { font-size: 1.2rem; }
+  .wx-head { padding: 14px 10px; } .wx-big { font-size: 48px; } .wx-temp { font-size: 38px; }
+  .jsd-grid { grid-template-columns: repeat(3, 1fr); }
+  .sn-styles .btn, .jsd-modes .btn, .wx-set .btn { flex: 1 1 auto; }
+  .nr-styles .btn { flex: 1 1 calc(33% - 6px); }
+  .fp-tabs button { padding: 6px 9px; }
+}
+@media (max-width: 760px) { .app-header { padding-right: 8px !important; } }
+/* 🏙️ la barre du haut de la Ville et des maisons : tout reste dans l'écran */
+@media (max-width: 480px) {
+  .isl-top { gap: 4px !important; flex-wrap: nowrap; }
+  .isl-top .isl-title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .88rem; }
+  .isl-top .isl-amb { display: none !important; }
+  .isl-top .btn-sm { padding: 4px 7px; min-width: 0; flex: none; }
+  .isl-top .isl-zoom { flex: none; gap: 3px; }
+  .isl-top .isl-zoom .btn { padding: 4px 8px; }
+}
+/* 🛋️ la liste des meubles : les onglets ne sont plus écrasés */
+.isl-pbody .fp-tabs { flex: none; min-height: 34px; }
+.isl-pbody .fp-search { flex: none; }

@@ -1021,4 +1021,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 72,
+    date: '2026-11-20',
+    title: 'Le site réajusté pour les téléphones 📱',
+    added: [],
+    changed: [
+      '📱 Le haut du site tient sur tous les téléphones, même les petits : ta photo n\'est plus coupée à droite et la bulle météo est plus compacte',
+      '🛡️ La fenêtre « Équipe de modération » est réparée : il n\'y a plus d\'énormes carrés de couleur',
+      '🏙️ Dans la Ville et les maisons, les boutons du haut (téléphone, zoom, ✕) restent dans l\'écran',
+      '🛋️ Les catégories de la liste des meubles ne sont plus écrasées',
+      '🎄 Le titre du Calendrier de l\'Avent ne passe plus sous la croix, et les autres fenêtres (météo, néons, sons, profil) s\'adaptent mieux aux petits écrans',
+    ],
+    removed: [],
+  },
 ];
