@@ -3803,10 +3803,13 @@ body { background:
 .isl-3d.hidden { display: none; }
 .island.view3d > canvas:not(.isl-3d) { visibility: hidden; }
 .isl-cam { flex: none; font-weight: 800; }
-.pad3d { position: absolute; left: 14px; bottom: calc(276px + env(safe-area-inset-bottom)); z-index: 3; display: grid; grid-template-columns: 56px 56px 56px; grid-template-rows: 56px 56px; gap: 6px; }
-.pad3d.hidden { display: none; }
-.p3-btn { border: 0; border-radius: 16px; background: rgba(20,12,40,.6); color: #fff; font-size: 24px; font-weight: 900; touch-action: none; user-select: none; box-shadow: 0 4px 14px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.2); }
-.p3-btn.on { background: rgba(255,79,216,.7); }
-.p3-btn.u { grid-column: 2; grid-row: 1; } .p3-btn.l { grid-column: 1; grid-row: 2; } .p3-btn.d { grid-column: 2; grid-row: 2; } .p3-btn.r { grid-column: 3; grid-row: 2; }
-@media (hover: hover) and (pointer: fine) { .pad3d { opacity: .75; } }
-@media (max-width: 600px) { .pad3d { grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px; gap: 5px; left: 10px; } .p3-btn { font-size: 21px; border-radius: 14px; } }
+/* 🕹️ le joystick de la vue 3D */
+.joy { position: absolute; left: 18px; bottom: calc(276px + env(safe-area-inset-bottom)); width: 124px; height: 124px; z-index: 3; touch-action: none; user-select: none; -webkit-user-select: none; }
+.joy.hidden { display: none; }
+.joy-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.08) 40%, rgba(255,255,255,.16)); border: 2px solid rgba(255,255,255,.35); box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 18px rgba(0,0,0,.25); }
+.joy-ring::before, .joy-ring::after { content: '▲'; position: absolute; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.55); font-size: 12px; top: 6px; }
+.joy-ring::after { content: '▼'; top: auto; bottom: 6px; }
+.joy-knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffff, #d9d2ff 45%, #8b6cff); box-shadow: 0 4px 12px rgba(0,0,0,.45); transition: transform .12s; pointer-events: none; }
+.joy.on .joy-knob { transition: none; background: radial-gradient(circle at 35% 30%, #ffffff, #ffc2ea 45%, #ff4fd8); }
+@media (hover: hover) and (pointer: fine) { .joy { opacity: .7; } }
+@media (max-width: 600px) { .joy { width: 112px; height: 112px; left: 12px; } }

@@ -65,7 +65,7 @@ const City3D = (() => {
   const tex = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
   // une image découpée, posée debout. face = toujours face à la caméra (palmier, lampadaire, personnage)
   function stand(c, W2, H2, AX, AY, x, y, opt = {}) {
-    const mat = new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, alphaTest: .35, side: THREE.DoubleSide, fog: true });
+    const mat = new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, alphaTest: .35, side: opt.face ? THREE.DoubleSide : THREE.FrontSide, fog: true });
     const geo = new THREE.PlaneGeometry(W2, H2); geo.translate(W2 / 2 - AX, AY - H2 / 2, 0);
     const m = new THREE.Mesh(geo, mat); m.position.set(x, 0, y + (opt.dz || 0)); if (opt.s) m.scale.setScalar(opt.s);
     scene.add(m); if (opt.face) bills.push(m); return m;
@@ -141,11 +141,11 @@ const City3D = (() => {
     const tx = p.id === A.me ? pos.x : p.x, ty = p.id === A.me ? pos.y : p.y;
     o.x += (tx - o.x) * .25; o.y += (ty - o.y) * .25;
     o.m.position.set(o.x, 0, o.y);
-    tag(p, o); o.tag.position.set(o.x, 62, o.y);
+    tag(p, o); o.tag.position.set(o.x, 60, o.y);
     if (t - o.at > .12) { // on redessine le personnage 8 fois par seconde (il bouge, il danse…)
       o.at = t; const g = o.c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, o.c.width, o.c.height);
       const img = A.sprite3d(() => A.draw.player({ ...p, dx: tx, dy: ty, pose: null, said: '', action: p.action === 'sit' || p.action === 'sleep' ? '' : p.action }, t), tx, ty, 300, 230, 150, 160, o.k);
-      g.drawImage(img, 0, 0); o.m.material.map.needsUpdate = true;
+      g.drawImage(img, 0, 0); g.clearRect(0, (160 + 27) * o.k, o.c.width, o.c.height); o.m.material.map.needsUpdate = true; // on coupe sous les pieds : le pseudo est au-dessus de la tête
     }
     return o;
   }
@@ -169,13 +169,21 @@ const City3D = (() => {
       g.fillStyle = '#ffffff'; rr(W / 2 - bw / 2, by, bw, bh, 22); g.fill(); g.beginPath(); g.moveTo(W / 2 - 12, by + bh); g.lineTo(W / 2, by + bh + 14); g.lineTo(W / 2 + 12, by + bh); g.fill();
       g.fillStyle = '#1c1430'; L.forEach((l, i) => g.fillText(l, W / 2, by + 30 + i * 40));
     }
-    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false })); o.tag.scale.set(110, 55, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
+    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false })); o.tag.scale.set(84, 42, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
     else o.tag.material.map.needsUpdate = true;
   }
   // ---------- 🎮 les flèches à l'écran (téléphone) ----------
+  // 🕹️ le joystick : on pose le pouce et on le pousse (vers le haut = avancer, sur les côtés = tourner)
+  const stick = { x: 0, y: 0, on: false };
   function buildPad(root) {
-    const btn = (k, txt, cls) => { const b = el('button', { class: 'p3-btn ' + cls, 'aria-label': k }, txt); const on = e => { e.preventDefault(); held.add(k); b.classList.add('on'); }, off = () => { held.delete(k); b.classList.remove('on'); }; b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off); return b; };
-    pad = el('div', { class: 'pad3d hidden' }, btn('up', '▲', 'u'), btn('left', '↶', 'l'), btn('right', '↷', 'r'), btn('down', '▼', 'd'));
+    const knob = el('div', { class: 'joy-knob' });
+    pad = el('div', { class: 'joy hidden', 'aria-label': 'Se déplacer' }, el('i', { class: 'joy-ring' }), knob);
+    let id = null;
+    const move = e => { const r = pad.getBoundingClientRect(), R = r.width / 2; let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R); const d = Math.hypot(dx, dy), max = R * .62; if (d > max) { dx *= max / d; dy *= max / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / max; stick.y = dy / max; };
+    pad.addEventListener('pointerdown', e => { e.preventDefault(); id = e.pointerId; pad.setPointerCapture?.(id); stick.on = true; pad.classList.add('on'); move(e); });
+    pad.addEventListener('pointermove', e => { if (e.pointerId === id) move(e); });
+    const up = e => { if (e.pointerId !== id) return; id = null; stick.on = false; stick.x = stick.y = 0; knob.style.transform = ''; pad.classList.remove('on'); };
+    pad.addEventListener('pointerup', up); pad.addEventListener('pointercancel', up);
     root.append(pad);
   }
   // ---------- chaque image : on bouge et on dessine ----------
@@ -185,16 +193,19 @@ const City3D = (() => {
     const K = A.keys, fwd = K.has('ArrowUp') || K.has('z') || K.has('w') || held.has('up'), back = K.has('ArrowDown') || K.has('s') || held.has('down');
     const left = K.has('ArrowLeft') || K.has('q') || K.has('a') || held.has('left'), right = K.has('ArrowRight') || K.has('d') || held.has('right');
     if (left) yaw += 2.2 * dt; if (right) yaw -= 2.2 * dt;
+    // le joystick : la vitesse dépend de combien on le pousse
+    let push = 0; if (stick.on) { const dz = v => (Math.abs(v) < .18 ? 0 : v); yaw -= dz(stick.x) * 2.4 * dt; push = -dz(stick.y); }
     const dir = { x: -Math.sin(yaw), y: -Math.cos(yaw) };
     const m = A.players.get(A.me);
-    if (m && !fwd && !back) { pos.x += (m.x - pos.x) * .3; pos.y += (m.y - pos.y) * .3; m.moving = false; }
-    if (m && (fwd || back)) {
-      const sp = (fwd ? 260 : -170) * (window.CityGames?.speed?.() ?? 1) * dt, nx = m.x + dir.x * sp, ny = m.y + dir.y * sp;
+    const going = fwd || back || push !== 0;
+    if (m && !going) { pos.x += (m.x - pos.x) * .3; pos.y += (m.y - pos.y) * .3; m.moving = false; }
+    if (m && going) {
+      const sp = (fwd ? 260 : back ? -170 : push > 0 ? 260 * push : 170 * push) * (window.CityGames?.speed?.() ?? 1) * dt, nx = m.x + dir.x * sp, ny = m.y + dir.y * sp;
       if (!A.moveMine(nx, ny)) { if (!A.moveMine(nx, m.y)) A.moveMine(m.x, ny); }
       pos = { x: m.x, y: m.y }; bob += dt * 10;
     }
     // la caméra
-    const eye = 96 + (mode === 'first' && (fwd || back) ? Math.sin(bob) * 3 : 0);
+    const eye = 96 + (mode === 'first' && going ? Math.sin(bob) * 3 : 0);
     if (mode === 'first') { camera.position.set(pos.x, eye, pos.y); camera.lookAt(pos.x + dir.x * 100, eye + Math.tan(pitch) * 100, pos.y + dir.y * 100); }
     else {
       // la caméra derrière moi… mais si un bâtiment est entre nous, elle se rapproche pour ne pas me perdre de vue

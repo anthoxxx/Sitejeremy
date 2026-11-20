@@ -1120,4 +1120,15 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 80,
+    date: '2026-11-20',
+    title: 'Un joystick pour la 3D sur téléphone 🕹️',
+    added: ['🕹️ Sur téléphone, les flèches de la vue 3D sont remplacées par un joystick rond : pose ton pouce et pousse-le vers le haut pour avancer (plus tu pousses, plus tu vas vite), vers le bas pour reculer, sur les côtés pour tourner'],
+    changed: [
+      '🔤 Les enseignes des magasins ne s\'affichent plus à l\'envers quand on les voit de derrière',
+      '🏷️ Le pseudo ne s\'affiche plus en double sous les pieds du personnage, et l\'étiquette au-dessus de la tête est plus discrète',
+    ],
+    removed: [],
+  },
 ];
