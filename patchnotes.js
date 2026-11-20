@@ -1144,6 +1144,23 @@ module.exports = [
     removed: [],
   },
   {
+    id: 84,
+    date: '2026-11-20',
+    title: 'Ville 3D : des proportions réalistes et une plus belle ville 🌳',
+    added: [
+      '🌳 Des arbres alignés le long des trottoirs, comme dans une vraie avenue, avec un feuillage plus naturel',
+      '🌑 Des ombres douces au pied des immeubles et des arbres, et des ombres aussi sur les téléphones assez puissants',
+    ],
+    changed: [
+      '🧍 Les personnages sont plus petits, à la bonne taille à côté des immeubles et des voitures (et ils marchent à une vitesse plus naturelle)',
+      '🏢 Les immeubles sont plus hauts, avec des façades plus nettes sur ordinateur',
+      '🎥 La caméra est à hauteur d\'homme, plus proche de ton personnage, comme dans un vrai jeu',
+      '🌿 Une herbe plus naturelle (moins fluo), une lumière plus douce et un léger assombrissement des bords de l\'écran',
+      '⛈️ En 3D, les éclairs de l\'orage ne dessinent plus de trait sur l\'écran : juste le flash',
+    ],
+    removed: [],
+  },
+  {
     id: 83,
     date: '2026-11-20',
     title: 'La Ville 3D devient beaucoup plus réaliste ✨',

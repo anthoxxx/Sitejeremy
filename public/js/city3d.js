@@ -6,10 +6,11 @@ const City3D = (() => {
   let mode = 'top'; // 'top' = vue du dessus (2D) · 'third' = 3ᵉ personne · 'first' = 1ʳᵉ personne
   try { mode = localStorage.getItem('lc_city_view') || 'top'; } catch (e) {}
   let THREE = null, R = null, scene = null, camera = null, canvas = null, A = null, built = false, pad = null, carBtn = null;
-  let camLen = 180, yaw = 0, pitch = -0.08, pos = { x: 0, y: 0 }, bob = 0, driving = false, speed = 0, lift = 0, lastSky = 0, starting = false, ray = null, nightNow = -1;
+  let camLen = 120, yaw = 0, pitch = -0.08, pos = { x: 0, y: 0 }, bob = 0, driving = false, speed = 0, lift = 0, lastSky = 0, starting = false, ray = null, nightNow = -1;
   const people = new Map(), solids = [], cars = [], glowMats = [], walls = []; // walls = le sol occupé par les bâtiments (on ne passe pas à travers)
   const mobile = () => innerWidth < 700;
-  const FLOOR = 40, CURB = 3;
+  const FLOOR = 54, CURB = 3, HS = .62; // HS = taille des personnages (plus petits = plus réaliste à côté des immeubles)
+  const SH = !mobile() || (navigator.hardwareConcurrency || 4) >= 6; // les ombres (aussi sur les téléphones assez puissants)
   const rnd = (() => { let s = 1234567; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
   const pick = l => l[Math.floor(rnd() * l.length)];
 
@@ -46,7 +47,7 @@ const City3D = (() => {
       R.setPixelRatio(Math.min(devicePixelRatio || 1, mobile() ? 1.5 : 1.75));
       R.outputColorSpace = THREE.SRGBColorSpace;
       R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.05; // la lumière d'un appareil photo
-      if (!mobile()) { R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap; }
+      if (SH) { R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap; }
       camera = new THREE.PerspectiveCamera(60, 1, 2, 14000);
       addEventListener('resize', fit);
       let drag = null; // regarder autour : on fait glisser le doigt ou la souris
@@ -78,11 +79,11 @@ const City3D = (() => {
   function makeGround() {
     const k = mobile() ? .4 : .6, [c, g] = cnv(Math.round(A.W * k), Math.round(A.H * k)); g.scale(k, k);
     // de l'herbe avec des nuances
-    g.fillStyle = '#4f8a3c'; g.fillRect(0, 0, A.W, A.H);
-    for (let i = 0; i < 5000; i++) { const r = 8 + rnd() * 40; g.fillStyle = `hsla(${95 + rnd() * 25},${35 + rnd() * 20}%,${26 + rnd() * 14}%,.35)`; g.beginPath(); g.arc(rnd() * A.W, rnd() * A.H, r, 0, 7); g.fill(); }
+    g.fillStyle = '#56763f'; g.fillRect(0, 0, A.W, A.H);
+    for (let i = 0; i < 5000; i++) { const r = 8 + rnd() * 40; g.fillStyle = `hsla(${80 + rnd() * 30},${22 + rnd() * 18}%,${24 + rnd() * 16}%,.4)`; g.beginPath(); g.arc(rnd() * A.W, rnd() * A.H, r, 0, 7); g.fill(); }
     noise(g, A.W, A.H, 60000, .12, 2);
     // les trottoirs (en béton, posés plus haut en 3D) : sous les rues sur le sol pour les bords
-    g.fillStyle = '#a9a9ab';
+    g.fillStyle = '#a4a29d';
     for (const y of A.STREETS_Y) g.fillRect(0, y - RW / 2 - SW, A.W, RW + SW * 2);
     for (const x of A.STREETS_X) g.fillRect(x - RW / 2 - SW, 0, RW + SW * 2, A.H);
     // l'asphalte, avec son grain et ses taches
@@ -104,6 +105,11 @@ const City3D = (() => {
       g.fillStyle = 'rgba(240,240,235,.9)';
       for (let i = -RW / 2 + 8; i < RW / 2 - 8; i += 13) { g.fillRect(x + i, y - RW / 2 - 24, 7, 20); g.fillRect(x + i, y + RW / 2 + 4, 7, 20); g.fillRect(x - RW / 2 - 24, y + i, 20, 7); g.fillRect(x + RW / 2 + 4, y + i, 20, 7); }
     }
+    // l'ombre douce au pied des immeubles et sous les arbres
+    g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 40;
+    for (const w of walls) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(w.x0 + 4, w.z0 + 4, w.x1 - w.x0 - 8, w.z1 - w.z0 - 8); }
+    g.shadowBlur = 22; for (const t of trees) { g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.arc(t.x, t.y, 20 * t.s, 0, 7); g.fill(); }
+    g.restore();
     // la grande place pavée et le lac
     const P = A.PLAZA; g.fillStyle = '#c9bca3'; g.beginPath(); g.arc(P.x, P.y, P.r + 40, 0, 7); g.fill();
     g.strokeStyle = 'rgba(90,75,55,.28)'; g.lineWidth = 1.5; for (let r = 14; r < P.r + 40; r += 14) { g.beginPath(); g.arc(P.x, P.y, r, 0, 7); g.stroke(); }
@@ -126,7 +132,7 @@ const City3D = (() => {
   const facadeCache = new Map();
   function facadeTex(si) {
     if (facadeCache.has(si)) return facadeCache.get(si);
-    const S = STYLES[si % STYLES.length], [c, g] = cnv(256, 256), [e, ge] = cnv(256, 256);
+    const S = STYLES[si % STYLES.length], q = mobile() ? 1 : 2, [c, g] = cnv(256 * q, 256 * q), [e, ge] = cnv(256 * q, 256 * q); g.scale(q, q); ge.scale(q, q);
     ge.fillStyle = '#000'; ge.fillRect(0, 0, 256, 256);
     g.fillStyle = S.wall; g.fillRect(0, 0, 256, 256);
     if (S.kind === 'brique') { for (let y = 0; y < 256; y += 8) for (let x = (y / 8) % 2 ? -10 : 0; x < 256; x += 20) { g.fillStyle = `rgba(${rnd() < .5 ? '255,220,200' : '40,10,0'},${rnd() * .14})`; g.fillRect(x + 1, y + 1, 18, 6); } g.strokeStyle = 'rgba(230,220,210,.18)'; g.lineWidth = 1; for (let y = 0; y < 256; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); } }
@@ -180,13 +186,13 @@ const City3D = (() => {
       const f = p === 0 ? Math.ceil(fl * (parts > 1 ? .62 : 1)) : fl - Math.ceil(fl * .62), h = f * FLOOR;
       const mW = material(si, Math.max(1, Math.round(cw / 64)), f / 2), mD = material(si, Math.max(1, Math.round(cd / 64)), f / 2);
       const m = new THREE.Mesh(new THREE.BoxGeometry(cw, h, cd), [mD, mD, roofM, roofM, mW, mW]);
-      m.position.set(x, base + h / 2, z); m.castShadow = m.receiveShadow = !mobile(); scene.add(m); solids.push(m);
+      m.position.set(x, base + h / 2, z); m.castShadow = m.receiveShadow = SH; scene.add(m); solids.push(m);
       const lip = new THREE.Mesh(new THREE.BoxGeometry(cw + 4, 4, cd + 4), roofM); lip.position.set(x, base + h + 2, z); scene.add(lip);
       top = base + h; base = top; cw *= .72; cd *= .72;
     }
     // sur le toit : clim, château d'eau ou antenne
     const r = rnd(), metal = STD({ color: 0x8d939c, metalness: .6, roughness: .45 });
-    if (r < .35) { const ac = new THREE.Mesh(new THREE.BoxGeometry(w * .22, 12, d * .22), metal); ac.position.set(x + w * .18, top + 8, z - d * .12); ac.castShadow = !mobile(); scene.add(ac); }
+    if (r < .35) { const ac = new THREE.Mesh(new THREE.BoxGeometry(w * .22, 12, d * .22), metal); ac.position.set(x + w * .18, top + 8, z - d * .12); ac.castShadow = SH; scene.add(ac); }
     else if (r < .5 && floors > 4) { const wt = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 18, 12), STD({ color: 0x6b4a2f, roughness: .9 })); wt.position.set(x - w * .15, top + 22, z); scene.add(wt); const legs = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 12, 6), metal); legs.position.set(x - w * .15, top + 7, z); scene.add(legs); }
     else if (r < .62 && floors > 10) { const an = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 60, 6), metal); an.position.set(x, top + 30, z); scene.add(an); }
     return { h: top };
@@ -198,7 +204,7 @@ const City3D = (() => {
     scene = new THREE.Scene();
     hemi = new THREE.HemisphereLight(0xcfe6ff, 0x55623e, .6); scene.add(hemi);
     sun = new THREE.DirectionalLight(0xfff0d6, 2.6); sun.position.set(-700, 1100, 800);
-    if (!mobile()) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -800, right: 800, top: 800, bottom: -800, near: 10, far: 4000 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = 1.5; }
+    if (SH) { const ms = mobile() ? 1024 : 2048, e = mobile() ? 520 : 800; sun.castShadow = true; sun.shadow.mapSize.set(ms, ms); Object.assign(sun.shadow.camera, { left: -e, right: e, top: e, bottom: -e, near: 10, far: 4000 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = 1.5; }
     scene.add(sun); scene.add(sun.target);
     // le ciel (dégradé), le soleil et les nuages
     skyGeo = new THREE.SphereGeometry(11000, 32, 16); const cols = []; for (let i = 0; i < skyGeo.attributes.position.count; i++) cols.push(1, 1, 1);
@@ -210,13 +216,11 @@ const City3D = (() => {
     const [cc, cg] = cnv(256, 128); for (let i = 0; i < 24; i++) { const x = 40 + rnd() * 176, y = 50 + rnd() * 40, r = 18 + rnd() * 30, grd = cg.createRadialGradient(x, y, 2, x, y, r); grd.addColorStop(0, 'rgba(255,255,255,.95)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); cg.fillStyle = grd; cg.beginPath(); cg.arc(x, y, r, 0, 7); cg.fill(); }
     const ct = tex(cc);
     for (let i = 0; i < 26; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, fog: false, depthWrite: false, opacity: .85 })); const a = rnd() * 6.28, r = 3500 + rnd() * 4500; s.position.set(A.W / 2 + Math.cos(a) * r, 1700 + rnd() * 1500, A.H / 2 + Math.sin(a) * r); s.scale.set(2200 + rnd() * 2000, 900 + rnd() * 600, 1); scene.add(s); clouds.push(s); }
-    // le sol, la mer
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), STD({ map: tex(makeGround()), roughness: .95 }));
-    ground.rotation.x = -Math.PI / 2; ground.position.set(A.W / 2, 0, A.H / 2); ground.receiveShadow = !mobile(); scene.add(ground);
+    // la mer
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), STD({ color: 0x1b5f93, roughness: .15, metalness: .3 })); sea.rotation.x = -Math.PI / 2; sea.position.set(A.W / 2, -4, A.H / 2); scene.add(sea);
     // les trottoirs en relief, avec leur bordure
     const walkM = STD({ color: 0xa8a8aa, roughness: .9 }), curbM = STD({ color: 0xcfcfd2, roughness: .8 });
-    const strip = (cx, cz, w, d) => { const s = new THREE.Mesh(new THREE.BoxGeometry(w, CURB, d), walkM); s.position.set(cx, CURB / 2, cz); s.receiveShadow = !mobile(); scene.add(s); };
+    const strip = (cx, cz, w, d) => { const s = new THREE.Mesh(new THREE.BoxGeometry(w, CURB, d), walkM); s.position.set(cx, CURB / 2, cz); s.receiveShadow = SH; scene.add(s); };
     for (const y of A.STREETS_Y) for (const sd of [-1, 1]) strip(A.W / 2, y + sd * (RW / 2 + SW / 2), A.W, SW);
     for (const x of A.STREETS_X) for (const sd of [-1, 1]) strip(x + sd * (RW / 2 + SW / 2), A.H / 2, SW, A.H);
     for (const y of A.STREETS_Y) for (const sd of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(A.W, CURB + 1, 3), curbM); c.position.set(A.W / 2, (CURB + 1) / 2, y + sd * (RW / 2 + 1.5)); scene.add(c); }
@@ -225,9 +229,9 @@ const City3D = (() => {
     for (const o of A.shops) {
       const [name, icon, col] = A.SHOP_TYPES[o.k], floors = o.h > .5 ? 3 + Math.round(o.h * 5) : 2, sf = storefront(name, icon, col);
       building(o.x, o.y - 52, 124, 100, floors, o.k % STYLES.length, { shop: true, simple: true });
-      const ground0 = new THREE.Mesh(new THREE.BoxGeometry(124, 70, 100), [STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), sf, sf]); ground0.position.set(o.x, 35, o.y - 52); ground0.castShadow = !mobile(); scene.add(ground0); solids.push(ground0);
+      const ground0 = new THREE.Mesh(new THREE.BoxGeometry(124, 70, 100), [STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), STD({ color: 0x2a2b30 }), sf, sf]); ground0.position.set(o.x, 35, o.y - 52); ground0.castShadow = SH; scene.add(ground0); solids.push(ground0);
       const awM = STD({ color: col, roughness: .7 });
-      for (const [z, s] of [[o.y + 8, 1], [o.y - 112, -1]]) { const aw = new THREE.Mesh(new THREE.BoxGeometry(118, 3, 20), awM); aw.position.set(o.x, 64, z); aw.rotation.x = .3 * s; aw.castShadow = !mobile(); scene.add(aw); }
+      for (const [z, s] of [[o.y + 8, 1], [o.y - 112, -1]]) { const aw = new THREE.Mesh(new THREE.BoxGeometry(118, 3, 20), awM); aw.position.set(o.x, 64, z); aw.rotation.x = .3 * s; aw.castShadow = SH; scene.add(aw); }
     }
     // 🏙️ les tours (en verre)
     for (const tw of A.TOWERS) building(tw[0], tw[1] - 52, 120, 104, 10 + tw[3] * 3, 7);
@@ -240,6 +244,10 @@ const City3D = (() => {
       for (const [zz, ry] of [[z + d / 2 + 2, 0], [z - d / 2 - 2, Math.PI]]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(w + 10, 230), 36), sm); s.position.set(p.x, b.h + 24, zz); s.rotation.y = ry; scene.add(s); }
       const door = new THREE.Mesh(new THREE.BoxGeometry(44, 58, 4), STD({ color: new THREE.Color(col).multiplyScalar(.6), emissive: new THREE.Color(col), emissiveIntensity: .35, roughness: .4 })); door.position.set(p.x, 29, z + d / 2 + 1); scene.add(door);
     }
+    // le sol (après les bâtiments, pour dessiner leur ombre douce à leurs pieds)
+    trees.push(...A.palms.map(p => ({ x: p.x, y: p.y, s: (p.s || 1) * (.9 + rnd() * .45) })), ...streetTrees());
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), STD({ map: tex(makeGround()), roughness: .95 }));
+    ground.rotation.x = -Math.PI / 2; ground.position.set(A.W / 2, 0, A.H / 2); ground.receiveShadow = SH; scene.add(ground);
     // 🌆 au loin, les gratte-ciel de la grande ville
     for (let i = 0; i < (mobile() ? 64 : 110); i++) {
       const sd = i % 4, t = rnd(), far = 240 + rnd() * 1100;
@@ -247,16 +255,16 @@ const City3D = (() => {
       building(x, z, w, w * (.7 + rnd() * .5), 12 + Math.round(rnd() * 36), rnd() < .45 ? 7 : Math.floor(rnd() * 7), { far: true });
     }
     // 🌳 les arbres : tronc + plusieurs boules de feuillage
-    const N = A.palms.length;
+    const N = trees.length;
     if (N) {
       const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(3, 5, 50, 7), STD({ color: 0x5a3d26, roughness: 1 }), N);
-      const leafG = new THREE.IcosahedronGeometry(1, 1), leaf = new THREE.InstancedMesh(leafG, STD({ color: 0xffffff, roughness: .9, flatShading: true }), N * 3);
+      const leafG = new THREE.IcosahedronGeometry(1, 2), leaf = new THREE.InstancedMesh(leafG, STD({ color: 0xffffff, roughness: .95 }), N * 5);
       const q = new THREE.Object3D(); let li = 0;
-      A.palms.forEach((p, i) => {
-        const s = (p.s || 1) * (.9 + rnd() * .45); q.position.set(p.x, 25 * s, p.y); q.scale.set(s, s, s); q.rotation.set(0, 0, 0); q.updateMatrix(); trunk.setMatrixAt(i, q.matrix);
-        for (let k = 0; k < 3; k++) { const r = (18 + rnd() * 12) * s; q.position.set(p.x + (rnd() - .5) * 26 * s, (52 + k * 10 + rnd() * 10) * s, p.y + (rnd() - .5) * 26 * s); q.scale.set(r, r * .85, r); q.rotation.set(rnd(), rnd(), rnd()); q.updateMatrix(); leaf.setMatrixAt(li, q.matrix); leaf.setColorAt(li, new THREE.Color().setHSL(.25 + rnd() * .08, .45 + rnd() * .2, .2 + rnd() * .12)); li++; }
+      trees.forEach((p, i) => {
+        const s = p.s; q.position.set(p.x, 25 * s, p.y); q.scale.set(s, s, s); q.rotation.set(0, 0, 0); q.updateMatrix(); trunk.setMatrixAt(i, q.matrix);
+        for (let k = 0; k < 5; k++) { const r = (13 + rnd() * 9) * s; q.position.set(p.x + (rnd() - .5) * 30 * s, (50 + k * 7 + rnd() * 10) * s, p.y + (rnd() - .5) * 30 * s); q.scale.set(r, r * .85, r); q.rotation.set(rnd(), rnd(), rnd()); q.updateMatrix(); leaf.setMatrixAt(li, q.matrix); leaf.setColorAt(li, new THREE.Color().setHSL(.22 + rnd() * .07, .32 + rnd() * .16, .18 + rnd() * .1)); li++; }
       });
-      trunk.castShadow = leaf.castShadow = !mobile(); scene.add(trunk, leaf);
+      trunk.castShadow = leaf.castShadow = SH; scene.add(trunk, leaf);
     }
     // 💡 les lampadaires (vrais poteaux courbés avec leur lampe)
     const NL = A.lamps.length;
@@ -267,7 +275,7 @@ const City3D = (() => {
       const head = new THREE.InstancedMesh(new THREE.BoxGeometry(12, 4, 7), lampMat, NL);
       const q = new THREE.Object3D();
       A.lamps.forEach((l, i) => { q.position.set(l.x, 42, l.y); q.rotation.set(0, 0, 0); q.updateMatrix(); pole.setMatrixAt(i, q.matrix); q.position.set(l.x + 9, 83, l.y); q.updateMatrix(); arm.setMatrixAt(i, q.matrix); q.position.set(l.x + 18, 81, l.y); q.updateMatrix(); head.setMatrixAt(i, q.matrix); });
-      pole.castShadow = !mobile(); scene.add(pole, arm, head);
+      pole.castShadow = SH; scene.add(pole, arm, head);
     }
     // 🚦 les feux tricolores aux carrefours
     const tlM = STD({ color: 0x1d2026, metalness: .5, roughness: .5 }), lights = [];
@@ -294,6 +302,15 @@ const City3D = (() => {
     pmrem = new THREE.PMREMGenerator(R);
     sky(true);
   }
+  // des arbres alignés le long des trottoirs, comme dans une vraie avenue (pas aux carrefours ni devant les portes)
+  const trees = [];
+  function streetTrees() {
+    const out = [], free = (x, y) => !walls.some(w => x > w.x0 - 8 && x < w.x1 + 8 && y > w.z0 - 8 && y < w.z1 + 8) && !A.PLACES.some(p => Math.hypot(p.x - x, p.y - y) < 70) && !A.lamps.some(l => Math.hypot(l.x - x, l.y - y) < 40);
+    const lim = mobile() ? 140 : 260;
+    for (const y of A.STREETS_Y) for (const sd of [-1, 1]) for (let x = 80; x < A.W - 80; x += 150) { const ty = y + sd * (RW / 2 + SW + 12); if (A.STREETS_X.some(v => Math.abs(v - x) < 110) || !free(x, ty) || !A.onLand(x, ty)) continue; out.push({ x, y: ty, s: .75 + rnd() * .3 }); }
+    for (const x of A.STREETS_X) for (const sd of [-1, 1]) for (let y = 80; y < A.H - 80; y += 150) { const tx = x + sd * (RW / 2 + SW + 12); if (A.STREETS_Y.some(v => Math.abs(v - y) < 110) || !free(tx, y) || !A.onLand(tx, y)) continue; out.push({ x: tx, y, s: .75 + rnd() * .3 }); }
+    return out.slice(0, lim);
+  }
   let lampMat = null, traffic = [], pmrem = null, envRT = null;
   // une voiture aux formes arrondies : carrosserie, vitres teintées, jantes, phares
   function carMesh(color) {
@@ -307,7 +324,7 @@ const City3D = (() => {
     for (const x of [-24, 24]) for (const z of [-17.5, 17.5]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 6, 16), tire); w.rotation.x = Math.PI / 2; w.position.set(x, 7.5, z); g.add(w); const r = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 6.4, 10), rim); r.rotation.x = Math.PI / 2; r.position.set(x, 7.5, z); g.add(r); }
     const head = new THREE.MeshBasicMaterial({ color: 0xfff7e0, toneMapped: false }), tail = new THREE.MeshBasicMaterial({ color: 0xff2020, toneMapped: false });
     for (const z of [-11, 11]) { const h = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.5, 7), head); h.position.set(41.5, 14, z); g.add(h); const t = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.5, 7), tail); t.position.set(-41.5, 15, z); g.add(t); }
-    g.traverse(o => { if (o.isMesh) { o.castShadow = !mobile(); } });
+    g.traverse(o => { if (o.isMesh) { o.castShadow = SH; } });
     return g;
   }
   function sky(force) {
@@ -317,7 +334,7 @@ const City3D = (() => {
     const p = skyGeo.attributes.position, c = skyGeo.attributes.color;
     for (let i = 0; i < p.count; i++) { const k = Math.max(0, p.getY(i) / 11000); const col = k < .25 ? hor.clone().lerp(mid, k / .25) : mid.clone().lerp(top, Math.min(1, (k - .25) / .75)); c.setXYZ(i, col.r, col.g, col.b); }
     c.needsUpdate = true;
-    scene.fog = new THREE.Fog(hor, 1200, 8000);
+    scene.fog = new THREE.Fog(hor.clone().lerp(mid, .35), 1600, 9000);
     hemi.intensity = .6 - n * .45; sun.intensity = 2.6 - n * 2.4; sun.color.set(n > .3 ? 0xaab8ff : 0xfff0d6);
     sunDisc.material.opacity = 1 - n; for (const cl of clouds) cl.material.opacity = .85 - n * .6;
     for (const m of glowMats) m.emissiveIntensity = m.userData.sign ? .6 + n * .8 : n * 1.6; // les fenêtres et les vitrines s'allument la nuit
@@ -345,7 +362,7 @@ const City3D = (() => {
     const hr = new THREE.Mesh(new THREE.SphereGeometry(7.4, 16, 10, 0, Math.PI * 2, 0, Math.PI * .55), hair); hr.position.y = 67; hr.rotation.x = -.25; g.add(hr);
     if (p.gender === 'f') { const lh = new THREE.Mesh(new THREE.CapsuleGeometry(5.5, 10, 4, 8), hair); lh.position.set(0, 60, -4.5); lh.scale.set(1.1, 1, .6); g.add(lh); }
     for (const x of [-2.6, 2.6]) { const e = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial({ color: 0x1a1a1a })); e.position.set(x, 67, 6.4); g.add(e); }
-    g.traverse(o => { if (o.isMesh) o.castShadow = !mobile(); });
+    g.traverse(o => { if (o.isMesh) o.castShadow = SH; }); g.scale.setScalar(HS);
     return { g, legL, legR, armL, armR };
   }
   function tag(p, o) {
@@ -364,7 +381,7 @@ const City3D = (() => {
       g.fillStyle = 'rgba(255,255,255,.96)'; rr(g, W / 2 - bw / 2, by, bw, bh, 22); g.fill(); g.beginPath(); g.moveTo(W / 2 - 12, by + bh); g.lineTo(W / 2, by + bh + 14); g.lineTo(W / 2 + 12, by + bh); g.fill();
       g.fillStyle = '#1c1430'; L.forEach((l, i) => g.fillText(l, W / 2, by + 29 + i * 38));
     }
-    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false, toneMapped: false })); o.tag.scale.set(72, 36, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
+    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false, toneMapped: false })); o.tag.scale.set(56, 28, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
     else o.tag.material.map.needsUpdate = true;
   }
   function person(p, t, dt) {
@@ -375,11 +392,11 @@ const City3D = (() => {
     if (Math.hypot(dx, dy) > .3) o.face = Math.atan2(dx, dy);
     o.x = nx; o.y = ny; o.g.position.set(o.x, onWalk(o.x, o.y) ? CURB : 0, o.y);
     o.g.rotation.y = mine ? Math.atan2(-Math.sin(yaw), -Math.cos(yaw)) : o.face;
-    const moving = sp > 20 || (mine && Math.abs(speed) > 5), run = mine && Math.abs(speed) > 280;
+    const moving = sp > 20 || (mine && Math.abs(speed) > 5), run = mine && Math.abs(speed) > 200;
     o.walk += dt * (moving ? (run ? 15 : 10) : 0); const sw = moving ? Math.sin(o.walk) * (run ? .9 : .6) : 0;
     o.legL.rotation.x = sw; o.legR.rotation.x = -sw; o.armL.rotation.x = -sw * .9; o.armR.rotation.x = sw * .9;
-    if (p.action === 'dance') { o.armL.rotation.z = Math.sin(t * 8) * 1.2 + .4; o.armR.rotation.z = -Math.sin(t * 8) * 1.2 - .4; o.g.position.y += Math.abs(Math.sin(t * 8)) * 4; } else { o.armL.rotation.z = .06; o.armR.rotation.z = -.06; }
-    tag(p, o); o.tag.position.set(o.x, o.g.position.y + 88, o.y);
+    if (p.action === 'dance') { o.armL.rotation.z = Math.sin(t * 8) * 1.2 + .4; o.armR.rotation.z = -Math.sin(t * 8) * 1.2 - .4; o.g.position.y += Math.abs(Math.sin(t * 8)) * 2.5; } else { o.armL.rotation.z = .06; o.armR.rotation.z = -.06; }
+    tag(p, o); o.tag.position.set(o.x, o.g.position.y + 60, o.y);
     return o;
   }
   // est-ce qu'on est sur un trottoir (un peu plus haut que la route) ?
@@ -415,7 +432,7 @@ const City3D = (() => {
     if (stick.on) { push = -dz(stick.y); turn = -dz(stick.x); }
     const m = A.players.get(A.me);
     if (driving) { const target = push * 620; speed += (target - speed) * Math.min(1, dt * (push ? 1.6 : 2.5)); yaw += turn * 1.9 * dt * Math.max(-1, Math.min(1, speed / 200)); }
-    else { yaw += turn * 2.3 * dt; speed = push * (Math.abs(push) > .85 ? 320 : 220); }
+    else { yaw += turn * 2.3 * dt; speed = push * (Math.abs(push) > .85 ? 250 : 160); }
     const dir = { x: -Math.sin(yaw), y: -Math.cos(yaw) };
     if (m && Math.abs(speed) > 2) {
       const sp = speed * (window.CityGames?.speed?.() ?? 1) * dt, nx = m.x + dir.x * sp, ny = m.y + dir.y * sp;
@@ -428,16 +445,16 @@ const City3D = (() => {
     if (driving && myCar) { myCar.position.set(pos.x, 0, pos.y); myCar.rotation.y = yaw + Math.PI / 2; }
     // la caméra
     if (mode === 'first' && !driving) {
-      const eye = 63 + (onWalk(pos.x, pos.y) ? CURB : 0) + (Math.abs(speed) > 5 ? Math.sin(bob) * 1.4 : 0);
+      const eye = 42 + (onWalk(pos.x, pos.y) ? CURB : 0) + (Math.abs(speed) > 5 ? Math.sin(bob) * 1.4 : 0);
       camera.position.set(pos.x, eye, pos.y); camera.lookAt(pos.x + dir.x * 100, eye + Math.tan(pitch) * 100, pos.y + dir.y * 100);
     } else {
-      const d = driving ? 230 : 175, h = Math.max(30, (driving ? 110 : 92) - pitch * 190), head = new THREE.Vector3(pos.x, 55, pos.y), want = new THREE.Vector3(pos.x - dir.x * d, h, pos.y - dir.y * d);
+      const d = driving ? 210 : 118, h = Math.max(22, (driving ? 100 : 60) - pitch * (driving ? 190 : 130)), head = new THREE.Vector3(pos.x, driving ? 50 : 36, pos.y), want = new THREE.Vector3(pos.x - dir.x * d, h, pos.y - dir.y * d);
       ray = ray || new THREE.Raycaster(); const v = want.clone().sub(head), len = v.length(); ray.set(head, v.normalize()); ray.far = len;
       const hit = ray.intersectObjects(solids, false)[0];
       // un mur gêne : la caméra se rapproche de moi tout de suite (elle ne passe jamais derrière un mur), puis repart doucement
-      const want2 = hit ? Math.max(22, hit.distance - 14) : len;
+      const want2 = hit ? Math.max(16, hit.distance - 10) : len;
       camLen = want2 < camLen ? want2 : camLen + (want2 - camLen) * Math.min(1, dt * 3);
-      camera.position.copy(head).addScaledVector(v, camLen); camera.lookAt(pos.x, 50, pos.y);
+      camera.position.copy(head).addScaledVector(v, camLen); camera.lookAt(pos.x, driving ? 42 : 32, pos.y);
     }
     if (sun.castShadow) { sun.position.set(pos.x - 700, 1100, pos.y + 800); sun.target.position.set(pos.x, 0, pos.y); }
     sunDisc.position.set(camera.position.x - 5200, 3400, camera.position.z + 6000);

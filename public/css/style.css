@@ -3802,6 +3802,7 @@ body { background:
 .isl-3d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; display: block; }
 .isl-3d.hidden { display: none; }
 .island.view3d > canvas:not(.isl-3d) { visibility: hidden; }
+.island.view3d::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.28) 100%); } /* un léger assombrissement des bords, comme une caméra */
 .isl-cam { flex: none; font-weight: 800; }
 /* 🕹️ le joystick de la vue 3D */
 .joy { position: absolute; left: 18px; bottom: calc(276px + env(safe-area-inset-bottom)); width: 124px; height: 124px; z-index: 3; touch-action: none; user-select: none; -webkit-user-select: none; }

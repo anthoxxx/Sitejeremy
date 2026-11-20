@@ -87,7 +87,7 @@ const Weather = (() => {
   const bolts = [];
   function drawBolts() { for (const b of bolts) { g.strokeStyle = `rgba(255,255,230,${b.a})`; g.lineWidth = 3; g.shadowColor = '#fff'; g.shadowBlur = 18; g.beginPath(); b.pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); g.shadowBlur = 0; b.a -= .06; } for (let i = bolts.length - 1; i >= 0; i--) if (bolts[i].a <= 0) bolts.splice(i, 1); }
   const _step = step; // les éclairs se dessinent par-dessus
-  function loop(ts) { _step(ts); if (on() && !indoors() && bolts.length) drawBolts(); }
+  function loop(ts) { _step(ts); if (on() && !indoors() && bolts.length && !document.querySelector('.island.view3d:not(.hidden)')) drawBolts(); } // en 3D, pas de trait d'éclair dessiné par-dessus (juste le flash)
   // 🔊 le tonnerre (si on l'a allumé)
   function thunder() { try { const A = new (window.AudioContext || window.webkitAudioContext)(), len = 2.5, b = A.createBuffer(1, A.sampleRate * len, A.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); const s = A.createBufferSource(), f = A.createBiquadFilter(), gn = A.createGain(); s.buffer = b; f.type = 'lowpass'; f.frequency.value = 280; gn.gain.value = .5; s.connect(f).connect(gn).connect(A.destination); s.start(A.currentTime + .4); } catch (e) {} }
 
