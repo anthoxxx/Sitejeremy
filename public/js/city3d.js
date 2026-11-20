@@ -140,12 +140,36 @@ const City3D = (() => {
     const tx = p.id === A.me ? pos.x : p.x, ty = p.id === A.me ? pos.y : p.y;
     o.x += (tx - o.x) * .25; o.y += (ty - o.y) * .25;
     o.m.position.set(o.x, 0, o.y);
+    tag(p, o); o.tag.position.set(o.x, 152, o.y);
     if (t - o.at > .12) { // on redessine le personnage 8 fois par seconde (il bouge, il danse…)
       o.at = t; const g = o.c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, o.c.width, o.c.height);
       const img = A.sprite3d(() => A.draw.player({ ...p, dx: tx, dy: ty, pose: null, action: p.action === 'sit' || p.action === 'sleep' ? '' : p.action }, t), tx, ty, 300, 230, 150, 160, o.k);
       g.drawImage(img, 0, 0); o.m.material.map.needsUpdate = true;
     }
     return o;
+  }
+  // ---------- 🏷️ le pseudo (et la bulle de ce qu'on dit) au-dessus de la tête ----------
+  function tag(p, o) {
+    const said = p.said && Date.now() - (p.saidAt || 0) < 7000 ? p.said : '', key = (p.username || '') + '|' + said + '|' + (p.role || '') + (p.gender || '');
+    if (o.tagKey === key) return; o.tagKey = key;
+    const W = 512, H = 256, c = o.tagC || (o.tagC = document.createElement('canvas')); c.width = W; c.height = H; const g = c.getContext('2d');
+    g.clearRect(0, 0, W, H); g.textAlign = 'center'; g.textBaseline = 'middle';
+    const col = (p.role === 'admin' || p.role === 'superadmin') ? '#ff2d55' : p.gender === 'f' ? '#ff4fd8' : p.gender === 'h' ? '#2fa8ff' : '#c3b8ff'; // la même couleur que dans la vue du dessus
+    // le pseudo, en néon
+    g.font = '900 46px Outfit, Inter, sans-serif'; const nm = p.username || ''; const tw = Math.min(W - 20, g.measureText(nm).width + 40);
+    g.fillStyle = 'rgba(15,8,30,.72)'; const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    rr(W / 2 - tw / 2, H - 70, tw, 62, 31); g.fill(); g.strokeStyle = col; g.lineWidth = 3; g.stroke();
+    g.shadowColor = col; g.shadowBlur = 14; g.fillStyle = col; g.fillText(nm, W / 2, H - 38, W - 40); g.shadowBlur = 0;
+    // la bulle de ce qu'il dit
+    if (said) {
+      g.font = '700 34px Outfit, Inter, sans-serif'; const words = said.split(' '), lines = []; let line = '';
+      for (const w of words) { const t2 = line ? line + ' ' + w : w; if (g.measureText(t2).width > W - 80 && line) { lines.push(line); line = w; } else line = t2; } if (line) lines.push(line);
+      const L = lines.slice(0, 3), bw = Math.min(W - 16, Math.max(...L.map(l => g.measureText(l).width)) + 40), bh = L.length * 40 + 22, by = H - 84 - bh;
+      g.fillStyle = '#ffffff'; rr(W / 2 - bw / 2, by, bw, bh, 22); g.fill(); g.beginPath(); g.moveTo(W / 2 - 12, by + bh); g.lineTo(W / 2, by + bh + 14); g.lineTo(W / 2 + 12, by + bh); g.fill();
+      g.fillStyle = '#1c1430'; L.forEach((l, i) => g.fillText(l, W / 2, by + 30 + i * 40));
+    }
+    if (!o.tag) { o.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false })); o.tag.scale.set(128, 64, 1); o.tag.renderOrder = 10; scene.add(o.tag); }
+    else o.tag.material.map.needsUpdate = true;
   }
   // ---------- 🎮 les flèches à l'écran (téléphone) ----------
   function buildPad(root) {
@@ -187,10 +211,10 @@ const City3D = (() => {
     // les promeneurs
     const seen = new Set();
     for (const p of A.players.values()) {
-      if (p.id === A.me && mode === 'first') { people.get(p.id)?.m && (people.get(p.id).m.visible = false); seen.add(p.id); continue; }
-      const o = person(p, t); o.m.visible = true; o.m.rotation.y = Math.atan2(cx - o.m.position.x, cz - o.m.position.z); seen.add(p.id);
+      if (p.id === A.me && mode === 'first') { const o = people.get(p.id); if (o) { o.m.visible = false; if (o.tag) o.tag.visible = false; } seen.add(p.id); continue; }
+      const o = person(p, t); o.m.visible = true; if (o.tag) o.tag.visible = true; o.m.rotation.y = Math.atan2(cx - o.m.position.x, cz - o.m.position.z); seen.add(p.id);
     }
-    for (const [id, o] of people) if (!seen.has(id)) { scene.remove(o.m); o.m.geometry.dispose(); o.m.material.map.dispose(); o.m.material.dispose(); people.delete(id); }
+    for (const [id, o] of people) if (!seen.has(id)) { if (o.tag) { scene.remove(o.tag); o.tag.material.map.dispose(); o.tag.material.dispose(); } scene.remove(o.m); o.m.geometry.dispose(); o.m.material.map.dispose(); o.m.material.dispose(); people.delete(id); }
     if (t - lastSky > 20) { lastSky = t; sky(); }
     R.render(scene, camera);
   }

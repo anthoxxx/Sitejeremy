@@ -1098,4 +1098,15 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 78,
+    date: '2026-11-20',
+    title: 'Les pseudos et les bulles dans la Ville en 3D 🏷️💬',
+    added: [
+      '🏷️ En 3D, le pseudo de chaque promeneur s\'affiche au-dessus de sa tête, dans sa couleur (rouge pour l\'équipe, rose, bleu…)',
+      '💬 Ce que les gens disent avec « Dire quelque chose à côté de moi » apparaît dans une bulle au-dessus d\'eux pendant quelques secondes',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
