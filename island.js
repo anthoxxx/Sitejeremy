@@ -33,7 +33,7 @@ const ACTIONS = {
   island: ['dance', 'eat'],
   club: ['dance', 'drink', 'dj', 'sit'],
   cinema: ['sit', 'popcorn'],
-  house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play', 'coffee', 'mirror', 'dress', 'wash', 'shower'],
+  house: ['dj', 'sit', 'sleep', 'cook', 'dance', 'drink', 'read', 'work', 'watch', 'warm', 'bath', 'piano', 'play', 'coffee', 'mirror', 'dress', 'wash', 'shower', 'guitar', 'sport'],
   pool: ['swim', 'dive', 'tan', 'drink', 'dance', 'sit'],
   cafe: ['sit', 'eat', 'piano', 'cheers', 'dance'],
   arcade: ['play', 'slot', 'darts', 'claw', 'dance'],
@@ -48,7 +48,9 @@ const SLOT = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
 const RARE = ['throne', 'jacuzzi', 'djbooth', 'statue', 'neonsign', 'xmastree', 'snowman', 'gifts']; // meubles rares de la boutique 💰
 const NEONS = ['neon_coeur', 'neon_etoile', 'neon_love', 'neon_tube', 'neon_vague', 'neon_palmier', 'neon_lune', 'neon_eclair', 'neon_bouche', 'neon_cadre'];
 const HOUSE_STYLES = ['cosy', 'moderne', 'chalet', 'plage', 'chateau', 'loft', 'japon'];
-const FURN = [...RARE, ...NEONS, 'chair', 'nightstand', 'coffee', 'sink', 'toilet', 'shower', 'wardrobe', 'mirror', 'vanity', 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting'];
+const FURN = [...RARE, ...NEONS, 'chair', 'nightstand', 'coffee', 'sink', 'toilet', 'shower', 'wardrobe', 'mirror', 'vanity', 'babyfoot', 'sofa', 'armchair', 'bed', 'table', 'kitchen', 'fridge', 'tv', 'rug', 'plant', 'lamp', 'shelf', 'piano', 'aquarium', 'fireplace', 'desk', 'bath', 'arcade', 'painting',
+  // 🛋️ les meubles réalistes de A à Z
+  'aspirateur', 'arbre', 'banc', 'billard', 'buffet', 'canape_angle', 'commode', 'climatiseur', 'dressing', 'enceinte', 'etagere', 'fauteuil_oeuf', 'four', 'guitare', 'gamer', 'hamac', 'horloge', 'ilot', 'jukebox', 'jardiniere', 'karaoke', 'lave_linge', 'lampadaire', 'lits_superposes', 'lustre', 'micro_ondes', 'meuble_tv', 'niche', 'ordi_gamer', 'pouf', 'paravent', 'porte_manteau', 'ping_pong', 'poubelle', 'quilles', 'radiateur', 'frigo_us', 'rocking', 'seche_linge', 'sac_frappe', 'tapis_course', 'tabouret', 'telescope', 'tapis_rond', 'ukulele', 'velo', 'ventilateur', 'valise', 'vase', 'lit_eau', 'xylophone', 'yucca', 'zebre'];
 // Ballon de plage (même calcul côté navigateur) : il roule, freine et rebondit sur les bords
 const BALL_BOX = [80, 250, 1120, 705];
 function ballAt(b, t) {

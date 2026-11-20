@@ -424,7 +424,7 @@ const Island = (() => {
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(label, 0, 40);
     ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8; ctx.fillText(label, 0, 40); ctx.shadowBlur = 0;
     // ce que fait le personnage
-    const ICON = { dance: '💃', drink: '🍹', dj: '🎧', sit: '🪑', popcorn: '🍿', sleep: '💤', cook: '🍳', dive: '🤿', tan: '😎', read: '📖', work: '💻', watch: '🐠', warm: '🔥', bath: '🛁', piano: '🎹', play: '🕹️', cheers: '🥂', slot: '🎰', darts: '🎯', claw: '🧸', marshmallow: '🍡', guitar: '🎸', wish: '🌠' };
+    const ICON = { dance: '💃', drink: '🍹', dj: '🎧', sit: '🪑', popcorn: '🍿', sleep: '💤', cook: '🍳', dive: '🤿', tan: '😎', read: '📖', work: '💻', watch: '🐠', warm: '🔥', bath: '🛁', piano: '🎹', play: '🕹️', cheers: '🥂', slot: '🎰', darts: '🎯', claw: '🧸', marshmallow: '🍡', guitar: '🎸', wish: '🌠', sport: '💪' };
     if (p.item && p.itemAt > Date.now() - 120000) { ctx.font = '22px "Noto Color Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.item, -24, y + 14); }
     if (p.prize) { ctx.font = '18px "Noto Color Emoji", "Apple Color Emoji", sans-serif'; ctx.fillText(p.prize, -22, 18); }
     if (act && ICON[act] && act !== 'eat') {
@@ -481,6 +481,8 @@ const Island = (() => {
     if (!best) return null;
     const { f, d } = best, z = f.y + d.h / 2 + 2, r = f.r || 0, at = (ox, oy) => { const o = rot(ox, oy, r); return { x: f.x + o.x, y: f.y + o.y }; };
     if (p.action === 'sleep' && (f.t === 'bed')) return { type: 'lie', ...at(0, -d.h / 2 + 62), r, z, d };
+    if (p.action === 'sleep' && d.lieY != null) return { type: 'lie', ...at(0, d.lieY), r, z, d };
+    if (p.action === 'sit' && d.seatY != null && !SEAT_Y[f.t]) return { type: 'seat', ...at(0, d.seatY), r, z, d };
     if (p.action === 'bath' && f.t !== 'shower') return { type: 'soak', ...at(0, -4), r, z, d };
     if (p.action === 'shower') return { type: 'shower', ...at(0, 8), r: 0, z, d };
     if (p.action === 'sit' && SEAT_Y[f.t]) return { type: 'seat', ...at(0, SEAT_Y[f.t](d)), r, z, d };
@@ -687,7 +689,7 @@ const Island = (() => {
     gifts: { name: 'Pile de cadeaux', icon: '🎁', w: 110, h: 80, rare: 'furn_gifts', advent: true },
   };
   Object.assign(FURN, window.Decor?.FURN || {});
-  const ACT_LABEL = { wash: 'Se laver les mains', shower: 'Prendre une douche', coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer' };
+  const ACT_LABEL = { wash: 'Se laver les mains', shower: 'Prendre une douche', coffee: 'Un café', mirror: 'Le miroir', dress: 'Se changer', sit: 'S\'asseoir', sleep: 'Dormir', cook: 'Cuisiner', drink: 'Le frigo', dance: 'Danser', read: 'Lire', piano: 'Piano', watch: 'Les poissons', warm: 'Se réchauffer', work: 'Travailler', bath: 'Prendre un bain', play: 'Jouer', babyfoot: 'Babyfoot', dj: 'Mixer', guitar: 'Jouer de la musique', sport: 'Faire du sport' };
   const DEFAULT_FURN = [
     // 🛏️ la chambre
     { t: 'bed', x: 300, y: 430 }, { t: 'nightstand', x: 160, y: 380 }, { t: 'wardrobe', x: 760, y: 300 }, { t: 'lamp', x: 460, y: 290 }, { t: 'mirror', x: 620, y: 300 }, { t: 'plant', x: 820, y: 580 },
@@ -713,7 +715,7 @@ const Island = (() => {
       if (!d?.act || seen.has(d.act + (d.act === 'sit' ? f.t : ''))) continue;
       seen.add(d.act + (d.act === 'sit' ? f.t : ''));
       const s = furnSpot(f);
-      out.push({ action: d.act, icon: d.icon, label: d.act === 'sit' ? d.name : ACT_LABEL[d.act], x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
+      out.push({ action: d.act, icon: d.icon, label: d.actLabel || (d.act === 'sit' ? d.name : ACT_LABEL[d.act]), x: s.x, y: s.y, spread: d.spot === 'center' ? Math.min(60, d.w / 3) : 20, instrument: d.act === 'piano' ? 'piano' : undefined, babyfoot: d.act === 'babyfoot' || undefined });
     }
     const nf = house?.floors || 1;
     // 🪜 les escaliers dessinés dans le plan (chaque groupe de cases = un escalier)
@@ -1109,14 +1111,32 @@ const Island = (() => {
         el('button', { type: 'button', class: 'isl-dish', onclick: () => { if (!confirm('Tout effacer à cet étage pour construire à partir de rien ?')) return; bdraft[floorNow] = emptyPlan(); toast('🕳️ Terrain vide : dessine tes sols et tes murs !'); } }, el('span', {}, '🕳️'), 'Tout effacer'),
         el('button', { type: 'button', class: 'isl-dish', onclick: () => { if (!confirm('Remettre la maison de base partout (tous les étages) ?')) return; socket.emit('house_build', null, r => { if (r?.error) return toast(r.error); building = false; floorNow = bFloor0; toast('↺ Maison de base remise'); root.querySelector('.isl-panel')?.remove(); renderUI(); }); } }, el('span', {}, '↺'), 'Revenir à la maison de base')));
   }
+  // 🛋️ les meubles rangés par catégorie (et une recherche), sinon la liste est trop longue
+  const FCAT = { salon: '🛋️ Salon', chambre: '🛏️ Chambre', cuisine: '🍳 Cuisine', bain: '🛁 Salle de bain', bureau: '💻 Bureau', loisirs: '🎮 Loisirs', sport: '💪 Sport', deco: '🪴 Déco', maison: '🏠 Maison', neon: '💡 Néons', rare: '💎 Rares' };
+  const CAT_OF = { sofa: 'salon', armchair: 'salon', tv: 'salon', rug: 'deco', shelf: 'salon', lamp: 'salon', fireplace: 'salon', painting: 'deco', plant: 'deco', bed: 'chambre', nightstand: 'chambre', wardrobe: 'chambre', mirror: 'chambre', vanity: 'chambre', table: 'cuisine', kitchen: 'cuisine', fridge: 'cuisine', coffee: 'cuisine', chair: 'cuisine', sink: 'bain', toilet: 'bain', shower: 'bain', bath: 'bain', desk: 'bureau', piano: 'loisirs', aquarium: 'deco', arcade: 'loisirs', babyfoot: 'loisirs' };
+  const catOf = (k, d) => (d.rare ? 'rare' : d.neon ? 'neon' : d.cat || CAT_OF[k] || 'deco');
+  let fcat = 'tout', fq = '';
   function furniturePanel() {
-    panel('➕ Ajouter un meuble', el('div', { class: 'isl-menu' }, ...Object.entries(FURN).filter(([, d]) => !d.advent || window.Shop?.owned(d.rare)).map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => {
+    const pick = (k, d) => {
       if (d.rare && !window.Shop?.owned(d.rare)) { toast(`🔒 « ${d.name} » est un meuble rare : il est dans la boutique 💰`); return window.Shop?.open('shop'); }
       if (draft.length >= 600) return toast('Ta maison est pleine à craquer (600 meubles) 😅');
       if (k === 'tv' && draft.some(f => f.t === 'tv')) return toast('📺 Tu as déjà une télé');
       const n = draft.length, me0 = players.get(me) || { x: 460, y: 900 }; draft.push({ t: k, x: Math.round(me0.x + (n % 3 - 1) * 60), y: d.neon ? 110 + (n * 31) % 70 : Math.round(Math.max(260, me0.y - 90)), l: floorNow, ...(d.neon ? { c: Decor.NEON[n % Decor.NEON.length] } : {}) }); sel = draft.length - 1; root.querySelector('.isl-panel')?.remove(); renderUI();
-    } }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null))));
+    };
+    const list = el('div', { class: 'isl-menu' });
+    const draw = () => {
+      const q = fq.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const items = Object.entries(FURN).filter(([k, d]) => (!d.advent || window.Shop?.owned(d.rare)) && (q || fcat === 'tout' || catOf(k, d) === fcat) && (!q || d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q))).sort((a, b) => a[1].name.localeCompare(b[1].name, 'fr'));
+      list.replaceChildren(...items.map(([k, d]) => el('button', { type: 'button', class: 'isl-dish' + (d.rare ? ' rare' + (window.Shop?.owned(d.rare) ? '' : ' locked') : ''), onclick: () => pick(k, d) }, el('span', {}, d.icon), d.name, d.rare ? el('small', {}, window.Shop?.owned(d.rare) ? '💎 Rare' : '🔒 Boutique') : null)),
+        items.length ? null : el('p', { class: 'help' }, 'Aucun meuble ne correspond 🤔'));
+      tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === fcat));
+    };
+    const tabs = el('div', { class: 'fp-tabs' }, ...[['tout', '✨ Tout'], ...Object.entries(FCAT)].map(([c, l]) => el('button', { type: 'button', 'data-c': c, onclick: () => { fcat = c; draw(); } }, l)));
+    const search = el('input', { class: 'input fp-search', placeholder: '🔍 Chercher un meuble (lit, piano, frigo…)', value: fq, oninput: e => { fq = e.target.value; draw(); } });
+    panel(`➕ Ajouter un meuble (${Object.keys(FURN).length} au choix)`, search, tabs, list);
+    draw();
   }
+
   // la poignée ronde au-dessus du meuble sélectionné : on la fait tourner pour pivoter le meuble
   const rotHandle = f => { const d = FURN[f.t], o = rot(0, -d.h / 2 - 34, f.r || 0); return { x: f.x + o.x, y: f.y + o.y }; };
   function turn(dir) { const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); if (f.t === 'tv') return toast('📺 La télé reste droite'); f.r = Math.round(((f.r || 0) + dir * Math.PI / 12) * 1000) / 1000; if (f.r > Math.PI) f.r -= Math.PI * 2; if (f.r < -Math.PI) f.r += Math.PI * 2; }

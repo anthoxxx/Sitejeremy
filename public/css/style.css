@@ -3744,3 +3744,8 @@ body { background:
 .wx-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; } .wx-row input[type=range] { flex: 1; }
 .wx-set { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 600px) { .wx-btn b { font-size: .8rem; } .wx-fc { grid-template-columns: repeat(3, 1fr); } }
+/* 🛋️ la liste des meubles : recherche et catégories */
+.fp-search { margin-bottom: 8px; }
+.fp-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 6px; scrollbar-width: thin; }
+.fp-tabs button { flex: none; border: 0; border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.1); color: inherit; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.fp-tabs button.on { background: #ffd34d; color: #2a1404; }

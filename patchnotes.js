@@ -1008,4 +1008,17 @@ module.exports = [
     changed: ['🖌️ Le pinceau suit tout ton trait, même quand tu dessines vite : plus de trous dans les murs'],
     removed: [],
   },
+  {
+    id: 71,
+    date: '2026-11-20',
+    title: '53 nouveaux meubles réalistes, de A à Z 🛋️🎱🧺',
+    added: [
+      '🛋️ 53 nouveaux meubles pour ta maison, dessinés comme des vrais : aspirateur robot, arbre d\'intérieur, banc, billard, buffet, canapé d\'angle, commode, climatiseur, dressing, enceinte, étagère, fauteuil œuf suspendu, cuisinière, guitare, fauteuil gamer, hamac, horloge comtoise, îlot de cuisine, jukebox, jardinière, karaoké, lave-linge, lampadaire, lits superposés, lustre, micro-ondes, meuble télé, niche, PC gamer, pouf, paravent, porte-manteau, ping-pong, poubelle, quilles, radiateur, frigo américain, rocking-chair, sèche-linge, sac de frappe, tapis de course, tabouret de bar, télescope, tapis rond, ukulélé, vélo d\'appartement, ventilateur, valise, vase, waterbed, xylophone, yucca et tapis zèbre !',
+      '✨ Beaucoup bougent pour de vrai : le linge tourne dans le lave-linge, le balancier de l\'horloge bouge (et elle donne la vraie heure), les pales du ventilateur tournent, le jukebox clignote, le PC gamer change de couleur, la balle de ping-pong rebondit…',
+      '🪑 On s\'en sert : s\'asseoir sur le pouf, le banc ou le rocking-chair, dormir dans le hamac ou les lits superposés, 💪 faire du sport sur le vélo, le tapis de course ou le sac de frappe, 🎸 jouer de la guitare, jouer au billard, regarder les étoiles au télescope…',
+      '🔍 La liste des meubles a maintenant des catégories (Salon, Chambre, Cuisine, Salle de bain, Bureau, Loisirs, Sport, Déco, Maison, Néons, Rares) et une recherche',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
