@@ -1479,6 +1479,7 @@ const Island = (() => {
     if (video && ts - lastDraw < 31) return;
     lastDraw = ts;
     const t = ts / 1000, dt = Math.min(.05, (ts - last) / 1000 || 0); last = ts;
+    if (view3d && kind === 'island') { try { view3d.step(t, dt); } catch (e) { console.error(e); } nearPlace(players.get(me)); return; } // 🎥 vue 3D
     const vw = cv.width / DPR(), vh = cv.height / DPR();
     const sc = S();
     // déplacement de mon personnage
@@ -2076,7 +2077,23 @@ const Island = (() => {
   // 🍽️ Ce qu'on achète en boutique : le personnage le tient et le mange dans la Ville
   function eat(e) { const mine = players.get(me); if (!open || !mine || !['island', 'cafe'].includes(kind)) return; mine.action = 'eat'; mine.item = e; mine.itemAt = Date.now(); socket.emit('island_action', 'eat', { x: mine.x, y: mine.y }, e); }
   const goHome = () => openHouse(state.me.id);
-  return { setZoom: z => { zoom = z; }, setCam: (x, y) => { cam.x = x; cam.y = y; const m = players.get(me); if (m) { m.x = m.dx = x; m.y = m.dy = y; } }, root: () => root, kind: () => kind, open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
+  // ---------- 🎥 pour la vue 3D (city3d.js) : on prête les dessins de la Ville et le déplacement du personnage ----------
+  let view3d = null;
+  function sprite3d(fn, x, y, W2, H2, AX, AY, k = innerWidth < 700 ? 1 : 1.5) {
+    const c = document.createElement('canvas'); c.width = Math.round(W2 * k); c.height = Math.round(H2 * k);
+    const real = ctx; ctx = c.getContext('2d'); ctx.scale(k, k); ctx.translate(AX - x, AY - y);
+    try { fn(); } catch (e) {} finally { ctx = real; }
+    return c;
+  }
+  function moveMine(x, y) {
+    const m = players.get(me); if (!m || !onLand(x, y)) return false;
+    m.x = m.dx = x; m.y = m.dy = y; m.moving = true; cam.x = x; cam.y = y;
+    const n = performance.now(); if (n - lastSent > 70) { lastSent = n; socket.emit('island_move', { x, y }); }
+    return true;
+  }
+  const api3d = () => ({ W, H, terrain, shops, PLACES, TOWERS, ARCHES, lamps, palms, FOUNTAIN, SHOP_TYPES, players, me, onLand, keys, nightLevel, sprite3d, moveMine,
+    draw: { shop: (o, n) => drawShop(o, 0, n), tower: (tw, n) => drawTower(tw, 0, n), place: p => drawPlace(p, 0, 0), arch: (a, n) => drawArch(a, 0, n), palm: p => drawPalm(p, 0), lamp: (l, n) => drawLamp(l, 0, n), fountain: n => drawFountain(0, n), player: (p, t) => drawPlayer0(p, t) } });
+  return { set3d: v => { view3d = v; }, api3d, root: () => root, setZoom: z => { zoom = z; }, setCam: (x, y) => { cam.x = x; cam.y = y; const m = players.get(me); if (m) { m.x = m.dx = x; m.y = m.dy = y; } }, root: () => root, kind: () => kind, open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
 })();
 $('islandBtn').onclick = () => (Island.isOpen() ? Island.close() : Island.open());
 window.Island = Island;

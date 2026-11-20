@@ -3798,3 +3798,15 @@ body { background:
 .ang-range { width: 100%; accent-color: #ffd34d; }
 .ang-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .ang-presets .btn { padding: 6px 2px; font-size: .78rem; }
+/* 🎥 la Ville en 3D */
+.isl-3d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; display: block; }
+.isl-3d.hidden { display: none; }
+.island.view3d > canvas:not(.isl-3d) { visibility: hidden; }
+.isl-cam { flex: none; font-weight: 800; }
+.pad3d { position: absolute; left: 14px; bottom: calc(276px + env(safe-area-inset-bottom)); z-index: 3; display: grid; grid-template-columns: 56px 56px 56px; grid-template-rows: 56px 56px; gap: 6px; }
+.pad3d.hidden { display: none; }
+.p3-btn { border: 0; border-radius: 16px; background: rgba(20,12,40,.6); color: #fff; font-size: 24px; font-weight: 900; touch-action: none; user-select: none; box-shadow: 0 4px 14px rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.2); }
+.p3-btn.on { background: rgba(255,79,216,.7); }
+.p3-btn.u { grid-column: 2; grid-row: 1; } .p3-btn.l { grid-column: 1; grid-row: 2; } .p3-btn.d { grid-column: 2; grid-row: 2; } .p3-btn.r { grid-column: 3; grid-row: 2; }
+@media (hover: hover) and (pointer: fine) { .pad3d { opacity: .75; } }
+@media (max-width: 600px) { .pad3d { grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px; gap: 5px; left: 10px; } .p3-btn { font-size: 21px; border-radius: 14px; } }

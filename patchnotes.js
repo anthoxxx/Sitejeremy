@@ -1070,4 +1070,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 76,
+    date: '2026-11-20',
+    title: 'La Ville en 3D : 1ʳᵉ et 3ᵉ personne 🎥👀',
+    added: [
+      '🎥 Nouveau bouton « Vue » en haut de la Ville : passe de la vue du dessus à la 3D ! Les boutiques, les tours, les lieux, les palmiers et les lampadaires se dressent pour de vrai autour de toi',
+      '🎥 À la 3ᵉ personne : la caméra est juste derrière ton personnage',
+      '👀 À la 1ʳᵉ personne : tu vois la Ville par tes yeux, comme si tu te promenais dans la rue',
+      '🎮 Pour bouger : les flèches du clavier (▲ avancer, ▼ reculer, ◀ ▶ tourner) ou les grosses flèches à l\'écran sur téléphone. Fais glisser ton doigt ou la souris pour regarder autour de toi',
+      '🚪 Approche-toi d\'un lieu ou d\'une boutique pour y entrer, comme avant. Les autres promeneurs sont là aussi, en 3D',
+      '💾 Le site se souvient de la vue que tu as choisie',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
