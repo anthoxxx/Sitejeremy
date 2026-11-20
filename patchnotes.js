@@ -1047,4 +1047,16 @@ module.exports = [
     changed: ['⟳ La poignée jaune au-dessus du meuble tourne maintenant au degré près, avec un petit aimant sur les angles ronds (0°, 45°, 90°…)'],
     removed: [],
   },
+  {
+    id: 74,
+    date: '2026-11-20',
+    title: 'Mets tes meubles dans l\'autre sens 🔄',
+    added: [
+      '🔄 Nouveau bouton « Autre sens » dans « Mes meubles » : la table, le canapé, le fauteuil, la chaise et le banc sont dessinés pour de vrai dans l\'autre sens (la longueur de haut en bas, le dossier sur le côté). Touche « Retourner ↔️ » pour les tourner vers la gauche ou la droite',
+      '🛏️ Le lit, le billard, le ping-pong, les tapis, la baignoire, le bureau, la cuisine… se posent aussi dans l\'autre sens d\'un seul geste',
+      '🪑 On peut toujours s\'asseoir dans un canapé ou sur une chaise mis dans l\'autre sens',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

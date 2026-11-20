@@ -8,7 +8,7 @@ const Decor = (() => {
   };
   // Les nouveaux meubles (ajoutés à ceux de l'Île). seat = on s'assoit dessus ; lie = on se couche dedans ; soak = on se baigne dedans
   const FURN = {
-    chair: { name: 'Chaise', icon: '🪑', w: 58, h: 90, act: 'sit', spot: 'seat' },
+    chair: { name: 'Chaise', icon: '🪑', w: 58, h: 90, act: 'sit', spot: 'seat', sideK: .8, sideL: 1.25 },
     sink: { name: 'Lavabo', icon: '🚰', w: 70, h: 84, act: 'wash', spot: 'front' },
     toilet: { name: 'WC', icon: '🚽', w: 58, h: 78, act: 'sit', spot: 'seat' },
     shower: { name: 'Douche', icon: '🚿', w: 120, h: 160, act: 'shower', spot: 'center' },
@@ -178,9 +178,41 @@ const Decor = (() => {
     return false;
   }
 
+  // ---------- 🔄 les meubles vus « dans l'autre sens » (la longueur de haut en bas, le dossier sur le côté) ----------
+  const SIDE = {
+    table(g, f, d) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      g.fillStyle = '#5a3a1c'; g.fillRect(L + 8, h / 2 - 18, 8, 18); g.fillRect(-L - 16, h / 2 - 18, 8, 18);
+      g.fillStyle = lin(g, L, 0, -L, 0, [[0, '#a8744a'], [.5, '#c99566'], [1, '#a8744a']]); roundRect(g, L, T, w, h - 20, 8); g.fill();
+      g.strokeStyle = 'rgba(80,40,10,.18)'; g.lineWidth = 1; for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(L + i * w / 5, T + 4); g.lineTo(L + i * w / 5, h / 2 - 24); g.stroke(); }
+      wood(g, L, h / 2 - 28, w, 10, '#7a4f2b', 2);
+      g.fillStyle = '#ffffff'; for (const y of [T + 34, h / 2 - 62]) { g.beginPath(); g.ellipse(0, y, 18, 10, 0, 0, 7); g.fill(); g.strokeStyle = '#d8dde6'; g.lineWidth = 1.5; g.stroke(); }
+      g.fillStyle = 'rgba(180,220,255,.75)'; roundRect(g, -6, -20, 12, 22, 4); g.fill(); g.fillStyle = '#ff5fa2'; g.beginPath(); g.arc(-2, -24, 5, 0, 7); g.arc(4, -26, 5, 0, 7); g.fill(); g.fillStyle = '#2e9d57'; g.fillRect(-1, -22, 2, 8);
+    },
+    sofa(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      g.fillStyle = '#3a2a1e'; g.fillRect(-L - 10, T + 14, 7, 6); g.fillRect(-L - 10, h / 2 - 20, 7, 6);
+      cushion(g, L, T + 10, 34, h - 20, shade(A, .85), 14); // dossier sur le côté
+      for (let i = 0; i < 3; i++) cushion(g, L + 26, T + 30 + i * (h - 60) / 3, w - 30, (h - 60) / 3 - 3, A, 9); // assises
+      cushion(g, L, T, w, 32, shade(A, .92), 14); cushion(g, L, h / 2 - 32, w, 32, shade(A, .92), 14); // accoudoirs
+      cushion(g, L + 30, T + 36, 30, 40, '#fff3d6', 10); cushion(g, L + 30, h / 2 - 78, 30, 40, shade(A, 1.4), 10); // coussins
+    },
+    armchair(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      cushion(g, L, T + 8, 30, h - 16, shade(A, .85), 14); cushion(g, L + 22, T + 18, w - 24, h - 36, A, 10);
+      cushion(g, L, T, w, 22, shade(A, .92), 10); cushion(g, L, h / 2 - 22, w, 22, shade(A, .92), 10);
+    },
+    chair(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      g.fillStyle = '#5a3a1c'; g.fillRect(L + 8, h / 2 - 12, 5, 12); g.fillRect(-L - 12, h / 2 - 12, 5, 12);
+      wood(g, L + 6, T + 10, w - 10, h - 22, '#9b6b3e', 4); cushion(g, L + 10, T + 14, w - 18, h - 30, A, 6);
+      for (let i = 0; i < 3; i++) wood(g, L, T + i * ((h - 16) / 3), 10, (h - 16) / 3 - 3, '#8a5a2b', 2); // le dossier, vu de côté
+    },
+    banc(g, f, d) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      g.fillStyle = '#3a2a1e'; g.fillRect(L + 6, h / 2 - 14, 6, 14); g.fillRect(-L - 12, h / 2 - 14, 6, 14);
+      for (let i = 0; i < 3; i++) wood(g, L + 4 + i * (w - 8) / 3, T, (w - 8) / 3 - 4, h - 14, '#a86b3a', 3);
+    },
+  };
   // ---------- Les meubles réalistes ----------
   // f = { t, x, y, c (couleur du néon) }, d = définition, A = couleur de la déco. Renvoie true si le meuble a été dessiné.
   function draw(g, f, d, t, A, night) {
+    if (f.o && SIDE[f.t]) { SIDE[f.t](g, f, d, t, A, night); return true; }
     const w = d.w, h = d.h;
     switch (f.t) {
       case 'sofa': {
@@ -481,6 +513,6 @@ const Decor = (() => {
   let nightFn = () => 0;
   const night = () => nightFn();
   const mix2 = (n, a, b) => (n > .4 ? b : a);
-  return { NEON, STYLES, FURN, draw, room, bigHouse, facade, setNight: f => { nightFn = f; } };
+  return { NEON, STYLES, FURN, SIDE, draw, room, bigHouse, facade, setNight: f => { nightFn = f; } };
 })();
 window.Decor = Decor;
