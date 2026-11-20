@@ -1131,4 +1131,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 81,
+    date: '2026-11-20',
+    title: 'La Ville en 3D, en beaucoup plus beau ✨',
+    added: [],
+    changed: [
+      '🏪 Les magasins et les tours ont leur vitrine et leur enseigne des deux côtés : plus de blocs gris quand on passe derrière',
+      '📍 Les lieux (karaoké, kiosques, fontaine, arcs-en-ciel…) sont bien posés sur le sol, plus à moitié enterrés',
+      '🧍 Le personnage est un peu plus grand (ni trop gros, ni trop petit), avec son pseudo bien lisible',
+    ],
+    removed: [],
+  },
 ];
