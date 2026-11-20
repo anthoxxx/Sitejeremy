@@ -480,6 +480,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         if (f.t === 'tv' && clean.some(c => c.t === 'tv')) continue; // une seule télé
         const item = { t: f.t, x: Math.max(0, Math.min(1800, x)), y: Math.max(0, Math.min(1100, y)), f: f.f ? 1 : 0, l: Math.max(0, Math.min(MAX_FLOORS - 1, Math.round(Number(f.l)) || 0)) };
         if (f.o) item.o = 1; // 🔄 posé dans l'autre sens
+        if (f.b) item.b = 1; // 🔙 vu de dos
         const r = Number(f.r); if (Number.isFinite(r) && r && f.t !== 'tv') item.r = Math.round(Math.max(-Math.PI, Math.min(Math.PI, r)) * 1000) / 1000;
         if (NEONS.includes(f.t) && /^#[0-9a-f]{6}$/i.test(String(f.c || ''))) item.c = String(f.c).toLowerCase();
         clean.push(item);

@@ -1059,4 +1059,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 75,
+    date: '2026-11-20',
+    title: 'Les chaises dans tous les sens 🪑',
+    added: [
+      '🪑 Le bouton « 🔄 Autre sens » fait maintenant tourner la chaise, le fauteuil et le canapé dans les 4 sens : de face, de dos (tourné vers la table ou la télé), de côté vers la droite, de côté vers la gauche',
+      '🍽️ Parfait pour mettre des chaises tout autour d\'une table, ou un canapé de dos face à la télé. Quand on s\'assoit dessus, on est bien caché derrière le dossier',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

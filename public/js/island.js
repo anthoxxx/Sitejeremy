@@ -485,6 +485,7 @@ const Island = (() => {
     if (p.action === 'sit' && d.seatY != null && !SEAT_Y[f.t]) return { type: 'seat', ...at(0, d.seatY), r, z, d };
     if (p.action === 'bath' && f.t !== 'shower') return { type: 'soak', ...at(0, -4), r, z, d };
     if (p.action === 'shower') return { type: 'shower', ...at(0, 8), r: 0, z, d };
+    if (p.action === 'sit' && f.b && BACK_DRAWN[f.t]) return { type: 'seat', ...at(0, -d.h / 2 + d.h * .22), r, z: f.y - d.h / 2 + d.h * .3, d };
     if (p.action === 'sit' && f.o && SIDE_DRAWN[f.t]) return { type: 'seat', ...at(f.f ? -d.w * .08 : d.w * .08, 0), r, z, d };
     if (p.action === 'sit' && SEAT_Y[f.t]) return { type: 'seat', ...at(0, SEAT_Y[f.t](d)), r, z, d };
     return null;
@@ -708,12 +709,12 @@ const Island = (() => {
   const furn = () => furnAll().filter(f => (f.l || 0) === floorNow);
   const clampWalk = (x, y) => { if (houseWalk(x, y)) return { x, y }; for (let r = 8; r < 140; r += 8) for (let a = 0; a < 6.28; a += .4) { const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (houseWalk(px, py)) return { x: px, y: py }; } return { x: Math.max(60, Math.min(1740, x)), y: Math.max(245, Math.min(1065, y)) }; };
   // 🔄 un meuble « dans l'autre sens » : sa longueur va de haut en bas (largeur et hauteur échangées)
-  const SIDE_DRAWN = window.Decor?.SIDE || {}; // ceux qui ont un vrai dessin de côté (table, canapé…)
+  const SIDE_DRAWN = window.Decor?.SIDE || {}, BACK_DRAWN = window.Decor?.BACK || {}; // + ceux qu'on voit de dos (chaise, fauteuil, canapé) // ceux qui ont un vrai dessin de côté (table, canapé…)
   const SIDE_ROT = new Set(['bed', 'billard', 'ping_pong', 'rug', 'tapis_rond', 'zebre', 'bath', 'jacuzzi', 'lit_eau', 'hamac', 'babyfoot', 'tapis_course', 'aquarium', 'meuble_tv', 'buffet', 'ilot', 'kitchen', 'desk', 'ordi_gamer', 'piano', 'xylophone', 'lits_superposes', 'dressing', 'commode', 'jardiniere', 'etagere', 'radiateur', 'climatiseur', 'neon_tube', 'shelf', 'fireplace']);
   const canSide = t => !!SIDE_DRAWN[t] || SIDE_ROT.has(t);
-  const FD = f => { const d = FURN[f?.t]; if (!d || !f.o || !canSide(f.t)) return d; return d._side || (d._side = { ...d, w: Math.round(d.h * (d.sideK || 1)), h: Math.round(d.w * (d.sideL || 1)) }); };
+  const FD = f => { const d = FURN[f?.t]; if (f?.b && BACK_DRAWN[f.t]) return d; if (!d || !f.o || !canSide(f.t)) return d; return d._side || (d._side = { ...d, w: Math.round(d.h * (d.sideK || 1)), h: Math.round(d.w * (d.sideL || 1)) }); };
   const rot = (x, y, r) => (r ? { x: x * Math.cos(r) - y * Math.sin(r), y: x * Math.sin(r) + y * Math.cos(r) } : { x, y });
-  const furnSpot = f => { const d = FD(f); if (d.spot === 'center') return clampWalk(f.x, f.y); const o = f.o && canSide(f.t) ? rot(f.f ? -(d.w / 2 + 16) : d.w / 2 + 16, 10, f.r || 0) : rot(0, d.h / 2 + 14, f.r || 0); return clampWalk(f.x + o.x, f.y + o.y); };
+  const furnSpot = f => { const d = FD(f); if (d.spot === 'center') return clampWalk(f.x, f.y); if (f.b && BACK_DRAWN[f.t]) { const o = rot(0, -(d.h / 2 + 14), f.r || 0); return clampWalk(f.x + o.x, f.y + o.y); } const o = f.o && canSide(f.t) ? rot(f.f ? -(d.w / 2 + 16) : d.w / 2 + 16, 10, f.r || 0) : rot(0, d.h / 2 + 14, f.r || 0); return clampWalk(f.x + o.x, f.y + o.y); };
   function houseHots() {
     const seen = new Set(), out = [];
     for (const f of furn()) {
@@ -1154,7 +1155,14 @@ const Island = (() => {
     const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble');
     if (f.t === 'tv') return toast('📺 La télé reste face à toi');
     if (!canSide(f.t)) { setAngle(angleOf(f) === 90 ? 0 : 90); return toast(`🔄 ${FURN[f.t].name} : ${angleOf(f)}°`); }
-    f.o = f.o ? 0 : 1; if (!f.o) delete f.o; delete f.r;
+    delete f.r;
+    if (BACK_DRAWN[f.t]) { // 🪑 les sièges : de face → de dos → de côté (gauche) → de côté (droite) → de face
+      const st = f.b ? 1 : f.o ? (f.f ? 3 : 2) : 0, nx = (st + 1) % 4;
+      delete f.b; delete f.o; delete f.f;
+      if (nx === 1) f.b = 1; if (nx >= 2) f.o = 1; if (nx === 3) f.f = 1;
+      return toast(`🔄 ${FURN[f.t].name} : ${['de face', 'de dos (tourné vers la table)', 'de côté, vers la droite', 'de côté, vers la gauche'][nx]}`);
+    }
+    f.o = f.o ? 0 : 1; if (!f.o) delete f.o;
     toast(f.o ? `🔄 ${FURN[f.t].name} dans l'autre sens · touche « Retourner ↔️ » pour la tourner vers la gauche ou la droite` : `🔄 ${FURN[f.t].name} remis(e) comme avant`);
   }
   function diagonal() { const f = draft[sel]; if (!f) return toast('Touche d\'abord un meuble'); const cur = angleOf(f), seq = [45, 135, -135, -45, 0], i = seq.indexOf(cur); if (setAngle(seq[(i + 1) % seq.length])) toast(`◇ ${angleOf(f)}°`); }

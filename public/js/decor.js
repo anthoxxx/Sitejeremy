@@ -209,9 +209,31 @@ const Decor = (() => {
       for (let i = 0; i < 3; i++) wood(g, L + 4 + i * (w - 8) / 3, T, (w - 8) / 3 - 4, h - 14, '#a86b3a', 3);
     },
   };
+  // ---------- 🔙 les sièges vus de dos (tournés vers une table, vers le haut de l'écran) ----------
+  const BACK = {
+    chair(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      g.fillStyle = '#5a3a1c'; g.fillRect(L + 3, T + 30, 5, h / 2 - T - 30 - h / 2 + h / 2); g.fillRect(-L - 8, T + 30, 5, h - 30);
+      wood(g, L, T + 16, w, 14, '#9b6b3e', 3); cushion(g, L + 3, T + 10, w - 6, 10, A, 4); // l'assise, derrière
+      g.fillStyle = '#6b4423'; g.fillRect(L + 2, T + 4, 6, h - 4); g.fillRect(-L - 8, T + 4, 6, h - 4); // les montants du dossier, devant
+      for (let i = 0; i < 3; i++) wood(g, L + 2, T + 30 + i * 13, w - 4, 8, '#8a5a2b', 2);
+    },
+    armchair(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      cushion(g, L + 10, T, w - 20, h * .4, A, 10); // l'assise, derrière
+      cushion(g, L, T + 6, 18, h * .7, shade(A, .92), 9); cushion(g, -L - 18, T + 6, 18, h * .7, shade(A, .92), 9);
+      cushion(g, L + 6, T + h * .3, w - 12, h * .66, shade(A, .8), 16); // le dos du fauteuil, devant
+      g.fillStyle = '#3a2a1e'; g.fillRect(L + 8, h / 2 - 6, 5, 7); g.fillRect(-L - 13, h / 2 - 6, 5, 7);
+    },
+    sofa(g, f, d, t, A) { const w = d.w, h = d.h, L = -w / 2, T = -h / 2;
+      for (let i = 0; i < 3; i++) cushion(g, L + 30 + i * (w - 60) / 3, T, (w - 60) / 3 - 3, 30, A, 9); // les assises, derrière
+      cushion(g, L, T + 4, 32, h - 10, shade(A, .92), 14); cushion(g, -L - 32, T + 4, 32, h - 10, shade(A, .92), 14);
+      cushion(g, L + 16, T + h * .32, w - 32, h * .62, shade(A, .8), 16); // le dossier, devant
+      g.fillStyle = '#3a2a1e'; for (const x of [L + 16, -L - 22]) g.fillRect(x, h / 2 - 6, 6, 8);
+    },
+  };
   // ---------- Les meubles réalistes ----------
   // f = { t, x, y, c (couleur du néon) }, d = définition, A = couleur de la déco. Renvoie true si le meuble a été dessiné.
   function draw(g, f, d, t, A, night) {
+    if (f.b && BACK[f.t]) { BACK[f.t](g, f, d, t, A, night); return true; }
     if (f.o && SIDE[f.t]) { SIDE[f.t](g, f, d, t, A, night); return true; }
     const w = d.w, h = d.h;
     switch (f.t) {
@@ -513,6 +535,6 @@ const Decor = (() => {
   let nightFn = () => 0;
   const night = () => nightFn();
   const mix2 = (n, a, b) => (n > .4 ? b : a);
-  return { NEON, STYLES, FURN, SIDE, draw, room, bigHouse, facade, setNight: f => { nightFn = f; } };
+  return { NEON, STYLES, FURN, SIDE, BACK, draw, room, bigHouse, facade, setNight: f => { nightFn = f; } };
 })();
 window.Decor = Decor;
