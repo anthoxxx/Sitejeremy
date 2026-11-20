@@ -381,6 +381,14 @@ if (roomCount === 0) {
     ['membres', 'Salon VIP', 'Réservé aux membres inscrits', '💎', 9, 1],
   ].forEach(r => ins.run(...r, now));
 }
+// Salon « Cuisine » (avec son décor : enseigne néon, ustensiles lumineux, recette du jour)
+if (!db.prepare("SELECT 1 FROM rooms WHERE slug='cuisine'").get()) {
+  const m = db.prepare("SELECT sort FROM rooms WHERE slug='musique'").get();
+  const sort = m ? m.sort + 1 : 9;
+  db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
+  db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
+    .run('cuisine', 'Cuisine', 'Recettes, astuces et gourmandises : partage ce que tu cuisines ! 👨‍🍳', '🍳', sort, 0, Date.now());
+}
 // Salon Karaoké (avec le KaraoBot)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='karaoke'").get()) {
   db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=9 AND slug<>'douane'").run();

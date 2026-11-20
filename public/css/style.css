@@ -3882,3 +3882,49 @@ body { background:
 .lg-table th, .lg-table td { padding: 5px 6px; text-align: left; } .lg-table td + td, .lg-table th + th { text-align: center; }
 .lg-table tr.red td:first-child { color: #ff6b7d; } .lg-table tr.blue td:first-child { color: #6bbcff; } .lg-table tr.me { background: rgba(255,255,255,.08); font-weight: 800; }
 .isl-act.laser { background: linear-gradient(135deg, rgba(255,61,240,.55), rgba(56,232,255,.45)); }
+
+/* ---------- 👨‍🍳 Le salon « Cuisine » ---------- */
+.neon-cuisine { --neon: #ff7a2f; --neon-sub: #ffc08f; --neon-glow: #ff8a3d; }
+.room-head.head-cuisine { border-bottom: 2px solid #ff7a2f; box-shadow: 0 6px 22px -10px #ff7a2f; animation: headNeon 2.6s ease-in-out infinite; --neon: #ff7a2f; }
+.room-head.head-cuisine #headTitle { color: #ffb070; text-shadow: 0 0 3px #ff7a2f, 0 0 10px #ff7a2f, 0 0 18px rgba(255, 122, 47, .6); animation: neonFlicker 5s linear infinite; }
+.room-head.head-cuisine #headSub { color: #ffd23f; opacity: .9; }
+.main.kitchen-universe { background:
+  radial-gradient(ellipse at 18% 12%, rgba(255, 122, 47, .16), transparent 45%), radial-gradient(ellipse at 85% 18%, rgba(56, 232, 255, .1), transparent 45%),
+  radial-gradient(ellipse at 50% 100%, rgba(255, 79, 216, .12), transparent 55%),
+  linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px) 0 0 / 46px 23px, linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px) 0 0 / 46px 23px, var(--bg); }
+.main.kitchen-universe > *:not(.ki-fx):not(.room-bg) { position: relative; z-index: 1; }
+.ki-fx { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.ki-steam { position: absolute; bottom: -60px; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, .16), transparent 70%); filter: blur(6px); transform: scale(var(--s, 1)); animation: kiSteam linear infinite; }
+@keyframes kiSteam { 0% { transform: translate(0, 0) scale(var(--s, 1)); opacity: 0; } 15% { opacity: .9; } 100% { transform: translate(30px, -95vh) scale(calc(var(--s, 1) * 2.6)); opacity: 0; } }
+.ki-spark { position: absolute; bottom: -10px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor, 0 0 14px currentColor; animation: kiSpark linear infinite; opacity: 0; }
+@keyframes kiSpark { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: .8; } 100% { transform: translate(-20px, -70vh); opacity: 0; } }
+.ki-banner { --ki-h: 92px; margin: 10px 16px 0; padding: 26px 14px 12px; border-radius: 18px; position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  background: linear-gradient(180deg, rgba(30, 14, 6, .85), rgba(14, 8, 18, .85)); border: 2px solid #ff7a2f; box-shadow: 0 0 14px rgba(255, 122, 47, .45), inset 0 0 18px rgba(255, 122, 47, .15); animation: kiBox 3s ease-in-out infinite; }
+@keyframes kiBox { 0%, 100% { box-shadow: 0 0 10px rgba(255, 122, 47, .4), inset 0 0 14px rgba(255, 122, 47, .12); } 50% { box-shadow: 0 0 22px rgba(255, 122, 47, .7), inset 0 0 22px rgba(255, 122, 47, .2); } }
+.ki-rail { position: absolute; left: 14px; right: 14px; top: 14px; height: 6px; border-radius: 3px; background: linear-gradient(180deg, #f2f4f8, #8d939c 60%, #5b6068); box-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+.ki-hang { display: flex; gap: 8px; align-items: flex-start; margin-top: -10px; }
+.ki-ut { height: var(--ki-h); fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; overflow: visible; transform-origin: 50% 0; filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 7px currentColor); animation: kiSway ease-in-out infinite alternate, neonFlicker linear infinite; }
+@keyframes kiSway { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+.ki-sign { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+.ki-hat { width: 42px; height: 42px; fill: none; stroke: #fff; stroke-width: 3; stroke-linejoin: round; filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #ffd23f); animation: icoFloat 3s ease-in-out infinite; }
+.ki-neon { font: 900 2.1rem/1 Outfit, Inter, sans-serif; letter-spacing: .18em; color: #ffe2c8; text-shadow: 0 0 3px #fff, 0 0 8px #ff7a2f, 0 0 18px #ff7a2f, 0 0 34px #ff4f1f; animation: neonFlicker 4.2s linear infinite; }
+.ki-sub { color: #ffd23f; text-shadow: 0 0 6px rgba(255, 210, 63, .6); font-weight: 700; font-size: .8rem; }
+.ki-recipe { margin-top: 6px; padding: 6px 10px; border-radius: 12px; border: 1px dashed rgba(255, 210, 63, .55); background: rgba(0, 0, 0, .3); display: flex; flex-direction: column; gap: 2px; max-width: 520px; }
+.ki-rtitle { color: #2bff88; font-weight: 800; font-size: .85rem; text-shadow: 0 0 6px rgba(43, 255, 136, .5); }
+.ki-rtext { color: #f3e6da; font-size: .78rem; line-height: 1.35; }
+.ki-toggle { position: absolute; right: 8px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 122, 47, .6); background: rgba(0, 0, 0, .45); color: #ffb070; cursor: pointer; font-size: 13px; }
+.ki-banner.small { --ki-h: 40px; padding: 20px 40px 8px 14px; }
+.ki-banner.small .ki-recipe, .ki-banner.small .ki-sub, .ki-banner.small .ki-hat { display: none; }
+.ki-banner.small .ki-neon { font-size: 1.3rem; }
+.main.kitchen-universe #messages > .msg { border-left: 3px solid rgba(255, 122, 47, .45); }
+.main.kitchen-universe #messages > .msg:nth-last-child(-n+6) .who { text-shadow: 0 0 6px rgba(255, 122, 47, .55); }
+.main.kitchen-universe .composer .input { box-shadow: 0 0 0 2px rgba(255, 122, 47, .7), 0 0 14px rgba(255, 122, 47, .35); }
+.main.kitchen-universe .btn-primary { background: linear-gradient(135deg, #ff7a2f, #ff4fd8); }
+@media (max-width: 760px) {
+  .ki-banner { --ki-h: 58px; margin: 6px 8px 0; padding: 22px 8px 8px; gap: 4px; }
+  .ki-hang { gap: 3px; } .ki-hang .ki-ut:nth-child(n+3) { display: none; }
+  .ki-neon { font-size: 1.45rem; letter-spacing: .12em; } .ki-hat { width: 30px; height: 30px; }
+  .ki-rtext { font-size: .72rem; } .ki-sub { font-size: .7rem; }
+  .ki-banner.small { --ki-h: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { .ki-ut, .ki-neon, .ki-banner, .ki-hat, .room-head.head-cuisine, .room-head.head-cuisine #headTitle { animation: none !important; } .ki-fx { display: none; } }

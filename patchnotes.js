@@ -1144,6 +1144,20 @@ module.exports = [
     removed: [],
   },
   {
+    id: 89,
+    date: '2026-11-20',
+    title: 'Nouveau salon : la Cuisine du Paradise 👨‍🍳',
+    added: [
+      '🍳 Un nouveau salon « Cuisine » pour partager vos recettes, vos astuces et vos gourmandises, avec son néon orange dans la liste des salons',
+      '✨ Un décor rien que pour lui : une grande enseigne néon « CUISINE », une toque de chef, et des ustensiles lumineux qui se balancent au-dessus du plan de travail (fouet, spatule, louche, poêle, cuillère en bois, couteau, rouleau à pâtisserie, fourchette)',
+      '🧱 Un mur carrelé, de la vapeur qui monte et des étincelles de cuisson en fond',
+      '📖 Une recette du jour différente chaque jour (crêpes, carbonara, mousse au chocolat, cookies…)',
+      '↕ Le bouton en bas à droite du décor le réduit ou l\'agrandit (sur téléphone, il est en petit au départ)',
+    ],
+    changed: [],
+    removed: [],
+  },
+  {
     id: 88,
     date: '2026-11-20',
     title: 'Ville 3D : plus de vide au bord de la Ville 🌆',
