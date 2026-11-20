@@ -2772,6 +2772,8 @@ const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: 
 const generalBot = (content, icon = '🏙️', name = 'La Ville') => io.to('room:general').emit('message', { room: 'general', id: 'city' + now() + Math.random().toString(36).slice(2, 6), userId: 0, username: name, color: '#c64dff', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: icon, content, createdAt: now(), kind: 'text' });
 const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id), island: Island, emitToUser: (...a) => emitToUser(...a), botSay: t => generalBot(t), throttled: (...a) => throttled(...a) });
 CityGames.routes(app, auth);
+// 🔫 Le Laser Game : parties en équipes (Rouges contre Bleus), 3 cartes, robots
+const LaserGame = require('./lasergame')({ io, coins: Coins, track });
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
 // 🎤 The Voice du Paradise
@@ -3293,6 +3295,7 @@ io.on('connection', socket => {
   MotDor.onConnection(socket, uid, current);
   Island.onConnection(socket, uid, current);
   CityGames.onConnection(socket, uid);
+  LaserGame.onConnection(socket, uid, current);
   TheVoice.onConnection(socket, uid, current);
   Events.onConnection(socket);
 
