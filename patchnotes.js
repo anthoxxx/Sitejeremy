@@ -1143,4 +1143,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 82,
+    date: '2026-11-20',
+    title: 'Une vraie ville en 3D, et tu peux conduire ! 🏙️🚗',
+    added: [
+      '🏙️ La vue 3D de la Ville a été entièrement refaite : de vrais immeubles en briques, en béton ou en verre, avec leurs fenêtres (allumées la nuit), et des gratte-ciel tout autour à l\'horizon',
+      '🛣️ Des rues réalistes : asphalte, pointillés, trottoirs, passages piétons à chaque carrefour, lampadaires, arbres, la grande place pavée et le lac',
+      '🏪 Chaque magasin a sa vitrine, sa porte, son auvent et son enseigne lumineuse. Les salons et les lieux (club, cinéma, café…) sont des bâtiments avec leur enseigne néon',
+      '🚗 Des voitures roulent dans les rues… et tu peux conduire la tienne ! Touche « Conduire », puis pousse le joystick (ou ▲) pour accélérer et tourne à gauche ou à droite. « Descendre » pour marcher de nouveau',
+      '🧍 Les promeneurs sont de vrais personnages en 3D qui marchent (bras et jambes) et dansent, avec leur pseudo et leurs bulles au-dessus de la tête. Pousse le joystick à fond pour courir',
+      '☀️ Le ciel change avec l\'heure, avec des ombres sur ordinateur',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

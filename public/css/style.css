@@ -3813,3 +3813,6 @@ body { background:
 .joy.on .joy-knob { transition: none; background: radial-gradient(circle at 35% 30%, #ffffff, #ffc2ea 45%, #ff4fd8); }
 @media (hover: hover) and (pointer: fine) { .joy { opacity: .7; } }
 @media (max-width: 600px) { .joy { width: 112px; height: 112px; left: 12px; } }
+/* 🚗 conduire dans la Ville 3D */
+.car3d { position: absolute; right: 14px; bottom: calc(276px + env(safe-area-inset-bottom)); z-index: 3; border-radius: 999px; padding: 12px 18px; font-weight: 900; background: linear-gradient(135deg, #ff9500, #ff2d55); color: #fff; border: 2px solid rgba(255,255,255,.4); box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.car3d.hidden { display: none; } .car3d.on { background: linear-gradient(135deg, #34c759, #1f9d46); }

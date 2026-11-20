@@ -2091,7 +2091,7 @@ const Island = (() => {
     const n = performance.now(); if (n - lastSent > 70) { lastSent = n; socket.emit('island_move', { x, y }); }
     return true;
   }
-  const api3d = () => ({ W, H, terrain, shops, PLACES, TOWERS, ARCHES, lamps, palms, FOUNTAIN, SHOP_TYPES, players, me, onLand, keys, nightLevel, sprite3d, moveMine,
+  const api3d = () => ({ STREETS_X, STREETS_Y, PLAZA, LAKE, BLOCK_X, BLOCK_Y, W, H, terrain, shops, PLACES, TOWERS, ARCHES, lamps, palms, FOUNTAIN, SHOP_TYPES, players, me, onLand, keys, nightLevel, sprite3d, moveMine,
     draw: { shop: (o, n) => drawShop(o, 0, n), tower: (tw, n) => drawTower(tw, 0, n), place: p => drawPlace(p, 0, 0), arch: (a, n) => drawArch(a, 0, n), palm: p => drawPalm(p, 0), lamp: (l, n) => drawLamp(l, 0, n), fountain: n => drawFountain(0, n), player: (p, t) => drawPlayer0(p, t) } });
   return { set3d: v => { view3d = v; }, api3d, root: () => root, setZoom: z => { zoom = z; }, setCam: (x, y) => { cam.x = x; cam.y = y; const m = players.get(me); if (m) { m.x = m.dx = x; m.y = m.dy = y; } }, root: () => root, kind: () => kind, open: openIsland, close, isOpen: () => open, openHouse, goHome, eat, shops: () => shops, offline: () => offline, mine: () => players.get(me), PLACES, scene: () => scene, me: () => me };
 })();
