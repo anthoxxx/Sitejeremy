@@ -1144,6 +1144,23 @@ module.exports = [
     removed: [],
   },
   {
+    id: 83,
+    date: '2026-11-20',
+    title: 'La Ville 3D devient beaucoup plus réaliste ✨',
+    added: [
+      '💡 Une lumière réaliste avec de vrais reflets sur les vitres et les voitures, un soleil, des nuages et un ciel qui change avec l\'heure',
+      '🏢 Des façades bien plus détaillées (pierre, brique, béton, verre) avec des fenêtres encadrées qui s\'allument une par une la nuit, et de grandes tours en verre',
+      '🚦 Des trottoirs en relief avec bordures, des feux tricolores qui changent de couleur à chaque carrefour, et des voitures garées le long des rues',
+      '🚗 Des voitures arrondies avec vitres, roues, phares et feux arrière',
+      '🧍 Des personnages plus arrondis et plus vivants (cheveux longs ou courts)',
+      '🌳 De vrais arbres feuillus le long des rues',
+    ],
+    changed: [
+      '🧱 On ne traverse plus les murs des immeubles, et la caméra ne se coince plus dedans : ton personnage reste toujours visible',
+    ],
+    removed: [],
+  },
+  {
     id: 82,
     date: '2026-11-20',
     title: 'Une vraie ville en 3D, et tu peux conduire ! 🏙️🚗',
