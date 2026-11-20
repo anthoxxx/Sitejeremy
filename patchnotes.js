@@ -1144,6 +1144,20 @@ module.exports = [
     removed: [],
   },
   {
+    id: 86,
+    date: '2026-11-20',
+    title: 'Ville 3D : de vrais habitants, et la voiture roule dans le bon sens 🚗',
+    added: [
+      '🧍 De nouveaux personnages réalistes, habillés comme dans la vraie vie : jean, t-shirt, sweat, robe, talons… Deux styles d\'hommes et deux styles de femmes, chaque promeneur a le sien',
+      '💃 Ils marchent, courent, attendent et dansent avec de vrais mouvements',
+      '📜 Merci à Microsoft pour les personnages « Rocketbox » (licence MIT)',
+    ],
+    changed: [
+      '🚗 Les voitures roulent enfin vers l\'avant (avant, elles roulaient à l\'envers 😅)',
+    ],
+    removed: [],
+  },
+  {
     id: 85,
     date: '2026-11-20',
     title: 'Ville 3D : de vrais humains, de vraies voitures, un vrai ciel 🌤️🚗',

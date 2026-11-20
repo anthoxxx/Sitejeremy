@@ -29,35 +29,53 @@ const City3D = (() => {
     const glb = f => gl.loadAsync('/city3d/' + f);
     const hdr = new LIB.RGBELoader().loadAsync('/city3d/sky.hdr');
     const grass = new THREE.TextureLoader().loadAsync('/city3d/grass.jpg');
-    const all = Promise.all([glb('man.glb'), glb('woman.glb'), glb(mobile() ? 'car_lo.glb' : 'car_hi.glb'), glb('car_lo.glb'), hdr, grass]).then(([man, woman, carHi, carLo, sky, gr]) => {
+    const MEN = ['h1', 'h2'], WOMEN = ['f1', 'f2'];
+    const all = Promise.all([glb('anim_m.glb'), glb('anim_f.glb'), ...MEN.map(n => glb(n + '.glb')), ...WOMEN.map(n => glb(n + '.glb')), glb(mobile() ? 'car_lo.glb' : 'car_hi.glb'), glb('car_lo.glb'), hdr, grass]).then(([am, af, ...rest]) => {
+      const ppl = rest.splice(0, MEN.length + WOMEN.length), [carHi, carLo, sky, gr] = rest;
       const clip = (g, n) => g.animations.find(a => a.name === n);
-      // sans les déplacements du bassin (chaque modèle a sa taille), les animations vont aux deux personnages
       const inPlace = c => { const k = c.clone(); k.tracks = k.tracks.filter(t => !t.name.endsWith('.position')); return k; };
-      // les deux personnages n'ont pas la même pose de départ : on recopie les mouvements os par os « dans l'espace » (la même rotation dans le monde)
-      const retarget = (c, from, to, turn) => {
-        const key = n => n.replace(/[:.]/g, ''), sb = {}, db = {}, order = [];
-        from.traverse(o => { if (o.isBone) sb[key(o.name)] = o; }); to.traverse(o => { if (o.isBone) { db[key(o.name)] = o; order.push(key(o.name)); } });
-        const saved = []; from.traverse(o => { if (o.isBone) saved.push([o, o.quaternion.clone(), o.position.clone()]); });
-        from.updateMatrixWorld(true); to.updateMatrixWorld(true);
-        const wq = o => o.getWorldQuaternion(new THREE.Quaternion()), sRest = {}, dRest = {}, pRest = {};
-        for (const k of order) { dRest[k] = wq(db[k]); pRest[k] = wq(db[k].parent); if (sb[k]) sRest[k] = wq(sb[k]); }
-        const F = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turn), Fi = F.clone().invert();
-        const mixer = new THREE.AnimationMixer(from); mixer.clipAction(c).play();
+      // les os des animations (Mixamo) → les os des personnages (squelette « Bip01 »)
+      const MAP = { Pelvis: 'Hips', Spine: 'Spine', Spine1: 'Spine1', Spine2: 'Spine2', Neck: 'Neck', Head: 'Head' };
+      for (const [b, m] of [['L', 'Left'], ['R', 'Right']]) Object.assign(MAP, { [b + '_Clavicle']: m + 'Shoulder', [b + '_UpperArm']: m + 'Arm', [b + '_Forearm']: m + 'ForeArm', [b + '_Hand']: m + 'Hand', [b + '_Thigh']: m + 'UpLeg', [b + '_Calf']: m + 'Leg', [b + '_Foot']: m + 'Foot', [b + '_Toe0']: m + 'ToeBase' });
+      const CHILD = {}; for (const b of ['L', 'R']) Object.assign(CHILD, { [b + '_Clavicle']: b + '_UpperArm', [b + '_UpperArm']: b + '_Forearm', [b + '_Forearm']: b + '_Hand', [b + '_Thigh']: b + '_Calf', [b + '_Calf']: b + '_Foot' });
+      const nodes = (sc, f) => { const o = {}; sc.traverse(n => { const k = f(n.name); if (k) o[k] = n; }); return o; };
+      const srcKey = n => (n.match(/^mixamorig:?(.+)$/) || [])[1], dstKey = n => (n.match(/^Bip01[_ ](.+)$/) || [])[1];
+      const wq = o => o.getWorldQuaternion(new THREE.Quaternion()), wp = o => o.getWorldPosition(new THREE.Vector3());
+      const yawOf = (L, Rr) => { const f = new THREE.Vector3(0, 1, 0).cross(wp(Rr).sub(wp(L))); return Math.atan2(f.x, f.z); }; // vers où regarde le personnage
+      // on recopie chaque mouvement « dans l'espace » : la même rotation dans le monde, depuis la même pose en T
+      const retarget = (c, src, tpose, dst) => {
+        const sb = nodes(src, srcKey), db = nodes(dst, dstKey), order = []; dst.traverse(n => { const k = dstKey(n.name); if (k && n.isBone) order.push(k); });
+        const mixer = new THREE.AnimationMixer(src), tp = tpose ? mixer.clipAction(tpose) : null; if (tp) { tp.play(); mixer.setTime(0); }
+        src.updateMatrixWorld(true); dst.updateMatrixWorld(true);
+        const F = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yawOf(db.L_Thigh, db.R_Thigh) - yawOf(sb.LeftUpLeg, sb.RightUpLeg)), Fi = F.clone().invert();
+        // le personnage n'a pas les bras en T au repos : on aligne chaque os des bras et des jambes sur la pose en T de l'animation
+        const saveD = order.map(k => [db[k], db[k].quaternion.clone()]);
+        for (const k of order) { const ch = CHILD[k]; if (!ch || !db[ch] || !sb[MAP[k]] || !sb[MAP[ch]]) continue;
+          const sDir = wp(sb[MAP[ch]]).sub(wp(sb[MAP[k]])).normalize().applyQuaternion(F), tDir = wp(db[ch]).sub(wp(db[k])).normalize();
+          const w = new THREE.Quaternion().setFromUnitVectors(tDir, sDir).multiply(wq(db[k])); db[k].quaternion.copy(wq(db[k].parent).invert().multiply(w)); dst.updateMatrixWorld(true); }
+        const sRest = {}, dRest = {}, pRest = {}; for (const k of order) { dRest[k] = wq(db[k]); pRest[k] = wq(db[k].parent); const s0 = sb[MAP[k]]; if (s0) sRest[k] = wq(s0); } // la pose en T, prise pendant qu'elle est jouée
+        if (tp) tp.stop();
+        mixer.clipAction(c).play();
         const fps = 30, n = Math.ceil(c.duration * fps) + 1, times = new Float32Array(n), vals = {}; for (const k of order) vals[k] = new Float32Array(n * 4);
         for (let i = 0; i < n; i++) {
-          times[i] = Math.min(c.duration, i / fps); mixer.setTime(times[i]); from.updateMatrixWorld(true); const W = {};
+          times[i] = Math.min(c.duration, i / fps); mixer.setTime(times[i]); src.updateMatrixWorld(true); const W = {};
           for (const k of order) {
-            const d = db[k], pk = d.parent.isBone ? key(d.parent.name) : null, pW = pk && W[pk] ? W[pk] : pRest[k];
-            const w = sb[k] ? F.clone().multiply(wq(sb[k]).multiply(sRest[k].clone().invert())).multiply(Fi).multiply(dRest[k]) : pW.clone().multiply(d.quaternion);
+            const d = db[k], pk = dstKey(d.parent.name), pW = pk && W[pk] ? W[pk] : pRest[k], s0 = sb[MAP[k]];
+            const w = s0 && sRest[k] ? F.clone().multiply(wq(s0).multiply(sRest[k].clone().invert())).multiply(Fi).multiply(dRest[k]) : pW.clone().multiply(d.quaternion);
             W[k] = w; pW.clone().invert().multiply(w).toArray(vals[k], i * 4);
           }
         }
-        mixer.stopAllAction(); mixer.uncacheRoot(from); for (const [o, q, p] of saved) { o.quaternion.copy(q); o.position.copy(p); } from.updateMatrixWorld(true);
+        mixer.stopAllAction(); mixer.uncacheRoot(src); for (const [o, q] of saveD) o.quaternion.copy(q); dst.updateMatrixWorld(true);
         return new THREE.AnimationClip(c.name, c.duration, order.map(k => new THREE.QuaternionKeyframeTrack(db[k].name + '.quaternion', times, vals[k])));
       };
-      const base = { idle: inPlace(clip(man, 'Idle')), walk: inPlace(clip(man, 'Walk')), run: inPlace(clip(man, 'Run')) }, samba = inPlace(clip(woman, 'SambaDance'));
-      const clips = { m: { ...base, dance: retarget(samba, woman.scene, man.scene, Math.PI) }, f: { idle: retarget(base.idle, man.scene, woman.scene, -Math.PI), walk: retarget(base.walk, man.scene, woman.scene, -Math.PI), run: retarget(base.run, man.scene, woman.scene, -Math.PI), dance: samba } };
-      const prep = g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = SH; o.frustumCulled = false; } }); g.scene.updateMatrixWorld(true); let hy = 0; g.scene.traverse(o => { if (o.isBone && /Head$/.test(o.name)) hy = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld).y; }); return { scene: g.scene, k: hy > 0 ? 40 / hy : 1 }; };
+      const A0 = { idle: [am, 'Idle'], walk: [am, 'Walk'], run: [am, 'Run'], dance: [af, 'SambaDance'] };
+      const prep = g => {
+        g.scene.traverse(o => { if (o.isMesh) { o.castShadow = SH; o.frustumCulled = false; if (o.material.map) o.material.map.anisotropy = 4; } });
+        g.scene.updateMatrixWorld(true); const b = nodes(g.scene, dstKey), hy = b.Head ? wp(b.Head).y - Math.min(wp(b.L_Foot).y, wp(b.R_Foot).y) + 4e-9 : 0;
+        const clips = {}; for (const k in A0) { const [src, nm] = A0[k]; clips[k] = retarget(inPlace(clip(src, nm)), src.scene, clip(src, 'TPose'), g.scene); }
+        return { scene: g.scene, k: hy > 0 ? 39 / hy : 1, turn: -yawOf(b.L_Thigh, b.R_Thigh), clips, foot: b.L_Foot ? Math.min(wp(b.L_Foot).y, wp(b.R_Foot).y) : 0 };
+      };
+      const people3d = ppl.map(prep), men = people3d.slice(0, MEN.length), women = people3d.slice(MEN.length);
       // la voiture : on regroupe ses ~30 morceaux en 5 (carrosserie, vitres, noir, chrome, feux) pour que ça reste fluide
       const carMats = { body: null, glass: STD({ color: 0x080b10, metalness: .9, roughness: .06, envMapIntensity: .7 }), dark: STD({ color: 0x141518, roughness: .55, metalness: .1 }), metal: STD({ color: 0xc4c8ce, metalness: .95, roughness: .22 }), red: STD({ color: 0x8a0d0d, emissive: 0xff2020, emissiveIntensity: .5, roughness: .25, metalness: .2 }) };
       const kindOf = (n, mesh) => /Body_Color/.test(n) ? 'body' : /Taillight|Turn_Signal/i.test(n) ? 'red' : /Glass/.test(n) ? 'glass' : /Leather|Interior|Carpet|Carbon|plastic|Tires/i.test(n) ? 'dark' : /chrome|metal_gray|Yellow|DodgerBlue/i.test(n) ? 'metal' : /lights_red|Taillight|Turn_Signal/i.test(n + ' ' + mesh) ? 'red' : 'dark';
@@ -71,7 +89,7 @@ const City3D = (() => {
       };
       sky.mapping = THREE.EquirectangularReflectionMapping;
       gr.wrapS = gr.wrapT = THREE.RepeatWrapping; gr.colorSpace = THREE.SRGBColorSpace; gr.anisotropy = R.capabilities.getMaxAnisotropy();
-      ASSET = { man: { ...prep(man), turn: Math.PI }, woman: { ...prep(woman), turn: 0 }, clips, carHi: car(carHi), carLo: car(carLo), sky, skyEnv: pmremOf(sky), grass: gr };
+      ASSET = { men, women, carHi: car(carHi), carLo: car(carLo), sky, skyEnv: pmremOf(sky), grass: gr };
       return ASSET;
     });
     // si c'est trop long (mauvaise connexion), on démarre avec les formes simples
@@ -421,7 +439,7 @@ const City3D = (() => {
     if (ASSET) { // la vraie voiture, avec sa couleur
       const g = new THREE.Group(), m = (hi ? ASSET.carHi : ASSET.carLo).clone(true), paint = new THREE.Color(color);
       m.traverse(o => { if (o.isMesh && o.userData.body) { o.material = o.material.clone(); o.material.color = paint; o.material.metalness = .7; o.material.roughness = .22; } });
-      m.scale.setScalar(19); m.rotation.y = Math.PI / 2; g.add(m); return g;
+      m.scale.setScalar(19); m.rotation.y = -Math.PI / 2; g.add(m); return g; // l'avant de la voiture dans le sens où elle roule
     }
     const g = new THREE.Group();
     const paint = STD({ color, metalness: .55, roughness: .28, envMapIntensity: 1.2 }), glass = STD({ color: 0x0f1a24, metalness: .3, roughness: .05, envMapIntensity: 1.5 });
@@ -466,10 +484,10 @@ const City3D = (() => {
   const SKIN = ['#f1c7a4', '#e0ac85', '#c68863', '#8d5a3b', '#5c3a24'], HAIR = ['#2a1a10', '#6b3f1f', '#d8a64a', '#151515', '#8a4a24', '#c43b2b'];
   function human(p) {
     if (ASSET) {
-      const src = p.gender === 'f' ? ASSET.woman : ASSET.man, g = new THREE.Group(), m = LIB.SK.clone(src.scene);
+      const L = p.gender === 'f' ? ASSET.women : ASSET.men, src = L[(p.id || 0) % L.length], g = new THREE.Group(), m = LIB.SK.clone(src.scene);
       m.scale.multiplyScalar(src.k); m.rotation.y = src.turn; g.add(m);
       const mixer = new THREE.AnimationMixer(m), act = {};
-      const C = ASSET.clips[p.gender === 'f' ? 'f' : 'm']; for (const k in C) act[k] = mixer.clipAction(C[k]);
+      for (const k in src.clips) act[k] = mixer.clipAction(src.clips[k]);
       act.idle.play();
       return { g, mixer, act, cur: 'idle' };
     }
@@ -520,7 +538,7 @@ const City3D = (() => {
       const want = p.action === 'dance' ? 'dance' : moving ? (run || (!mine && sp > 230) ? 'run' : 'walk') : 'idle';
       if (want !== o.cur) { const a = o.act[want]; a.reset().play(); o.act[o.cur].crossFadeTo(a, .25, false); o.cur = want; }
       o.mixer.update(dt);
-      tag(p, o); o.tag.position.set(o.x, o.g.position.y + (p.gender === 'f' ? 64 : 58), o.y);
+      tag(p, o); o.tag.position.set(o.x, o.g.position.y + 54, o.y);
       return o;
     }
     o.walk += dt * (moving ? (run ? 15 : 10) : 0); const sw = moving ? Math.sin(o.walk) * (run ? .9 : .6) : 0;

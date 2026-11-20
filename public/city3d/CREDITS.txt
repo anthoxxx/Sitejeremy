@@ -1,6 +1,7 @@
 Ville 3D — origine des fichiers de ce dossier
 
-- man.glb, woman.glb : personnages et animations de Mixamo (Adobe), tirés des exemples three.js (Soldier, Michelle). Allégés pour le web.
+- h1.glb, h2.glb, f1.glb, f2.glb : personnages « Microsoft Rocketbox » (Male_Adult_17, Male_Adult_09, Female_Adult_03, Female_Party_02), https://github.com/microsoft/Microsoft-Rocketbox, licence MIT, Copyright (c) 2020 Microsoft. Convertis et allégés pour le web.
+- anim_m.glb, anim_f.glb : animations seules (marche, course, repos, samba) de Mixamo (Adobe), tirées des exemples three.js (Soldier, Michelle).
 - car_hi.glb, car_lo.glb : « Ferrari 458 Italia » par vicent091036 (https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6), licence CC BY 4.0. Modèle allégé (intérieur retiré, moins de triangles).
 - sky.hdr : « Blouberg Sunrise 2 » de Poly Haven (https://polyhaven.com), licence CC0.
 - grass.jpg : « Dark grass » sur OpenGameArt (http://opengameart.org/content/dark-grass), licence CC BY 3.0. Redimensionnée.
