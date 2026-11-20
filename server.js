@@ -8,6 +8,10 @@ const bcrypt = require('bcryptjs');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const { db, dataDir, getSettings, setSetting, log } = require('./db');
+// 📣 Discord : la pub du site et les journaux du serveur à distance (les adresses secrètes sont dans Render : DISCORD_PROMO_WEBHOOK, DISCORD_LOG_WEBHOOK)
+const Discord = require('./discord')({ db, patchnotes: require('./patchnotes'), online: () => { try { return online.size; } catch (e) { return 0; } }, rooms: () => { try { return db.prepare('SELECT COUNT(*) n FROM rooms').get().n; } catch (e) { return 0; } } });
+// le journal du site (inscriptions, connexions admin, bannissements…) part aussi dans Discord, sans adresse IP ni e-mail
+log.onEntry(e => Discord.event('📋', `${e.actor_name} · ${e.action}${e.details ? ' · ' + String(e.details).replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[e-mail]').slice(0, 300) : ''}`));
 const envText = v => String(v || '').trim().replace(/^(["'])(.*)\1$/, '$2').trim(); // tolère les espaces et guillemets autour
 const uploadDir = path.join(dataDir, 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -3681,4 +3685,4 @@ setInterval(() => {
   for (const e of online.values()) celebrateBirthday(getUser(e.user.id));
 }, 10 * 60 * 1000).unref();
 
-server.listen(PORT, () => console.log(`✨ The Paradise en ligne sur http://localhost:${PORT}`));
+server.listen(PORT, () => { console.log(`✨ The Paradise en ligne sur http://localhost:${PORT}`); Discord.started(PORT); if (Discord.enabled.promo || Discord.enabled.log) console.log(`📣 Discord : pub ${Discord.enabled.promo ? 'activée' : 'non réglée'} · journaux ${Discord.enabled.log ? 'activés' : 'non réglés'}`); });

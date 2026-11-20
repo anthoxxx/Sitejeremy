@@ -18,6 +18,8 @@ Variables d'environnement facultatives :
 | `ADMIN_USER` | Pseudo qui devient automatiquement super-admin à son inscription |
 | `TURN_URL`, `TURN_USER`, `TURN_PASS` | Serveur TURN facultatif pour que le vocal et la visio passent les réseaux très fermés (4G, entreprise) |
 | `ADMIN_LOGIN` | Nom d'utilisateur de l'espace admin `/admin` (`admin` par défaut) |
+| `DISCORD_PROMO_WEBHOOK` | Adresse (secrète) d'un webhook Discord : le site y annonce ses nouveautés et fait une pub par jour (18 h) |
+| `DISCORD_LOG_WEBHOOK` | Adresse (secrète) d'un webhook Discord : le serveur y envoie ses journaux (démarrage, arrêt, erreurs, inscriptions, bilan toutes les heures) |
 | `ADMIN_PASSWORD` | Mot de passe de l'espace admin. Sans lui, la connexion à `/admin` par identifiant est désactivée. **Ne l'écris jamais dans le code** (le dépôt est public) |
 | `CF_TURN_KEY_ID`, `CF_TURN_API_TOKEN` | Relais TURN gratuit de Cloudflare pour le vocal et les appels (voir plus bas) |
 | `METERED_DOMAIN`, `METERED_API_KEY` | Ou relais TURN de Metered (offre gratuite) |
