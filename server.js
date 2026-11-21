@@ -980,6 +980,11 @@ const DEV_OWNER = process.env.DEV_OWNER || 'Lesoldat76-dev';
     db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(o.id));
     db.prepare('UPDATE users SET is_dev=0 WHERE is_dev=1 AND id<>?').run(o.id);
     db.prepare('UPDATE users SET is_dev=1 WHERE id=?').run(o.id);
+    // ⭐ le créateur passe au niveau 999 (une seule fois)
+    if (!db.prepare("SELECT 1 FROM settings WHERE key='devLevel999'").get()) {
+      db.prepare('UPDATE users SET xp=? WHERE id=?').run(100 * 998 + 25 * 998 * 997, o.id);
+      db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devLevel999','1')").run();
+    }
   }
 }
 function devOwner() {
