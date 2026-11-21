@@ -30,10 +30,20 @@ const Weather = (() => {
     addEventListener('resize', fit); fit();
   }
   const spawn = (n, mk) => { while (parts.length < n) parts.push(mk(true)); if (parts.length > n) parts.length = n; };
+  let staticKey = '', waitT = 0;
   function step(ts) {
-    raf = requestAnimationFrame(loop);
+    const W = innerWidth, H = innerHeight, t = type(), k = level(), lite = !!window.LC_LITE?.();
+    // ⚡ soleil, brouillard, arc-en-ciel, beau temps : rien ne bouge, on dessine une seule fois (puis on vérifie de temps en temps)
+    const moving = on() && !indoors() && (['pluie', 'orage', 'neige', 'vent', 'nuageux', 'eclaircies'].includes(t) || flash > 0 || bolts.length > 0);
+    if (!moving) {
+      raf = 0; if (!waitT) waitT = setTimeout(() => { waitT = 0; if (!raf) raf = requestAnimationFrame(loop); }, 1500);
+      const key = [t, k, W, H, on(), indoors(), now()?.night].join('|'); if (key === staticKey) return; staticKey = key;
+    } else {
+      staticKey = ''; raf = requestAnimationFrame(loop);
+      if (lite && ts - last < 31) return; // appareil lent : 30 images par seconde suffisent pour la pluie et la neige
+    }
     const dt = Math.min(.05, (ts - last) / 1000 || .016); last = ts;
-    const W = innerWidth, H = innerHeight, t = type(), k = level();
+    const q = k * (lite ? .5 : 1); // et deux fois moins de gouttes ou de flocons
     cv.style.display = on() ? '' : 'none'; if (!on()) return;
     g.clearRect(0, 0, W, H);
     if (indoors()) { document.body.dataset.wx = ''; return; }
@@ -41,7 +51,7 @@ const Weather = (() => {
     const wind = (now()?.wind || 10) / 30;
     // 🌧️ pluie et ⛈️ orage
     if (t === 'pluie' || t === 'orage') {
-      const n = Math.round((t === 'orage' ? 260 : 170) * k * (W / 1400 + .4));
+      const n = Math.round((t === 'orage' ? 260 : 170) * q * (W / 1400 + .4));
       spawn(n, init => ({ x: Math.random() * (W + 200) - 100, y: init ? Math.random() * H : -20, v: 700 + Math.random() * 500, l: 10 + Math.random() * 14 }));
       g.strokeStyle = 'rgba(180,210,255,.55)'; g.lineWidth = 1.2; g.beginPath();
       for (const p of parts) { p.y += p.v * dt; p.x += wind * 120 * dt; if (p.y > H) { if (Math.random() < .35) splash(p.x, H - 2); p.y = -20; p.x = Math.random() * (W + 200) - 100; } g.moveTo(p.x, p.y); g.lineTo(p.x - wind * 4, p.y - p.l); }
@@ -51,14 +61,14 @@ const Weather = (() => {
     }
     // 🌨️ neige
     else if (t === 'neige') {
-      const n = Math.round(140 * k * (W / 1400 + .4));
+      const n = Math.round(140 * q * (W / 1400 + .4));
       spawn(n, init => ({ x: Math.random() * W, y: init ? Math.random() * H : -10, v: 30 + Math.random() * 60, r: 1.5 + Math.random() * 3, a: Math.random() * 6 }));
       g.fillStyle = 'rgba(255,255,255,.9)';
       for (const p of parts) { p.y += p.v * dt; p.a += dt; p.x += Math.sin(p.a) * 20 * dt + wind * 20 * dt; if (p.y > H) { p.y = -10; p.x = Math.random() * W; } g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill(); }
     }
     // 💨 grand vent : des feuilles et des traits qui filent
     else if (t === 'vent') {
-      spawn(Math.round(40 * k + 10), init => ({ x: init ? Math.random() * W : -40, y: Math.random() * H, v: 300 + Math.random() * 400, e: ['🍃', '🍂', '〰️'][Math.floor(Math.random() * 3)], a: Math.random() * 6 }));
+      spawn(Math.round(40 * q + 10), init => ({ x: init ? Math.random() * W : -40, y: Math.random() * H, v: 300 + Math.random() * 400, e: ['🍃', '🍂', '〰️'][Math.floor(Math.random() * 3)], a: Math.random() * 6 }));
       g.font = '18px "Noto Color Emoji", sans-serif';
       for (const p of parts) { p.x += p.v * dt; p.a += dt * 4; p.y += Math.sin(p.a) * 40 * dt; if (p.x > W + 40) { p.x = -40; p.y = Math.random() * H; } g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.globalAlpha = .7; g.fillText(p.e, 0, 0); g.restore(); }
     }

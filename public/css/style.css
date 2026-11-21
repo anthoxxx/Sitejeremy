@@ -1813,7 +1813,7 @@ body { background:
 /* Les badges brillent (reflet qui passe) */
 .badge { position: relative; overflow: hidden; display: inline-block; line-height: 1.3; }
 .badge::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent); transform: skewX(-20deg); animation: shineSweep 3.2s ease-in-out infinite; }
-@keyframes shineSweep { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+@keyframes shineSweep { 0%, 60% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(520%) skewX(-20deg); } } /* le reflet glisse sans recalculer la page */
 
 /* La zone d'écriture : contour arc-en-ciel qui tourne, bouton Envoyer qui brille */
 .composer .input { position: relative; animation: inputGlow 4s ease-in-out infinite; }
@@ -3928,3 +3928,17 @@ body { background:
   .ki-banner.small { --ki-h: 32px; }
 }
 @media (prefers-reduced-motion: reduce) { .ki-ut, .ki-neon, .ki-banner, .ki-hat, .room-head.head-cuisine, .room-head.head-cuisine #headTitle { animation: none !important; } .ki-fx { display: none; } }
+
+/* ---------- ⚡ Fluidité ---------- */
+/* ce qui n'est pas à l'écran ne s'anime pas */
+.offscreen, .offscreen *, .offscreen *::before, .offscreen *::after, .offscreen::before, .offscreen::after { animation-play-state: paused !important; }
+/* mode léger (appareils lents) : les lumières restent allumées, mais ne « respirent » plus */
+.lite .list-item.neon-room { animation: none; box-shadow: 0 0 7px var(--neon-glow, var(--neon)), inset 0 0 6px color-mix(in srgb, var(--neon-glow, var(--neon)) 22%, transparent); }
+.lite .room-head.head-neon, .lite .room-head.head-cuisine, .lite .ki-banner, .lite .list-item.gold-neon-room, .lite .list-item.vip-room, .lite .list-item.game-room, .lite .list-item.pride-room { animation: none; }
+.lite .uname.nr2.nr-neon, .lite .list-item.nrr2.nrr-neon, .lite .avatar.av-nn-admin, .lite #messages .who, .lite .badge.dev, .lite .side-title, .lite .room-perm, .lite #headTitle { animation: none !important; }
+.lite .badge::after, .lite .btn-primary::after { display: none; }
+.lite .season-fx span:nth-child(2n), .lite .season-fx .flake:nth-child(2n), .lite .ki-fx span:nth-child(2n), .lite .pride-fx span:nth-child(2n) { display: none; }
+.lite .ki-ut { animation-name: kiSway; filter: drop-shadow(0 0 4px currentColor); }
+.lite .ki-steam { filter: none; }
+.lite .afx-hearts::before, .lite .afx-flames::before { animation-duration: 3s; }
+.lite #messages > .msg .afx-hearts::before, .lite #messages > .msg .afx-flames::before { animation: none; opacity: 0; }

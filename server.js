@@ -42,6 +42,8 @@ const hugeJson = express.json({ limit: '40mb' });
 app.use((req, res, next) => (req.path === '/api/admin/backup/import' ? hugeJson : isUpload(req.path) ? bigJson : smallJson)(req, res, next));
 app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
 app.set('trust proxy', true); // vraie adresse IP derrière l'hébergeur (Render…)
+// ⚡ tout ce qui part vers le navigateur est compressé (environ 4 fois plus léger sur la 4G)
+app.use(require('compression')());
 app.use(cookieParser());
 // Identifiant d'appareil (sert à limiter le nombre de comptes par personne)
 app.use((req, res, next) => {
@@ -51,13 +53,28 @@ app.use((req, res, next) => {
   }
   next();
 });
-// Le navigateur redemande toujours si les pages, scripts et styles ont changé : une mise à jour est vue tout de suite
-app.use(express.static(path.join(__dirname, 'public'), {
-  extensions: ['html'],
-  setHeaders: (res, file) => { if (/\.(html|js|css)$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); },
-}));
 // Version du site : change à chaque mise en ligne (Render donne le numéro du commit)
 const BUILD = process.env.RENDER_GIT_COMMIT || String(Date.now());
+// ⚡ Les pages ajoutent « ?v=version » à leurs scripts et styles : le navigateur les garde en mémoire (plus besoin de tout
+// redemander à chaque ouverture), et une nouvelle mise en ligne change la version, donc tout se met à jour tout de suite.
+const V = BUILD.slice(0, 12), pageCache = new Map();
+function sendPage(res, name) {
+  let html = pageCache.get(name);
+  if (!html) {
+    html = fs.readFileSync(path.join(__dirname, 'public', name), 'utf8').replace(/((?:src|href)=["'])(\/(?:js|css)\/[^"'?#]+\.(?:js|css))(["'])/g, `$1$2?v=${V}$3`);
+    if (process.env.RENDER_GIT_COMMIT) pageCache.set(name, html); // en local, on relit à chaque fois (pour voir ses changements)
+  }
+  res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(html);
+}
+app.get(['/', '/index.html'], (req, res) => sendPage(res, 'index.html'));
+app.get(['/chat', '/chat.html'], (req, res) => sendPage(res, 'chat.html'));
+app.get(['/admin', '/admin.html'], (req, res) => sendPage(res, 'admin.html'));
+app.get(['/page', '/page.html'], (req, res) => sendPage(res, 'page.html'));
+// Les pages se revérifient toujours ; les scripts et styles avec ?v= sont gardés un an (la version change à chaque mise en ligne)
+app.use(express.static(path.join(__dirname, 'public'), {
+  extensions: ['html'],
+  setHeaders: (res, file) => { if (/\.(html|js|css)$/.test(file)) res.setHeader('Cache-Control', res.req?.query?.v ? 'public, max-age=31536000, immutable' : 'no-cache'); },
+}));
 app.get('/api/version', (req, res) => res.json({ build: BUILD }));
 // Lecteur vidéo HLS pour le salon TV (servi depuis le paquet npm, pas de CDN)
 app.get('/vendor/hls.min.js', (req, res) => res.sendFile(path.join(__dirname, 'node_modules', 'hls.js', 'dist', 'hls.min.js'), { maxAge: '7d' }));
@@ -2755,10 +2772,10 @@ const Games = require('./games')({ onScore: (uid, game, score, record) => {
 app.get('/jeux', (req, res) => res.redirect('/chat#jeux'));
 
 // Pages
-app.get('/chat', (req, res) => res.sendFile(path.join(__dirname, 'public', 'chat.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/chat', (req, res) => sendPage(res, 'chat.html'));
+app.get('/admin', (req, res) => sendPage(res, 'admin.html'));
 app.get('/staff', (req, res) => res.redirect('/admin'));
-app.get(['/histoire', '/reglement'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'page.html')));
+app.get(['/histoire', '/reglement'], (req, res) => sendPage(res, 'page.html'));
 
 // ---------- Temps réel ----------
 // online : userId -> { user, sockets:Set, room }

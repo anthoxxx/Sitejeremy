@@ -1144,6 +1144,21 @@ module.exports = [
     removed: [],
   },
   {
+    id: 90,
+    date: '2026-11-21',
+    title: 'Le site est beaucoup plus fluide ⚡',
+    added: [
+      '📱 Mode léger automatique : sur les téléphones moins puissants, les effets les plus lourds (néons qui respirent, reflets, flocons…) deviennent fixes. Le site reste beau, mais tourne bien plus vite (jusqu\'à 3 fois plus d\'images par seconde)',
+    ],
+    changed: [
+      '⚡ Les animations des messages et des membres qu\'on ne voit pas à l\'écran se mettent en pause',
+      '✨ Le reflet qui passe sur les badges et les boutons ne ralentit plus la page',
+      '🌦️ La météo ne redessine plus l\'écran en permanence quand rien ne bouge (soleil, brouillard…), et la pluie et la neige sont plus légères sur les petits téléphones',
+      '🚀 Le site se charge plus vite : tout est compressé (environ 4 fois plus léger), et ton téléphone garde les fichiers en mémoire au lieu de tout redemander à chaque ouverture',
+    ],
+    removed: [],
+  },
+  {
     id: 89,
     date: '2026-11-20',
     title: 'Nouveau salon : la Cuisine du Paradise 👨‍🍳',
