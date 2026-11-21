@@ -11,7 +11,7 @@ const MotDor = {
     if (!this.tick) this.tick = setInterval(() => this.updateTimer(), 250);
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'Maestro.js.dev', botIcon: '🎩', color: '#ffc94d', content: `Bonsoir ${state.me.username} ! ✨ Bienvenue au Mot d'Or. Trouve le mot caché en 6 essais : la première lettre est donnée. Lettre dorée = bien placée, lettre violette = présente mais mal placée. Rejoins la partie avec « ✨ Je joue » ! Tape !aide pour les règles.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Soldat76-Maestro', botIcon: '🎩', color: '#ffc94d', content: `Bonsoir ${state.me.username} ! ✨ Bienvenue au Mot d'Or. Trouve le mot caché en 6 essais : la première lettre est donnée. Lettre dorée = bien placée, lettre violette = présente mais mal placée. Rejoins la partie avec « ✨ Je joue » ! Tape !aide pour les règles.`, createdAt: Date.now() }, true);
     }
   },
   update(d) {

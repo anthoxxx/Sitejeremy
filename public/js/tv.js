@@ -1,4 +1,4 @@
-// The Paradise — salon TV : tout le salon regarde la même chaîne, choisie avec le TV.js.dev
+// The Paradise — salon TV : tout le salon regarde la même chaîne, choisie avec le Soldat76-TV
 const Tv = {
   SLUG: 'tv', data: null, watching: false, mini: false, hls: null, loadedId: null, welcomed: false, failed: false,
 
@@ -11,7 +11,7 @@ const Tv = {
     socket.emit('tv_state', d => this.update(d));
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'TV.js.dev', botIcon: '📺', color: '#33d6a6', content: `Salut ${state.me.username} ! 📺 Je suis TV.js.dev. Ici on regarde ensemble la télé du monde entier. Clique sur « ▶ Regarder » pour voir la chaîne en cours, ou sur « 📺 Changer de chaîne » pour en choisir une par pays. Tape !aide pour mes commandes.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Soldat76-TV', botIcon: '📺', color: '#33d6a6', content: `Salut ${state.me.username} ! 📺 Je suis Soldat76-TV. Ici on regarde ensemble la télé du monde entier. Clique sur « ▶ Regarder » pour voir la chaîne en cours, ou sur « 📺 Changer de chaîne » pour en choisir une par pays. Tape !aide pour mes commandes.`, createdAt: Date.now() }, true);
     }
   },
 
@@ -109,7 +109,7 @@ const Tv = {
           this.watching ? el('button', { class: 'btn btn-sm', title: 'Plein écran', onclick: () => (video.requestFullscreen ? video.requestFullscreen() : video.webkitEnterFullscreen?.()) }, '⛶') : null))
       : el('div', { class: 'k-stage empty' }, el('div', { class: 'k-now' },
         el('div', { class: 'k-label' }, '📺 Écran noir'),
-        el('div', { class: 'k-title' }, d.ready ? `Choisis une chaîne parmi ${d.ready} du monde entier !` : d.status?.loading ? `TV.js.dev vérifie les chaînes… (${d.status.checked}/${d.status.total})` : 'TV.js.dev prépare la liste des chaînes, reviens dans quelques minutes.')));
+        el('div', { class: 'k-title' }, d.ready ? `Choisis une chaîne parmi ${d.ready} du monde entier !` : d.status?.loading ? `Soldat76-TV vérifie les chaînes… (${d.status.checked}/${d.status.total})` : 'Soldat76-TV prépare la liste des chaînes, reviens dans quelques minutes.')));
     bar.querySelector('.k-stage-box').replaceChildren(...[stage, c && this.failed ? el('div', { class: 'tv-fail' },
       '⚠️ Cette chaîne ne s\'affiche pas chez toi : elle est peut-être coupée en ce moment, réservée à son pays, ou dans un format que ton navigateur ne lit pas. ',
       el('button', { class: 'btn btn-sm', onclick: () => { this.failed = false; this.stop(); this.render(); } }, '🔄 Réessayer'), ' ',
@@ -131,7 +131,7 @@ const Tv = {
     const search = el('input', { class: 'input', placeholder: 'Nom de la chaîne…', maxlength: 60 });
     const list = el('div', { class: 'k-results tv-list' }, el('p', { class: 'empty' }, 'Chargement…'));
     const close = modal(el('h3', {}, '📺 Choisis une chaîne'),
-      el('p', { class: 'help', style: 'margin:-4px 0 10px' }, 'Chaînes gratuites diffusées librement sur Internet, vérifiées par le TV.js.dev. Elle passera pour tout le salon.'),
+      el('p', { class: 'help', style: 'margin:-4px 0 10px' }, 'Chaînes gratuites diffusées librement sur Internet, vérifiées par le Soldat76-TV. Elle passera pour tout le salon.'),
       el('div', { class: 'tv-filters' }, country, search), list);
     const load = async () => {
       try {

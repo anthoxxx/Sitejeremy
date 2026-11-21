@@ -350,13 +350,13 @@ function addRoomMessage(m, live = true) {
   trimMessages();
   if (live) { scrollDown(m.userId === state.me.id); if (mention) { ding(); toast(`${m.username} t'a mentionné`); } }
 }
-// Message d'un bot (ex. Karao.js.dev dans le salon Karaoké)
+// Message d'un bot (ex. Soldat76-Karaoké dans le salon Karaoké)
 function addBotMessage(m, live = true) {
   const mention = new RegExp('@' + state.me.username + '\\b', 'i').test(m.content);
   $('messages').append(el('div', { class: 'msg bot-msg' + (mention ? ' mention' : '') },
     el('div', { class: 'avatar bot-av' }, m.botIcon || '🤖'),
     el('div', { class: 'body' },
-      el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, '💻 dev'), el('span', { class: 'time' }, LC.when(m.createdAt))),
+      el('div', {}, el('span', { class: 'who', style: 'color:' + (m.color || '#ffb547') }, m.username), ' ', el('span', { class: 'badge bot' }, '🎖️ Soldat76'), el('span', { class: 'time' }, LC.when(m.createdAt))),
       el('div', { class: 'text' }, m.content))));
   trimMessages();
   if (live) { scrollDown(); if (mention) { ding(); toast((m.botIcon || '🤖') + ' ' + m.content.slice(0, 90)); } }
@@ -753,7 +753,7 @@ function setPrideUniverse(on) {
     banner = el('div', { id: 'prideBanner', class: 'pride-banner' },
       el('div', { class: 'pride-flags' }, '🏳️‍🌈', el('span', {}, '🏳️‍⚧️'), '💖', '💜', '💙'),
       el('b', {}, 'Bienvenue dans l\'espace Arc-en-ciel'),
-      el('small', {}, 'Ici, tout le monde est accepté comme il est. Respect, bienveillance et fierté 💖 La haine n\'a pas sa place : le Modo.js.dev et l\'équipe veillent.'));
+      el('small', {}, 'Ici, tout le monde est accepté comme il est. Respect, bienveillance et fierté 💖 La haine n\'a pas sa place : le Soldat76-Modo et l\'équipe veillent.'));
     $('messages').before(banner);
   }
 }

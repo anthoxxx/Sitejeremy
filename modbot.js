@@ -1,4 +1,4 @@
-// The Paradise — Modo.js.dev : détection des grossièretés et insultes
+// The Paradise — Soldat76-Modo : détection des grossièretés et insultes
 // Résiste aux astuces courantes : majuscules, accents, lettres répétées (« connnnard »),
 // chiffres à la place des lettres (« c0nn4rd »), lettres séparées (« c o n n a r d », « p.u.t.e »).
 

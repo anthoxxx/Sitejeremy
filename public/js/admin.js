@@ -392,7 +392,7 @@ async function settings() {
   page.replaceChildren(...header('Réglages', 'Configure le fonctionnement général du chat.'),
     el('div', { class: 'panel' },
       el('div', { class: 'field' }, el('label', {}, '📢 Annonce permanente'), announcement),
-      el('div', { class: 'switch' }, el('span', {}, '🛡️ Modo.js.dev : masque les gros mots et insultes dans tous les salons, avertit puis rend muet'), modOn),
+      el('div', { class: 'switch' }, el('span', {}, '🛡️ Soldat76-Modo : masque les gros mots et insultes dans tous les salons, avertit puis rend muet'), modOn),
       el('div', { class: 'switch' }, el('span', {}, '⚠️ Avertissements avant le muet (une insulte grave compte double)'), modWarn),
       el('div', { class: 'switch' }, el('span', {}, '🔇 Durée du premier muet en minutes (doublée à chaque récidive)'), modMute),
       el('div', { class: 'field' }, el('label', {}, '🚫 Mots interdits en plus (remplacés par des ***), séparés par des virgules'), words),
@@ -670,7 +670,7 @@ const LOG_LABELS = {
   register: '✨ Inscription', login: '🔑 Connexion', logout: '🚪 Déconnexion', guest: '🎭 Invité', admin_auto: '👑 Super-admin', profile_update: '🖼️ Profil modifié', account_limit: '🚫 Limite de comptes',
   room_create: '🏠 Salon créé', room_edit: '✏️ Salon modifié', room_delete: '🗑 Salon supprimé', room_kick: '🚪 Exclusion de salon', room_invite: '🎟️ Invitation', room_private: '🔒 Salon fermé/ouvert', room_background: '🖼️ Fond de salon',
   voice_join: '🎙️ Vocal', call: '📞 Appel',
-  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', verify_request: '📣 Demande de validation', application: '🙋 Candidature', screenshot: '📸 Capture d\'écran', photo_ok: '📸 Photo vérifiée', photo_refused: '📸 Photo refusée', modbot: '🛡️ Modo.js.dev', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
+  settings: '⚙️ Réglages', site: '🌐 Site', station_create: '📻 Radio ajoutée', station_edit: '📻 Radio modifiée', station_delete: '📻 Radio supprimée', stations_check: '🩺 Radios vérifiées', ghost: '👻 Mode fantôme', staff_code: '🔑 Code staff', admin_login: '🔐 Espace admin', verify_request: '📣 Demande de validation', application: '🙋 Candidature', screenshot: '📸 Capture d\'écran', photo_ok: '📸 Photo vérifiée', photo_refused: '📸 Photo refusée', modbot: '🛡️ Soldat76-Modo', verify: '✅ Douane passée', unverify: '🛂 Renvoyé à la douane', customs: '🛂 Douane', backup: '💾 Sauvegarde',
 };
 const LOG_TABS = [['all', '📜 Tout'], ['moderation', '🛡️ Modération'], ['messages', '🗑 Messages supprimés'], ['accounts', '👤 Comptes'], ['rooms', '🏠 Salons'], ['voice', '🎙️ Vocal & appels'], ['reports', '🚨 Signalements'], ['system', '⚙️ Système']];
 let logsPoll = null;

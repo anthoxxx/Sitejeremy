@@ -1,10 +1,10 @@
 // The Paradise — « Les Paroles d'Or » : la musique joue, les paroles défilent, puis la musique s'arrête :
-// chaque candidat doit écrire la suite des paroles. Présenté par Maestro.js.dev.
+// chaque candidat doit écrire la suite des paroles. Présenté par Soldat76-Maestro.
 // Chansons : paroles-songs.js (créations du site + chansons traditionnelles du domaine public).
 const SONGS = require('./paroles-songs');
 
 const SLUG = 'paroles';
-const HOST = { username: 'Maestro.js.dev', color: '#ffc94d', icon: '🎩' };
+const HOST = { username: 'Soldat76-Maestro', color: '#ffc94d', icon: '🎩' };
 const MAX_PLAYERS = 6, ROUND_SONGS = 4, BEATS_PER_LINE = 8, LEAD_MS = 3500, ANSWER_MS = 25000, REVEAL_MS = 8000;
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();

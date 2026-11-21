@@ -1,6 +1,6 @@
 // The Paradise — bots musicaux des salons
-//  • Karao.js.dev (salon Karaoké) : file des chanteurs, versions karaoké, tour de chacun
-//  • DJ.js.dev (salon Musique) : chacun met la musique qu'il veut, tout le salon l'écoute en même temps
+//  • Soldat76-Karaoké (salon Karaoké) : file des chanteurs, versions karaoké, tour de chacun
+//  • Soldat76-DJ (salon Musique) : chacun met la musique qu'il veut, tout le salon l'écoute en même temps
 // Recherche YouTube sans clé d'API, file d'attente, annonces du bot, passage automatique.
 
 const KARAOKE_CATALOG = [
@@ -68,7 +68,7 @@ const MUSIC_CATALOG = [
 
 const MODES = {
   karaoke: {
-    slug: 'karaoke', event: 'karaoke', bot: { username: 'Karao.js.dev', color: '#ffb547', icon: '🎤' },
+    slug: 'karaoke', event: 'karaoke', bot: { username: 'Soldat76-Karaoké', color: '#ffb547', icon: '🎤' },
     catalog: KARAOKE_CATALOG, suffix: ' karaoké', keep: /karaok|lyrics|paroles/i,
     perUser: 2, requirePresence: true, skipVote: false,
     nowText: c => `🎤 À toi @${c.username} ! Tu chantes « ${c.title} ». Rejoins le vocal 🎙️ et lance la vidéo en haut du salon. Bonne chance ! 🌟`,
@@ -76,10 +76,10 @@ const MODES = {
     endText: c => `👏 Bravo ${c.username} ! Merci pour « ${c.title} » 🎉`,
     addText: (u, t, n) => `📝 ${u} a choisi « ${t} » (n°${n} dans la file)`,
     emptyText: '🎶 La file est vide ! Choisis une chanson avec le bouton « 🎤 Choisir une chanson » ou tape !chanson suivi du titre.',
-    help: '🤖 Je suis Karao.js.dev ! Commandes : !chanson <titre> pour t\'inscrire, !liste pour voir la file, !suivant quand tu as fini, !retirer pour enlever ta chanson. Tu peux aussi utiliser le bouton « 🎤 Choisir une chanson ».',
+    help: '🤖 Je suis Soldat76-Karaoké ! Commandes : !chanson <titre> pour t\'inscrire, !liste pour voir la file, !suivant quand tu as fini, !retirer pour enlever ta chanson. Tu peux aussi utiliser le bouton « 🎤 Choisir une chanson ».',
   },
   music: {
-    slug: 'musique', event: 'music', bot: { username: 'DJ.js.dev', color: '#4fb3ff', icon: '🎧' },
+    slug: 'musique', event: 'music', bot: { username: 'Soldat76-DJ', color: '#4fb3ff', icon: '🎧' },
     catalog: MUSIC_CATALOG, suffix: '', keep: null,
     perUser: 3, requirePresence: false, skipVote: true,
     nowText: c => `🎶 Maintenant : « ${c.title} », demandé par ${c.username}. Clique sur « 🔊 Écouter » en haut du salon pour l'entendre !`,
@@ -87,7 +87,7 @@ const MODES = {
     endText: null,
     addText: (u, t, n) => `➕ ${u} a ajouté « ${t} » (n°${n} dans la file)`,
     emptyText: '🎧 Plus rien dans la file ! Mets ce que tu veux avec « 🎵 Mettre une musique » ou tape !play suivi du titre.',
-    help: '🎧 Je suis DJ.js.dev ! Mets la musique que tu veux : bouton « 🎵 Mettre une musique » ou !play <titre>. Aussi : !liste pour la file, !skip pour passer (vote du salon), !retirer pour enlever tes musiques.',
+    help: '🎧 Je suis Soldat76-DJ ! Mets la musique que tu veux : bouton « 🎵 Mettre une musique » ou !play <titre>. Aussi : !liste pour la file, !skip pour passer (vote du salon), !retirer pour enlever tes musiques.',
   },
 };
 

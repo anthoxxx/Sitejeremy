@@ -59,7 +59,7 @@ const MAPS = {
 };
 const TEAMS = ['red', 'blue'];
 const MAX = 10, ROUND_MS = 4 * 60 * 1000, WIN = 25, FIRE_MS = 280, DEAD_MS = 3000, SHIELD_MS = 2000, RANGE = 45, SPEED = 5.2, R = .38, EYE = 1.6;
-const BOT_NAMES = ['Alpha.js.dev', 'Bravo.js.dev', 'Charlie.js.dev', 'Delta.js.dev', 'Echo.js.dev', 'Fox.js.dev', 'Golf.js.dev', 'Hotel.js.dev'];
+const BOT_NAMES = ['Soldat76-Alpha', 'Soldat76-Bravo', 'Soldat76-Charlie', 'Soldat76-Delta', 'Soldat76-Echo', 'Soldat76-Fox', 'Soldat76-Golf', 'Soldat76-Hotel'];
 
 // ---------- la carte : murs, cases libres, bases ----------
 function prepMap(key) {

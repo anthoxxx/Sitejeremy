@@ -1,4 +1,4 @@
-// The Paradise — salon TV et son TV.js.dev
+// The Paradise — salon TV et son Soldat76-TV
 // Chaînes de télé gratuites du monde entier, tirées de l'annuaire public iptv-org
 // (https://github.com/iptv-org/iptv : uniquement des flux diffusés librement sur Internet).
 // Le serveur vérifie chaque flux (lisible depuis un navigateur, en https), garde ceux qui marchent,
@@ -8,7 +8,7 @@ const path = require('path');
 
 const SLUG = 'tv';
 const API = (process.env.TV_API_BASE || 'https://iptv-org.github.io/api').replace(/\/$/, '');
-const BOT = { username: 'TV.js.dev', color: '#33d6a6', icon: '📺' };
+const BOT = { username: 'Soldat76-TV', color: '#33d6a6', icon: '📺' };
 const BLOCKED_CATS = new Set(['xxx', 'adult']);
 const REFRESH = 24 * 3600 * 1000;
 
@@ -222,7 +222,7 @@ module.exports = function setupTvBot({ app, io, auth, isStaff, isVerified, tooMa
           if (r.error) say(`@${user.username} ${r.error}`);
           return;
         }
-        return say(`📺 Je suis TV.js.dev ! ${[...channels.values()].filter(c => c.ok).length} chaînes du monde entier. Clique sur « 📺 Changer de chaîne » pour choisir par pays, ou tape !tv suivi du nom (ex : !tv France 24). Tout le salon regarde la même chaîne.`);
+        return say(`📺 Je suis Soldat76-TV ! ${[...channels.values()].filter(c => c.ok).length} chaînes du monde entier. Clique sur « 📺 Changer de chaîne » pour choisir par pays, ou tape !tv suivi du nom (ex : !tv France 24). Tout le salon regarde la même chaîne.`);
       case '!chaine': case '!chaîne': case '!quoi':
         return say(current ? `En ce moment : ${current.flag} ${current.name}, mise par ${current.by}.` : 'Aucune chaîne pour le moment. Mets-en une !');
     }

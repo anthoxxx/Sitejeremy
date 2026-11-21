@@ -381,8 +381,8 @@ if (roomCount === 0) {
     ['membres', 'Salon VIP', 'Réservé aux membres inscrits', '💎', 9, 1],
   ].forEach(r => ins.run(...r, now));
 }
-// 💻 les bots du site s'appellent maintenant « nom.js.dev » : on met à jour les descriptions des salons déjà créés
-for (const [a, b] of [['KaraoBot', 'Karao.js.dev'], ['TV Bot', 'TV.js.dev'], ['Roue Bot', 'Roue.js.dev'], ['Maestro Paradise', 'Maestro.js.dev'], ['ModoBot', 'Modo.js.dev'], ['DJ Bot', 'DJ.js.dev']])
+// 🎖️ les bots du site s'appellent maintenant « Soldat76-… » (l'équipe du créateur, Lesoldat76-dev) : on met à jour les descriptions des salons déjà créés
+for (const [a, b] of [['KaraoBot', 'Soldat76-Karaoké'], ['TV Bot', 'Soldat76-TV'], ['Roue Bot', 'Soldat76-Roue'], ['Maestro Paradise', 'Soldat76-Maestro'], ['ModoBot', 'Soldat76-Modo'], ['DJ Bot', 'Soldat76-DJ'], ['Karao.js.dev', 'Soldat76-Karaoké'], ['TV.js.dev', 'Soldat76-TV'], ['Roue.js.dev', 'Soldat76-Roue'], ['Maestro.js.dev', 'Soldat76-Maestro']])
   db.prepare('UPDATE rooms SET description=replace(description, ?, ?) WHERE description LIKE ?').run(a, b, '%' + a + '%');
 // Salon « Cuisine » (avec son décor : enseigne néon, ustensiles lumineux, recette du jour)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='cuisine'").get()) {
@@ -392,37 +392,37 @@ if (!db.prepare("SELECT 1 FROM rooms WHERE slug='cuisine'").get()) {
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
     .run('cuisine', 'Cuisine', 'Recettes, astuces et gourmandises : partage ce que tu cuisines ! 👨‍🍳', '🍳', sort, 0, Date.now());
 }
-// Salon Karaoké (avec le Karao.js.dev)
+// Salon Karaoké (avec le Soldat76-Karaoké)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='karaoke'").get()) {
   db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=9 AND slug<>'douane'").run();
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run('karaoke', 'Karaoké', 'Choisis ta chanson avec le Karao.js.dev et prends le micro ! 🎶', '🎤', 9, 0, Date.now());
+    .run('karaoke', 'Karaoké', 'Choisis ta chanson avec le Soldat76-Karaoké et prends le micro ! 🎶', '🎤', 9, 0, Date.now());
 }
-// Salon TV (avec le TV.js.dev)
+// Salon TV (avec le Soldat76-TV)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='tv'").get()) {
   const vip = db.prepare("SELECT sort FROM rooms WHERE slug='membres'").get();
   const sort = vip ? vip.sort : 10;
   db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug<>'douane'").run(sort);
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run('tv', 'TV du monde', 'Regardez ensemble les chaînes de télé du monde entier avec le TV.js.dev 📺', '📺', sort, 0, Date.now());
+    .run('tv', 'TV du monde', 'Regardez ensemble les chaînes de télé du monde entier avec le Soldat76-TV 📺', '📺', sort, 0, Date.now());
 }
-// Salon « La Roue du Paradise » (jeu de lettres avec une roue, animé par le Roue.js.dev)
+// Salon « La Roue du Paradise » (jeu de lettres avec une roue, animé par le Soldat76-Roue)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='roue'").get()) {
   const tv = db.prepare("SELECT sort FROM rooms WHERE slug='tv'").get();
   const sort = tv ? tv.sort + 1 : 11;
   db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run('roue', 'La Roue du Paradise', 'Tourne la roue, trouve les lettres et gagne la partie avec le Roue.js.dev 🎡', '🎡', sort, 0, Date.now());
+    .run('roue', 'La Roue du Paradise', 'Tourne la roue, trouve les lettres et gagne la partie avec le Soldat76-Roue 🎡', '🎡', sort, 0, Date.now());
 }
-// Salon « Le Grand Blind Test du Paradise » (présenté par Maestro.js.dev)
+// Salon « Le Grand Blind Test du Paradise » (présenté par Soldat76-Maestro)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='blindtest'").get()) {
   const r = db.prepare("SELECT sort FROM rooms WHERE slug='roue'").get();
   const sort = r ? r.sort + 1 : 12;
   db.prepare("UPDATE rooms SET sort=sort+1 WHERE owner_id IS NULL AND sort>=? AND slug NOT IN ('douane','patchnote')").run(sort);
   db.prepare('INSERT INTO rooms (slug,name,description,icon,sort,members_only,created_at) VALUES (?,?,?,?,?,?,?)')
-    .run('blindtest', 'Le Grand Blind Test', 'L\'émission musicale du Paradise présentée par Maestro.js.dev : buzzez et trouvez la chanson ! 🎩', '🎩', sort, 0, Date.now());
+    .run('blindtest', 'Le Grand Blind Test', 'L\'émission musicale du Paradise présentée par Soldat76-Maestro : buzzez et trouvez la chanson ! 🎩', '🎩', sort, 0, Date.now());
 }
-// Salon « Le Sommet du Paradise » (grand quiz sur scène, présenté par Maestro.js.dev)
+// Salon « Le Sommet du Paradise » (grand quiz sur scène, présenté par Soldat76-Maestro)
 if (!db.prepare("SELECT 1 FROM rooms WHERE slug='sommet'").get()) {
   const r = db.prepare("SELECT sort FROM rooms WHERE slug='blindtest'").get();
   const sort = r ? r.sort + 1 : 13;

@@ -11,7 +11,7 @@ const BlindTest = {
     if (!this.tick) this.tick = setInterval(() => this.updateTimers(), 250);
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'Maestro.js.dev', botIcon: '🎩', color: '#ff5fa2', content: `Bonsoir ${state.me.username} ! 🎩 Bienvenue sur le plateau du Grand Blind Test du Paradise. Monte sur scène avec « 🙋 Je joue », lancez l'émission, et quand la musique démarre, appuie sur le BUZZ 🔴 (ou la barre espace) pour donner le titre ou l'artiste. Tape !aide pour les règles.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Soldat76-Maestro', botIcon: '🎩', color: '#ff5fa2', content: `Bonsoir ${state.me.username} ! 🎩 Bienvenue sur le plateau du Grand Blind Test du Paradise. Monte sur scène avec « 🙋 Je joue », lancez l'émission, et quand la musique démarre, appuie sur le BUZZ 🔴 (ou la barre espace) pour donner le titre ou l'artiste. Tape !aide pour les règles.`, createdAt: Date.now() }, true);
     }
   },
   update(d) {

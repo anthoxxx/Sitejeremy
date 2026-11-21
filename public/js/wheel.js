@@ -11,7 +11,7 @@ const Wheel = {
     if (!this.tick) this.tick = setInterval(() => this.updateTimer(), 500);
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'Roue.js.dev', botIcon: '🎡', color: '#ffc94d', content: `Salut ${state.me.username} ! 🎡 Bienvenue à La Roue du Paradise. Clique sur « 🙋 Jouer » pour rejoindre la partie (6 joueurs max). À ton tour : tourne la roue et choisis une consonne, achète une voyelle (200 points) ou propose la réponse. 3 manches, le plus de points gagne ! Tape !aide pour revoir les règles.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Soldat76-Roue', botIcon: '🎡', color: '#ffc94d', content: `Salut ${state.me.username} ! 🎡 Bienvenue à La Roue du Paradise. Clique sur « 🙋 Jouer » pour rejoindre la partie (6 joueurs max). À ton tour : tourne la roue et choisis une consonne, achète une voyelle (200 points) ou propose la réponse. 3 manches, le plus de points gagne ! Tape !aide pour revoir les règles.`, createdAt: Date.now() }, true);
     }
   },
   update(d) {

@@ -1,8 +1,8 @@
-// The Paradise — « Le Grand Blind Test du Paradise », présenté par Maestro.js.dev (personnage original du site)
-// Le présentateur lance un extrait (vidéo YouTube trouvée par la recherche du DJ.js.dev, image cachée),
+// The Paradise — « Le Grand Blind Test du Paradise », présenté par Soldat76-Maestro (personnage original du site)
+// Le présentateur lance un extrait (vidéo YouTube trouvée par la recherche du Soldat76-DJ, image cachée),
 // le premier candidat qui buzze donne le titre et/ou l'artiste. 8 chansons, puis une finale à deux.
 const SLUG = 'blindtest';
-const HOST = { username: 'Maestro.js.dev', color: '#ff5fa2', icon: '🎩' };
+const HOST = { username: 'Soldat76-Maestro', color: '#ff5fa2', icon: '🎩' };
 const MAX_PLAYERS = 6, SONGS = 8, FINAL_SONGS = 3, LISTEN_MS = 30000, ANSWER_MS = 15000, REVEAL_MS = 7000, BET_MS = 15000;
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -245,7 +245,7 @@ module.exports = function setupBlindTest({ io, db, getOnline, ytSearch, catalogs
 
   function command(user, text) {
     const c = text.trim().toLowerCase();
-    if (c === '!aide' || c === '!blindtest') say(`🎩 Je suis Maestro.js.dev ! Monte sur le plateau avec « 🙋 Je joue », puis lancez l'émission. Quand la musique démarre, appuie sur le gros bouton BUZZ 🔴 et écris le titre (2 pts) et/ou l'artiste (1 pt). Après ${SONGS} chansons, les 2 meilleurs vont en finale (points doublés) et le public parie ⭐ sur son favori !`);
+    if (c === '!aide' || c === '!blindtest') say(`🎩 Je suis Soldat76-Maestro ! Monte sur le plateau avec « 🙋 Je joue », puis lancez l'émission. Quand la musique démarre, appuie sur le gros bouton BUZZ 🔴 et écris le titre (2 pts) et/ou l'artiste (1 pt). Après ${SONGS} chansons, les 2 meilleurs vont en finale (points doublés) et le public parie ⭐ sur son favori !`);
     return Promise.resolve();
   }
 

@@ -182,7 +182,7 @@ function parseCookie(header = '') {
   return out;
 }
 
-// ---------- Modo.js.dev : grossièretés et insultes ----------
+// ---------- Soldat76-Modo : grossièretés et insultes ----------
 const ModBot = require('./modbot');
 let modIndex = null, modIndexKey = null;
 function modScan(text) {
@@ -190,7 +190,7 @@ function modScan(text) {
   const key = (st.bannedWords || '') + '|' + st.modBotEnabled;
   if (key !== modIndexKey) {
     const extra = (st.bannedWords || '').split(',').map(w => w.trim()).filter(Boolean);
-    // Modo.js.dev coupé : seuls les mots interdits choisis par l'admin sont masqués
+    // Soldat76-Modo coupé : seuls les mots interdits choisis par l'admin sont masqués
     modIndex = st.modBotEnabled === '0' ? { map: new Map(extra.map(w => [ModBot.norm(w), 1])), phrases: [] } : ModBot.buildIndex(extra);
     modIndexKey = key;
   }
@@ -3712,15 +3712,15 @@ io.on('connection', socket => {
   });
 });
 
-// Modo.js.dev : avertit dans le salon, puis rend muet en cas de récidive
+// Soldat76-Modo : avertit dans le salon, puis rend muet en cas de récidive
 const modStrikes = new Map(); // userId -> { points, at, mutes, muteAt }
 function modBotSay(slug, content) {
-  io.to('room:' + slug).emit('message', { room: slug, id: 'mod' + now() + Math.random().toString(36).slice(2, 6), userId: 0, username: 'Modo.js.dev', color: '#ff5a6e', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: '🛡️', content, createdAt: now(), kind: 'text' });
+  io.to('room:' + slug).emit('message', { room: slug, id: 'mod' + now() + Math.random().toString(36).slice(2, 6), userId: 0, username: 'Soldat76-Modo', color: '#ff5a6e', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: '🛡️', content, createdAt: now(), kind: 'text' });
 }
 function modBotStrike(u, room, scanned) {
   const st = getSettings();
   if (st.modBotEnabled === '0') return;
-  log(null, 'modbot', `🛡️ Modo.js.dev : message de ${u.username} masqué dans « ${room.name} » (${scanned.found.join(', ')})`);
+  log(null, 'modbot', `🛡️ Soldat76-Modo : message de ${u.username} masqué dans « ${room.name} » (${scanned.found.join(', ')})`);
   if (isStaff(u)) return; // l'équipe n'est pas sanctionnée, le mot est juste masqué
   const max = Math.min(10, Math.max(1, parseInt(st.modBotWarnings, 10) || 3));
   const base = Math.min(1440, Math.max(1, parseInt(st.modBotMuteMinutes, 10) || 5));
@@ -3740,20 +3740,20 @@ function modBotStrike(u, room, scanned) {
   s.mutes++; s.muteAt = t; s.points = 0;
   const until = t + minutes * 60000;
   db.prepare('UPDATE users SET muted_until=? WHERE id=?').run(until, u.id);
-  log(null, 'mute', `🛡️ Modo.js.dev : ${u.username} rendu muet ${fmtDuration(minutes)} (langage grossier)`);
-  notify(u.id, { type: 'mute', icon: '🔇', title: `Tu es rendu muet pendant ${fmtDuration(minutes)}`, text: 'Le Modo.js.dev t\'a averti plusieurs fois pour langage grossier ou insultes.', data: { until }, important: true });
+  log(null, 'mute', `🛡️ Soldat76-Modo : ${u.username} rendu muet ${fmtDuration(minutes)} (langage grossier)`);
+  notify(u.id, { type: 'mute', icon: '🔇', title: `Tu es rendu muet pendant ${fmtDuration(minutes)}`, text: 'Le Soldat76-Modo t\'a averti plusieurs fois pour langage grossier ou insultes.', data: { until }, important: true });
   const e = online.get(u.id);
   if (e) for (const sid of e.sockets) {
     leaveVoiceBySocket(sid, null);
     if (callOfSocket.has(sid)) endCall(callOfSocket.get(sid), { by: sid, reason: 'Appel interrompu' });
   }
   modBotSay(room.slug, `🔇 ${u.username} est rendu muet pendant ${fmtDuration(minutes)} pour langage grossier. Restons respectueux 💜`);
-  emitToStaff('staff_alert', { text: `🛡️ Modo.js.dev a rendu ${u.username} muet ${fmtDuration(minutes)} (dans ${room.name})` });
+  emitToStaff('staff_alert', { text: `🛡️ Soldat76-Modo a rendu ${u.username} muet ${fmtDuration(minutes)} (dans ${room.name})` });
 }
 
 // ---------- Salon « Patch note » : le bot annonce les nouveautés (voir patchnotes.js) ----------
 const PATCH_SLUG = 'patchnote';
-const PATCH_BOT = { username: 'Patch.js.dev', color: '#7cc8ff', icon: '📝' };
+const PATCH_BOT = { username: 'Soldat76-Patch', color: '#7cc8ff', icon: '📝' };
 function patchText(n) {
   const d = new Date(n.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
   const part = (t, list) => list && list.length ? `\n\n${t}\n` + list.map(x => '• ' + x).join('\n') : '';
