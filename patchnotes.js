@@ -1342,4 +1342,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 95,
+    date: '2026-11-22',
+    title: 'Choisis le thème de ton site 🎨',
+    added: [
+      '🎨 Le bouton 🎨 en haut (avant 🌓) ouvre le choix des thèmes : 🌴 Paradise, 🌌 Galaxie, 🌊 Océan, 🌸 Sakura, 👑 Luxe noir et or, 🌋 Lave, 🍬 Bonbon, 🌲 Forêt, 💡 Néon et ☀️ Clair',
+      '✨ Chaque thème change les couleurs de tout le site (fonds, colonnes, barre du haut, boutons, bandeaux) et ajoute sa petite touche : étoiles, vagues, pétales, paillettes d\'or…',
+      '👤 Le thème est rien qu\'à toi : les autres gardent le leur. Tu peux en changer quand tu veux',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

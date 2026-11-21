@@ -6,6 +6,7 @@ for (const m of ['replaceChildren', 'append', 'prepend']) {
 // Fonctions partagées
 (function () {
   try { const t = localStorage.getItem('lc_theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  try { const k = localStorage.getItem('lc_skin'); if (k) document.documentElement.dataset.skin = k; } catch (e) {} // 🎨 le thème choisi
 })();
 // 🪪 La carte d'identité de l'appareil (pour que la modération reconnaisse un appareil banni, même avec un autre compte).
 // Elle est rangée à trois endroits (cookie, stockage local, base du navigateur) : en vider un ne suffit pas.
@@ -57,10 +58,25 @@ window.LC = {
     for (const c of children.flat()) if (c != null && c !== false) e.append(c instanceof Node ? c : document.createTextNode(String(c)));
     return e;
   },
-  toggleTheme() {
-    const cur = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = cur;
-    try { localStorage.setItem('lc_theme', cur); } catch (e) {}
+  // 🎨 Les thèmes du site : chacun change toutes les couleurs et ajoute une petite touche de décor
+  SKINS: [['', 'Paradise', '🌴', ['#0d0a1a', '#8b6cff', '#ff5fa2', '#ffb547']], ['galaxie', 'Galaxie', '🌌', ['#070618', '#7b2ff7', '#f72585', '#4fb3ff']], ['ocean', 'Océan', '🌊', ['#04121c', '#00b4d8', '#48cae4', '#90e0ef']],
+    ['sakura', 'Sakura', '🌸', ['#1a0d14', '#ff8fab', '#ffc2d1', '#fb6f92']], ['luxe', 'Luxe noir et or', '👑', ['#0a0906', '#d4af37', '#f5d77a', '#8a6a10']], ['lave', 'Lave', '🌋', ['#140604', '#ff3d00', '#ff9500', '#ffd23f']],
+    ['bonbon', 'Bonbon', '🍬', ['#160c1c', '#ff7eb9', '#7afcff', '#feff9c']], ['foret', 'Forêt', '🌲', ['#06120a', '#2bd07a', '#9be564', '#e8d27a']], ['neon', 'Néon', '💡', ['#05050a', '#00f0ff', '#ff2bd6', '#39ff14']],
+    ['clair', 'Clair', '☀️', ['#f6f3ff', '#8b6cff', '#ff5fa2', '#ffb547']]],
+  setSkin(k) {
+    const r = document.documentElement;
+    if (k === 'clair') { delete r.dataset.skin; r.dataset.theme = 'light'; } else { r.dataset.theme = 'dark'; if (k) r.dataset.skin = k; else delete r.dataset.skin; }
+    try { localStorage.setItem('lc_skin', k === 'clair' ? '' : k); localStorage.setItem('lc_theme', r.dataset.theme); } catch (e) {}
+  },
+  toggleTheme() { // le bouton 🌓 ouvre maintenant le choix des thèmes
+    const el = LC.el, r = document.documentElement, cur = r.dataset.theme === 'light' ? 'clair' : (r.dataset.skin || '');
+    document.querySelector('.skin-back')?.remove();
+    const back = el('div', { class: 'skin-back', onclick: e => { if (e.target === back) back.remove(); } });
+    const grid = el('div', { class: 'skin-grid' }, ...LC.SKINS.map(([k, name, icon, c]) => el('button', { type: 'button', class: 'skin-card' + (k === cur ? ' on' : ''), onclick: e => { const b0 = e.currentTarget; LC.setSkin(k); grid.querySelectorAll('.skin-card').forEach(b => b.classList.remove('on')); b0.classList.add('on'); } },
+      el('span', { class: 'skin-prev', style: `background:linear-gradient(135deg, ${c[0]} 0 40%, ${c[1]} 40% 60%, ${c[2]} 60% 80%, ${c[3]} 80%)` }, el('i', {}, icon)), el('b', {}, name))));
+    back.append(el('div', { class: 'skin-box' }, el('h3', {}, '🎨 Choisis ton thème'), el('p', { class: 'help' }, 'Il change les couleurs de tout le site, rien que pour toi. Tu peux en changer quand tu veux.'), grid,
+      el('button', { class: 'btn btn-primary', style: 'width:100%;margin-top:12px', onclick: () => back.remove() }, '✅ C\'est parfait')));
+    document.body.append(back);
   },
   genderLabel: g => ({ h: 'Homme', f: 'Femme', g: 'Homme', v: 'Autre', t: 'Autre', x: 'Autre' }[g] || 'Autre'),
   // 🏳️‍🌈 Les cœurs d'identité (choisis dans le profil, affichés à côté du pseudo)
@@ -131,7 +147,10 @@ window.LC = {
     const root = document.documentElement.style;
     const season = LC.SEASONS[site.theme];
     const colors = season ? season.colors : [site.colorViolet, site.colorRose, site.colorGold];
-    ['--violet', '--rose', '--gold'].forEach((v, i) => { if (colors[i]) root.setProperty(v, colors[i]); });
+    // les couleurs du site (ou de la saison) : seulement si le membre n'a pas choisi son propre thème 🎨
+    ['--violet', '--rose', '--gold'].forEach(v => root.removeProperty(v));
+    let st = document.getElementById('siteColors'); if (!st) { st = document.createElement('style'); st.id = 'siteColors'; document.head.append(st); }
+    st.textContent = ':root:not([data-skin]) {' + ['--violet', '--rose', '--gold'].map((v, i) => (colors[i] ? `${v}:${colors[i]};` : '')).join('') + '}';
     if (site.colorRoomPerm) root.setProperty('--room-perm', site.colorRoomPerm);
     if (site.colorRoomTemp) root.setProperty('--room-temp', site.colorRoomTemp);
     LC.applySeason(site.theme);

@@ -683,7 +683,7 @@ function toggleUserMenu() {
     item('🔔', 'Sons d\'arrivée (klaxon, fanfare…)', () => JoinSounds.open()),
     item('💡', 'Néons (autour du site et de « Message »)', () => SiteNeon.open()),
     item('♿', 'Accessibilité (voir, entendre, parler)', () => A11y.open()),
-    item('🌓', 'Changer le thème', () => LC.toggleTheme()),
+    item('🎨', 'Choisir un thème', () => LC.toggleTheme()),
     state.me.googleOn && !state.me.googleLinked && !state.me.isGuest ? item('🔐', 'Relier mon compte Google', () => { location.href = '/auth/google'; }) : null,
     el('div', { class: 'um-sep' }),
     item('🚪', 'Se déconnecter', askLogout, 'danger'),
