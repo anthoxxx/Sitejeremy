@@ -779,7 +779,7 @@ function meProfile(req, res) {
   const updated = getUser(u.id);
   refreshOnline(updated);
   if (!dev) celebrateBirthday(updated);
-  if (dev) log(req.devActor, 'profile_update', `💻 Profil de ${updated.username} modifié par le Développeur`);
+  if (dev) log(req.devActor, 'profile_update', `${isDevUser(req.devActor) ? '💻' : '🛡️'} Profil de ${updated.username} modifié par ${req.devActor.username}`);
   res.json({ user: selfUser(updated) });
 }
 app.put('/api/me', auth, meProfile);
@@ -882,13 +882,18 @@ function meUsername(req, res) {
 }
 app.post('/api/me/username', auth, meUsername);
 
-// 💻 Le Développeur peut modifier de A à Z le profil de n'importe quel membre (mêmes réglages que « Personnaliser mon profil »)
+// 💻🛡️ Le Développeur et le staff peuvent modifier de A à Z le profil d'un membre (mêmes réglages que « Personnaliser mon profil »).
+// Le Développeur peut modifier tout le monde ; un membre du staff seulement ceux d'un rang plus petit que le sien (le super-admin : tout le monde sauf le Développeur).
+const isDevUser = u => !!u?.is_dev && u.role === 'superadmin';
 function devTarget(req, res, next) {
-  if (!req.user?.is_dev || req.user.role !== 'superadmin') return res.status(403).json({ error: '💻 Réservé au Développeur' });
+  const a = req.user;
+  if (!isDevUser(a) && !isStaff(a)) return res.status(403).json({ error: '🛡️ Réservé au staff' });
   const t = getUser(parseInt(req.params.id, 10)); if (!t) return res.status(404).json({ error: 'Membre introuvable' });
-  req.devActor = req.user; req.user = t; next();
+  if (!isDevUser(a) && t.id !== a.id && (isDevUser(t) || (a.role !== 'superadmin' && rank(a) <= rank(t)))) return res.status(403).json({ error: `🛡️ Tu ne peux pas modifier le profil de ${t.username} (même rang ou plus haut que toi)` });
+  if (!isDevUser(a)) { delete req.body.email; } // 📧 l'e-mail reste privé : seul le Développeur le voit et le change
+  req.devActor = a; req.user = t; next();
 }
-app.get('/api/dev/users/:id', auth, devTarget, (req, res) => res.json({ user: { ...selfUser(req.user), grey: !!req.user.grey_heart } }));
+app.get('/api/dev/users/:id', auth, devTarget, (req, res) => { const u = { ...selfUser(req.user), grey: !!req.user.grey_heart }; if (!isDevUser(req.devActor)) delete u.email; res.json({ user: u }); });
 app.put('/api/dev/users/:id', auth, devTarget, (req, res) => {
   if (req.body.grey !== undefined) db.prepare('UPDATE users SET grey_heart=? WHERE id=?').run(req.body.grey ? 1 : 0, req.user.id); // 🩶 le cœur gris
   req.user = getUser(req.user.id);

@@ -93,7 +93,7 @@ async function openProfile(id) {
           ? el('button', { class: 'btn', onclick: () => { close(); unmuteUser(u); } }, '🔊 Fin de sourdine ', el('small', { 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)))
           : el('button', { class: 'btn', title: 'Ne plus voir ses messages pendant un moment', onclick: () => { close(); openMutePicker(u); } }, '🔇 Sourdine'),
         el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier'),
-        state.me.dev ? el('button', { class: 'btn dev-edit', style: 'flex-basis:100%', onclick: async () => { try { const r = await api('/api/dev/users/' + u.id); close(); openMyProfile(r.user); } catch (e) { toast(e.message); } } }, '💻 Modifier son profil (Développeur)') : null),
+        state.me.dev || (staff && !u.dev) ? el('button', { class: 'btn dev-edit', style: 'flex-basis:100%', onclick: async () => { try { const r = await api('/api/dev/users/' + u.id); close(); openMyProfile(r.user); } catch (e) { toast(e.message); } } }, state.me.dev ? '💻 Modifier son profil (Développeur)' : '🛡️ Modifier son profil (staff)') : null),
       (state.customs?.enabled ? isSuperMe() : state.customs?.media && isStaff()) && !['admin', 'superadmin', 'moderator'].includes(u.role) ? el('div', { class: 'staff-actions' }, el('h4', {}, state.customs?.enabled ? '🛂 Douane : il faut les deux badges' : '🛂 Validation de la voix et de la caméra'),
         el('div', { class: 'actions' },
           el('button', { class: 'btn ' + (u.voiceOk ? 'btn-ok' : 'btn-primary'), onclick: () => { close(); setBadge(u, 'voice', !u.voiceOk); } }, u.voiceOk ? '🎙️ Voix validée ✓ (retirer)' : '🎙️ Valider la voix'),
@@ -292,7 +292,7 @@ function openMyProfile(target) {
     f('🏳️‍🌈 Mon cœur à côté du pseudo', choice(LC.IDENTITIES.map(([v, l, h]) => [v, (h ? h + ' ' : '') + l]), 'identity'), 'Choisis ton identité : son cœur s\'affiche à côté de ton pseudo partout sur le site.'),
     f('💬 Mes phrases (jusqu\'à 12)', likesPick(), 'Elles s\'affichent sur ton profil : les autres voient tout de suite ce que tu aimes.'),
     f('Ville', city),
-    f('E-mail (privé : visible seulement par l\'administration du site)', email),
+    T && T.email === undefined ? null : f('E-mail (privé : visible seulement par l\'administration du site)', email),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher mon âge aux autres'), bind(el('input', { type: 'checkbox', checked: d.showAge !== false }), 'showAge')),
     el('label', { class: 'switch' }, el('span', {}, 'Afficher ma ville aux autres'), bind(el('input', { type: 'checkbox', checked: d.showCity !== false }), 'showCity')),
     f('🎂 Mon anniversaire', el('div', { class: 'row', style: 'gap:8px' },
@@ -313,8 +313,8 @@ function openMyProfile(target) {
   const pwCur = el('input', { class: 'input', type: 'password', placeholder: 'Mot de passe actuel', autocomplete: 'current-password' });
   const pwNew = el('input', { class: 'input', type: 'password', placeholder: 'Nouveau mot de passe (6 caractères min.)', autocomplete: 'new-password', style: 'margin-top:8px' });
   const tabAccount = T ? el('div', {},
-    el('div', { class: 'dev-zone' }, el('div', { class: 'dev-title' }, `💻 Le profil de ${T.username}`),
-      el('p', { class: 'help', style: 'margin:4px 0 10px' }, 'Tu modifies ce profil en tant que Développeur : tout ce que tu enregistres s\'applique tout de suite pour ce membre.')),
+    el('div', { class: 'dev-zone' }, el('div', { class: 'dev-title' }, `${state.me.dev ? '💻' : '🛡️'} Le profil de ${T.username}`),
+      el('p', { class: 'help', style: 'margin:4px 0 10px' }, `Tu modifies ce profil en tant que ${state.me.dev ? 'Développeur' : 'membre du staff'} : tout ce que tu enregistres s'applique tout de suite pour ce membre.`)),
     el('label', { class: 'switch' }, el('span', {}, '🩶 Cœur gris à côté du cœur rouge'), bind(el('input', { type: 'checkbox', checked: !!d.grey }), 'grey'))) : el('div', {},
     d.isGuest
       ? el('p', { class: 'help' }, '💡 Tu es invité : ton profil disparaît 24 h après ton départ. Déconnecte-toi puis inscris-toi pour garder ton pseudo et ton profil.')
@@ -349,7 +349,7 @@ function openMyProfile(target) {
     el('div', { class: 'editor' },
       preview,
       el('div', { class: 'editor-form' },
-        el('h3', { style: 'margin:0 0 14px' }, T ? `💻 Modifier le profil de ${T.username}` : '✏️ Personnaliser mon profil'),
+        el('h3', { style: 'margin:0 0 14px' }, T ? `${state.me.dev ? '💻' : '🛡️'} Modifier le profil de ${T.username}` : '✏️ Personnaliser mon profil'),
         tabBar, body, err,
         el('div', { class: 'actions editor-save' },
           el('button', { class: 'btn btn-ghost', onclick: () => close() }, 'Annuler'),
