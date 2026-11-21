@@ -263,7 +263,12 @@ const SHIELD = { perIpSignups: 4, perIpWindow: 3600000, raidSignups: 12, raidWin
 const shieldOn = () => getSettings().shieldEnabled !== '0';
 const signupLog = [];           // { ip, at, id }
 const recentNewMsgs = new Map(); // texte normalisé -> [{ uid, at, room, id }]
-let raidUntil = 0;
+// la fermeture des inscriptions est gardée dans la base : elle tient même après un redémarrage du serveur
+let raidUntil = Number(getSettings().raidUntil || 0) || 0;
+const FOREVER = 8.64e15; // « jusqu'à ce que je rouvre »
+const setRaid = t => { raidUntil = t; setSetting('raidUntil', String(t)); };
+const raidAutoMs = () => Math.max(1, Math.min(10080, Number(getSettings().raidMinutes) || 15)) * 60000; // durée de la fermeture automatique (réglable)
+const dureeTxt = ms => { const m = Math.ceil(ms / 60000); return m >= 2880 ? `${Math.round(m / 1440)} jours` : m >= 120 ? `${Math.round(m / 60)} h` : `${m} min`; };
 const ipOf = req => String(req.ip || '').replace(/^::ffff:/, '');
 const socketIp = s => String((s.handshake.headers['x-forwarded-for'] || '').split(',')[0].trim() || s.handshake.address || '').replace(/^::ffff:/, '');
 const socketsOnIp = (e, ip) => [...e.sockets].some(sid => { const so = io.sockets.sockets.get(sid); return so && socketIp(so) === ip; });
@@ -301,9 +306,10 @@ function shieldBlock(ip, reason, extraIds = [], silent = false) {
 }
 // Contrôle avant une inscription ou une connexion invité
 function shieldGate(req) {
+  if (raidUntil >= FOREVER) return '🔒 Les nouvelles inscriptions sont fermées pour le moment. Les membres peuvent se connecter normalement.';
+  if (raidUntil > now()) return `🛡️ Les nouvelles inscriptions sont fermées pour le moment : elles reprennent dans ${dureeTxt(raidUntil - now())}. Les membres peuvent se connecter normalement.`;
   if (!shieldOn()) return null;
   if (ipBlocked(ipOf(req))) return '🛡️ Accès bloqué : une activité suspecte a été détectée depuis ta connexion. Réessaie plus tard.';
-  if (raidUntil > now()) return `🛡️ Le site est protégé contre une attaque de bots : les nouvelles inscriptions reprennent dans ${Math.ceil((raidUntil - now()) / 60000)} min. Les membres peuvent se connecter normalement.`;
   return null;
 }
 // Après chaque nouveau compte : trop de comptes depuis la même connexion, ou une vague sur tout le site ?
@@ -316,9 +322,9 @@ function shieldAfterSignup(req, id) {
   if (fromIp.length >= SHIELD.perIpSignups) shieldBlock(ip, `${fromIp.length} comptes créés en moins d'une heure depuis la même connexion`, fromIp.map(x => x.id));
   const wave = signupLog.filter(x => x.at > t - SHIELD.raidWindow);
   if (wave.length >= SHIELD.raidSignups && raidUntil < t) {
-    raidUntil = t + SHIELD.raidMs;
-    log(null, 'shield', `🛡️ Mode anti-raid activé : ${wave.length} comptes créés en 3 minutes. Inscriptions fermées 15 min.`);
-    alertStaff('Bouclier : vague de faux comptes détectée', `${wave.length} comptes en 3 minutes. Les inscriptions sont fermées 15 minutes. Tu peux l'arrêter dans Admin → Réglages → Bouclier.`);
+    setRaid(t + raidAutoMs());
+    log(null, 'shield', `🛡️ Mode anti-raid activé : ${wave.length} comptes créés en 3 minutes. Inscriptions fermées ${dureeTxt(raidAutoMs())}.`);
+    alertStaff('Bouclier : vague de faux comptes détectée', `${wave.length} comptes en 3 minutes. Les inscriptions sont fermées ${dureeTxt(raidAutoMs())}. Tu peux l'arrêter dans Admin → Réglages → Bouclier.`);
   }
 }
 // Le même message envoyé par plusieurs comptes tout neufs = des bots
@@ -350,7 +356,7 @@ function shieldCheckMessage(u, room, content, msgId) {
 // Admin : état du bouclier, connexions bloquées, mode anti-raid
 app.get('/api/admin/shield', auth, requireRole('admin'), (req, res) => {
   const rows = db.prepare('SELECT * FROM blocked_ips ORDER BY created_at DESC LIMIT 100').all().filter(r => !r.until || r.until > now());
-  res.json({ enabled: shieldOn(), raidUntil: raidUntil > now() ? raidUntil : 0, blocked: rows });
+  res.json({ enabled: shieldOn(), raidUntil: raidUntil > now() ? raidUntil : 0, forever: raidUntil >= FOREVER, raidMinutes: raidAutoMs() / 60000, blocked: rows });
 });
 app.post('/api/admin/shield/unblock', auth, requireRole('admin'), (req, res) => {
   const ip = String(req.body.ip || '');
@@ -360,9 +366,13 @@ app.post('/api/admin/shield/unblock', auth, requireRole('admin'), (req, res) => 
   res.json({ ok: true, unban });
 });
 app.post('/api/admin/shield/raid', auth, requireRole('admin'), (req, res) => {
-  raidUntil = req.body.on ? now() + SHIELD.raidMs : 0;
-  log(req.user, 'shield', req.body.on ? '🛡️ Mode anti-raid activé à la main (15 min)' : '🛡️ Mode anti-raid arrêté');
-  res.json({ raidUntil });
+  // minutes : combien de temps on ferme (-1 = jusqu'à ce qu'on rouvre) ; on: false = on rouvre tout de suite
+  if (req.body.autoMinutes !== undefined) { const m = Math.max(1, Math.min(10080, parseInt(req.body.autoMinutes, 10) || 15)); setSetting('raidMinutes', String(m)); log(req.user, 'shield', `🛡️ Fermeture automatique en cas d'attaque : ${dureeTxt(m * 60000)}`); return res.json({ raidMinutes: m }); }
+  const min = parseInt(req.body.minutes, 10);
+  const until = !req.body.on ? 0 : min === -1 ? FOREVER : now() + Math.max(1, Math.min(43200, min || 15)) * 60000;
+  setRaid(until);
+  log(req.user, 'shield', !until ? '🛡️ Inscriptions rouvertes' : until >= FOREVER ? '🔒 Inscriptions fermées jusqu\'à nouvel ordre' : `🔒 Inscriptions fermées pendant ${dureeTxt(until - now())}`);
+  res.json({ raidUntil: until });
 });
 
 // =====================================================================

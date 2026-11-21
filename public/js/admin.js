@@ -500,11 +500,20 @@ function shieldPanel(toggle, vpnSel) {
     const raid = d.raidUntil > Date.now();
     box.replaceChildren(...[
       el('h3', {}, '🛡️ Bouclier anti-bots'),
-      el('p', { class: 'help' }, 'Il bloque tout seul les attaques : trop de comptes créés depuis la même connexion (4 en 1 h), une vague de faux comptes sur tout le site (12 en 3 min → inscriptions fermées 15 min), plusieurs comptes tout neufs qui envoient le même message, ou plus de 6 comptes connectés en même temps depuis la même connexion. Les comptes de l\'équipe ne sont jamais bloqués.'),
+      el('p', { class: 'help' }, 'Il bloque tout seul les attaques : trop de comptes créés depuis la même connexion (4 en 1 h), une vague de faux comptes sur tout le site (12 en 3 min → inscriptions fermées pendant la durée que tu choisis), plusieurs comptes tout neufs qui envoient le même message, ou plus de 6 comptes connectés en même temps depuis la même connexion. Les comptes de l\'équipe ne sont jamais bloqués.'),
       el('div', { class: 'switch' }, el('span', {}, '🛡️ Bouclier activé (clique ensuite sur « Enregistrer les réglages »)'), toggle),
-      el('div', { class: 'shield-raid' + (raid ? ' on' : '') },
-        el('b', {}, raid ? `🚨 Mode anti-raid ACTIF : inscriptions fermées jusqu'à ${new Date(d.raidUntil).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : '✅ Pas d\'attaque en cours'),
-        el('button', { class: 'btn btn-sm ' + (raid ? '' : 'btn-danger'), onclick: () => run(() => api('/api/admin/shield/raid', { method: 'POST', body: { on: !raid } }), raid ? 'Mode anti-raid arrêté' : 'Mode anti-raid activé (15 min)').then(load) }, raid ? 'Arrêter le mode anti-raid' : '🚨 Fermer les inscriptions 15 min')),
+      (() => { // 🔒 fermer les inscriptions : on choisit combien de temps
+        const DUR = [[15, '15 minutes'], [30, '30 minutes'], [60, '1 heure'], [120, '2 heures'], [360, '6 heures'], [720, '12 heures'], [1440, '24 heures'], [4320, '3 jours'], [10080, '7 jours'], [43200, '30 jours'], [-1, 'Jusqu\'à ce que je rouvre']];
+        const pick = el('select', { class: 'input', style: 'max-width:240px' }, ...DUR.map(([v, l]) => el('option', { value: v, selected: v === 60 }, l)));
+        const auto = el('select', { class: 'input', style: 'max-width:240px', onchange: () => run(() => api('/api/admin/shield/raid', { method: 'POST', body: { autoMinutes: auto.value } }), 'Durée enregistrée') }, ...DUR.filter(([v]) => v > 0 && v <= 10080).map(([v, l]) => el('option', { value: v, selected: v === d.raidMinutes }, l)));
+        const untilTxt = d.forever ? 'jusqu\'à ce que tu les rouvres' : `jusqu'au ${new Date(d.raidUntil).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
+        return el('div', { class: 'shield-raid' + (raid ? ' on' : '') },
+          el('b', {}, raid ? `🔒 Inscriptions FERMÉES ${untilTxt}` : '✅ Les inscriptions sont ouvertes'),
+          raid ? el('button', { class: 'btn btn-sm btn-primary', onclick: () => run(() => api('/api/admin/shield/raid', { method: 'POST', body: { on: false } }), 'Inscriptions rouvertes').then(load) }, '🔓 Rouvrir les inscriptions maintenant') : null,
+          el('div', { class: 'row', style: 'gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px' }, el('span', {}, raid ? 'Changer la durée :' : 'Fermer pendant :'), pick,
+            el('button', { class: 'btn btn-sm btn-danger', onclick: () => run(() => api('/api/admin/shield/raid', { method: 'POST', body: { on: true, minutes: pick.value } }), 'Inscriptions fermées').then(load) }, '🔒 Fermer les inscriptions')),
+          el('div', { class: 'row', style: 'gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px' }, el('small', { class: 'help', style: 'margin:0' }, '🤖 En cas d\'attaque de faux comptes, le bouclier les ferme tout seul pendant :'), auto));
+      })(),
       el('h4', {}, '🕵️ Anti-VPN'),
       el('p', { class: 'help' }, 'Repère les VPN, proxys, le réseau Tor et les serveurs loués (d\'où viennent la plupart des bots). En mode « Bloquer », on ne peut pas créer de compte ni entrer en invité avec un VPN ; les membres déjà inscrits qui utilisent un VPN sont signalés à l\'équipe. Pour un membre de confiance : ouvre son profil → « 🕵️ Autoriser son VPN ».'),
       el('div', { class: 'switch' }, el('span', {}, '🕵️ Anti-VPN (clique ensuite sur « Enregistrer les réglages »)'), vpnSel),
