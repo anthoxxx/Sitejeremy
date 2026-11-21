@@ -136,7 +136,7 @@ function publicUser(u) {
 function selfUser(u) {
   return { ...publicUser(u), age: u.age, city: u.city, showAge: u.show_age !== 0, showCity: u.show_city !== 0,
     birthDay: u.birth_day || 0, birthMonth: u.birth_month || 0, showBirthday: u.show_birthday !== 0, mutedUntil: u.muted_until > Date.now() ? u.muted_until : 0, avatarPending: u.avatar_pending || '',
-    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', joinSound: u.join_sound || 'ding', googleLinked: !!u.google_id, perks: hasPerks(u), canBlack: canBlack(u), presence: u.presence || 'auto', canDev: u.role === 'superadmin' && canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
+    email: u.email || '', coins: u.coins || 0, owned: Coins.owned(u.id), shopEntry: u.shop_entry || '', joinSound: u.join_sound || 'ding', googleLinked: !!u.google_id, perks: hasPerks(u), canBlack: canBlack(u), presence: u.presence || 'auto', canDev: canDev(u), googleOn: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) };
 }
 function adminUser(u) {
   const linked = u.is_guest ? 0 : db.prepare("SELECT COUNT(*) c FROM users WHERE id<>? AND is_guest=0 AND ((device_id<>'' AND device_id=?) OR (signup_ip<>'' AND signup_ip=?))").get(u.id, u.device_id || '', u.signup_ip || '').c;
@@ -939,7 +939,7 @@ app.post('/api/me/username', auth, meUsername);
 
 // 💻🛡️ Le Développeur et le staff peuvent modifier de A à Z le profil d'un membre (mêmes réglages que « Personnaliser mon profil »).
 // Le Développeur peut modifier tout le monde ; un membre du staff seulement ceux d'un rang plus petit que le sien (le super-admin : tout le monde sauf le Développeur).
-const isDevUser = u => !!u?.is_dev && u.role === 'superadmin';
+const isDevUser = u => !!u?.is_dev && !!devOwner() && u.id === devOwner(); // seul le créateur du site
 function devTarget(req, res, next) {
   const a = req.user;
   if (!isDevUser(a) && !isStaff(a)) return res.status(403).json({ error: '🛡️ Réservé au staff' });
@@ -948,8 +948,12 @@ function devTarget(req, res, next) {
   if (!isDevUser(a)) { delete req.body.email; } // 📧 l'e-mail reste privé : seul le Développeur le voit et le change
   req.devActor = a; req.user = t; next();
 }
-app.get('/api/dev/users/:id', auth, devTarget, (req, res) => { const u = { ...selfUser(req.user), grey: !!req.user.grey_heart }; if (!isDevUser(req.devActor)) delete u.email; res.json({ user: u }); });
+app.get('/api/dev/users/:id', auth, devTarget, (req, res) => { const u = { ...selfUser(req.user), grey: !!req.user.grey_heart, level: require('./progress').levelOf(req.user.xp || 0).level }; if (!isDevUser(req.devActor)) delete u.email; res.json({ user: u }); });
 app.put('/api/dev/users/:id', auth, devTarget, (req, res) => {
+  if (req.body.level !== undefined && isDevUser(req.devActor)) { // ⭐ le niveau (on donne les points d'expérience de ce niveau)
+    const L = Math.max(1, Math.min(999, parseInt(req.body.level, 10) || 1)), xp = 100 * (L - 1) + 25 * (L - 1) * (L - 2);
+    if (require('./progress').levelOf(req.user.xp || 0).level !== L) { db.prepare('UPDATE users SET xp=? WHERE id=?').run(xp, req.user.id); log(req.devActor, 'profile_update', `⭐ ${req.user.username} passe au niveau ${L}`); }
+  }
   if (req.body.grey !== undefined) db.prepare('UPDATE users SET grey_heart=? WHERE id=?').run(req.body.grey ? 1 : 0, req.user.id); // 🩶 le cœur gris
   req.user = getUser(req.user.id);
   meProfile(req, res);
@@ -968,7 +972,16 @@ app.post('/api/admin/users/:id/grey', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// 💻 Le rôle Développeur : verrouillé pour toujours sur le premier super-admin qui l'active (le créateur du site)
+// 💻 Le rôle Développeur : verrouillé pour toujours sur le créateur du site, Lesoldat76-dev (personne d'autre ne peut l'avoir)
+const DEV_OWNER = process.env.DEV_OWNER || 'Lesoldat76-dev';
+{
+  const o = db.prepare('SELECT id FROM users WHERE lower(username)=lower(?)').get(DEV_OWNER);
+  if (o) {
+    db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(o.id));
+    db.prepare('UPDATE users SET is_dev=0 WHERE is_dev=1 AND id<>?').run(o.id);
+    db.prepare('UPDATE users SET is_dev=1 WHERE id=?').run(o.id);
+  }
+}
 function devOwner() {
   const r = db.prepare("SELECT value FROM settings WHERE key='devOwner'").get();
   if (r) return Number(r.value) || 0;
@@ -976,10 +989,9 @@ function devOwner() {
   if (cur) { db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(cur.id)); return cur.id; }
   return 0;
 }
-const canDev = u => !!u && u.role === 'superadmin' && (!devOwner() || devOwner() === u.id);
+const canDev = u => !!u && !!devOwner() && devOwner() === u.id;
 app.post('/api/me/dev', auth, (req, res) => {
   const u = req.user;
-  if (u.role !== 'superadmin') return res.status(403).json({ error: 'Réservé au super-admin' });
   if (!canDev(u)) return res.status(403).json({ error: '🔒 Le rôle Développeur est verrouillé : il appartient au créateur du site' });
   const on = !!req.body.on;
   if (!devOwner()) db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devOwner',?)").run(String(u.id));

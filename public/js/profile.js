@@ -315,7 +315,8 @@ function openMyProfile(target) {
   const tabAccount = T ? el('div', {},
     el('div', { class: 'dev-zone' }, el('div', { class: 'dev-title' }, `${state.me.dev ? '💻' : '🛡️'} Le profil de ${T.username}`),
       el('p', { class: 'help', style: 'margin:4px 0 10px' }, `Tu modifies ce profil en tant que ${state.me.dev ? 'Développeur' : 'membre du staff'} : tout ce que tu enregistres s'applique tout de suite pour ce membre.`)),
-    el('label', { class: 'switch' }, el('span', {}, '🩶 Cœur gris à côté du cœur rouge'), bind(el('input', { type: 'checkbox', checked: !!d.grey }), 'grey'))) : el('div', {},
+    el('label', { class: 'switch' }, el('span', {}, '🩶 Cœur gris à côté du cœur rouge'), bind(el('input', { type: 'checkbox', checked: !!d.grey }), 'grey')),
+    state.me.dev ? f('⭐ Son niveau', bind(el('input', { class: 'input', type: 'number', min: 1, max: 999, value: d.level || 1, style: 'max-width:120px' }), 'level', v => parseInt(v, 10) || 1), 'Tu choisis son niveau directement (de 1 à 999). Il continue ensuite à monter normalement.') : null) : el('div', {},
     d.isGuest
       ? el('p', { class: 'help' }, '💡 Tu es invité : ton profil disparaît 24 h après ton départ. Déconnecte-toi puis inscris-toi pour garder ton pseudo et ton profil.')
       : el('div', {}, f('🔐 Changer de mot de passe', el('div', {}, pwCur, pwNew)),
@@ -356,7 +357,7 @@ function openMyProfile(target) {
           el('button', { class: 'btn btn-primary', onclick: async () => {
             err.textContent = '';
             try {
-              const { user } = await api(base, { method: 'PUT', body: { ...(T ? { grey: !!d.grey } : {}),
+              const { user } = await api(base, { method: 'PUT', body: { ...(T ? { grey: !!d.grey, ...(state.me.dev ? { level: d.level } : {}) } : {}),
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
                 nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', nameRing: d.nameRing || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
