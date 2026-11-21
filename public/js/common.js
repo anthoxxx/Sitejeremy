@@ -7,11 +7,36 @@ for (const m of ['replaceChildren', 'append', 'prepend']) {
 (function () {
   try { const t = localStorage.getItem('lc_theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 })();
+// 🪪 La carte d'identité de l'appareil (pour que la modération reconnaisse un appareil banni, même avec un autre compte).
+// Elle est rangée à trois endroits (cookie, stockage local, base du navigateur) : en vider un ne suffit pas.
+window.LC_DEV = (() => {
+  const ok = v => /^[a-f0-9]{32}$/.test(v || '');
+  const fromCookie = () => (document.cookie.match(/(?:^|; )lc_pid=([a-f0-9]{32})/) || [])[1];
+  let pid = null; try { pid = localStorage.getItem('lc_pid'); } catch (e) {}
+  if (!ok(pid)) pid = fromCookie();
+  const save = v => { try { localStorage.setItem('lc_pid', v); } catch (e) {} document.cookie = `lc_pid=${v}; max-age=${5 * 365 * 86400}; path=/; samesite=lax`;
+    try { const r = indexedDB.open('lc_id', 1); r.onupgradeneeded = () => r.result.createObjectStore('k'); r.onsuccess = () => { try { r.result.transaction('k', 'readwrite').objectStore('k').put(v, 'pid'); } catch (e) {} }; } catch (e) {} };
+  if (!ok(pid)) { // on regarde aussi dans la base du navigateur avant d'en créer une nouvelle
+    pid = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+    try { const r = indexedDB.open('lc_id', 1); r.onupgradeneeded = () => r.result.createObjectStore('k'); r.onsuccess = () => { try { const q = r.result.transaction('k').objectStore('k').get('pid'); q.onsuccess = () => { if (ok(q.result)) { info.pid = q.result; save(q.result); } }; } catch (e) {} }; } catch (e) {}
+  }
+  save(pid);
+  // l'empreinte de l'appareil (écran, carte graphique, langue…) : un simple indice, jamais une preuve
+  let fp = '';
+  try {
+    const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 220; c.height = 30; g.textBaseline = 'top'; g.font = '16px Arial'; g.fillStyle = '#f60'; g.fillRect(100, 1, 62, 20); g.fillStyle = '#069'; g.fillText('Paradise 💜 ÀÉ', 2, 4);
+    const gl = document.createElement('canvas').getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    const parts = [c.toDataURL(), ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '', screen.width + 'x' + screen.height + 'x' + screen.colorDepth, devicePixelRatio, Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language, navigator.platform, navigator.hardwareConcurrency, navigator.deviceMemory || ''].join('|');
+    let h1 = 0x811c9dc5, h2 = 0x1505; for (let i = 0; i < parts.length; i++) { const k = parts.charCodeAt(i); h1 = Math.imul(h1 ^ k, 16777619) >>> 0; h2 = (Math.imul(h2, 33) + k) >>> 0; }
+    fp = h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+  } catch (e) {}
+  const info = { pid, fp }; return info;
+})();
 window.LC = {
   async api(url, opts = {}) {
     const res = await fetch(url, {
       method: opts.method || 'GET',
-      headers: opts.body ? { 'Content-Type': 'application/json' } : {},
+      headers: { ...(opts.body ? { 'Content-Type': 'application/json' } : {}), 'X-LC-Pid': LC_DEV.pid, 'X-LC-Fp': LC_DEV.fp },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       credentials: 'same-origin',
     });
@@ -297,12 +322,23 @@ window.LC = {
     const durField = el('div', { class: 'field hidden' }, el('label', {}, 'Durée'), duration);
     const reason = el('textarea', { class: 'input', rows: 3, maxlength: 200, placeholder: 'Explique pourquoi (la personne le verra)' });
     const err = el('div', { class: 'error' });
+    // 🔗 bannir aussi tous ses appareils (PC, téléphone, tablette…) et ses autres comptes sur ces appareils
+    const every = el('input', { type: 'checkbox', checked: true });
+    const linkInfo = el('small', { class: 'help', style: 'display:block;margin-top:4px' }, '⏳ Recherche de ses appareils…');
+    const everyField = el('div', { class: 'field hidden ban-every' }, el('label', { class: 'switch', style: 'margin:0' }, el('span', {}, '🔗 Bannir aussi tous ses appareils (PC, téléphone, tablette…) et ses autres comptes sur ces appareils'), every), linkInfo);
+    LC.api(`/api/admin/users/${u.id}/links`).then(l => {
+      const acc = l.accounts.filter(a => a.strong), weak = l.accounts.filter(a => !a.strong);
+      linkInfo.replaceChildren(`📱 ${l.devices} appareil${l.devices > 1 ? 's' : ''} · 🌐 ${l.ips.length} connexion${l.ips.length > 1 ? 's' : ''}`,
+        acc.length ? el('div', {}, '👥 Autres comptes sur ses appareils (bannis aussi) : ', el('b', {}, acc.map(a => a.username + (a.banned ? ' ⛔' : '')).join(', '))) : null,
+        weak.length ? el('div', {}, '🌐 Même connexion seulement (pas bannis, peut-être sa famille ou le même wifi) : ', weak.map(a => a.username).join(', ')) : null);
+    }).catch(() => linkInfo.textContent = '');
     const typeRow = el('div', { class: 'choice-row' });
     const drawTypes = () => {
       typeRow.replaceChildren(...TYPES.map(([v, l]) => el('button', { type: 'button', class: 'choice' + (type === v ? ' active' : ''), onclick: () => { type = v; drawTypes(); } }, l)));
       // Les modérateurs n'ont pas le choix de la durée (sauf pour le muet)
       const show = type === 'mute' || (!isMod && CHOICES[type]);
       durField.classList.toggle('hidden', !show);
+      everyField.classList.toggle('hidden', type !== 'ban');
       if (show) duration.replaceChildren(...CHOICES[type].map(([v, l], i) => el('option', { value: v, selected: type === 'mute' ? v === 15 : i === 0 }, l)));
     };
     drawTypes();
@@ -312,6 +348,7 @@ window.LC = {
       isMod ? el('p', { class: 'help', style: 'margin:-4px 0 10px' }, `Tu es ${L.label} : les durées de ton niveau s'appliquent.`) : null,
       el('div', { class: 'field' }, el('label', {}, 'Type de sanction'), typeRow),
       durField,
+      everyField,
       el('div', { class: 'field' }, el('label', {}, 'Raison'),
         el('div', { class: 'choice-row', style: 'margin-bottom:8px' }, ...QUICK.map(q => el('button', { type: 'button', class: 'choice', onclick: () => { reason.value = q; } }, q))),
         reason),
@@ -329,10 +366,11 @@ window.LC = {
             else {
               const min = isMod ? L[type] : parseInt(duration.value, 10);
               if (type === 'ban' && !confirm(`Bannir ${u.username} ${min ? 'pendant ' + LC.dur(min) : 'définitivement'} ?`)) return;
-              await LC.api(`/api/admin/users/${u.id}/sanction`, { method: 'POST', body: { type, minutes: min, reason: r } });
+              var res = await LC.api(`/api/admin/users/${u.id}/sanction`, { method: 'POST', body: { type, minutes: min, reason: r, everywhere: type === 'ban' ? every.checked : false } });
             }
             back.remove();
-            say(`✅ Sanction appliquée à ${u.username} (notifié)`);
+            const ev = typeof res !== 'undefined' && res?.everywhere;
+            say(`✅ Sanction appliquée à ${u.username} (notifié)` + (ev ? ` · 🔗 ${ev.devices} appareil(s) et ${ev.ips} connexion(s) bannis${ev.accounts.length ? ', + ' + ev.accounts.join(', ') : ''}` : ''));
             onDone && onDone(type);
           } catch (e) { err.textContent = e.message; }
         } }, 'Appliquer la sanction'))));

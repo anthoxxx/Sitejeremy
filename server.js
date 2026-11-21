@@ -231,11 +231,24 @@ function banBlock(u) {
   return `Tu es ${word}${until}${u.ban_reason ? ' : ' + u.ban_reason : ''}`;
 }
 
+// 🔗 les appareils de chaque compte (pour bannir quelqu'un sur tous ses appareils et repérer ses nouveaux comptes)
+const Ident = require('./ident')({ db, getUser: id => getUser(id), isStaff: u => isStaff(u), log: (...a) => log(...a), alert: (t, x) => alertStaff(t, x),
+  onBan: id => { db.prepare('DELETE FROM sessions WHERE user_id=?').run(id); try { disconnectUser(id, 'banned', 'Cet appareil est banni du site'); } catch (e) {} } });
+const identSeen = new Map();
+function identGate(req, u) { // une fois toutes les 5 minutes par compte et par appareil
+  const c = Ident.fromReq(req), k = u.id + c.dev + c.pid + c.ip, t = Date.now();
+  if (t - (identSeen.get(k) || 0) < 5 * 60000) return null;
+  identSeen.set(k, t); if (identSeen.size > 30000) identSeen.clear();
+  const ev = Ident.evade(c, u, 'site'); if (ev) return ev;
+  Ident.trace(u.id, c); Ident.hint(c, u); return null;
+}
 function auth(req, res, next) {
   const u = userFromToken(req.cookies[COOKIE]);
   if (!u) return res.status(401).json({ error: 'Non connecté' });
   const block = banBlock(u);
   if (block) return res.status(403).json({ error: block });
+  const ev = identGate(req, u);
+  if (ev) return res.status(403).json({ error: ev });
   req.user = u;
   next();
 }
@@ -594,6 +607,8 @@ app.get('/auth/google/callback', async (req, res) => {
     const known = db.prepare('SELECT * FROM users WHERE google_id=?').get(sub);
     if (known) {
       if (banBlock(known)) return res.redirect('/?google=banned');
+      if (Ident.evade(Ident.fromReq(req), known, 'connexion Google')) return res.redirect('/?google=banned');
+      Ident.trace(known.id, Ident.fromReq(req));
       createSession(res, known.id);
       log(known, 'login', 'Connexion avec Google', { ip: req.ip });
       return res.redirect('/chat');
@@ -621,6 +636,7 @@ app.post('/api/register/google', vpnGuard, (req, res) => {
   if (!pend) return res.status(400).json({ error: 'La connexion Google a expiré : clique à nouveau sur « Continuer avec Google »' });
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
+  { const ev = Ident.evade(Ident.fromReq(req), null, 'inscription'); if (ev) return res.status(403).json({ error: ev }); }
   if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   if (db.prepare('SELECT 1 FROM users WHERE google_id=?').get(pend.sub)) return res.status(409).json({ error: 'Ce compte Google a déjà un compte sur le site : connecte-toi avec Google' });
   const username = clean(req.body.username, 20);
@@ -642,6 +658,7 @@ app.post('/api/register/google', vpnGuard, (req, res) => {
   res.clearCookie('lc_gpend');
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  { const c = Ident.fromReq(req); Ident.trace(info.lastInsertRowid, c); Ident.hint(c, getUser(info.lastInsertRowid)); }
   shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre (Google) : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
   log(getUser(info.lastInsertRowid), 'register', `Inscription avec Google (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
@@ -653,6 +670,7 @@ app.post('/api/register', vpnGuard, (req, res) => {
   const s = getSettings();
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
+  { const ev = Ident.evade(Ident.fromReq(req), null, 'inscription'); if (ev) return res.status(403).json({ error: ev }); }
   if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   const password = String(req.body.password || '');
@@ -682,6 +700,7 @@ app.post('/api/register', vpnGuard, (req, res) => {
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   if (email) db.prepare('UPDATE users SET email=? WHERE id=?').run(email, info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  { const c = Ident.fromReq(req); Ident.trace(info.lastInsertRowid, c); Ident.hint(c, getUser(info.lastInsertRowid)); }
   shieldAfterSignup(req, info.lastInsertRowid);
   for (const a of db.prepare("SELECT id FROM users WHERE role IN ('admin','superadmin') AND id<>?").all(info.lastInsertRowid)) notify(a.id, { type: 'new_member', icon: '🆕', title: `Nouveau membre : ${username}`, text: `${parseInt(req.body.age, 10)} ans${req.body.city ? ' · ' + clean(req.body.city, 40) : ''}`, data: { userId: info.lastInsertRowid } });
   log(getUser(info.lastInsertRowid), 'register', `Inscription (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans${req.body.city ? ', ' + clean(req.body.city, 40) : ''})`, { ip: req.ip });
@@ -700,6 +719,7 @@ app.post('/api/login', (req, res) => {
   }
   const block = banBlock(u);
   if (block) return res.status(403).json({ error: block });
+  { const c = Ident.fromReq(req), ev = Ident.evade(c, u, 'connexion'); if (ev) return res.status(403).json({ error: ev }); Ident.trace(u.id, c); Ident.hint(c, u); }
   // Le pseudo indiqué dans ADMIN_USER (réglage du serveur) redevient super-admin à la connexion
   if (process.env.ADMIN_USER && process.env.ADMIN_USER.toLowerCase() === u.username.toLowerCase() && u.role !== 'superadmin') {
     db.prepare("UPDATE users SET role='superadmin', verified=1 WHERE id=?").run(u.id);
@@ -714,6 +734,7 @@ app.post('/api/guest', vpnGuard, (req, res) => {
   const s = getSettings();
   return res.status(403).json({ error: 'Le mode invité n\'existe plus : crée ton compte en quelques secondes (ou continue avec Google) !' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
+  { const ev = Ident.evade(Ident.fromReq(req), null, 'inscription'); if (ev) return res.status(403).json({ error: ev }); }
   if (tooMany('guest:' + req.ip, 20)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
   const username = clean(req.body.username, 20);
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
@@ -733,6 +754,7 @@ app.post('/api/guest', vpnGuard, (req, res) => {
     genderColor(req.body.gender), now(), now(), ipOf(req));
   if (!customsOn()) db.prepare('UPDATE users SET verified=1 WHERE id=?').run(info.lastInsertRowid);
   createSession(res, info.lastInsertRowid);
+  { const c = Ident.fromReq(req); Ident.trace(info.lastInsertRowid, c); Ident.hint(c, getUser(info.lastInsertRowid)); }
   shieldAfterSignup(req, info.lastInsertRowid);
   log(getUser(info.lastInsertRowid), 'guest', `Entrée en invité (${GENDER_FR[req.body.gender] || 'Autre'}, ${parseInt(req.body.age, 10)} ans)`, { ip: req.ip });
   res.json({ user: publicUser(getUser(info.lastInsertRowid)) });
@@ -2241,6 +2263,7 @@ admin.patch('/users/:id', (req, res) => {
     if (banned && !isAdminRole(req.user)) return res.status(403).json({ error: 'Les modérateurs sanctionnent avec les durées de leur niveau' });
     const reason = clean(req.body.banReason, 200);
     db.prepare("UPDATE users SET banned=?, ban_reason=?, ban_until=0, ban_kind='ban' WHERE id=?").run(banned, banned ? reason : '', target.id);
+    if (banned) Ident.banEverywhere(getUser(target.id), 0, reason, req.user); else Ident.unbanEverywhere(target, req.user); // 🔗 tous ses appareils
     log(req.user, banned ? 'ban' : 'unban', `${target.username}${reason ? ' : ' + reason : ''}`);
     if (banned) {
       notify(target.id, { type: 'ban', icon: '⛔', title: 'Tu as été banni du chat', text: reasonText(reason), important: true });
@@ -2276,6 +2299,12 @@ admin.post('/users/:id/mute', (req, res) => {
   res.json({ ok: true });
 });
 
+admin.get('/users/:id/links', (req, res) => {
+  const target = getUser(req.params.id); if (!target) return res.status(404).json({ error: 'Introuvable' });
+  const l = Ident.links(target.id);
+  if (!isAdminRole(req.user)) l.ips = l.ips.map(x => ({ ...x, ip: x.ip.replace(/[\d]+$/, '•••') })); // les modérateurs ne voient pas les adresses complètes
+  res.json(l);
+});
 admin.post('/users/:id/warn', (req, res) => {
   const target = getUser(req.params.id);
   if (!canModerate(req.user, target)) return res.status(403).json({ error: 'Action non autorisée' });
@@ -2317,14 +2346,15 @@ admin.post('/users/:id/sanction', (req, res) => {
   }
   const until = minutes ? now() + minutes * 60000 : 0;
   db.prepare('UPDATE users SET banned=1, ban_until=?, ban_kind=?, ban_reason=? WHERE id=?').run(until, type, reason, target.id);
+  const everywhere = type === 'ban' && req.body.everywhere !== false ? Ident.banEverywhere(getUser(target.id), until, reason, req.user) : null; // 🔗 tous ses appareils
   const dur = minutes ? fmtDuration(minutes) : 'définitivement';
   log(req.user, type === 'ban' ? 'ban' : 'kick', `${target.username} ${word} ${dur}${reason ? ' : ' + reason : ''}`);
   const icon = { kick: '👢', exclusion: '🚪', ban: '⛔' }[type];
   notify(target.id, { type: type === 'ban' ? 'ban' : 'kick', icon, title: `Tu as été ${word} ${minutes ? 'pour ' + dur : dur}`, text: `${reasonText(reason)}${until ? ' Tu pourras revenir le ' + new Date(until).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) + '.' : ''}`, important: true });
   db.prepare('DELETE FROM sessions WHERE user_id=?').run(target.id);
   disconnectUser(target.id, type === 'ban' ? 'banned' : 'kicked', banBlock(getUser(target.id)) || `Tu as été ${word}`);
-  emitToStaff('staff_alert', { text: `${icon} ${target.username} ${word} ${dur} par ${displayName(req.user)}` });
-  res.json({ ok: true, minutes });
+  emitToStaff('staff_alert', { text: `${icon} ${target.username} ${word} ${dur} par ${displayName(req.user)}` + (everywhere ? ` · 🔗 ${everywhere.devices} appareil(s), ${everywhere.ips} connexion(s)${everywhere.accounts.length ? ', + ' + everywhere.accounts.join(', ') : ''}` : '') });
+  res.json({ ok: true, minutes, everywhere });
 });
 
 admin.post('/users/:id/kick', (req, res) => {
@@ -3101,6 +3131,7 @@ io.use((socket, next) => {
     for (const e of online.values()) if (!isStaff(e.user) && socketsOnIp(e, ip)) same.add(e.user.id);
     if (same.size > SHIELD.perIpOnline) { shieldBlock(ip, `${same.size} comptes connectés en même temps depuis la même connexion`, [...same]); return next(new Error('banned')); }
   }
+  { const c = Ident.fromSocket(socket, socketIp(socket)); if (Ident.evade(c, u, 'chat')) return next(new Error('banned')); Ident.trace(u.id, c); }
   socket.data.userId = u.id;
   vpnCheckSocket(u, socketIp(socket)).catch(() => {});
   next();

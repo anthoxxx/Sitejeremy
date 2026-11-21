@@ -849,7 +849,7 @@ $('emojiBtn').onclick = () => { const p = $('emojiPanel'); const opening = p.cla
 document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #emojiBtn')) $('emojiPanel').classList.add('hidden'); });
 
 // ---------- Socket ----------
-const socket = io();
+const socket = io({ auth: { pid: window.LC_DEV?.pid || '', fp: window.LC_DEV?.fp || '' } });
 // Nouvelle version du site en ligne : on recharge la page tout seul (après un court message)
 let myBuild = null;
 socket.on('build', b => {
