@@ -13,9 +13,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="/js/common.js"></script>
+  <script src="/js/perf.js"></script>
 </head>
 <body>
 <div class="landing">
+  <div class="home-bg" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <header class="topnav">
     <a href="/" class="logo"><img src="/img/logo-mark.webp?v=3" alt=""><span class="word">The <span>Paradise</span></span></a>
     <nav>
@@ -89,6 +91,29 @@
       </form>
     </div>
     </div>
+  </section>
+
+  <!-- ✨ Vitrine : en ce moment, et ce qui t'attend sur le Paradise -->
+  <section class="home-live hidden" id="homeLive">
+    <div class="hl-title"><span class="dot"></span> En ce moment sur le Paradise</div>
+    <div class="hl-track"><div class="hl-row" id="homeLiveRow"></div></div>
+  </section>
+
+  <section class="showcase">
+    <h2 class="sc-title">Bien plus qu'un chat ✨</h2>
+    <p class="sc-lead">Des salons à thème, une vraie ville en 3D, des jeux, ta maison, ta boutique… Voici ce qui t'attend.</p>
+    <div class="sc-grid">
+      <article class="sc-card big"><img src="/img/home/ville.jpg" alt="La Ville du Paradise en 3D" loading="lazy" width="720" height="337"><div class="sc-text"><b>🏙️ Une vraie ville en 3D</b><span>Promène-toi avec ton personnage, entre dans les lieux, croise les autres membres et parle avec eux.</span></div></article>
+      <article class="sc-card"><img src="/img/home/voiture.jpg" alt="Conduire une voiture de sport" loading="lazy" width="720" height="337"><div class="sc-text"><b>🏎️ Prends le volant</b><span>Des voitures de sport roulent dans les rues… et tu peux conduire la tienne.</span></div></article>
+      <article class="sc-card"><img src="/img/home/laser.jpg" alt="Le Laser Game en 3D" loading="lazy" width="720" height="337"><div class="sc-text"><b>🔫 Laser Game en 3D</b><span>Rouges contre Bleus, 3 cartes, entre amis ou contre les soldats du Paradise.</span></div></article>
+      <article class="sc-card tall"><img src="/img/home/salons.jpg" alt="Les salons à thème" loading="lazy" width="720" height="444"><div class="sc-text"><b>🌌 Chaque salon a son univers</b><span>Jeux vidéo, rencontres, musique, 40 ans et +… des décors néon et des animations partout.</span></div></article>
+      <article class="sc-card tall"><img src="/img/home/boutique.jpg" alt="La boutique" loading="lazy" width="480" height="603"><div class="sc-text"><b>🛍️ Plus de 120 objets</b><span>Cadres photo, pseudos en or ou en feu, badges, entrées en scène… avec les pièces que tu gagnes.</span></div></article>
+      <article class="sc-card"><img src="/img/home/cuisine.jpg" alt="Le salon Cuisine" loading="lazy" width="720" height="196"><div class="sc-text"><b>👨‍🍳 Le salon Cuisine</b><span>Une recette du jour et des ustensiles néon qui se balancent.</span></div></article>
+    </div>
+    <div class="sc-chips">
+      <span>🎤 Karaoké</span><span>🎵 Musique ensemble</span><span>📺 TV du monde</span><span>🎡 La Roue</span><span>🎩 Blind Test</span><span>🏔️ Le Sommet</span><span>🏠 Ta maison</span><span>🐶 Ton animal</span><span>🌦️ Météo en direct</span><span>📹 Appels vidéo</span><span>💌 Messages privés</span><span>🛡️ Modération active</span>
+    </div>
+    <a class="btn btn-primary sc-cta" href="#authCard" onclick="document.getElementById('authCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); return false;">🚀 Rejoins-nous, c'est gratuit !</a>
   </section>
 
   <section class="features">
@@ -229,6 +254,14 @@
     if (s.googleLogin) document.querySelectorAll('.google-btn, .or-sep').forEach(e => e.classList.remove('hidden'));
     // 🔒 inscription seulement avec Google : on ne garde que le bouton Google
     if (s.googleOnly) { const f = document.getElementById('form-register'); [...f.children].forEach(c => { if (!c.classList.contains('google-btn')) c.classList.add('hidden'); }); f.querySelectorAll('input').forEach(i => { i.required = false; }); f.prepend(Object.assign(document.createElement('p'), { className: 'google-only', textContent: '🔒 Pour la sécurité de tout le monde, on s\'inscrit avec son compte Google : un clic, et il ne reste qu\'à choisir ton pseudo !' })); }
+  }).catch(() => {});
+  // 🟢 les membres connectés qui défilent
+  fetch('/api/home/live').then(r => r.json()).then(({ list }) => {
+    if (!list || !list.length) return;
+    const row = document.getElementById('homeLiveRow'), items = list.length < 8 ? [...list, ...list, ...list] : list;
+    for (const u of [...items, ...items]) row.append(LC.el('span', { class: 'hl-u' }, LC.avatar ? LC.avatar(u) : '', LC.el('b', { style: 'color:' + (u.color || '#c3b8ff') }, u.username)));
+    row.style.animationDuration = Math.max(18, items.length * 2.6) + 's';
+    document.getElementById('homeLive').classList.remove('hidden');
   }).catch(() => {});
 </script>
 </body>

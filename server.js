@@ -1101,6 +1101,12 @@ function celebrateBirthday(u) {
   log(u, 'birthday', `🎂 Anniversaire de ${u.username} fêté sur le site`);
 }
 
+// 🟢 la page d'accueil montre quelques membres connectés (pseudo, couleur et photo seulement ; jamais les invisibles)
+app.get('/api/home/live', (req, res) => {
+  const list = [...online.values()].filter(e => !e.ghost && e.user && !e.user.is_guest && !e.user.banned).slice(0, 30)
+    .map(e => ({ username: e.user.username, color: e.user.color, gender: e.user.gender, avatar: e.user.avatar || '', frame: e.user.avatar_frame || 'none' }));
+  res.set('Cache-Control', 'no-store').json({ list });
+});
 app.get('/api/stats', (req, res) => {
   res.json({
     online: [...online.values()].filter(e => !e.ghost).length,

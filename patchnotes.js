@@ -1329,4 +1329,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 94,
+    date: '2026-11-21',
+    title: 'Une nouvelle page d\'accueil ✨',
+    added: [
+      '✨ Un fond de couleurs qui bougent doucement derrière toute la page d\'accueil',
+      '🟢 « En ce moment sur le Paradise » : les membres connectés défilent sur la page d\'accueil',
+      '🖼️ Une vitrine en images de tout ce qui t\'attend : la Ville 3D, les voitures, le Laser Game, les salons à thème, la Cuisine et la boutique',
+      '🚀 Un grand bouton « Rejoins-nous » pour s\'inscrire en un clic',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
