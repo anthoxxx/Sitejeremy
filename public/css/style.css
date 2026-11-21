@@ -4003,3 +4003,67 @@ body { background:
 @keyframes ctGlow { 50% { box-shadow: 0 0 12px var(--ct); } }
 .lite .coin-tier { animation: none !important; }
 .google-only { margin: 4px 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(66,133,244,.12); border: 1px solid rgba(66,133,244,.35); font-size: .9rem; line-height: 1.4; text-align: center; }
+
+/* ---------- 🌌 Un univers par salon ---------- */
+.main.universe > *:not(.uv-fx):not(.room-bg) { position: relative; z-index: 1; }
+.main.universe[data-uvbg] { background-color: var(--bg); }
+.main.universe[data-uvbg=aurora] { background: radial-gradient(ellipse at 15% 10%, color-mix(in srgb, var(--u1) 22%, transparent), transparent 50%), radial-gradient(ellipse at 85% 20%, color-mix(in srgb, var(--u3) 18%, transparent), transparent 50%), radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--u2) 16%, transparent), transparent 55%), var(--bg); }
+.main.universe[data-uvbg=grid] { background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--u1) 20%, transparent), transparent 55%), linear-gradient(color-mix(in srgb, var(--u2) 7%, transparent) 1px, transparent 1px) 0 0/34px 34px, linear-gradient(90deg, color-mix(in srgb, var(--u2) 7%, transparent) 1px, transparent 1px) 0 0/34px 34px, var(--bg); }
+.main.universe[data-uvbg=love] { background: radial-gradient(ellipse at 20% 15%, color-mix(in srgb, var(--u1) 24%, transparent), transparent 50%), radial-gradient(ellipse at 80% 80%, color-mix(in srgb, var(--u2) 20%, transparent), transparent 50%), var(--bg); }
+.main.universe[data-uvbg=club] { background: radial-gradient(ellipse at 10% 0%, color-mix(in srgb, var(--u1) 26%, transparent), transparent 45%), radial-gradient(ellipse at 90% 0%, color-mix(in srgb, var(--u2) 26%, transparent), transparent 45%), radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--u3) 14%, transparent), transparent 55%), var(--bg); }
+.main.universe[data-uvbg=lounge] { background: radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--u2) 16%, transparent), transparent 50%), radial-gradient(ellipse at 70% 90%, color-mix(in srgb, var(--u1) 18%, transparent), transparent 55%), linear-gradient(180deg, #120a18, var(--bg)); }
+.main.universe[data-uvbg=night] { background: radial-gradient(circle at 85% 12%, rgba(255, 240, 200, .14), transparent 18%), radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--u1) 22%, transparent), transparent 60%), linear-gradient(180deg, #050a1e, #0a0f26 60%, var(--bg)); }
+.main.universe[data-uvbg=sun] { background: radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--u2) 22%, transparent), transparent 55%), radial-gradient(ellipse at 10% 90%, color-mix(in srgb, var(--u1) 14%, transparent), transparent 50%), var(--bg); }
+.main.universe[data-uvbg=synth] { background: linear-gradient(180deg, #0b0420 0%, #1a0633 45%, var(--bg) 100%); }
+.uv-floor { position: absolute; left: -50%; right: -50%; bottom: 0; height: 45%; z-index: 0; pointer-events: none; background: linear-gradient(transparent 0 calc(100% - 1px), color-mix(in srgb, var(--u2) 55%, transparent) 0) 0 0/100% 34px, linear-gradient(90deg, transparent 0 calc(100% - 1px), color-mix(in srgb, var(--u2) 55%, transparent) 0) 0 0/60px 100%; transform: perspective(300px) rotateX(62deg); transform-origin: bottom; opacity: .35; animation: uvGrid 2.2s linear infinite; mask: linear-gradient(transparent, #000 60%); -webkit-mask: linear-gradient(transparent, #000 60%); }
+@keyframes uvGrid { to { background-position: 0 34px, 0 0; } }
+.main.universe[data-uvbg=stage] { background: radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--u2) 22%, transparent), transparent 55%), linear-gradient(180deg, #160a08, var(--bg)); }
+.main.universe[data-uvbg=tv] { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--u1) 14%, transparent), transparent 60%), var(--bg); }
+.main.universe[data-uvbg=gold] { background: radial-gradient(ellipse at 20% 0%, rgba(255, 215, 106, .18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(201, 151, 28, .16), transparent 55%), repeating-linear-gradient(45deg, rgba(255, 215, 106, .025) 0 2px, transparent 2px 18px), var(--bg); }
+/* les animations du fond */
+.uv-fx { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.uv-p { position: absolute; }
+.uv-rise { bottom: -40px; opacity: 0; text-shadow: 0 0 10px currentColor; animation: uvRise linear infinite; }
+@keyframes uvRise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 12% { opacity: .55; } 100% { transform: translateY(-105vh) rotate(25deg); opacity: 0; } }
+.uv-star { width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff, 0 0 12px var(--u3); animation: uvTwinkle ease-in-out infinite; }
+@keyframes uvTwinkle { 50% { opacity: .15; transform: scale(.5); } }
+.uv-shoot { position: absolute; top: 12%; left: -10%; width: 120px; height: 2px; background: linear-gradient(90deg, transparent, #fff); border-radius: 2px; transform: rotate(18deg); animation: uvShoot 9s ease-in infinite; opacity: 0; }
+.uv-shoot.two { top: 30%; animation-delay: 4.5s; }
+@keyframes uvShoot { 0%, 80% { transform: translate(0, 0) rotate(18deg); opacity: 0; } 82% { opacity: 1; } 100% { transform: translate(120vw, 38vh) rotate(18deg); opacity: 0; } }
+.uv-bokeh { border-radius: 50%; opacity: .12; filter: blur(10px); animation: uvFloat ease-in-out infinite alternate; }
+@keyframes uvFloat { to { transform: translate(30px, -40px) scale(1.3); opacity: .22; } }
+.uv-pix { bottom: -20px; width: 8px; height: 8px; animation: uvRise linear infinite; }
+.uv-spot { top: -10%; width: 26%; height: 120%; background: linear-gradient(180deg, color-mix(in srgb, var(--sc) 35%, transparent), transparent 80%); clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%); transform-origin: 50% 0; animation: uvSpot 6s ease-in-out infinite alternate; opacity: .5; }
+@keyframes uvSpot { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+.uv-eq { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; display: flex; align-items: flex-end; gap: 4px; padding: 0 6px; opacity: .22; }
+.uv-eq i { flex: 1; height: 100%; border-radius: 3px 3px 0 0; transform-origin: bottom; animation: uvEq 1.4s ease-in-out infinite; }
+@keyframes uvEq { 0%, 100% { transform: scaleY(.15); } 30% { transform: scaleY(.9); } 60% { transform: scaleY(.4); } }
+.uv-scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px); }
+.uv-scan::after { content: ''; position: absolute; left: 0; right: 0; height: 120px; background: linear-gradient(transparent, color-mix(in srgb, var(--u1) 10%, transparent), transparent); animation: uvScan 6s linear infinite; }
+@keyframes uvScan { from { top: -120px; } to { top: 100%; } }
+/* l'enseigne néon du salon */
+.uv-banner { --uv-h: 64px; margin: 10px 16px 0; padding: 12px 14px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; position: relative;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--u1) 14%, rgba(10, 8, 20, .85)), rgba(10, 8, 20, .85)); border: 2px solid var(--u1); box-shadow: 0 0 14px color-mix(in srgb, var(--u1) 45%, transparent), inset 0 0 18px color-mix(in srgb, var(--u1) 14%, transparent); }
+.uv-side { display: flex; gap: 8px; }
+.uv-ic { width: var(--uv-h); height: var(--uv-h); fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; overflow: visible; filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 7px currentColor); transform-origin: 50% 0; animation: kiSway ease-in-out infinite alternate, neonFlicker linear infinite; }
+.uv-sign { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+.uv-neon { font: 900 2rem/1.05 Outfit, Inter, sans-serif; letter-spacing: .16em; color: #fff; text-shadow: 0 0 3px #fff, 0 0 9px var(--u1), 0 0 20px var(--u1), 0 0 36px var(--u2); animation: neonFlicker 4.6s linear infinite; }
+.uv-sub { color: var(--u3); font-weight: 700; font-size: .8rem; text-shadow: 0 0 6px color-mix(in srgb, var(--u3) 60%, transparent); }
+.uv-tip { margin-top: 6px; padding: 5px 10px; border-radius: 12px; border: 1px dashed color-mix(in srgb, var(--u2) 60%, transparent); background: rgba(0, 0, 0, .3); color: #f1ecff; font-size: .8rem; line-height: 1.35; max-width: 560px; }
+.uv-toggle { position: absolute; right: 8px; bottom: 6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--u1); background: rgba(0, 0, 0, .45); color: #fff; cursor: pointer; font-size: 13px; }
+.uv-banner.small { --uv-h: 30px; padding: 6px 40px 6px 12px; }
+.uv-banner.small .uv-sub, .uv-banner.small .uv-tip { display: none; }
+.uv-banner.small .uv-neon { font-size: 1.2rem; }
+.main.universe #messages > .msg { border-left: 3px solid color-mix(in srgb, var(--u1) 45%, transparent); }
+.main.universe .composer .input { box-shadow: 0 0 0 2px color-mix(in srgb, var(--u1) 65%, transparent), 0 0 14px color-mix(in srgb, var(--u1) 30%, transparent); }
+@media (max-width: 760px) {
+  .uv-banner { --uv-h: 40px; margin: 6px 8px 0; padding: 8px; gap: 4px; }
+  .uv-side .uv-ic:nth-child(2) { display: none; }
+  .uv-neon { font-size: 1.35rem; letter-spacing: .1em; } .uv-tip { font-size: .72rem; } .uv-sub { font-size: .7rem; }
+  .uv-banner.small { --uv-h: 24px; }
+}
+.lite .uv-ic { animation-name: kiSway; filter: drop-shadow(0 0 4px currentColor); }
+.lite .uv-fx .uv-p:nth-child(2n), .lite .uv-bokeh { display: none; }
+.lite .uv-neon { animation: none; }
+.lite .uv-floor { animation: none; }
+@media (prefers-reduced-motion: reduce) { .uv-fx { display: none; } .uv-ic, .uv-neon { animation: none !important; } }

@@ -1312,4 +1312,21 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 93,
+    date: '2026-11-21',
+    title: 'Chaque salon a son univers 🌌',
+    added: [
+      '🌌 Chaque salon a maintenant son propre décor, ses couleurs et ses animations, avec une enseigne néon et des dessins lumineux qui se balancent',
+      '✨ Général : une aurore aux couleurs du Paradise, des palmiers et des étoiles · 💡 Suggestions : des ampoules qui s\'allument',
+      '💞 Rencontres : des cœurs qui montent doucement · 🎈 Amitié : des ballons et des sourires',
+      '🎧 18-25 : un égaliseur qui danse en bas de l\'écran · 🍷 26-40 : une ambiance lounge avec des lumières douces',
+      '🌙 40 et + : un ciel étoilé avec des étoiles filantes · 🎮 Jeux vidéo : une grille rétro qui défile et des pixels qui volent',
+      '🎵 Musique : des notes qui flottent · 🎤 Karaoké : des projecteurs qui balaient la scène · 📺 TV : un effet d\'écran télé · 💎 VIP : de l\'or et des diamants',
+      '📖 Une petite phrase du jour, différente dans chaque salon',
+      '↕ Le bouton en bas à droite du décor le réduit ou l\'agrandit',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

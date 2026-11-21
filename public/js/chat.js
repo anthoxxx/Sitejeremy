@@ -233,7 +233,7 @@ function renderRoomHead() {
   if (pmUser) { $('headCall').onclick = () => Call.start(pmUser, false); $('headVideo').onclick = () => Call.start(pmUser, true); $('headWizz').onclick = () => sendWizz(pmUser); }
   // Fond d'écran du salon (image, GIF, vidéo ou fond animé)
   renderRoomBg(inRoom ? r : null);
-  if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); setPrideUniverse(false); window.Kitchen?.set(false); document.querySelector('.room-head').className = 'room-head'; return; }
+  if (!inRoom) { $('voiceBar').classList.add('hidden'); renderVideoGrid(); setPrideUniverse(false); window.Kitchen?.set(false); window.Universe?.set(''); document.querySelector('.room-head').className = 'room-head'; return; }
   $('headIcon').replaceChildren(GOLD_LOGO.has(r.slug) ? el('img', { class: 'ico-logo', src: '/img/logo-mark.webp?v=3', alt: '' }) : el('span', { class: 'ico-anim a-' + iconAnim(r) }, r.icon));
   $('headTitle').textContent = r.name + (r.isPrivate ? ' 🔒' : '');
   $('headTitle').className = r.temporary ? 'room-temp' : 'room-perm';
@@ -242,6 +242,7 @@ function renderRoomHead() {
   head.className = 'room-head' + (r.slug === 'fierte' ? ' head-pride' : r.slug === 'cuisine' ? ' head-cuisine' : NEON[r.slug] ? ' head-neon neon-' + NEON[r.slug] : GAME_ROOMS.has(r.slug) ? ' head-gold' : r.slug === 'membres' ? ' head-vip' : ' head-neon neon-blue');
   setPrideUniverse(r.slug === 'fierte');
   window.Kitchen?.set(r.slug === 'cuisine'); // 👨‍🍳 le décor du salon Cuisine
+  window.Universe?.set(r.slug); // 🌌 l'univers du salon (décor, animations, enseigne)
   $('headSub').textContent = r.temporary ? `⏳ Salon temporaire de ${r.ownerName} · se ferme ${state.tempMinutes || 5} min après le départ du dernier` : r.ownerId ? `Salon de ${r.ownerName}${r.description ? ' · ' + r.description : ''}` : r.description;
   if (r.station) {
     const playing = Media.isPlaying(r.station);
