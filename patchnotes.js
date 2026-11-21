@@ -1144,6 +1144,18 @@ module.exports = [
     removed: [],
   },
   {
+    id: 92,
+    date: '2026-11-21',
+    title: 'L\'inscription se fait avec Google 🔒',
+    added: [
+      '🔒 Pour la sécurité de tout le monde, les nouveaux comptes se créent avec « Continuer avec Google » : un clic, puis tu choisis ton pseudo. Fini les faux comptes créés à la chaîne !',
+    ],
+    changed: [
+      '✅ Tu as déjà un compte ? Rien ne change : tu te connectes toujours avec ton pseudo et ton mot de passe',
+    ],
+    removed: [],
+  },
+  {
     id: 91,
     date: '2026-11-21',
     title: 'Badges de richesse et 80 nouveautés dans la boutique 💰',

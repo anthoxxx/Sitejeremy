@@ -4002,3 +4002,4 @@ body { background:
 .coin-tier.t7, .coin-tier.t8, .coin-tier.t9 { animation: ctGlow 2.4s ease-in-out infinite; }
 @keyframes ctGlow { 50% { box-shadow: 0 0 12px var(--ct); } }
 .lite .coin-tier { animation: none !important; }
+.google-only { margin: 4px 0 14px; padding: 10px 12px; border-radius: 12px; background: rgba(66,133,244,.12); border: 1px solid rgba(66,133,244,.35); font-size: .9rem; line-height: 1.4; text-align: center; }

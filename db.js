@@ -487,6 +487,7 @@ const defaults = {
   bannedWords: '',
   guestsAllowed: '0',
   registrationOpen: '1',
+  googleOnly: '1', // 🔒 inscription seulement avec un compte Google
   minAge: '18',
   voiceEnabled: '1',
   voiceMax: '10',

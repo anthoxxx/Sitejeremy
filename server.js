@@ -580,6 +580,8 @@ app.post('/api/admin/users/:id/vpn-ok', auth, requireRole('admin'), (req, res) =
 // Adresse e-mail facultative : '' si vide, null si invalide
 const cleanEmail = v => { const e = String(v || '').trim().toLowerCase().slice(0, 120); if (!e) return ''; return /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/.test(e) ? e : null; };
 const googleOn = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+// 🔒 inscription seulement avec Google (si Google est bien réglé : sinon plus personne ne pourrait s'inscrire)
+const googleOnly = () => googleOn() && getSettings().googleOnly !== '0';
 const googleRedirect = req => (process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`) + '/auth/google/callback';
 const googlePending = new Map(); // jeton -> { sub, email, name, at } en attente du choix du pseudo
 app.get('/auth/google', (req, res) => {
@@ -669,6 +671,7 @@ app.get('/api/register/google/pending', (req, res) => res.json({ pending: google
 app.post('/api/register', vpnGuard, (req, res) => {
   const s = getSettings();
   if (s.registrationOpen !== '1') return res.status(403).json({ error: 'Les inscriptions sont fermées pour le moment' });
+  if (googleOnly()) return res.status(403).json({ error: '🔒 L\'inscription se fait seulement avec un compte Google : touche « Continuer avec Google »' });
   { const g = shieldGate(req); if (g) return res.status(403).json({ error: g }); }
   { const ev = Ident.evade(Ident.fromReq(req), null, 'inscription'); if (ev) return res.status(403).json({ error: ev }); }
   if (tooMany('reg:' + req.ip, 5)) return res.status(429).json({ error: 'Trop de tentatives, réessaie plus tard' });
@@ -1080,6 +1083,7 @@ app.get('/api/stats', (req, res) => {
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
     guestsAllowed: false,
     googleLogin: googleOn(),
+    googleOnly: googleOnly(),
     registrationOpen: getSettings().registrationOpen === '1',
     minAge: parseInt(getSettings().minAge, 10) || 18,
   });
@@ -2547,6 +2551,7 @@ admin.put('/settings', requireRole('admin'), (req, res) => {
   if (b.modBotWarnings !== undefined) setSetting('modBotWarnings', Math.min(10, Math.max(1, parseInt(b.modBotWarnings, 10) || 3)));
   if (b.modBotMuteMinutes !== undefined) setSetting('modBotMuteMinutes', Math.min(1440, Math.max(1, parseInt(b.modBotMuteMinutes, 10) || 5)));
   if (b.registrationOpen !== undefined) setSetting('registrationOpen', b.registrationOpen ? '1' : '0');
+  if (b.googleOnly !== undefined) setSetting('googleOnly', b.googleOnly ? '1' : '0');
   if (b.minAge !== undefined) setSetting('minAge', Math.min(99, Math.max(13, parseInt(b.minAge, 10) || 18)));
   if (b.voiceEnabled !== undefined) setSetting('voiceEnabled', b.voiceEnabled ? '1' : '0');
   if (b.shieldEnabled !== undefined) setSetting('shieldEnabled', b.shieldEnabled ? '1' : '0');

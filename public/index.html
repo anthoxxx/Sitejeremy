@@ -227,6 +227,8 @@
     document.querySelectorAll('input[name=age]').forEach(i => i.min = s.minAge);
     if (!s.registrationOpen) { document.querySelector('[data-tab=register]').classList.add('hidden'); document.querySelector('[data-tab=login]').click(); }
     if (s.googleLogin) document.querySelectorAll('.google-btn, .or-sep').forEach(e => e.classList.remove('hidden'));
+    // 🔒 inscription seulement avec Google : on ne garde que le bouton Google
+    if (s.googleOnly) { const f = document.getElementById('form-register'); [...f.children].forEach(c => { if (!c.classList.contains('google-btn')) c.classList.add('hidden'); }); f.querySelectorAll('input').forEach(i => { i.required = false; }); f.prepend(Object.assign(document.createElement('p'), { className: 'google-only', textContent: '🔒 Pour la sécurité de tout le monde, on s\'inscrit avec son compte Google : un clic, et il ne reste qu\'à choisir ton pseudo !' })); }
   }).catch(() => {});
 </script>
 </body>
