@@ -37,7 +37,7 @@ const io = new Server(server);
 // Les images de profil ont droit à une taille plus grande que le reste
 const bigJson = express.json({ limit: '7mb' }); // assez pour une photo de profil animée (GIF de 4 Mo)
 const smallJson = express.json({ limit: '50kb' });
-const isUpload = p => p.startsWith('/api/me/image/') || p === '/api/audio' || /^\/api\/rooms\/\d+\/background$/.test(p);
+const isUpload = p => p.startsWith('/api/me/image/') || p === '/api/me/gallery' || /^\/api\/dev\/users\/\d+\/image\//.test(p) || p === '/api/audio' || /^\/api\/rooms\/\d+\/background$/.test(p);
 const hugeJson = express.json({ limit: '40mb' });
 app.use((req, res, next) => (req.path === '/api/admin/backup/import' ? hugeJson : isUpload(req.path) ? bigJson : smallJson)(req, res, next));
 app.use('/uploads', express.static(uploadDir, { maxAge: '7d', setHeaders: r => r.setHeader('X-Content-Type-Options', 'nosniff') }));
@@ -119,7 +119,7 @@ function publicUser(u) {
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
     badges: u.is_guest ? [] : badgesOf(u.id),
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.id) || '', identity: u.identity || '', likes: parseJSON(u.likes, []), msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', coinTier: coinTier(u.coins), level: require('./progress').levelOf(u.xp || 0).level,
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.id) || '', identity: u.identity || '', likes: parseJSON(u.likes, []), msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', coinTier: coinTier(u.coins), profileFx: u.profile_fx || '', profileMusic: u.profile_music || '', level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -812,6 +812,8 @@ function meProfile(req, res) {
   if (b.msgFont !== undefined) db.prepare('UPDATE users SET msg_font=? WHERE id=?').run(MSG_FONTS.includes(b.msgFont) ? b.msgFont : '', u.id);
   if (b.msgColor !== undefined) db.prepare('UPDATE users SET msg_color=? WHERE id=?').run(/^#[0-9a-f]{6}$/i.test(b.msgColor || '') ? b.msgColor.toLowerCase() : '', u.id);
   if (b.avatarFx !== undefined) db.prepare('UPDATE users SET avatar_fx=? WHERE id=?').run(AVATAR_FX.includes(b.avatarFx) ? b.avatarFx : 'none', u.id);
+  if (b.profileFx !== undefined) db.prepare('UPDATE users SET profile_fx=? WHERE id=?').run(PROFILE_FX.includes(b.profileFx) ? b.profileFx : '', u.id);
+  if (b.profileMusic !== undefined) { const m = String(b.profileMusic || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(b.profileMusic || '').match(/^([\w-]{11})$/); db.prepare('UPDATE users SET profile_music=? WHERE id=?').run(m ? m[1] : '', u.id); }
   db.prepare(`UPDATE users SET gender=?, age=?, city=?, bio=?, color=?, accent=?, name_effect=?, avatar_frame=?, banner_style=?,
     status_emoji=?, status_text=?, interests=?, games=?, socials=?, show_age=?, show_city=? WHERE id=?`).run(
     gender, parseInt(age, 10),
@@ -1702,7 +1704,28 @@ app.get('/api/users/recent', auth, (req, res) => {
 app.get('/api/users/:id', auth, (req, res) => {
   const u = getUser(req.params.id);
   if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });
-  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id), progress: Progress.publicOf(u.id), pet: Pets.get(u.id) });
+  res.json({ user: publicUser(u), online: visibleOnline(u.id, req.user), blocked: isBlocked(req.user.id, u.id), friend: friendStatus(req.user.id, u.id), progress: Progress.publicOf(u.id), pet: Pets.get(u.id), gallery: galleryOf(u.id, false) });
+});
+// 🖼️ La galerie photos du profil (6 photos au maximum, chacune vérifiée par le staff avant d'être visible)
+const PROFILE_FX = ['stars', 'hearts', 'aurora', 'bubbles', 'fire', 'snow', 'matrix', 'confetti'];
+const GALLERY_MAX = 6;
+const galleryOf = (uid, mine) => db.prepare(`SELECT id, url, ok FROM gallery WHERE user_id=? ${mine ? '' : 'AND ok=1'} ORDER BY id`).all(uid).map(g => ({ id: g.id, url: g.url, ok: !!g.ok }));
+app.get('/api/me/gallery', auth, (req, res) => res.json({ gallery: galleryOf(req.user.id, true), max: GALLERY_MAX }));
+app.post('/api/me/gallery', auth, (req, res) => {
+  if (req.user.is_guest) return res.status(403).json({ error: 'Inscris-toi pour avoir une galerie photos' });
+  if (db.prepare('SELECT COUNT(*) n FROM gallery WHERE user_id=?').get(req.user.id).n >= GALLERY_MAX) return res.status(400).json({ error: `${GALLERY_MAX} photos au maximum : retire une photo avant d'en ajouter une` });
+  if (tooMany('gallery:' + req.user.id, 20, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
+  const saved = saveImage(req.body.data, `gallery-${req.user.id}`);
+  if (saved.error) return res.status(400).json({ error: saved.error });
+  const ok = isStaff(req.user) ? 1 : 0;
+  db.prepare('INSERT INTO gallery (user_id,url,ok,created_at) VALUES (?,?,?,?)').run(req.user.id, saved.url, ok, now());
+  if (!ok) { emitToStaff('staff_alert', { text: `🖼️ ${req.user.username} a ajouté une photo à sa galerie (à vérifier)`, url: '/admin#photos' }); emitToStaff('photos_pending', { count: pendingPhotos() }); }
+  res.json({ gallery: galleryOf(req.user.id, true), pending: !ok });
+});
+app.delete('/api/me/gallery/:gid', auth, (req, res) => {
+  const g = db.prepare('SELECT * FROM gallery WHERE id=? AND user_id=?').get(parseInt(req.params.gid, 10), req.user.id);
+  if (g) { removeUpload(g.url); db.prepare('DELETE FROM gallery WHERE id=?').run(g.id); }
+  res.json({ gallery: galleryOf(req.user.id, true) });
 });
 
 // ---------- Émoticônes créées à partir d'une photo ----------
@@ -2418,6 +2441,9 @@ admin.post('/users/:id/reset-profile', (req, res) => {
   removeUpload(target.avatar);
   removeUpload(target.banner);
   removeUpload(target.avatar_pending);
+  for (const g of db.prepare('SELECT url FROM gallery WHERE user_id=?').all(target.id)) removeUpload(g.url);
+  db.prepare('DELETE FROM gallery WHERE user_id=?').run(target.id);
+  db.prepare("UPDATE users SET profile_fx='', profile_music='' WHERE id=?").run(target.id);
   db.prepare(`UPDATE users SET avatar='', avatar_pending='', avatar_ok=0, banner='', bio='', status_text='', status_emoji='', interests='[]', games='[]', socials='{}',
     name_effect='none', avatar_frame='none' WHERE id=?`).run(target.id);
   log(req.user, 'profile_reset', target.username);
@@ -2544,10 +2570,23 @@ admin.post('/applications/:id', requireRole('admin'), (req, res) => {
 });
 
 // Photos de profil à vérifier (tout le staff)
-function pendingPhotos() { return db.prepare("SELECT COUNT(*) c FROM users WHERE avatar_pending<>''").get().c; }
+function pendingPhotos() { return db.prepare("SELECT COUNT(*) c FROM users WHERE avatar_pending<>''").get().c + db.prepare('SELECT COUNT(*) c FROM gallery WHERE ok=0').get().c; }
 admin.get('/photos', (req, res) => {
   const rows = db.prepare("SELECT * FROM users WHERE avatar_pending<>'' ORDER BY last_seen DESC LIMIT 100").all();
-  res.json({ photos: rows.map(u => ({ id: u.id, username: u.username, color: u.color, role: u.role, isGuest: !!u.is_guest, current: u.avatar || '', pending: u.avatar_pending })) });
+  const gal = db.prepare('SELECT g.id, g.url, g.user_id, u.username, u.color FROM gallery g JOIN users u ON u.id=g.user_id WHERE g.ok=0 ORDER BY g.id LIMIT 100').all();
+  res.json({ photos: rows.map(u => ({ id: u.id, username: u.username, color: u.color, role: u.role, isGuest: !!u.is_guest, current: u.avatar || '', pending: u.avatar_pending })),
+    gallery: gal.map(g => ({ id: g.id, url: g.url, userId: g.user_id, username: g.username, color: g.color })) });
+});
+admin.post('/gallery/:gid', (req, res) => {
+  const g = db.prepare('SELECT * FROM gallery WHERE id=?').get(parseInt(req.params.gid, 10));
+  if (!g) return res.status(404).json({ error: 'Cette photo n\'existe plus' });
+  const approve = req.body.approve !== false, u = getUser(g.user_id);
+  if (approve) db.prepare('UPDATE gallery SET ok=1 WHERE id=?').run(g.id);
+  else { removeUpload(g.url); db.prepare('DELETE FROM gallery WHERE id=?').run(g.id); }
+  if (u) notify(u.id, approve ? { type: 'photo', icon: '✅', title: 'Ta photo de galerie est vérifiée ✓', text: 'Elle est maintenant visible sur ton profil.' } : { type: 'photo', icon: '❌', title: 'Une photo de ta galerie a été refusée', text: `Choisis une autre photo, respectueuse du règlement.${req.body.reason ? ' Raison : ' + clean(req.body.reason, 200) : ''}` });
+  log(req.user, approve ? 'photo_ok' : 'photo_refused', `Photo de galerie de ${u?.username || '?'} ${approve ? 'vérifiée ✓' : 'refusée ❌'}`, { data: { image: g.url } });
+  emitToStaff('photos_pending', { count: pendingPhotos() });
+  res.json({ ok: true });
 });
 admin.post('/photos/:id', (req, res) => {
   const target = getUser(req.params.id);

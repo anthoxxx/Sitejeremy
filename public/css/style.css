@@ -4145,3 +4145,46 @@ body { background:
 :root[data-skin] .card, :root[data-skin] .modal { border-color: color-mix(in srgb, var(--violet) 35%, transparent); }
 :root[data-skin] body::after { opacity: .9; }
 :root[data-skin] .composer .input { border-color: color-mix(in srgb, var(--violet) 50%, transparent); }
+
+/* ---------- 💎 Profils encore plus beaux ---------- */
+.pcard { position: relative; overflow: hidden; }
+.pcard > *:not(.pfx-layer):not(.pshine) { position: relative; z-index: 1; }
+.pcard.tilt { transition: transform .15s ease-out; transform-style: preserve-3d; will-change: transform; }
+.pshine { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .3s; background: radial-gradient(circle at var(--sx, 50%) var(--sy, 50%), rgba(255, 255, 255, .16), transparent 45%); }
+.pcard.tilt:hover .pshine { opacity: 1; }
+.pfx-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.pfx-layer span { position: absolute; bottom: -20px; opacity: 0; animation: pfxRise linear infinite; color: var(--accent); text-shadow: 0 0 8px currentColor; }
+@keyframes pfxRise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: .55; } 100% { transform: translateY(-110%) rotate(30deg); opacity: 0; } }
+.pfx-layer span { bottom: 0; }
+.pcard .pfx-layer span { animation-name: pfxRise2; }
+@keyframes pfxRise2 { 0% { transform: translateY(20px); opacity: 0; } 15% { opacity: .55; } 100% { transform: translateY(-700px) rotate(25deg); opacity: 0; } }
+.pfx-snow .pfx-layer span { bottom: auto; top: -20px; color: #fff; animation-name: pfxFall; }
+@keyframes pfxFall { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: .7; } 100% { transform: translate(30px, 700px) rotate(180deg); opacity: 0; } }
+.pfx-matrix .pfx-layer span { bottom: auto; top: -20px; color: #39ff14; font-family: monospace; animation-name: pfxFall; }
+.pfx-bubbles .pfx-layer span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 70%, #fff); background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, .5), transparent 60%); }
+.pfx-stars .pfx-layer span { color: #fff6c4; }
+.pfx-aur { position: absolute; width: 140%; height: 60%; left: -20%; top: 10%; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 45%, transparent), rgba(56, 232, 255, .35), transparent); filter: blur(30px); opacity: .5; animation: pfxAur 9s ease-in-out infinite alternate; }
+.pfx-aur.two { top: 40%; background: linear-gradient(90deg, transparent, rgba(43, 255, 136, .3), rgba(139, 92, 255, .35), transparent); animation-duration: 12s; animation-delay: -4s; }
+@keyframes pfxAur { from { transform: translateX(-10%) skewY(-6deg); } to { transform: translateX(10%) skewY(6deg); } }
+.pmusic { display: flex; align-items: center; gap: 10px; }
+.pmusic img { width: 96px; height: 54px; object-fit: cover; border-radius: 10px; }
+.pmusic iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px; }
+.pgallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pgal { position: relative; padding: 0; border: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 1; cursor: zoom-in; background: rgba(255, 255, 255, .05); }
+.pgal img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.pgal:hover img { transform: scale(1.07); }
+.pgal.wait img { filter: blur(3px) grayscale(.6); } .pgal span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; }
+.pzoom { max-width: min(90vw, 900px); max-height: 80vh; border-radius: 14px; display: block; margin: auto; cursor: zoom-out; }
+.gal-edit { display: flex; flex-wrap: wrap; gap: 8px; }
+.gal-item { position: relative; width: 74px; height: 74px; border-radius: 12px; overflow: hidden; }
+.gal-item img { width: 100%; height: 100%; object-fit: cover; }
+.gal-item.wait img { filter: grayscale(.6) brightness(.7); }
+.gal-wait { position: absolute; left: 4px; top: 2px; font-size: 14px; }
+.gal-del { position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, .65); color: #fff; cursor: pointer; font-size: 11px; }
+.gal-add { width: 74px; height: 74px; border-radius: 12px; border: 2px dashed var(--line); background: transparent; color: var(--text); font-size: 22px; cursor: pointer; }
+.lite .pfx-layer span:nth-child(2n) { display: none; }
+@media (prefers-reduced-motion: reduce) { .pfx-layer { display: none; } .pcard.tilt { transform: none !important; } }
+.pcard > .pfx-layer { z-index: 3; }
+.pcard .pfx-layer span { opacity: 0; }
+@keyframes pfxRise2 { 0% { transform: translateY(20px); opacity: 0; } 15% { opacity: .5; } 100% { transform: translateY(-700px) rotate(25deg); opacity: 0; } }
+.pfx-aur { mix-blend-mode: screen; opacity: .35; }

@@ -1354,4 +1354,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 96,
+    date: '2026-11-22',
+    title: 'Des profils encore plus beaux 💎',
+    added: [
+      '🃏 Sur ordinateur, les cartes de profil s\'inclinent en 3D et suivent ta souris, avec un reflet de lumière',
+      '✨ Un fond animé au choix pour ton profil : ⭐ Étoiles, 💖 Cœurs, 🌌 Aurore, 🫧 Bulles, 🔥 Flammes, ❄️ Neige, 💻 Matrix ou 🎉 Confettis',
+      '🎵 Une musique de profil : colle un lien YouTube, et ceux qui visitent ton profil peuvent l\'écouter avec le bouton « ▶️ Écouter »',
+      '🖼️ Une galerie de 6 photos sur ton profil (chaque photo est vérifiée par le staff avant d\'être visible). Touche une photo pour l\'agrandir',
+      '✏️ Tout se règle dans « Personnaliser mon profil », onglet 🎨 Apparence',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

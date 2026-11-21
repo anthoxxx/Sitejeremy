@@ -24,7 +24,9 @@ const COLOR_SWATCHES = ['#8b6cff', '#ff5fa2', '#ffb547', '#33d6a6', '#4fb3ff', '
 function profileCard(u, opts = {}) {
   const socials = Object.entries(u.socials || {}).filter(([k, h]) => SOCIAL_DEFS[k] && h);
   const info = [LC.genderLabel(u.gender), u.age ? u.age + ' ans' : '', u.city].filter(Boolean).join(' · ');
-  return el('div', { class: 'pcard', style: `--accent:${u.accent || '#ff5fa2'}` },
+  return el('div', { class: 'pcard' + (u.profileFx ? ' pfx pfx-' + u.profileFx : ''), style: `--accent:${u.accent || '#ff5fa2'}` },
+    u.profileFx ? profileFxLayer(u.profileFx) : null,
+    el('i', { class: 'pshine' }),
     el('div', { class: 'pbanner', style: `background:${LC.bannerCss(u)}` }),
     el('div', { class: 'pbody' },
       el('div', { class: 'pavatar' }, LC.avatar(u, true)),
@@ -35,6 +37,8 @@ function profileCard(u, opts = {}) {
       el('div', { class: 'pinfo' }, info, opts.online !== undefined ? el('span', {}, opts.online ? ' · 🟢 En ligne' : ' · ⚪ Hors ligne') : null),
       u.birthday ? el('div', { class: 'pinfo' }, `🎂 Anniversaire : ${u.birthday.day} ${LC.MONTHS[u.birthday.month - 1]}`) : null,
       el('div', { class: 'psection' }, el('h5', {}, 'À propos'), el('div', { class: 'pbio' }, u.bio || 'Aucune description pour l\'instant.')),
+      u.profileMusic ? el('div', { class: 'psection' }, el('h5', {}, '🎵 Ma musique'), profileMusic(u.profileMusic)) : null,
+      opts.gallery?.length ? el('div', { class: 'psection' }, el('h5', {}, `🖼️ Mes photos (${opts.gallery.length})`), el('div', { class: 'pgallery' }, ...opts.gallery.map(g => el('button', { type: 'button', class: 'pgal' + (g.ok ? '' : ' wait'), title: g.ok ? 'Agrandir' : 'En attente de vérification', onclick: () => photoZoom(g.url) }, el('img', { src: g.url, alt: '', loading: 'lazy' }), g.ok ? null : el('span', {}, '⏳'))))) : null,
       u.identity ? el('div', { class: 'pinfo' }, `${LC.identityHeart(u.identity)} ${LC.identityLabel(u.identity)}`) : null,
       u.likes?.length ? el('div', { class: 'psection' }, el('h5', {}, '💬 Ce que j\'aime'), el('div', { class: 'ptags' }, ...u.likes.map(t => el('span', { class: 'ptag like' }, t)))) : null,
       u.interests?.length ? el('div', { class: 'psection' }, el('h5', {}, '✨ Centres d\'intérêt'),
@@ -54,11 +58,32 @@ function profileCard(u, opts = {}) {
       u.createdAt ? el('div', { class: 'psince' }, (u.isGuest ? 'Invité depuis le ' : 'Membre depuis le ') + new Date(u.createdAt).toLocaleDateString('fr-FR')) : null));
 }
 
+// ✨ le fond animé du profil
+const PROFILE_FX_UI = [['', '🚫 Aucun'], ['stars', '⭐ Étoiles'], ['hearts', '💖 Cœurs'], ['aurora', '🌌 Aurore'], ['bubbles', '🫧 Bulles'], ['fire', '🔥 Flammes'], ['snow', '❄️ Neige'], ['matrix', '💻 Matrix'], ['confetti', '🎉 Confettis']];
+function profileFxLayer(fx) {
+  const G = { stars: ['✦', '✧', '⋆'], hearts: ['💖', '💕', '💗'], bubbles: ['', '', ''], fire: ['🔥', '✨', '🔥'], snow: ['❄', '❅', '❆'], matrix: ['0', '1', 'ア', 'カ', '1'], confetti: ['🎉', '🎊', '✨'], aurora: [] }[fx] || [];
+  return el('div', { class: 'pfx-layer', 'aria-hidden': 'true' }, ...(fx === 'aurora' ? [el('i', { class: 'pfx-aur' }), el('i', { class: 'pfx-aur two' })] : Array.from({ length: 12 }, (_, i) => el('span', { style: `left:${(i * 37 + 5) % 95}%;animation-delay:${-(i * 1.3) % 9}s;animation-duration:${6 + (i % 4) * 1.6}s;font-size:${16 + (i % 3) * 7}px` }, G[i % G.length] || ''))));
+}
+// 🎵 la musique du profil : un bouton pour écouter (le son ne se lance jamais tout seul)
+function profileMusic(id) {
+  const box = el('div', { class: 'pmusic' });
+  const play = el('button', { type: 'button', class: 'btn btn-sm btn-primary', onclick: () => { box.replaceChildren(el('iframe', { src: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`, allow: 'autoplay; encrypted-media', allowfullscreen: true, title: 'Musique du profil' })); } }, '▶️ Écouter');
+  box.append(el('img', { src: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, alt: '', loading: 'lazy' }), play);
+  return box;
+}
+function photoZoom(url) { const c = modal(el('img', { src: url, alt: '', class: 'pzoom', onclick: () => c() })); }
 // Ouvre une fenêtre avec un style "profil" (plus large, sans marge intérieure)
 function profileModal(...content) {
   const close = modal(...content);
   const all = document.querySelectorAll('.modal-back .modal');
   all[all.length - 1].classList.add('profile-modal');
+  // 🃏 la carte s'incline et suit la souris, avec un reflet de lumière
+  const card = all[all.length - 1].querySelector('.pcard');
+  if (card && matchMedia('(pointer: fine)').matches && !document.documentElement.classList.contains('lite')) {
+    card.classList.add('tilt');
+    card.addEventListener('pointermove', e => { const r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; card.style.transform = `perspective(900px) rotateY(${x * 10}deg) rotateX(${-y * 8}deg)`; card.style.setProperty('--sx', (x + .5) * 100 + '%'); card.style.setProperty('--sy', (y + .5) * 100 + '%'); });
+    card.addEventListener('pointerleave', () => { card.style.transform = ''; });
+  }
   return close;
 }
 
@@ -71,7 +96,7 @@ async function openProfile(id) {
   const blocked = state.blocked.has(u.id);
   const staff = isStaff() && (state.me.role === 'superadmin' || LC.rank(state.me) > LC.rank(u));
   const close = profileModal(
-    profileCard(u, { online: data.online, pet: data.pet, progress: data.progress }),
+    profileCard(u, { online: data.online, pet: data.pet, progress: data.progress, gallery: data.gallery }),
     el('div', { class: 'pactions' },
       el('div', { class: 'actions' },
         u.isBirthday ? el('button', { class: 'btn btn-primary', style: 'flex-basis:100%', onclick: () => { close(); wishBirthday(u); } }, '🎂 Lui souhaiter un joyeux anniversaire') : null,
@@ -167,7 +192,7 @@ function openMyProfile(target) {
   const d = JSON.parse(JSON.stringify(T || state.me)); // brouillon
   d.socials = d.socials || {};
   const preview = el('div', { class: 'editor-preview' });
-  const refresh = () => preview.replaceChildren(el('div', { class: 'preview-label' }, '👀 Aperçu en direct'), profileCard(d));
+  const refresh = () => preview.replaceChildren(el('div', { class: 'preview-label' }, '👀 Aperçu en direct'), profileCard({ ...d, profileMusic: (String(d.profileMusicLink ?? '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || [])[1] || (d.profileMusicLink === undefined ? d.profileMusic : '') }, { gallery: d.gallery }));
   const err = el('div', { class: 'error' });
   const f = (label, input, help) => el('div', { class: 'field' }, el('label', {}, label), input, help ? el('small', { class: 'help' }, help) : null);
   const bind = (input, key, transform = v => v) => {
@@ -220,6 +245,16 @@ function openMyProfile(target) {
   };
 
   const namePick = colorPick('color');
+  // 🖼️ la galerie : ajouter / retirer des photos (vérifiées par le staff)
+  const galleryEditor = () => {
+    const box = el('div', { class: 'gal-edit' }), file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' }), status = el('small', { class: 'help' });
+    const draw = g => { d.gallery = g; refresh(); box.replaceChildren(...g.map(p => el('div', { class: 'gal-item' + (p.ok ? '' : ' wait') }, el('img', { src: p.url, alt: '' }), p.ok ? null : el('span', { class: 'gal-wait' }, '⏳'),
+        el('button', { type: 'button', class: 'gal-del', title: 'Retirer', onclick: async () => { try { draw((await api('/api/me/gallery/' + p.id, { method: 'DELETE' })).gallery); } catch (e) { toast(e.message); } } }, '✕'))),
+      g.length < 6 ? el('button', { type: 'button', class: 'gal-add', onclick: () => file.click() }, '➕') : null, file, status); };
+    file.onchange = async () => { if (!file.files[0]) return; status.textContent = '⏳ Envoi…'; try { const r = await api('/api/me/gallery', { method: 'POST', body: { data: await readImage(file.files[0], 1200, 1200) } }); draw(r.gallery); toast(r.pending ? '🖼️ Photo envoyée : elle sera visible après la vérification du staff' : '🖼️ Photo ajoutée'); } catch (e) { toast(e.message); } status.textContent = ''; file.value = ''; };
+    api('/api/me/gallery').then(r => draw(r.gallery)).catch(() => {});
+    return box;
+  };
   // --- Onglet Apparence ---
   const tabLook = el('div', {},
     f('📷 Photo de profil', imageButtons('avatar', 256, 256), (!T && state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, ou une photo animée 🎞️ (GIF ou WEBP animé, 4 Mo maximum). Et en dessous, choisis une animation ✨ pour faire bouger n\'importe quelle photo !'),
@@ -264,6 +299,9 @@ function openMyProfile(target) {
     f('✍️ Style d\'écriture de mes messages', choice(LC.MSG_FONTS, 'msgFont', (v, label) => el('span', { class: v ? 'mf-' + v : '' }, label))),
     f('🎨 Couleur d\'écriture', el('div', {}, colorPick('msgColor'), el('button', { type: 'button', class: 'btn btn-sm', style: 'margin-top:6px', onclick: e => { d.msgColor = ''; refresh(); e.target.textContent = '✅ Couleur normale'; } }, '↺ Couleur normale')), 'Tes messages s\'afficheront avec ce style et cette couleur, pour tout le monde.'),
     f('✨ Photo animée', choice(AVATAR_FX_UI, 'avatarFx', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, avatarFx: v }), label))),
+    f('✨ Fond animé de mon profil', choice(PROFILE_FX_UI, 'profileFx'), 'Une animation derrière ta carte de profil, que tout le monde voit quand il ouvre ton profil.'),
+    f('🎵 Musique de mon profil', bind(el('input', { class: 'input', maxlength: 200, placeholder: 'Colle le lien d\'une vidéo YouTube', value: d.profileMusic ? 'https://youtu.be/' + d.profileMusic : '' }), 'profileMusicLink'), 'Les visiteurs de ton profil pourront l\'écouter avec un bouton « ▶️ Écouter ». Laisse vide pour ne pas en mettre.'),
+    T ? null : f('🖼️ Ma galerie photos', galleryEditor(), 'Jusqu\'à 6 photos sur ton profil. Chaque photo est vérifiée par le staff avant d\'être visible (⏳ en attendant).'),
     f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...(T ? Object.entries(PREMIUM_FRAMES) : ownedOf('frame_', PREMIUM_FRAMES))], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
   // --- Onglet Infos ---
@@ -359,6 +397,7 @@ function openMyProfile(target) {
             try {
               const { user } = await api(base, { method: 'PUT', body: { ...(T ? { grey: !!d.grey, ...(state.me.dev ? { level: d.level } : {}) } : {}),
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
+                profileFx: d.profileFx || '', profileMusic: d.profileMusicLink !== undefined ? d.profileMusicLink : (d.profileMusic || ''),
                 nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', nameRing: d.nameRing || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,

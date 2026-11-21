@@ -338,7 +338,10 @@ addColumn('stations', 'status', "TEXT DEFAULT 'unknown'");
 addColumn('stations', 'checked_at', 'INTEGER DEFAULT 0');
 addColumn('stations', 'check_note', "TEXT DEFAULT ''");
 addColumn('users', 'name_ring', "TEXT NOT NULL DEFAULT ''"); // ⭕ la couleur autour du pseudo (style:#couleur)
-addColumn('users', 'join_sound', "TEXT NOT NULL DEFAULT ''"); // 🔔 le son que les autres entendent quand on arrive dans un salon
+addColumn('users', 'join_sound', "TEXT NOT NULL DEFAULT ''");
+addColumn('users', 'profile_fx', "TEXT NOT NULL DEFAULT ''"); // ✨ le fond animé du profil
+addColumn('users', 'profile_music', "TEXT NOT NULL DEFAULT ''"); // 🎵 la musique du profil (vidéo YouTube)
+db.exec('CREATE TABLE IF NOT EXISTS gallery (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, url TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'); // 🖼️ la galerie photos du profil // 🔔 le son que les autres entendent quand on arrive dans un salon
 addColumn('users', 'panel', 'INTEGER DEFAULT 0'); // compte de l'espace admin (identifiant + mot de passe du serveur)
 
 // Salon « Douane » (contrôle des nouveaux arrivants)

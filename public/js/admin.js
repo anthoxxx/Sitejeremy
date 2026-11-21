@@ -165,7 +165,7 @@ async function showHistory(u) {
 // ---------- Photos de profil à vérifier ----------
 async function photos() {
   const d = await api('/api/admin/photos');
-  setPhotoBadge(d.photos.length);
+  setPhotoBadge(d.photos.length + (d.gallery || []).length);
   const decide = async (p, approve) => {
     let reason = '';
     if (!approve) { reason = prompt(`Refuser la photo de ${p.username} ? Raison (facultatif) :`, ''); if (reason === null) return; }
@@ -181,7 +181,16 @@ async function photos() {
       el('div', { class: 'actions', style: 'margin-top:10px' },
         el('button', { class: 'btn btn-sm btn-primary', onclick: () => decide(p, true) }, '✓ Accepter'),
         el('button', { class: 'btn btn-sm btn-danger', onclick: () => decide(p, false) }, '✕ Refuser')))))
-      : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo à vérifier pour le moment.')));
+      : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo de profil à vérifier pour le moment.')),
+    // 🖼️ les photos ajoutées aux galeries des profils
+    el('h3', { style: 'margin:22px 0 8px' }, `🖼️ Photos de galerie à vérifier (${(d.gallery || []).length})`),
+    (d.gallery || []).length ? el('div', { class: 'photo-grid' }, ...d.gallery.map(g => el('div', { class: 'panel photo-card' },
+      el('img', { class: 'photo-new', src: g.url, alt: '', onclick: () => window.open(g.url, '_blank'), style: 'width:100%;max-height:220px;object-fit:cover;border-radius:12px' }),
+      el('b', { style: 'color:' + (g.color || 'inherit') }, g.username),
+      el('div', { class: 'actions', style: 'margin-top:10px' },
+        el('button', { class: 'btn btn-sm btn-primary', onclick: async () => { await run(() => api('/api/admin/gallery/' + g.id, { method: 'POST', body: { approve: true } }), `Photo de ${g.username} vérifiée ✓`); photos(); } }, '✓ Accepter'),
+        el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { const reason = prompt(`Refuser la photo de ${g.username} ? Raison (facultatif) :`, ''); if (reason === null) return; await run(() => api('/api/admin/gallery/' + g.id, { method: 'POST', body: { approve: false, reason } }), `Photo de ${g.username} refusée`); photos(); } }, '✕ Refuser')))))
+      : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo de galerie à vérifier.')));
 }
 function setPhotoBadge(n) { const b = document.getElementById('navPhotos'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
 
@@ -779,7 +788,7 @@ function showAdminLogin() {
     showAdminLogin();
     return;
   }
-  api('/api/admin/photos').then(d => setPhotoBadge(d.photos.length)).catch(() => {});
+  api('/api/admin/photos').then(d => setPhotoBadge(d.photos.length + (d.gallery || []).length)).catch(() => {});
   if (isAdmin()) api('/api/admin/applications').then(d => setAppsBadge(d.applications.filter(a => a.status === 'pending').length)).catch(() => {});
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());
   if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());
