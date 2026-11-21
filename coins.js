@@ -260,3 +260,4 @@ module.exports = function setupCoins({ db, emitToUser, notify, getUser, multipli
   return { SHOP, earn, earnCapped, spend, onMessage, claimDaily, dailyInfo, shopOut, buy, equip, gift, top, owned, owns, ownedValues, premium, balance };
 };
 module.exports.SHOP = SHOP;
+module.exports.SHOP = SHOP; // le catalogue (pour donner tous les objets au créateur du site)

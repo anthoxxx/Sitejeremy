@@ -985,6 +985,14 @@ const DEV_OWNER = process.env.DEV_OWNER || 'Lesoldat76-dev';
       db.prepare('UPDATE users SET xp=? WHERE id=?').run(100 * 998 + 25 * 998 * 997, o.id);
       db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devLevel999','1')").run();
     }
+    // 🏅 le créateur a tous les badges : tous les succès et tous les objets de la boutique (même les exclusifs), une seule fois
+    if (!db.prepare("SELECT 1 FROM settings WHERE key='devAllBadges'").get()) {
+      try { db.exec('CREATE TABLE IF NOT EXISTS user_achievements (user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, id TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, id))'); } catch (e) {}
+      const t = Date.now(), ach = db.prepare('INSERT OR IGNORE INTO user_achievements (user_id,id,created_at) VALUES (?,?,?)'), inv = db.prepare('INSERT OR IGNORE INTO inventory (user_id,item,created_at) VALUES (?,?,?)');
+      require('./progress').ACHIEVEMENTS.forEach((a, i) => ach.run(o.id, a.id, t - i));
+      for (const it of require('./coins').SHOP) inv.run(o.id, it.id, t);
+      db.prepare("INSERT OR REPLACE INTO settings (key,value) VALUES ('devAllBadges','1')").run();
+    }
   }
 }
 function devOwner() {

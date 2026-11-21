@@ -192,3 +192,4 @@ module.exports = function setupProgress({ db, earn, notify, emitToUser, getUser,
   return { track, out, publicOf, levelOf, shown, setShown, award, ACHIEVEMENTS, QUESTS };
 };
 module.exports.levelOf = levelOf;
+module.exports.ACHIEVEMENTS = ACHIEVEMENTS;
