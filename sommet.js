@@ -1,11 +1,11 @@
-// The Paradise — « Le Sommet du Paradise » : grand quiz sur scène, présenté par Maestro Paradise
+// The Paradise — « Le Sommet du Paradise » : grand quiz sur scène, présenté par Maestro.js.dev
 // Un candidat à la fois au centre de la scène grimpe 12 paliers de questions jusqu'à 500 pièces 💰.
 // 3 aides : ✂️ Moitié (retire 2 mauvaises réponses), 🗳️ Vote du salon (les spectateurs votent), 🔄 Changer de question.
 // Paliers de sécurité : 1 000 et 20 000 pièces.
 const QUESTIONS = require('./sommet-questions');
 
 const SLUG = 'sommet';
-const HOST = { username: 'Maestro Paradise', color: '#ff5fa2', icon: '🎩' };
+const HOST = { username: 'Maestro.js.dev', color: '#ff5fa2', icon: '🎩' };
 // 💰 « Qui veut gagner des pièces » : on gagne de vraies Paradise Coins
 const LADDER = [5, 10, 15, 25, 35, 50, 70, 100, 140, 200, 300, 500];
 const SAFE = new Set([3, 7]); // index des paliers de sécurité (1 000 et 20 000)

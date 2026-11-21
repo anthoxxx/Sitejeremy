@@ -906,7 +906,7 @@ function showMatchEnd(winner, reason) {
 }
 
 // ---------- Contre l'ordinateur ----------
-const BOT_USER = { id: -1, username: 'Ordinateur 🤖', color: '#4fb3ff' };
+const BOT_USER = { id: -1, username: 'Ordi.js.dev', color: '#4fb3ff' };
 const Bot = {
   start(game) {
     const me = state.me;

@@ -11,7 +11,7 @@ const Paroles = {
     if (!this.raf) this.loop();
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'Maestro Paradise', botIcon: '🎩', color: '#ffc94d', content: `Bonsoir ${state.me.username} ! 🎤 Bienvenue aux Paroles d'Or. Monte sur scène avec « 🎤 Je chante », lancez la partie, et chantez avec les paroles qui défilent. Au dernier refrain, la musique s'arrête : à toi d'écrire la suite ! Tape !aide pour les règles.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Maestro.js.dev', botIcon: '🎩', color: '#ffc94d', content: `Bonsoir ${state.me.username} ! 🎤 Bienvenue aux Paroles d'Or. Monte sur scène avec « 🎤 Je chante », lancez la partie, et chantez avec les paroles qui défilent. Au dernier refrain, la musique s'arrête : à toi d'écrire la suite ! Tape !aide pour les règles.`, createdAt: Date.now() }, true);
     }
   },
   now() { return Date.now() + this.offset; },

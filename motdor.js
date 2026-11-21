@@ -12,7 +12,7 @@ const WORDS = {
     'PEINTRE', 'CHANSON', 'CONCERT', 'TOURNOI'],
 };
 const SLUG = 'motdor';
-const HOST = { username: 'Maestro Paradise', color: '#ffc94d', icon: '🎩' };
+const HOST = { username: 'Maestro.js.dev', color: '#ffc94d', icon: '🎩' };
 const MAX_PLAYERS = 8, ROUND_WORDS = 5, TRIES = 6, WORD_MS = 120000, REVEAL_MS = 7000;
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
 // Couleurs d'un essai : 2 = bien placée (or), 1 = mal placée (violet), 0 = absente

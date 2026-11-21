@@ -18,7 +18,7 @@ const Sommet = {
     if (!this.tick) this.tick = setInterval(() => this.updateTimer(), 250);
     if (!this.welcomed) {
       this.welcomed = true;
-      addBotMessage({ username: 'Maestro Paradise', botIcon: '🎩', color: '#ff5fa2', content: `Bonsoir ${state.me.username} ! 🎩 Bienvenue au Sommet du Paradise. Inscris-toi avec « 🏔️ Je tente l'ascension » : 12 questions de plus en plus dures jusqu'à 500 pièces 💰 (des vraies !) Les spectateurs peuvent aider le candidat quand il demande le 🗳️ Vote du salon. Tape !aide pour les règles.`, createdAt: Date.now() }, true);
+      addBotMessage({ username: 'Maestro.js.dev', botIcon: '🎩', color: '#ff5fa2', content: `Bonsoir ${state.me.username} ! 🎩 Bienvenue au Sommet du Paradise. Inscris-toi avec « 🏔️ Je tente l'ascension » : 12 questions de plus en plus dures jusqu'à 500 pièces 💰 (des vraies !) Les spectateurs peuvent aider le candidat quand il demande le 🗳️ Vote du salon. Tape !aide pour les règles.`, createdAt: Date.now() }, true);
     }
   },
   update(d) {

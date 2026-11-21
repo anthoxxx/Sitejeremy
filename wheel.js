@@ -4,7 +4,7 @@
 const PUZZLES = require('./wheel-puzzles');
 
 const SLUG = 'roue';
-const BOT = { username: 'Roue Bot', color: '#ffc94d', icon: '🎡' };
+const BOT = { username: 'Roue.js.dev', color: '#ffc94d', icon: '🎡' };
 const ROUNDS = 3, MAX_PLAYERS = 6, TURN_MS = 35000, SPIN_MS = 3600, VOWEL_COST = 200, SOLVE_BONUS = 500;
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U', 'Y']);
 // Les cases de la roue (dans l'ordre, dans le sens des aiguilles d'une montre)

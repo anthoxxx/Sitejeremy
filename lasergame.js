@@ -59,7 +59,7 @@ const MAPS = {
 };
 const TEAMS = ['red', 'blue'];
 const MAX = 10, ROUND_MS = 4 * 60 * 1000, WIN = 25, FIRE_MS = 280, DEAD_MS = 3000, SHIELD_MS = 2000, RANGE = 45, SPEED = 5.2, R = .38, EYE = 1.6;
-const BOT_NAMES = ['Robot Alpha', 'Robot Bravo', 'Robot Charlie', 'Robot Delta', 'Robot Écho', 'Robot Fox', 'Robot Golf', 'Robot Hôtel'];
+const BOT_NAMES = ['Alpha.js.dev', 'Bravo.js.dev', 'Charlie.js.dev', 'Delta.js.dev', 'Echo.js.dev', 'Fox.js.dev', 'Golf.js.dev', 'Hotel.js.dev'];
 
 // ---------- la carte : murs, cases libres, bases ----------
 function prepMap(key) {
@@ -137,7 +137,7 @@ module.exports = function setupLaserGame({ io, coins = null, track = () => {} })
     let i = 0;
     for (const team of TEAMS) while (count(r, team) < Math.min(4, Math.max(n, 2)) && r.players.size < MAX) {
       const id = -(r.id * 100 + (++i));
-      r.players.set(id, { id, name: '🤖 ' + BOT_NAMES[(i - 1) % BOT_NAMES.length], team, bot: true, gender: i % 3 ? 'h' : 'f', tags: 0, deaths: 0, skill: .55 + Math.random() * .3, lastShot: 0, think: 0 });
+      r.players.set(id, { id, name: BOT_NAMES[(i - 1) % BOT_NAMES.length], team, bot: true, gender: i % 3 ? 'h' : 'f', tags: 0, deaths: 0, skill: .55 + Math.random() * .3, lastShot: 0, think: 0 });
     }
   }
   function start(r) {

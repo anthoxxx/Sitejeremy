@@ -307,7 +307,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
       if (p.action && d > 4) { p.action = ''; emitScene(p.scene, 'island_action', { id: uid, action: '' }); }
       socket.to(roomOf(p.scene)).emit('island_move', { id: uid, x: Math.round(x), y: Math.round(y) });
     });
-    // Bulle de chat au-dessus du personnage (filtrée par le ModoBot, rien n'est gardé)
+    // Bulle de chat au-dessus du personnage (filtrée par le Modo.js.dev, rien n'est gardé)
     socket.on('island_say', (text, cb) => {
       const p = me(), u = currentUser();
       if (!p || !u) return;

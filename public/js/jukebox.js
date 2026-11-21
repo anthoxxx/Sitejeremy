@@ -1,15 +1,15 @@
-// The Paradise — bots musicaux : KaraoBot (salon Karaoké) et DJ Bot (salon Musique)
+// The Paradise — bots musicaux : Karao.js.dev (salon Karaoké) et DJ.js.dev (salon Musique)
 const JB_MODES = {
   karaoke: {
-    bot: 'KaraoBot', icon: '🤖', pick: '🎤 Choisir une chanson', pickTitle: '🎤 Choisis ta chanson',
-    pickHelp: 'KaraoBot cherche la version karaoké (avec les paroles à l\'écran). Tu passeras quand ce sera ton tour.',
-    welcome: n => `Salut ${n} ! 🎶 Je suis KaraoBot. Clique sur « 🎤 Choisir une chanson » pour t'inscrire, puis rejoins le vocal 🎙️ quand c'est ton tour. Tape !aide pour voir mes commandes.`,
+    bot: 'Karao.js.dev', icon: '🤖', pick: '🎤 Choisir une chanson', pickTitle: '🎤 Choisis ta chanson',
+    pickHelp: 'Karao.js.dev cherche la version karaoké (avec les paroles à l\'écran). Tu passeras quand ce sera ton tour.',
+    welcome: n => `Salut ${n} ! 🎶 Je suis Karao.js.dev. Clique sur « 🎤 Choisir une chanson » pour t'inscrire, puis rejoins le vocal 🎙️ quand c'est ton tour. Tape !aide pour voir mes commandes.`,
     added: t => '🎶 Tu es inscrit : « ' + t + ' »',
   },
   music: {
-    bot: 'DJ Bot', icon: '🎧', pick: '🎵 Mettre une musique', pickTitle: '🎵 Mets la musique que tu veux',
+    bot: 'DJ.js.dev', icon: '🎧', pick: '🎵 Mettre une musique', pickTitle: '🎵 Mets la musique que tu veux',
     pickHelp: 'Cherche un titre ou un artiste, ou colle un lien YouTube. Ta musique passera pour tout le salon, à son tour dans la file.',
-    welcome: n => `Salut ${n} ! 🎧 Je suis DJ Bot. Ici chacun met la musique qu'il veut et tout le salon l'écoute en même temps. Clique sur « 🔊 Écouter » pour entendre, et sur « 🎵 Mettre une musique » pour ajouter la tienne. Tape !aide pour mes commandes.`,
+    welcome: n => `Salut ${n} ! 🎧 Je suis DJ.js.dev. Ici chacun met la musique qu'il veut et tout le salon l'écoute en même temps. Clique sur « 🔊 Écouter » pour entendre, et sur « 🎵 Mettre une musique » pour ajouter la tienne. Tape !aide pour mes commandes.`,
     added: t => '🎵 Ajouté à la file : « ' + t + ' »',
   },
 };
