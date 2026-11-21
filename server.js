@@ -719,8 +719,8 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/me', auth, (req, res) => res.json({ user: selfUser(req.user) }));
 
-app.put('/api/me', auth, (req, res) => {
-  const u = req.user;
+function meProfile(req, res) {
+  const u = req.user, dev = !!req.devActor; // dev : le Développeur modifie le profil de quelqu'un d'autre
   const b = req.body;
   const gender = b.gender ?? u.gender;
   const age = b.age ?? u.age;
@@ -763,10 +763,10 @@ app.put('/api/me', auth, (req, res) => {
     b.city !== undefined ? filterWords(clean(b.city, 40)) : u.city,
     b.bio !== undefined ? filterWords(cleanMultiline(b.bio, 500)) : u.bio,
     // Si la personne change de genre et garde la couleur par défaut, la couleur suit le nouveau genre
-    (() => { let c = hex(b.color, u.color); if (isDarkColor(c) && !canBlack(u)) c = isDarkColor(u.color) ? genderColor(gender) : u.color; /* 🖤 le noir est réservé */ return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
+    (() => { let c = hex(b.color, u.color); if (isDarkColor(c) && !canBlack(u) && !dev) c = isDarkColor(u.color) ? genderColor(gender) : u.color; /* 🖤 le noir est réservé */ return gender !== u.gender && c.toLowerCase() === genderColor(u.gender) ? genderColor(gender) : c; })(),
     hex(b.accent, u.accent || '#ff5fa2'),
-    pick(b.nameEffect, [...NAME_EFFECTS, ...Coins.ownedValues(u.id, 'name')], u.name_effect || 'none'),
-    pick(b.frame, [...FRAMES, ...Coins.ownedValues(u.id, 'frame')], u.avatar_frame || 'none'),
+    pick(b.nameEffect, [...NAME_EFFECTS, ...(dev ? Coins.SHOP.filter(i => i.slot === 'name').map(i => i.value) : Coins.ownedValues(u.id, 'name'))], u.name_effect || 'none'),
+    pick(b.frame, [...FRAMES, ...(dev ? Coins.SHOP.filter(i => i.slot === 'frame').map(i => i.value) : Coins.ownedValues(u.id, 'frame'))], u.avatar_frame || 'none'),
     pick(b.bannerStyle, BANNER_STYLES, u.banner_style || 'aurora'),
     b.statusEmoji !== undefined ? clean(b.statusEmoji, 8) : u.status_emoji,
     b.statusText !== undefined ? filterWords(clean(b.statusText, 60)) : u.status_text,
@@ -778,9 +778,11 @@ app.put('/api/me', auth, (req, res) => {
     u.id);
   const updated = getUser(u.id);
   refreshOnline(updated);
-  celebrateBirthday(updated);
+  if (!dev) celebrateBirthday(updated);
+  if (dev) log(req.devActor, 'profile_update', `💻 Profil de ${updated.username} modifié par le Développeur`);
   res.json({ user: selfUser(updated) });
-});
+}
+app.put('/api/me', auth, meProfile);
 
 // Photo de profil et bannière (image envoyée en base64, déjà redimensionnée par le navigateur)
 const IMAGE_TYPES = [
@@ -800,13 +802,13 @@ function saveImage(dataUrl, prefix) {
   fs.writeFileSync(path.join(uploadDir, name), buf);
   return { url: '/uploads/' + name };
 }
-app.post('/api/me/image/:kind', auth, (req, res) => {
+function meImage(req, res) {
   const kind = req.params.kind;
   if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
   if (tooMany('upload:' + req.user.id, 30, 3600 * 1000)) return res.status(429).json({ error: 'Trop d\'envois, réessaie plus tard' });
   const saved = saveImage(req.body.data, `${kind}-${req.user.id}`);
   if (saved.error) return res.status(400).json({ error: saved.error });
-  if (kind === 'avatar' && !isStaff(req.user)) {
+  if (kind === 'avatar' && !isStaff(req.user) && !req.devActor) {
     // Nouvelle photo : elle attend la vérification du staff, l'ancienne reste affichée en attendant
     removeUpload(req.user.avatar_pending);
     db.prepare('UPDATE users SET avatar_pending=? WHERE id=?').run(saved.url, req.user.id);
@@ -819,12 +821,13 @@ app.post('/api/me/image/:kind', auth, (req, res) => {
   removeUpload(req.user[kind]);
   db.prepare(`UPDATE users SET ${kind}=?${kind === 'avatar' ? ', avatar_ok=1' : ''} WHERE id=?`).run(saved.url, req.user.id);
   if (kind === 'avatar') track(req.user.id, 'photo');
-  log(req.user, 'profile_update', kind === 'avatar' ? 'Nouvelle photo de profil' : 'Nouvelle bannière de profil', { data: { image: saved.url } });
+  log(req.devActor || req.user, 'profile_update', (kind === 'avatar' ? 'Nouvelle photo de profil' : 'Nouvelle bannière de profil') + (req.devActor ? ` de ${req.user.username} (par le Développeur)` : ''), { data: { image: saved.url } });
   const updated = getUser(req.user.id);
   refreshOnline(updated);
   res.json({ user: selfUser(updated) });
-});
-app.delete('/api/me/image/:kind', auth, (req, res) => {
+}
+app.post('/api/me/image/:kind', auth, meImage);
+function meImageDel(req, res) {
   const kind = req.params.kind;
   if (!['avatar', 'banner'].includes(kind)) return res.status(400).json({ error: 'Type d\'image inconnu' });
   removeUpload(req.user[kind]);
@@ -833,7 +836,8 @@ app.delete('/api/me/image/:kind', auth, (req, res) => {
   const updated = getUser(req.user.id);
   refreshOnline(updated);
   res.json({ user: selfUser(updated) });
-});
+}
+app.delete('/api/me/image/:kind', auth, meImageDel);
 
 app.put('/api/me/password', auth, (req, res) => {
   const u = req.user;
@@ -859,23 +863,40 @@ app.post('/api/admin/users/:id/perks', auth, (req, res) => {
   res.json({ ok: true });
 });
 // ✏️ Changer de pseudo (avec les privilèges)
-app.post('/api/me/username', auth, (req, res) => {
+function meUsername(req, res) {
   const u = req.user;
-  if (!hasPerks(u)) return res.status(403).json({ error: '👑 Réservé aux membres qui ont les privilèges' });
+  if (!hasPerks(u) && !req.devActor) return res.status(403).json({ error: '👑 Réservé aux membres qui ont les privilèges' });
   const name = clean(req.body.username, 20);
   if (!USERNAME_RE.test(name)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
   if (isPanelName(name)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
   if (filterWords(name) !== name) return res.status(400).json({ error: 'Ce pseudo n\'est pas autorisé' });
   const other = db.prepare('SELECT id, is_guest FROM users WHERE lower(username)=lower(?) AND id<>?').get(name, u.id);
   if (other) return res.status(409).json({ error: 'Ce pseudo est déjà pris' });
-  if (tooMany('rename:' + u.id, 20, 3600000)) return res.status(429).json({ error: 'Doucement ! Réessaie plus tard' });
+  if (!req.devActor && tooMany('rename:' + u.id, 20, 3600000)) return res.status(429).json({ error: 'Doucement ! Réessaie plus tard' });
   const old = u.username;
   db.prepare('UPDATE users SET username=? WHERE id=?').run(name, u.id);
   const updated = getUser(u.id);
   refreshOnline(updated);
-  log(updated, 'rename', `✏️ ${old} s'appelle maintenant ${name}`);
+  log(req.devActor || updated, 'rename', `✏️ ${old} s'appelle maintenant ${name}` + (req.devActor ? ' (changé par le Développeur)' : ''));
   res.json({ user: selfUser(updated) });
+}
+app.post('/api/me/username', auth, meUsername);
+
+// 💻 Le Développeur peut modifier de A à Z le profil de n'importe quel membre (mêmes réglages que « Personnaliser mon profil »)
+function devTarget(req, res, next) {
+  if (!req.user?.is_dev || req.user.role !== 'superadmin') return res.status(403).json({ error: '💻 Réservé au Développeur' });
+  const t = getUser(parseInt(req.params.id, 10)); if (!t) return res.status(404).json({ error: 'Membre introuvable' });
+  req.devActor = req.user; req.user = t; next();
+}
+app.get('/api/dev/users/:id', auth, devTarget, (req, res) => res.json({ user: { ...selfUser(req.user), grey: !!req.user.grey_heart } }));
+app.put('/api/dev/users/:id', auth, devTarget, (req, res) => {
+  if (req.body.grey !== undefined) db.prepare('UPDATE users SET grey_heart=? WHERE id=?').run(req.body.grey ? 1 : 0, req.user.id); // 🩶 le cœur gris
+  req.user = getUser(req.user.id);
+  meProfile(req, res);
 });
+app.post('/api/dev/users/:id/image/:kind', auth, devTarget, meImage);
+app.delete('/api/dev/users/:id/image/:kind', auth, devTarget, meImageDel);
+app.post('/api/dev/users/:id/username', auth, devTarget, meUsername);
 
 // 🩶 Le cœur gris à côté du cœur rouge : c'est le super-admin qui le donne
 app.post('/api/admin/users/:id/grey', auth, (req, res) => {

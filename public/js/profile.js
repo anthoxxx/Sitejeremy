@@ -92,7 +92,8 @@ async function openProfile(id) {
         isUserMuted(u.id)
           ? el('button', { class: 'btn', onclick: () => { close(); unmuteUser(u); } }, '🔊 Fin de sourdine ', el('small', { 'data-mute-left': u.id }, '🔇 ' + muteLeftText(u.id)))
           : el('button', { class: 'btn', title: 'Ne plus voir ses messages pendant un moment', onclick: () => { close(); openMutePicker(u); } }, '🔇 Sourdine'),
-        el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier')),
+        el('button', { class: 'btn', disabled: !data.online, onclick: () => { close(); challengeUser(u); } }, '🎮 Défier'),
+        state.me.dev ? el('button', { class: 'btn dev-edit', style: 'flex-basis:100%', onclick: async () => { try { const r = await api('/api/dev/users/' + u.id); close(); openMyProfile(r.user); } catch (e) { toast(e.message); } } }, '💻 Modifier son profil (Développeur)') : null),
       (state.customs?.enabled ? isSuperMe() : state.customs?.media && isStaff()) && !['admin', 'superadmin', 'moderator'].includes(u.role) ? el('div', { class: 'staff-actions' }, el('h4', {}, state.customs?.enabled ? '🛂 Douane : il faut les deux badges' : '🛂 Validation de la voix et de la caméra'),
         el('div', { class: 'actions' },
           el('button', { class: 'btn ' + (u.voiceOk ? 'btn-ok' : 'btn-primary'), onclick: () => { close(); setBadge(u, 'voice', !u.voiceOk); } }, u.voiceOk ? '🎙️ Voix validée ✓ (retirer)' : '🎙️ Valider la voix'),
@@ -159,8 +160,11 @@ function tagInput(values, max, placeholder, onChange) {
 }
 
 // ---------- Éditeur de mon profil ----------
-function openMyProfile() {
-  const d = JSON.parse(JSON.stringify(state.me)); // brouillon
+function openMyProfile(target) {
+  const T = target && target.id !== state.me.id ? target : null; // 💻 le Développeur modifie le profil d'un autre membre
+  const base = T ? '/api/dev/users/' + T.id : '/api/me';
+  const meUpd = user => { if (!T) { Object.assign(state.me, user); renderMe(); } };
+  const d = JSON.parse(JSON.stringify(T || state.me)); // brouillon
   d.socials = d.socials || {};
   const preview = el('div', { class: 'editor-preview' });
   const refresh = () => preview.replaceChildren(el('div', { class: 'preview-label' }, '👀 Aperçu en direct'), profileCard(d));
@@ -200,9 +204,8 @@ function openMyProfile() {
       status.textContent = '⏳ Envoi…';
       try {
         const data = await readImage(file.files[0], w, h);
-        const { user, pending } = await api('/api/me/image/' + kind, { method: 'POST', body: { data } });
-        d[kind] = user[kind]; state.me[kind] = user[kind];
-        renderMe(); refresh();
+        const { user, pending } = await api(base + '/image/' + kind, { method: 'POST', body: { data } });
+        d[kind] = user[kind]; if (!T) { state.me[kind] = user[kind]; renderMe(); } refresh();
         status.textContent = pending ? '⏳ Photo envoyée : elle sera visible dès que le staff l\'aura vérifiée (badge V)' : '✅ Enregistré';
       } catch (e) { status.textContent = '❌ ' + e.message; }
       file.value = '';
@@ -211,7 +214,7 @@ function openMyProfile() {
       el('div', { class: 'row', style: 'gap:8px' },
         el('button', { type: 'button', class: 'btn btn-sm btn-primary', style: 'flex:none', onclick: () => file.click() }, kind === 'avatar' ? '📷 Choisir une photo' : '🖼️ Choisir une image'),
         el('button', { type: 'button', class: 'btn btn-sm', style: 'flex:none', onclick: async () => {
-          try { const { user } = await api('/api/me/image/' + kind, { method: 'DELETE' }); d[kind] = ''; state.me[kind] = user[kind]; renderMe(); refresh(); status.textContent = 'Retiré'; } catch (e) { toast(e.message); }
+          try { const { user } = await api(base + '/image/' + kind, { method: 'DELETE' }); d[kind] = ''; if (!T) { state.me[kind] = user[kind]; renderMe(); } refresh(); status.textContent = 'Retiré'; } catch (e) { toast(e.message); }
         } }, 'Retirer')),
       file, status);
   };
@@ -219,7 +222,7 @@ function openMyProfile() {
   const namePick = colorPick('color');
   // --- Onglet Apparence ---
   const tabLook = el('div', {},
-    f('📷 Photo de profil', imageButtons('avatar', 256, 256), (state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, ou une photo animée 🎞️ (GIF ou WEBP animé, 4 Mo maximum). Et en dessous, choisis une animation ✨ pour faire bouger n\'importe quelle photo !'),
+    f('📷 Photo de profil', imageButtons('avatar', 256, 256), (!T && state.me.avatarPending ? '⏳ Ta nouvelle photo attend la vérification du staff. ' : '') + 'Chaque nouvelle photo est vérifiée par le staff avant d\'être visible (badge V). JPG, PNG, ou une photo animée 🎞️ (GIF ou WEBP animé, 4 Mo maximum). Et en dessous, choisis une animation ✨ pour faire bouger n\'importe quelle photo !'),
     f('🖼️ Bannière', el('div', {}, imageButtons('banner', 1200, 400),
       el('small', { class: 'help', style: 'display:block;margin:10px 0 6px' }, 'Ou un dégradé (utilisé quand il n\'y a pas d\'image) :'),
       choice(Object.keys(LC.BANNERS).map(k => [k, k]), 'bannerStyle', v => el('span', { class: 'banner-swatch', style: `background:${LC.BANNERS[v]}` })))),
@@ -229,15 +232,15 @@ function openMyProfile() {
         inp.value = LC.GENDER_COLORS[d.gender] || LC.GENDER_COLORS.x;
         inp.dispatchEvent(new Event('input'));
       } }, '↺ Couleur par défaut (selon ton genre)'),
-      state.me.canBlack ? el('button', { type: 'button', class: 'btn btn-sm black-pick', style: 'margin-top:8px;margin-left:6px', onclick: () => { const inp = namePick.querySelector('input[type=color]'); inp.value = '#000000'; inp.dispatchEvent(new Event('input')); } }, '🖤 Noir (réservé au staff)') : null),
-      state.me.canBlack ? null : 'Le noir est réservé au staff 🛡️'),
-    state.me.perks ? f('✏️ Changer de pseudo (👑 privilège)', (() => {
-      const inp = el('input', { class: 'input', maxlength: 20, value: state.me.username });
+      state.me.canBlack || T ? el('button', { type: 'button', class: 'btn btn-sm black-pick', style: 'margin-top:8px;margin-left:6px', onclick: () => { const inp = namePick.querySelector('input[type=color]'); inp.value = '#000000'; inp.dispatchEvent(new Event('input')); } }, '🖤 Noir (réservé au staff)') : null),
+      state.me.canBlack || T ? null : 'Le noir est réservé au staff 🛡️'),
+    state.me.perks || T ? f(T ? '✏️ Changer son pseudo' : '✏️ Changer de pseudo (👑 privilège)', (() => {
+      const inp = el('input', { class: 'input', maxlength: 20, value: d.username });
       return el('div', { class: 'row', style: 'gap:8px' }, inp, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async () => {
-        try { const r = await api('/api/me/username', { method: 'POST', body: { username: inp.value.trim() } }); Object.assign(state.me, r.user); d.username = r.user.username; renderMe(); refresh(); toast(`✏️ Tu t'appelles maintenant ${r.user.username} !`); LC.confetti(['✏️', '👑', '✨']); } catch (e) { toast(e.message); }
+        try { const r = await api(base + '/username', { method: 'POST', body: { username: inp.value.trim() } }); meUpd(r.user); d.username = r.user.username; refresh(); toast(T ? `✏️ Son pseudo est maintenant ${r.user.username}` : `✏️ Tu t'appelles maintenant ${r.user.username} !`); if (!T) LC.confetti(['✏️', '👑', '✨']); } catch (e) { toast(e.message); }
       } }, 'Changer'));
     })(), 'Tu peux changer de pseudo quand tu veux, autant de fois que tu veux.') : null,
-    f('✨ Effet du pseudo', choice([...NAME_FX, ...ownedOf('name_', PREMIUM_FX)], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
+    f('✨ Effet du pseudo', choice([...NAME_FX, ...(T ? Object.entries(PREMIUM_FX) : ownedOf('name_', PREMIUM_FX))], 'nameEffect', (v, label) => LC.name({ username: label, color: d.color, nameEffect: v }))),
     f('⭕ Couleur autour du pseudo', (() => {
       const RING = [['', '🚫 Rien'], ['contour', '⭕ Contour'], ['halo', '✨ Halo'], ['bulle', '💬 Bulle'], ['neon', '💡 Néon'], ['double', '◎ Double'], ['degrade', '🌅 Dégradé'], ['arcenciel', '🌈 Arc-en-ciel']];
       const COLS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#32ade6', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#ff5fa2', '#ffffff', '#c0c0c0', '#d4af37', '#8b4513', '#000000'];
@@ -261,7 +264,7 @@ function openMyProfile() {
     f('✍️ Style d\'écriture de mes messages', choice(LC.MSG_FONTS, 'msgFont', (v, label) => el('span', { class: v ? 'mf-' + v : '' }, label))),
     f('🎨 Couleur d\'écriture', el('div', {}, colorPick('msgColor'), el('button', { type: 'button', class: 'btn btn-sm', style: 'margin-top:6px', onclick: e => { d.msgColor = ''; refresh(); e.target.textContent = '✅ Couleur normale'; } }, '↺ Couleur normale')), 'Tes messages s\'afficheront avec ce style et cette couleur, pour tout le monde.'),
     f('✨ Photo animée', choice(AVATAR_FX_UI, 'avatarFx', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, avatarFx: v }), label))),
-    f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...ownedOf('frame_', PREMIUM_FRAMES)], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
+    f('⭕ Cadre de la photo', choice([...FRAMES_UI, ...(T ? Object.entries(PREMIUM_FRAMES) : ownedOf('frame_', PREMIUM_FRAMES))], 'frame', (v, label) => el('span', { class: 'frame-choice' }, LC.avatar({ ...d, frame: v }), label))));
 
   // --- Onglet Infos ---
   const age = bind(el('input', { class: 'input', type: 'number', min: 13, max: 99, value: d.age || '' }), 'age', v => parseInt(v, 10) || '');
@@ -309,7 +312,10 @@ function openMyProfile() {
   // --- Onglet Compte ---
   const pwCur = el('input', { class: 'input', type: 'password', placeholder: 'Mot de passe actuel', autocomplete: 'current-password' });
   const pwNew = el('input', { class: 'input', type: 'password', placeholder: 'Nouveau mot de passe (6 caractères min.)', autocomplete: 'new-password', style: 'margin-top:8px' });
-  const tabAccount = el('div', {},
+  const tabAccount = T ? el('div', {},
+    el('div', { class: 'dev-zone' }, el('div', { class: 'dev-title' }, `💻 Le profil de ${T.username}`),
+      el('p', { class: 'help', style: 'margin:4px 0 10px' }, 'Tu modifies ce profil en tant que Développeur : tout ce que tu enregistres s\'applique tout de suite pour ce membre.')),
+    el('label', { class: 'switch' }, el('span', {}, '🩶 Cœur gris à côté du cœur rouge'), bind(el('input', { type: 'checkbox', checked: !!d.grey }), 'grey'))) : el('div', {},
     d.isGuest
       ? el('p', { class: 'help' }, '💡 Tu es invité : ton profil disparaît 24 h après ton départ. Déconnecte-toi puis inscris-toi pour garder ton pseudo et ton profil.')
       : el('div', {}, f('🔐 Changer de mot de passe', el('div', {}, pwCur, pwNew)),
@@ -328,7 +334,7 @@ function openMyProfile() {
       el('p', { class: 'help', style: 'margin:4px 0 10px' }, 'Tu veux quitter le site ? Tu peux supprimer ton compte ici. C\'est définitif : ton profil, tes messages, tes amis, tes coins, ta maison et ton animal seront effacés.'),
       el('button', { class: 'btn btn-sm btn-danger-outline', type: 'button', onclick: askDeleteAccount }, 'Supprimer mon compte')));
 
-  const tabs = [['🎨 Apparence', tabLook], ['📝 Infos', tabInfo], ['🔗 Réseaux', tabSocial], ['🔐 Compte', tabAccount]];
+  const tabs = [['🎨 Apparence', tabLook], ['📝 Infos', tabInfo], ['🔗 Réseaux', tabSocial], [T ? '💻 Plus' : '🔐 Compte', tabAccount]];
   const body = el('div', { class: 'editor-body' });
   const tabBar = el('div', { class: 'tabs' });
   const show = i => {
@@ -343,20 +349,20 @@ function openMyProfile() {
     el('div', { class: 'editor' },
       preview,
       el('div', { class: 'editor-form' },
-        el('h3', { style: 'margin:0 0 14px' }, '✏️ Personnaliser mon profil'),
+        el('h3', { style: 'margin:0 0 14px' }, T ? `💻 Modifier le profil de ${T.username}` : '✏️ Personnaliser mon profil'),
         tabBar, body, err,
         el('div', { class: 'actions editor-save' },
           el('button', { class: 'btn btn-ghost', onclick: () => close() }, 'Annuler'),
           el('button', { class: 'btn btn-primary', onclick: async () => {
             err.textContent = '';
             try {
-              const { user } = await api('/api/me', { method: 'PUT', body: {
+              const { user } = await api(base, { method: 'PUT', body: { ...(T ? { grey: !!d.grey } : {}),
                 age: d.age, gender: d.gender, city: d.city, email: d.email || '', bio: d.bio, color: d.color, accent: d.accent,
                 nameEffect: d.nameEffect, frame: d.frame, avatarFx: d.avatarFx || 'none', identity: d.identity || '', likes: d.likes || [], msgFont: d.msgFont || '', msgColor: d.msgColor || '', nameRing: d.nameRing || '', bannerStyle: d.bannerStyle, statusEmoji: d.statusEmoji, statusText: d.statusText,
                 interests: d.interests || [], games: d.games || [], socials: d.socials, showAge: d.showAge !== false, showCity: d.showCity !== false,
                 birthDay: d.birthDay || 0, birthMonth: d.birthMonth || 0, showBirthday: d.showBirthday !== false,
               } });
-              state.me = user; renderMe(); close(); toast('✨ Profil enregistré !');
+              if (T) { close(); toast(`💻 Profil de ${user.username} enregistré !`); } else { state.me = user; renderMe(); close(); toast('✨ Profil enregistré !'); }
             } catch (e) { err.textContent = e.message; }
           } }, '💾 Enregistrer')))));
   document.querySelectorAll('.modal-back .modal')[document.querySelectorAll('.modal-back .modal').length - 1].classList.add('editor-modal');
