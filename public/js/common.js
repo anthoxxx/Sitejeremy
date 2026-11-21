@@ -255,9 +255,12 @@ window.LC = {
     const n = LC.el('span', { class: 'uname' + fx + (nn ? ' nn-' + nn : '') + (LC.isDark(u.color) ? ' uname-black' : '') + (rs ? ' nr nr-' + rs + (rc2 ? ' nr2' : '') : '') + (extraClass ? ' ' + extraClass : ''), style: `--c:${u.color || '#8b6cff'};color:${u.color || '#8b6cff'}` + (rc ? `;--nr:${rc}` : '') + (rc2 ? `;--nr2:${rc2}` : '') }, u.username);
     // badge acheté dans la boutique 💰
     const badge = u.shopBadge ? LC.el('span', { class: 'shop-badge', title: 'Badge de la boutique' }, u.shopBadge) : null;
-    if (!u.isBirthday && !badge) return n;
-    return LC.el('span', { class: 'uname-wrap' }, n, badge, u.isBirthday ? LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂') : null);
+    const T = LC.COIN_TIERS[(u.coinTier || 0) - 1]; // 💰 le badge du palier de pièces
+    const tier = T ? LC.el('span', { class: 'coin-tier t' + u.coinTier, title: `💰 Palier ${T[1]} : ${T[2]} pièces et plus` }, T[0]) : null;
+    if (!u.isBirthday && !badge && !tier) return n;
+    return LC.el('span', { class: 'uname-wrap' }, n, badge, tier, u.isBirthday ? LC.el('span', { class: 'bday-cake', title: 'C\'est son anniversaire aujourd\'hui !' }, ' 🎂') : null);
   },
+  COIN_TIERS: [['🥉', 'Bronze', '100'], ['🥈', 'Argent', '500'], ['🥇', 'Or', '1 000'], ['💠', 'Platine', '2 500'], ['💎', 'Diamant', '5 000'], ['👑', 'Royal', '10 000'], ['🌟', 'Légende', '25 000'], ['🚀', 'Mythique', '50 000'], ['🏆', 'Milliardaire', '100 000']],
   BANNERS: {
     aurora: 'linear-gradient(135deg,#8b6cff,#ff5fa2 60%,#ffb547)',
     sunset: 'linear-gradient(135deg,#ff7a59,#ff3d77 50%,#7b2ff7)',

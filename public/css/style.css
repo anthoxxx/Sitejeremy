@@ -3845,7 +3845,7 @@ body { background:
 .lg-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; } .lg-row small { opacity: .75; }
 @media (max-width: 520px) { .lg-maps { grid-template-columns: 1fr; } .lg-map { flex-direction: row; text-align: left; } .lg-map small { display: none; } }
 
-.lg { position: fixed; inset: 0; z-index: 2000; background: #04050b; touch-action: none; user-select: none; -webkit-user-select: none; overflow: hidden; }
+.lgame { position: fixed; inset: 0; z-index: 2000; background: #04050b; touch-action: none; user-select: none; -webkit-user-select: none; overflow: hidden; }
 .lg-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .lg-load { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #fff; font-size: 18px; }
 .lg-hud { position: absolute; inset: 0; pointer-events: none; color: #fff; font-family: Outfit, Inter, sans-serif; }
@@ -3942,3 +3942,63 @@ body { background:
 .lite .ki-steam { filter: none; }
 .lite .afx-hearts::before, .lite .afx-flames::before { animation-duration: 3s; }
 .lite #messages > .msg .afx-hearts::before, .lite #messages > .msg .afx-flames::before { animation: none; opacity: 0; }
+
+/* ---------- 💰 Nouveaux objets de la boutique ---------- */
+/* ⭕ cadres */
+.avatar.frame-fire { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #ff6a00, 0 0 16px #ff3d00; animation: frFire 1s ease-in-out infinite alternate; }
+.avatar.frame-fire::after { content: '🔥'; position: absolute; right: -6px; bottom: -4px; font-size: 13px; }
+@keyframes frFire { to { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #ffb300, 0 0 22px #ff6a00; } }
+.avatar.frame-ocean { border: 3px solid transparent; background: linear-gradient(var(--avbg), var(--avbg)) padding-box, conic-gradient(from var(--ang), #00c6ff, #0072ff, #00e5c7, #00c6ff) border-box; animation: spinang 3s linear infinite; box-shadow: 0 0 14px rgba(0, 150, 255, .7); }
+.avatar.frame-rainbow { border: 3px solid transparent; background: linear-gradient(var(--avbg), var(--avbg)) padding-box, conic-gradient(from var(--ang), #ff3b30, #ff9500, #ffcc00, #34c759, #007aff, #af52de, #ff3b30) border-box; animation: spinang 2.5s linear infinite; box-shadow: 0 0 14px rgba(255, 255, 255, .35); }
+.avatar.frame-gold { box-shadow: 0 0 0 2px #fff3c4, 0 0 0 4px #d4a017, 0 0 0 6px #8a6a10, 0 0 18px rgba(245, 197, 66, .9); }
+.avatar.frame-butterfly { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #4fb3ff, 0 0 12px rgba(79, 179, 255, .7); }
+.avatar.frame-butterfly::after { content: '🦋'; position: absolute; right: -8px; top: -8px; font-size: 14px; animation: frFlap 1.4s ease-in-out infinite; }
+@keyframes frFlap { 50% { transform: scaleX(.6) translateY(-2px); } }
+.avatar.frame-stars { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #ffd76a, 0 0 14px rgba(255, 215, 106, .7); }
+.avatar.frame-stars::after { content: '✨'; position: absolute; left: -7px; top: -7px; font-size: 13px; animation: icoTwinkle 1.6s ease-in-out infinite; }
+.avatar.frame-frost { box-shadow: 0 0 0 2px #e8f7ff, 0 0 0 4px #9fd8ff, 0 0 16px rgba(159, 216, 255, .9); }
+.avatar.frame-frost::after { content: '❄️'; position: absolute; right: -6px; top: -6px; font-size: 12px; animation: frSpin 6s linear infinite; }
+@keyframes frSpin { to { transform: rotate(360deg); } }
+.avatar.frame-cupid { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #ff4f9a, 0 0 18px rgba(255, 79, 154, .8); }
+.avatar.frame-cupid::after { content: '💘'; position: absolute; left: -7px; bottom: -5px; font-size: 13px; animation: heartBeat 1.1s ease-in-out infinite; }
+.avatar.frame-neon { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #b44dff, 0 0 18px #b44dff; animation: neonFlicker 4s linear infinite; }
+.avatar.frame-spooky { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #8a8f9c, 0 0 14px rgba(200, 210, 230, .6); }
+.avatar.frame-spooky::after { content: '👻'; position: absolute; right: -9px; top: -9px; font-size: 14px; animation: icoFloat 2.4s ease-in-out infinite; }
+.avatar.frame-money { box-shadow: 0 0 0 2px #0e3d1f, 0 0 0 4px #2ecc71, 0 0 0 6px #f5c542, 0 0 18px rgba(46, 204, 113, .8); }
+.avatar.frame-money::after { content: '💸'; position: absolute; right: -8px; bottom: -6px; font-size: 13px; animation: icoFloat 2s ease-in-out infinite; }
+.avatar.frame-planet { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px #e0a96d, 0 0 14px rgba(224, 169, 109, .7); }
+.avatar.frame-planet::before { content: ''; position: absolute; left: -22%; right: -22%; top: 42%; height: 16%; border-radius: 50%; border: 2px solid rgba(240, 200, 140, .9); transform: rotate(-18deg); pointer-events: none; }
+.avatar.lg.frame-fire::after, .avatar.lg.frame-butterfly::after, .avatar.lg.frame-stars::after, .avatar.lg.frame-frost::after, .avatar.lg.frame-cupid::after, .avatar.lg.frame-spooky::after, .avatar.lg.frame-money::after { font-size: 26px; }
+/* ✨ effets de pseudo */
+.fx-gold, .fx-rainbow, .fx-ocean, .fx-candy, .fx-lava, .fx-aurora, .fx-toxic, .fx-love, .fx-chrome, .fx-sunset { background-size: 220% auto; -webkit-background-clip: text; background-clip: text; color: transparent !important; animation: shine 3s linear infinite; }
+.fx-gold { background-image: linear-gradient(90deg, #b8860b, #ffe08a, #fff6d0, #d4a017, #b8860b); filter: drop-shadow(0 0 3px rgba(245, 197, 66, .6)); }
+.fx-rainbow { background-image: linear-gradient(90deg, #ff3b30, #ff9500, #ffcc00, #34c759, #007aff, #af52de, #ff3b30); animation-duration: 2.2s; }
+.fx-ocean { background-image: linear-gradient(90deg, #00c6ff, #0072ff, #7fe9ff, #00e5c7, #00c6ff); }
+.fx-candy { background-image: linear-gradient(90deg, #ff7eb9, #7afcff, #ff7eb9, #feff9c, #ff7eb9); }
+.fx-lava { background-image: linear-gradient(0deg, #8b0000, #ff2d00, #ff9500, #ff2d00); background-size: auto 220%; animation: fireName 1.6s linear infinite; filter: drop-shadow(0 0 4px rgba(255, 45, 0, .6)); }
+.fx-aurora { background-image: linear-gradient(90deg, #00ff9d, #00c3ff, #8a2be2, #00ff9d); animation-duration: 4s; filter: drop-shadow(0 0 4px rgba(0, 255, 157, .4)); }
+.fx-toxic { background-image: linear-gradient(90deg, #7fff00, #d4ff00, #39ff14, #7fff00); filter: drop-shadow(0 0 5px rgba(127, 255, 0, .7)); }
+.fx-love { background-image: linear-gradient(90deg, #ff1744, #ff80ab, #ff4081, #ff1744); filter: drop-shadow(0 0 3px rgba(255, 64, 129, .6)); }
+.fx-chrome { background-image: linear-gradient(90deg, #8e9eab, #eef2f3, #ffffff, #8e9eab, #5f6b75); filter: drop-shadow(0 0 2px rgba(255, 255, 255, .5)); }
+.fx-sunset { background-image: linear-gradient(90deg, #ff512f, #f09819, #ff5fa2, #8b5cff, #ff512f); }
+/* 🎬 bannières d'entrée */
+.efx-snow span { border-color: #bfe6ff; box-shadow: 0 0 30px rgba(191, 230, 255, .7); }
+.efx-money span { background: linear-gradient(90deg, #0e3d1f, #1e7a3c, #0e3d1f); border-color: #f5c542; }
+.efx-rocket span { background: linear-gradient(90deg, #0b0b3a, #2a1060); border-color: #ff9500; }
+.efx-party span { background: linear-gradient(90deg, #ff5fa2, #8b5cff, #4fb3ff); border-color: #fff; }
+.efx-roses span { background: linear-gradient(90deg, #5a0018, #a3123a, #5a0018); border-color: #ff8fab; }
+.efx-ghost span { background: rgba(230, 236, 245, .18); border-color: #e6ecf5; box-shadow: 0 0 30px rgba(230, 236, 245, .5); }
+.efx-dragon span { background: linear-gradient(90deg, #3a0000, #a31c00, #3a0000); border-color: #ff6a00; box-shadow: 0 0 36px rgba(255, 106, 0, .8); }
+.efx-stars span { background: linear-gradient(90deg, #070720, #1c1c5a); border-color: #ffd76a; }
+.efx-disco span { background: linear-gradient(90deg, #ff2bd6, #00f0ff, #ffe600, #ff2bd6); background-size: 300% 100%; animation: devFlow 1.5s linear infinite; border-color: #fff; }
+.efx-king span { background: linear-gradient(90deg, #5c3d00, #c9971c, #5c3d00); border-color: #fff3c4; box-shadow: 0 0 40px rgba(245, 197, 66, .9); }
+.efx-pizza span { background: linear-gradient(90deg, #a33b00, #e0761a, #a33b00); border-color: #ffd76a; }
+.efx-love span { background: linear-gradient(90deg, #ff1744, #ff80ab); border-color: #fff; }
+
+/* 💰 le badge des paliers de pièces, à côté du pseudo */
+.coin-tier { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; font-size: .78em; line-height: 1; padding: 1px 5px; border-radius: 999px; vertical-align: middle; border: 1px solid var(--ct, #cd7f32); background: color-mix(in srgb, var(--ct, #cd7f32) 18%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--ct, #cd7f32) 55%, transparent); }
+.coin-tier.t1 { --ct: #cd7f32; } .coin-tier.t2 { --ct: #c0c0c0; } .coin-tier.t3 { --ct: #f5c542; } .coin-tier.t4 { --ct: #7fe9ff; } .coin-tier.t5 { --ct: #b9f2ff; }
+.coin-tier.t6 { --ct: #ffd76a; } .coin-tier.t7 { --ct: #ff5fa2; } .coin-tier.t8 { --ct: #8b5cff; } .coin-tier.t9 { --ct: #2bff88; }
+.coin-tier.t7, .coin-tier.t8, .coin-tier.t9 { animation: ctGlow 2.4s ease-in-out infinite; }
+@keyframes ctGlow { 50% { box-shadow: 0 0 12px var(--ct); } }
+.lite .coin-tier { animation: none !important; }

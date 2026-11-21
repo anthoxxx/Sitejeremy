@@ -162,7 +162,7 @@ const LaserGame = (() => {
   async function enterGame() {
     if (active || !room) return;
     active = true; closePanel?.(); closePanel = null;
-    ov = el('div', { class: 'lg' }); document.body.append(ov);
+    ov = el('div', { class: 'lgame' }); document.body.append(ov);
     ov.append(el('div', { class: 'lg-load' }, el('div', { class: 'lg-logo' }, '🔫'), el('b', {}, 'Chargement de l\'arène…')));
     try {
       K = await window.City3D.kit(); THREE = K.THREE;

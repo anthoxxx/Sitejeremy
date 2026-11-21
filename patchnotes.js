@@ -1144,6 +1144,22 @@ module.exports = [
     removed: [],
   },
   {
+    id: 91,
+    date: '2026-11-21',
+    title: 'Badges de richesse et 80 nouveautés dans la boutique 💰',
+    added: [
+      '💰 Un badge à côté de ton pseudo selon les pièces que tu as : 🥉 Bronze (100), 🥈 Argent (500), 🥇 Or (1 000), 💠 Platine (2 500), 💎 Diamant (5 000), 👑 Royal (10 000), 🌟 Légende (25 000), 🚀 Mythique (50 000) et 🏆 Milliardaire (100 000). Il change tout seul à chaque palier !',
+      '⭕ 12 nouveaux cadres photo : Flammes, Océan, Arc-en-ciel, Or massif, Papillon, Étoilé, Givré, Cupidon, Néon violet, Hanté, Billets et Planète',
+      '✨ 10 nouveaux effets de pseudo : Or, Arc-en-ciel, Océan, Bonbon, Lave, Aurore boréale, Toxique, Love, Chrome et Coucher de soleil',
+      '🏅 50 nouveaux badges : animaux, nourriture, sports, musique, espace, Ninja, Sirène, Phénix, Cœur en feu…',
+      '🎬 12 nouvelles entrées en scène : Tempête de neige, Pluie de billets, Fusée, Fête, Pluie de roses, Fantôme, Dragon, Étoiles filantes, Disco, Royale, Livraison pizza et Coup de foudre',
+    ],
+    changed: [
+      '🖼️ Les grandes photos de profil (profils, aperçus de la boutique) s\'affichent de nouveau au bon endroit',
+    ],
+    removed: [],
+  },
+  {
     id: 90,
     date: '2026-11-21',
     title: 'Le site est beaucoup plus fluide ⚡',

@@ -133,10 +133,10 @@ const Shop = (() => {
   function giftTab() {
     const friends = state.friends?.friends || [];
     const sel = el('select', { class: 'input' }, el('option', { value: '' }, friends.length ? '— Choisis un ami —' : 'Ajoute des amis pour leur offrir des pièces'), ...friends.map(u => el('option', { value: u.id }, u.username)));
-    const amount = el('input', { class: 'input', type: 'number', min: 5, max: 500, value: 20 });
+    const amount = el('input', { class: 'input', type: 'number', min: 5, value: 20 });
     const msg = el('input', { class: 'input', maxlength: 120, placeholder: 'Un petit mot (facultatif)' });
     return [el('div', { class: 'gift' },
-      el('p', {}, '💝 Fais plaisir à un ami : offre-lui des pièces (500 par jour au maximum).'),
+      el('p', {}, '💝 Fais plaisir à un ami : offre-lui des pièces.'),
       el('label', {}, 'À qui ?'), sel, el('label', {}, 'Combien ?'), amount, msg,
       el('button', { class: 'btn btn-primary', onclick: async () => {
         if (!sel.value) return toast('Choisis un ami');
@@ -163,6 +163,18 @@ const Shop = (() => {
     thunder: { emojis: ['⚡', '🌩️', '💥'], text: '⚡ {n} débarque comme l\'éclair !' },
     carpet: { emojis: ['🌟', '📸', '✨'], text: '🌟 Tapis rouge pour {n} !' },
     rainbow: { emojis: ['🌈', '🦄', '✨'], text: '🌈 {n} arrive sur un arc-en-ciel !' },
+    snow: { emojis: ['❄️', '🌨️', '⛄'], text: '❄️ {n} arrive dans une tempête de neige !' },
+    money: { emojis: ['💸', '💵', '💰', '🪙'], text: '💸 {n} arrive sous une pluie de billets !' },
+    rocket: { emojis: ['🚀', '🌟', '💫'], text: '🚀 {n} vient d\'atterrir en fusée !' },
+    party: { emojis: ['🎉', '🎈', '🎊'], text: '🎉 Faites la fête : {n} est là !' },
+    roses: { emojis: ['🌹', '🥀', '💐'], text: '🌹 {n} arrive sous une pluie de roses !' },
+    ghost: { emojis: ['👻', '💨', '🕯️'], text: '👻 Bouh ! {n} apparaît comme un fantôme…' },
+    dragon: { emojis: ['🐉', '🔥', '💥'], text: '🐉 Un dragon crache du feu pour {n} !' },
+    stars: { emojis: ['🌠', '⭐', '✨'], text: '🌠 Fais un vœu : {n} arrive avec les étoiles filantes !' },
+    disco: { emojis: ['🪩', '🎶', '🕺', '💃'], text: '🪩 {n} fait son entrée disco !' },
+    king: { emojis: ['👑', '🎺', '💎'], text: '👑 Place ! {n} fait son entrée royale !' },
+    pizza: { emojis: ['🍕', '🍕', '😋'], text: '🍕 {n} arrive avec les pizzas pour tout le monde !' },
+    love: { emojis: ['💘', '💞', '😍'], text: '💘 Coup de foudre : {n} est là !' },
   };
   function playEntry(fx, name, preview) {
     const e = ENTRY[fx];

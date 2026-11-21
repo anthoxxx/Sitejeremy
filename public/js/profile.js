@@ -14,8 +14,8 @@ const NAME_FX = [['none', 'Normal'], ['gradient', 'Dégradé'], ['glow', 'Néon'
 const AVATAR_FX_UI = [['none', 'Aucune'], ['bounce', '🏀 Rebond'], ['pulse', '💓 Battement'], ['float', '🎈 Flotte'], ['wiggle', '👋 Coucou'], ['spin', '🌀 Tourne'], ['zoom', '🔍 Zoom'], ['rainbow', '🌈 Arc-en-ciel'], ['neon', '💡 Néon'], ['glitter', '✨ Paillettes'], ['hearts', '💖 Cœurs'], ['flames', '🔥 Flammes']];
 const FRAMES_UI = [['none', 'Aucun'], ['neon', 'Néon'], ['gold', 'Or'], ['rainbow', 'Arc-en-ciel'], ['fire', 'Feu'], ['ice', 'Glace']];
 // Les effets et cadres exclusifs achetés dans la boutique 💰
-const PREMIUM_FX = { galaxy: '🌌 Galaxie', fire: '🔥 En feu', ice: '❄️ Glacé', glitter: '✨ Paillettes', pulse: '💡 Néon pulsé', matrix: '💻 Hacker' };
-const PREMIUM_FRAMES = { diamond: '💎 Diamant', galaxy: '🌌 Galaxie', hearts: '💖 Cœurs', crown: '👑 Royal', electric: '⚡ Électrique', sakura: '🌸 Sakura' };
+const PREMIUM_FX = { galaxy: '🌌 Galaxie', fire: '🔥 En feu', ice: '❄️ Glacé', glitter: '✨ Paillettes', pulse: '💡 Néon pulsé', matrix: '💻 Hacker', gold: '🏆 Or', rainbow: '🌈 Arc-en-ciel', ocean: '🌊 Océan', candy: '🍬 Bonbon', lava: '🌋 Lave', aurora: '🌌 Aurore boréale', toxic: '☢️ Toxique', love: '💗 Love', chrome: '🪙 Chrome', sunset: '🌅 Coucher de soleil' };
+const PREMIUM_FRAMES = { diamond: '💎 Diamant', galaxy: '🌌 Galaxie', hearts: '💖 Cœurs', crown: '👑 Royal', electric: '⚡ Électrique', sakura: '🌸 Sakura', fire: '🔥 Flammes', ocean: '🌊 Océan', rainbow: '🌈 Arc-en-ciel', gold: '🏆 Or massif', butterfly: '🦋 Papillon', stars: '⭐ Étoilé', frost: '❄️ Givré', cupid: '💘 Cupidon', neon: '💜 Néon violet', spooky: '👻 Hanté', money: '💸 Billets', planet: '🪐 Planète' };
 const ownedOf = (prefix, names) => (state.me?.owned || []).filter(id => id.startsWith(prefix)).map(id => id.slice(prefix.length)).filter(v => names[v]).map(v => [v, names[v]]);
 const STATUS_EMOJIS = ['', '🎮', '🎧', '😴', '🔥', '💜', '😎', '🍕', '📚', '💼', '🏆', '🤔', '😂', '🌙', '✈️', '🎬'];
 const COLOR_SWATCHES = ['#8b6cff', '#ff5fa2', '#ffb547', '#33d6a6', '#4fb3ff', '#ff7a59', '#c86bff', '#f2e94e', '#ffffff', '#ff4d4d'];

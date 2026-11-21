@@ -119,7 +119,7 @@ function publicUser(u) {
     bio: u.bio, color: u.color, role: u.role, isGuest: !!u.is_guest, createdAt: u.created_at,
     avatar: u.avatar || '', banner: u.banner || '', bannerStyle: u.banner_style || 'aurora', accent: u.accent || '#ff5fa2',
     badges: u.is_guest ? [] : badgesOf(u.id),
-    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.id) || '', identity: u.identity || '', likes: parseJSON(u.likes, []), msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', level: require('./progress').levelOf(u.xp || 0).level,
+    nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.id) || '', identity: u.identity || '', likes: parseJSON(u.likes, []), msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', coinTier: coinTier(u.coins), level: require('./progress').levelOf(u.xp || 0).level,
     statusEmoji: u.status_emoji || '', statusText: u.status_text || '',
     interests: parseJSON(u.interests, []), games: parseJSON(u.games, []), socials: parseJSON(u.socials, {}),
     birthday: u.birth_day && u.birth_month && u.show_birthday !== 0 ? { day: u.birth_day, month: u.birth_month } : null,
@@ -143,7 +143,10 @@ function adminUser(u) {
   return { ...selfUser(u), banned: !!banBlock(u), banUntil: u.ban_until || 0, banKind: u.ban_kind || 'ban', banReason: u.ban_reason, mutedUntil: u.muted_until, lastSeen: u.last_seen, linkedAccounts: linked };
 }
 // Mini-profil pour les messages, le vocal…
-const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.user_id || u.id) || '', identity: u.identity || '', msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
+// 💰 le palier selon les pièces qu'on a : 100, 500, 1 000, 2 500, 5 000, 10 000, 25 000, 50 000, 100 000
+const COIN_TIERS = [100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+const coinTier = c => { let t = 0; for (const x of COIN_TIERS) if ((c || 0) >= x) t++; return t; };
+const miniUser = u => ({ gender: u.gender, role: u.role, modLevel: u.role === 'moderator' ? modLevel(u) : 0, avatar: u.avatar || '', nameEffect: u.name_effect || 'none', frame: u.avatar_frame || 'none', avatarFx: u.avatar_fx || 'none', dev: !!u.is_dev, grey: !!u.grey_heart, crown: PageantRef?.crownOf(u.user_id || u.id) || '', identity: u.identity || '', msgFont: u.msg_font || '', msgColor: u.msg_color || '', nameRing: u.name_ring || '', shopBadge: u.shop_badge || '', coinTier: coinTier(u.coins), badges: badgesOf(u.user_id || u.id), isBirthday: isBirthday(u), validated: customsOn() && isVerified(u) });
 
 // Fichiers d'images de profil
 function removeUpload(url) {
@@ -2784,7 +2787,10 @@ const recentLeave = new Map(); // userId -> { room, timer } : départ pas encore
 const Jukebox = require('./jukebox')({ app, io, auth, isStaff, tooMany, log, getOnline: () => online });
 const TvBot = require('./tvbot')({ app, io, auth, isStaff, isVerified: u => isVerified(u), tooMany, log, getOnline: () => online, dataDir });
 // 💰 Les Paradise Coins (pendant une soirée, les jeux rapportent le double)
-const Coins = require('./coins')({ db, emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), getUser: id => getUser(id), multiplier: () => (Events.isLive() ? 2 : 1), log: (...a) => log(...a) });
+const Coins = require('./coins')({ db, emitToUser: (...a) => emitToUser(...a), notify: (...a) => notify(...a), getUser: id => getUser(id), multiplier: () => (Events.isLive() ? 2 : 1), log: (...a) => log(...a),
+  // 💰 on passe un palier de pièces : le badge change tout de suite à côté du pseudo
+  onBalance: (uid, coins) => { const t = coinTier(coins), k = 'tier:' + uid; if (tierSeen.get(k) === t) return; const first = !tierSeen.has(k); tierSeen.set(k, t); if (!first) { const u = getUser(uid); if (u) refreshOnline(u); } } });
+const tierSeen = new Map();
 // 🎯 Quêtes, succès et niveaux
 const Progress = require('./progress')({ db, earn: (...a) => Coins.earn(...a), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a), getUser: id => getUser(id), onBadge: uid => { const u = getUser(uid); if (u) refreshOnline(u); io.emit('badges', { userId: uid, badges: Progress.shown(uid) }); } });
 badgesOf = uid => { try { return Progress.shown(uid); } catch (e) { return []; } };
@@ -3135,7 +3141,7 @@ io.on('connection', socket => {
     socket.join('room:' + room.slug);
     const prev = entry.room;
     entry.room = room.slug;
-    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.is_dev, u.grey_heart, u.identity, u.msg_font, u.msg_color, u.name_ring, u.shop_badge, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
+    const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.is_dev, u.grey_heart, u.identity, u.msg_font, u.msg_color, u.name_ring, u.shop_badge, u.coins, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
     ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
     // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre

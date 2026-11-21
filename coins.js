@@ -29,6 +29,81 @@ const SHOP = [
   { id: 'badge_crown', slot: 'badge', value: '👑', name: 'Badge Couronne', icon: '👑', price: 1000, desc: 'Le badge des rois et des reines' },
   { id: 'badge_dragon', slot: 'badge', value: '🐉', name: 'Badge Dragon', icon: '🐉', price: 1200, desc: 'Le plus impressionnant' },
   { id: 'badge_diamond', slot: 'badge', value: '💎', name: 'Badge Diamant', icon: '💎', price: 2000, desc: 'Le plus rare de tous' },
+  // ⭕ Nouveaux cadres photo
+  { id: 'frame_fire', slot: 'frame', value: 'fire', name: 'Cadre Flammes', icon: '🔥', price: 450, desc: 'Des flammes orange qui dansent autour de ta photo' },
+  { id: 'frame_ocean', slot: 'frame', value: 'ocean', name: 'Cadre Océan', icon: '🌊', price: 400, desc: 'Des vagues bleues qui tournent autour de toi' },
+  { id: 'frame_rainbow', slot: 'frame', value: 'rainbow', name: 'Cadre Arc-en-ciel', icon: '🌈', price: 550, desc: 'Toutes les couleurs qui tournent sans fin' },
+  { id: 'frame_gold', slot: 'frame', value: 'gold', name: 'Cadre Or massif', icon: '🏆', price: 750, desc: 'Un double anneau en or qui brille' },
+  { id: 'frame_butterfly', slot: 'frame', value: 'butterfly', name: 'Cadre Papillon', icon: '🦋', price: 350, desc: 'Un papillon bleu posé sur ta photo' },
+  { id: 'frame_stars', slot: 'frame', value: 'stars', name: 'Cadre Étoilé', icon: '⭐', price: 300, desc: 'Des étoiles qui scintillent autour de toi' },
+  { id: 'frame_frost', slot: 'frame', value: 'frost', name: 'Cadre Givré', icon: '❄️', price: 400, desc: 'Un anneau de glace avec un flocon' },
+  { id: 'frame_cupid', slot: 'frame', value: 'cupid', name: 'Cadre Cupidon', icon: '💘', price: 500, desc: 'La flèche de Cupidon et un halo rose' },
+  { id: 'frame_neon', slot: 'frame', value: 'neon', name: 'Cadre Néon violet', icon: '💜', price: 350, desc: 'Un tube de néon violet qui s’allume' },
+  { id: 'frame_spooky', slot: 'frame', value: 'spooky', name: 'Cadre Hanté', icon: '👻', price: 300, desc: 'Un petit fantôme qui flotte près de toi' },
+  { id: 'frame_money', slot: 'frame', value: 'money', name: 'Cadre Billets', icon: '💸', price: 1500, desc: 'Un cadre vert et or pour les plus riches' },
+  { id: 'frame_planet', slot: 'frame', value: 'planet', name: 'Cadre Planète', icon: '🪐', price: 650, desc: 'Un anneau comme celui de Saturne' },
+  // ✨ Nouveaux effets de pseudo
+  { id: 'name_gold', slot: 'name', value: 'gold', name: 'Pseudo Or', icon: '🏆', price: 600, desc: 'Ton pseudo en or brillant' },
+  { id: 'name_rainbow', slot: 'name', value: 'rainbow', name: 'Pseudo Arc-en-ciel', icon: '🌈', price: 550, desc: 'Toutes les couleurs qui défilent' },
+  { id: 'name_ocean', slot: 'name', value: 'ocean', name: 'Pseudo Océan', icon: '🌊', price: 350, desc: 'Des vagues bleues dans ton pseudo' },
+  { id: 'name_candy', slot: 'name', value: 'candy', name: 'Pseudo Bonbon', icon: '🍬', price: 300, desc: 'Rose et bleu comme un bonbon' },
+  { id: 'name_lava', slot: 'name', value: 'lava', name: 'Pseudo Lave', icon: '🌋', price: 450, desc: 'De la lave rouge et orange qui coule' },
+  { id: 'name_aurora', slot: 'name', value: 'aurora', name: 'Pseudo Aurore boréale', icon: '🌌', price: 500, desc: 'Vert, bleu et violet comme le ciel du Nord' },
+  { id: 'name_toxic', slot: 'name', value: 'toxic', name: 'Pseudo Toxique', icon: '☢️', price: 350, desc: 'Vert fluo qui brille dans le noir' },
+  { id: 'name_love', slot: 'name', value: 'love', name: 'Pseudo Love', icon: '💗', price: 350, desc: 'Rose et rouge, plein d’amour' },
+  { id: 'name_chrome', slot: 'name', value: 'chrome', name: 'Pseudo Chrome', icon: '🪙', price: 650, desc: 'Un reflet métal argenté qui passe' },
+  { id: 'name_sunset', slot: 'name', value: 'sunset', name: 'Pseudo Coucher de soleil', icon: '🌅', price: 400, desc: 'Orange, rose et violet' },
+  // 🏅 Plein de nouveaux badges
+  { id: 'badge_moon', slot: 'badge', value: '🌙', name: 'Badge Lune', icon: '🌙', price: 150, desc: 'Pour les oiseaux de nuit' },
+  { id: 'badge_sun', slot: 'badge', value: '☀️', name: 'Badge Soleil', icon: '☀️', price: 150, desc: 'Toujours de bonne humeur' },
+  { id: 'badge_rainbow', slot: 'badge', value: '🌈', name: 'Badge Arc-en-ciel', icon: '🌈', price: 200, desc: 'Plein de couleurs' },
+  { id: 'badge_ghost', slot: 'badge', value: '👻', name: 'Badge Fantôme', icon: '👻', price: 200, desc: 'Bouh !' },
+  { id: 'badge_skull', slot: 'badge', value: '💀', name: 'Badge Tête de mort', icon: '💀', price: 250, desc: 'Pour les durs à cuire' },
+  { id: 'badge_devil', slot: 'badge', value: '😈', name: 'Badge Petit diable', icon: '😈', price: 300, desc: 'Un peu coquin' },
+  { id: 'badge_angel', slot: 'badge', value: '😇', name: 'Badge Ange', icon: '😇', price: 300, desc: 'Sage comme une image' },
+  { id: 'badge_cat', slot: 'badge', value: '🐱', name: 'Badge Chat', icon: '🐱', price: 150, desc: 'Pour les fans de chats' },
+  { id: 'badge_dog', slot: 'badge', value: '🐶', name: 'Badge Chien', icon: '🐶', price: 150, desc: 'Pour les fans de chiens' },
+  { id: 'badge_fox', slot: 'badge', value: '🦊', name: 'Badge Renard', icon: '🦊', price: 200, desc: 'Malin comme un renard' },
+  { id: 'badge_panda', slot: 'badge', value: '🐼', name: 'Badge Panda', icon: '🐼', price: 200, desc: 'Tout doux' },
+  { id: 'badge_wolf', slot: 'badge', value: '🐺', name: 'Badge Loup', icon: '🐺', price: 350, desc: 'Le loup solitaire' },
+  { id: 'badge_lion', slot: 'badge', value: '🦁', name: 'Badge Lion', icon: '🦁', price: 450, desc: 'Le roi de la jungle' },
+  { id: 'badge_tiger', slot: 'badge', value: '🐯', name: 'Badge Tigre', icon: '🐯', price: 400, desc: 'Rapide et fort' },
+  { id: 'badge_butterfly', slot: 'badge', value: '🦋', name: 'Badge Papillon', icon: '🦋', price: 200, desc: 'Léger et libre' },
+  { id: 'badge_rose', slot: 'badge', value: '🌹', name: 'Badge Rose', icon: '🌹', price: 250, desc: 'Romantique' },
+  { id: 'badge_cherry', slot: 'badge', value: '🌸', name: 'Badge Fleur de cerisier', icon: '🌸', price: 200, desc: 'Tout en douceur' },
+  { id: 'badge_pizza', slot: 'badge', value: '🍕', name: 'Badge Pizza', icon: '🍕', price: 150, desc: 'Fan de pizza' },
+  { id: 'badge_donut', slot: 'badge', value: '🍩', name: 'Badge Donut', icon: '🍩', price: 150, desc: 'Gourmand' },
+  { id: 'badge_strawberry', slot: 'badge', value: '🍓', name: 'Badge Fraise', icon: '🍓', price: 150, desc: 'Sucré' },
+  { id: 'badge_football', slot: 'badge', value: '⚽', name: 'Badge Foot', icon: '⚽', price: 200, desc: 'Fan de foot' },
+  { id: 'badge_basket', slot: 'badge', value: '🏀', name: 'Badge Basket', icon: '🏀', price: 200, desc: 'Fan de basket' },
+  { id: 'badge_guitar', slot: 'badge', value: '🎸', name: 'Badge Guitare', icon: '🎸', price: 250, desc: 'Rockeur ou rockeuse' },
+  { id: 'badge_headphones', slot: 'badge', value: '🎧', name: 'Badge Casque', icon: '🎧', price: 200, desc: 'Toujours en musique' },
+  { id: 'badge_camera', slot: 'badge', value: '📸', name: 'Badge Photo', icon: '📸', price: 200, desc: 'Toujours un appareil photo à la main' },
+  { id: 'badge_rocket', slot: 'badge', value: '🚀', name: 'Badge Fusée', icon: '🚀', price: 400, desc: 'Direction les étoiles' },
+  { id: 'badge_ufo', slot: 'badge', value: '🛸', name: 'Badge OVNI', icon: '🛸', price: 450, desc: 'Venu d’une autre planète' },
+  { id: 'badge_bolt', slot: 'badge', value: '⚡', name: 'Badge Éclair', icon: '⚡', price: 300, desc: 'Plein d’énergie' },
+  { id: 'badge_bomb', slot: 'badge', value: '💣', name: 'Badge Bombe', icon: '💣', price: 350, desc: 'Explosif' },
+  { id: 'badge_target', slot: 'badge', value: '🎯', name: 'Badge Cible', icon: '🎯', price: 250, desc: 'Toujours dans le mille' },
+  { id: 'badge_brain', slot: 'badge', value: '🧠', name: 'Badge Cerveau', icon: '🧠', price: 400, desc: 'Le génie du site' },
+  { id: 'badge_kiss', slot: 'badge', value: '💋', name: 'Badge Bisou', icon: '💋', price: 300, desc: 'Plein de bisous' },
+  { id: 'badge_clown', slot: 'badge', value: '🤡', name: 'Badge Clown', icon: '🤡', price: 200, desc: 'Le rigolo de la bande' },
+  { id: 'badge_ninja', slot: 'badge', value: '🥷', name: 'Badge Ninja', icon: '🥷', price: 500, desc: 'Silencieux et rapide' },
+  { id: 'badge_mermaid', slot: 'badge', value: '🧜‍♀️', name: 'Badge Sirène', icon: '🧜‍♀️', price: 450, desc: 'Venue de la mer' },
+  { id: 'badge_fairy', slot: 'badge', value: '🧚', name: 'Badge Fée', icon: '🧚', price: 450, desc: 'Un peu de magie' },
+  { id: 'badge_planet', slot: 'badge', value: '🪐', name: 'Badge Planète', icon: '🪐', price: 500, desc: 'La tête dans les étoiles' },
+  { id: 'badge_champagne', slot: 'badge', value: '🍾', name: 'Badge Champagne', icon: '🍾', price: 600, desc: 'Toujours la fête' },
+  { id: 'badge_money', slot: 'badge', value: '💸', name: 'Badge Billets', icon: '💸', price: 800, desc: 'Pour ceux qui ont des sous' },
+  { id: 'badge_trophy', slot: 'badge', value: '🏆', name: 'Badge Trophée', icon: '🏆', price: 900, desc: 'Un vrai champion' },
+  { id: 'badge_dice', slot: 'badge', value: '🎲', name: 'Badge Dés', icon: '🎲', price: 200, desc: 'Joueur dans l’âme' },
+  { id: 'badge_chess', slot: 'badge', value: '♟️', name: 'Badge Échecs', icon: '♟️', price: 300, desc: 'Le stratège' },
+  { id: 'badge_volcano', slot: 'badge', value: '🌋', name: 'Badge Volcan', icon: '🌋', price: 500, desc: 'Bouillant' },
+  { id: 'badge_shark', slot: 'badge', value: '🦈', name: 'Badge Requin', icon: '🦈', price: 550, desc: 'Le prédateur des salons' },
+  { id: 'badge_phoenix', slot: 'badge', value: '🐦‍🔥', name: 'Badge Phénix', icon: '🐦‍🔥', price: 1500, desc: 'Il renaît toujours de ses cendres' },
+  { id: 'badge_gem', slot: 'badge', value: '💍', name: 'Badge Bague', icon: '💍', price: 1300, desc: 'Précieux' },
+  { id: 'badge_alien', slot: 'badge', value: '👽', name: 'Badge Extraterrestre', icon: '👽', price: 350, desc: 'Pas d’ici' },
+  { id: 'badge_robot', slot: 'badge', value: '🤖', name: 'Badge Robot', icon: '🤖', price: 300, desc: 'Bip bip' },
+  { id: 'badge_heartfire', slot: 'badge', value: '❤️‍🔥', name: 'Badge Cœur en feu', icon: '❤️‍🔥', price: 700, desc: 'Un cœur qui brûle' },
+  { id: 'badge_crystal', slot: 'badge', value: '🔮', name: 'Badge Boule de cristal', icon: '🔮', price: 600, desc: 'Voit l’avenir' },
   // 🎬 Entrées en scène (quand tu arrives dans un salon)
   { id: 'entry_sparkles', slot: 'entry', value: 'sparkles', name: 'Entrée Paillettes', icon: '✨', price: 200, desc: 'Tu arrives sous une pluie de paillettes' },
   { id: 'entry_hearts', slot: 'entry', value: 'hearts', name: 'Entrée Cœurs', icon: '💖', price: 200, desc: 'Une pluie de cœurs pour ton arrivée' },
@@ -36,6 +111,18 @@ const SHOP = [
   { id: 'entry_thunder', slot: 'entry', value: 'thunder', name: 'Entrée Tonnerre', icon: '⚡', price: 350, desc: 'Tu arrives dans un éclair' },
   { id: 'entry_carpet', slot: 'entry', value: 'carpet', name: 'Entrée Tapis rouge', icon: '🌟', price: 600, desc: 'Tapis rouge et flashs des photographes' },
   { id: 'entry_rainbow', slot: 'entry', value: 'rainbow', name: 'Entrée Arc-en-ciel', icon: '🌈', price: 300, desc: 'Un arc-en-ciel annonce ton arrivée' },
+  { id: 'entry_snow', slot: 'entry', value: 'snow', name: 'Entrée Tempête de neige', icon: '❄️', price: 300, desc: 'Tu arrives dans un tourbillon de flocons' },
+  { id: 'entry_money', slot: 'entry', value: 'money', name: 'Entrée Pluie de billets', icon: '💸', price: 800, desc: 'Une pluie de billets et de pièces pour ton arrivée' },
+  { id: 'entry_rocket', slot: 'entry', value: 'rocket', name: 'Entrée Fusée', icon: '🚀', price: 450, desc: 'Tu atterris en fusée' },
+  { id: 'entry_party', slot: 'entry', value: 'party', name: 'Entrée Fête', icon: '🎉', price: 250, desc: 'Confettis et ballons quand tu arrives' },
+  { id: 'entry_roses', slot: 'entry', value: 'roses', name: 'Entrée Pluie de roses', icon: '🌹', price: 400, desc: 'Des pétales de roses tombent à ton arrivée' },
+  { id: 'entry_ghost', slot: 'entry', value: 'ghost', name: 'Entrée Fantôme', icon: '👻', price: 300, desc: 'Tu apparais comme un fantôme' },
+  { id: 'entry_dragon', slot: 'entry', value: 'dragon', name: 'Entrée Dragon', icon: '🐉', price: 900, desc: 'Un dragon crache du feu pour toi' },
+  { id: 'entry_stars', slot: 'entry', value: 'stars', name: 'Entrée Étoiles filantes', icon: '🌠', price: 350, desc: 'Des étoiles filantes traversent l’écran' },
+  { id: 'entry_disco', slot: 'entry', value: 'disco', name: 'Entrée Disco', icon: '🪩', price: 500, desc: 'Boule disco et musique dans l’air' },
+  { id: 'entry_king', slot: 'entry', value: 'king', name: 'Entrée Royale', icon: '👑', price: 1200, desc: 'Trompettes et couronne : place au roi ou à la reine !' },
+  { id: 'entry_pizza', slot: 'entry', value: 'pizza', name: 'Entrée Livraison pizza', icon: '🍕', price: 200, desc: 'Tu arrives avec les pizzas pour tout le monde' },
+  { id: 'entry_love', slot: 'entry', value: 'love', name: 'Entrée Coup de foudre', icon: '💘', price: 450, desc: 'Des flèches de Cupidon partout' },
   // 🛋️ Meubles rares pour sa maison sur l'Île
   // 🎄 objets exclusifs du Calendrier de l'Avent (on ne peut pas les acheter)
   { id: 'badge_voice', slot: 'badge', value: '🎙️', name: 'Badge The Voice', icon: '🎙️', price: 0, exclusive: true, desc: 'Gagné en remportant The Voice du Paradise' },
@@ -51,17 +138,16 @@ const SHOP = [
 ];
 const BY_ID = new Map(SHOP.map(i => [i.id, i]));
 const CHAT_CAP = 40; // pièces maximum par jour en discutant
-const GIFT_CAP = 500; // pièces maximum offertes par jour
 
 // La date du jour à Paris (AAAA-MM-JJ)
 const parisDay = (ts = Date.now()) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts);
 
-module.exports = function setupCoins({ db, emitToUser, notify, getUser, multiplier = () => 1, log = () => {} }) {
+module.exports = function setupCoins({ db, emitToUser, notify, getUser, multiplier = () => 1, log = () => {}, onBalance = () => {} }) {
   const now = () => Date.now();
   const owned = uid => db.prepare('SELECT item FROM inventory WHERE user_id=?').all(uid).map(r => r.item);
   const owns = (uid, item) => !!db.prepare('SELECT 1 FROM inventory WHERE user_id=? AND item=?').get(uid, item);
   const balance = uid => db.prepare('SELECT coins FROM users WHERE id=?').get(uid)?.coins || 0;
-  const push = (uid, gain, reason) => emitToUser(uid, 'coins', { coins: balance(uid), gain, reason });
+  const push = (uid, gain, reason) => { const c = balance(uid); emitToUser(uid, 'coins', { coins: c, gain, reason }); try { onBalance(uid, c - gain); onBalance(uid, c); } catch (e) {} };
 
   // Gagner des pièces (pendant une soirée, les jeux rapportent le double)
   function earn(uid, amount, reason, { boost = true, silent = false } = {}) {
@@ -162,8 +248,6 @@ module.exports = function setupCoins({ db, emitToUser, notify, getUser, multipli
     const a = getUser(from), b = getUser(toId);
     if (!a || !b || b.is_guest || from === toId) return { error: 'Impossible d\'offrir des pièces à cette personne' };
     if (!(amount >= 5)) return { error: '5 pièces minimum' };
-    const today = db.prepare("SELECT COALESCE(SUM(-amount),0) s FROM coin_log WHERE user_id=? AND reason LIKE '🎁 Cadeau pour%' AND created_at>?").get(from, now() - 86400000).s;
-    if (today + amount > GIFT_CAP) return { error: `Tu peux offrir ${GIFT_CAP} pièces par jour au maximum (encore ${Math.max(0, GIFT_CAP - today)})` };
     if (!spend(from, amount, `🎁 Cadeau pour ${b.username}`)) return { error: 'Tu n\'as pas assez de pièces' };
     earn(toId, amount, `🎁 Cadeau de ${a.username}`, { boost: false });
     notify(toId, { type: 'coins_gift', icon: '🎁', title: `${a.username} t'a offert ${amount} pièces 💰`, text: message ? `« ${String(message).slice(0, 120)} »` : 'Va voir la boutique pour les dépenser !', data: { userId: from }, important: true });
