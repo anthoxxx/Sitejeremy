@@ -343,13 +343,37 @@ function addRoomMessage(m, live = true) {
       m.staffOnly ? el('div', { class: 'staff-only-bar' }, el('span', {}, '🔒 Visible seulement par les administrateurs'),
         m.userId === state.me.id || isSuperMe() ? el('button', { class: 'btn btn-sm', onclick: () => socket.emit('message_reveal', { id: m.id }, r => r?.error ? toast(r.error) : toast('👁 Ton message est maintenant visible par tout le monde')) }, '👁 Montrer mon message') : null) : null),
     el('div', { class: 'msg-tools' },
+      Number.isInteger(m.id) ? el('button', { class: 'btn btn-sm react-btn', title: 'Réagir', onclick: e => { e.stopPropagation(); reactPicker(e.currentTarget, m.id); } }, '😀') : null,
       m.userId !== state.me.id && m.kind !== 'audio' ? el('button', { class: 'btn btn-sm', title: 'Traduire ce message', onclick: () => Translator.translateRow(row) }, '🌐') : null,
       canEdit(m, m.userId) ? el('button', { class: 'btn btn-sm edit', title: 'Modifier (corriger une faute)', onclick: () => startEdit(row, m, 'room') }, '✏️') : null,
       isStaff() ? el('button', { class: 'btn btn-sm btn-danger', title: 'Supprimer', onclick: () => deleteMessage(m.id) }, '🗑') : null));
   row._msg = m;
+  if (Number.isInteger(m.id)) row.querySelector('.body').append(reactRow(m.id, m.reactions || {}));
   $('messages').append(row);
   trimMessages();
   if (live) { scrollDown(m.userId === state.me.id); if (mention) { ding(); toast(`${m.username} t'a mentionné`); } }
+}
+// ❤️ Les réactions aux messages : des pastilles avec le compteur, et une petite explosion quand quelqu'un réagit
+const REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢', '🎉', '💯'];
+function reactRow(id, reactions) {
+  const list = Object.entries(reactions).filter(([, ids]) => ids.length).sort((a, b) => b[1].length - a[1].length);
+  return el('div', { class: 'reacts' + (list.length ? '' : ' empty'), 'data-for': id }, ...list.map(([e, ids]) => el('button', { type: 'button', class: 'react' + (ids.includes(state.me.id) ? ' on' : ''), title: ids.includes(state.me.id) ? 'Retirer ma réaction' : 'Réagir aussi', onclick: ev => { ev.stopPropagation(); socket.emit('react', { id, emoji: e }, r => r?.error && toast(r.error)); } }, e, el('b', {}, ids.length))));
+}
+function reactPicker(btn, id) {
+  document.querySelector('.react-pick')?.remove();
+  const r = btn.getBoundingClientRect(), pick = el('div', { class: 'react-pick', style: `left:${Math.max(8, Math.min(innerWidth - 300, r.left - 120))}px;top:${Math.max(8, r.top - 54)}px` },
+    ...REACTIONS.map(e => el('button', { type: 'button', onclick: ev => { ev.stopPropagation(); socket.emit('react', { id, emoji: e }, x => x?.error && toast(x.error)); pick.remove(); } }, e)));
+  document.body.append(pick);
+  setTimeout(() => document.addEventListener('click', function off() { pick.remove(); document.removeEventListener('click', off); }), 0);
+}
+function reactBurst(row, emoji) { // 🎆 l'emoji explose en petites copies qui s'envolent
+  if (document.documentElement.classList.contains('lite') && Math.random() < .5) return;
+  const chip = row.querySelector('.reacts .react') || row, r = chip.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, d = 60 + Math.random() * 90;
+    const p = el('span', { class: 'react-burst', style: `left:${x}px;top:${y}px;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;--rot:${(Math.random() - .5) * 120}deg;animation-delay:${i * 25}ms;font-size:${16 + Math.random() * 16}px` }, emoji);
+    document.body.append(p); setTimeout(() => p.remove(), 1400);
+  }
 }
 // Message d'un bot (ex. Soldat76-Karaoké dans le salon Karaoké)
 function addBotMessage(m, live = true) {
@@ -851,6 +875,14 @@ document.addEventListener('click', e => { if (!e.target.closest('#emojiPanel, #e
 
 // ---------- Socket ----------
 const socket = io({ auth: { pid: window.LC_DEV?.pid || '', fp: window.LC_DEV?.fp || '' } });
+// ❤️ quelqu'un a réagi à un message du salon
+socket.on('reaction', d => {
+  if (state.view?.type !== 'room' || state.view.slug !== d.room) return;
+  const row = $('messages').querySelector(`.msg[data-id="${d.id}"]`); if (!row) return;
+  if (row._msg) row._msg.reactions = d.reactions;
+  row.querySelector('.reacts')?.replaceWith(reactRow(d.id, d.reactions));
+  if (d.added) reactBurst(row, d.emoji);
+});
 // Nouvelle version du site en ligne : on recharge la page tout seul (après un court message)
 let myBuild = null;
 socket.on('build', b => {

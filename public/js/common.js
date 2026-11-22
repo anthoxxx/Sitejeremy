@@ -75,6 +75,7 @@ window.LC = {
     const grid = el('div', { class: 'skin-grid' }, ...LC.SKINS.map(([k, name, icon, c]) => el('button', { type: 'button', class: 'skin-card' + (k === cur ? ' on' : ''), onclick: e => { const b0 = e.currentTarget; LC.setSkin(k); grid.querySelectorAll('.skin-card').forEach(b => b.classList.remove('on')); b0.classList.add('on'); } },
       el('span', { class: 'skin-prev', style: `background:linear-gradient(135deg, ${c[0]} 0 40%, ${c[1]} 40% 60%, ${c[2]} 60% 80%, ${c[3]} 80%)` }, el('i', {}, icon)), el('b', {}, name))));
     back.append(el('div', { class: 'skin-box' }, el('h3', {}, '🎨 Choisis ton thème'), el('p', { class: 'help' }, 'Il change les couleurs de tout le site, rien que pour toi. Tu peux en changer quand tu veux.'), grid,
+      window.LC_dayCycle ? el('label', { class: 'skin-switch' }, el('span', {}, '🌅 Les couleurs suivent l\'heure (aube, jour, coucher de soleil, nuit étoilée)'), el('input', { type: 'checkbox', checked: LC_dayCycle.on(), onchange: e => LC_dayCycle.set(e.target.checked) })) : null,
       el('button', { class: 'btn btn-primary', style: 'width:100%;margin-top:12px', onclick: () => back.remove() }, '✅ C\'est parfait')));
     document.body.append(back);
   },

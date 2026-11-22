@@ -4188,3 +4188,28 @@ body { background:
 .pcard .pfx-layer span { opacity: 0; }
 @keyframes pfxRise2 { 0% { transform: translateY(20px); opacity: 0; } 15% { opacity: .5; } 100% { transform: translateY(-700px) rotate(25deg); opacity: 0; } }
 .pfx-aur { mix-blend-mode: screen; opacity: .35; }
+
+/* ---------- ❤️ Réactions animées ---------- */
+.reacts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.reacts.empty { display: none; }
+.react { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05); color: var(--text); font-size: 14px; cursor: pointer; transition: transform .15s, background .2s; animation: reactPop .35s cubic-bezier(.2, .8, .3, 1.6); }
+.react b { font-size: 12px; font-weight: 800; }
+.react:hover { transform: scale(1.08); }
+.react.on { border-color: var(--rose); background: color-mix(in srgb, var(--rose) 22%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--rose) 40%, transparent); }
+@keyframes reactPop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.react-pick { position: fixed; z-index: 4000; display: flex; gap: 2px; padding: 6px 8px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); animation: reactPop .25s ease-out; }
+.react-pick button { border: 0; background: none; font-size: 24px; cursor: pointer; padding: 2px 4px; border-radius: 10px; transition: transform .15s; }
+.react-pick button:hover { transform: scale(1.35) translateY(-3px); }
+.react-burst { position: fixed; z-index: 3900; pointer-events: none; transform: translate(-50%, -50%); animation: reactFly 1.2s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes reactFly { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(1.1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .react-burst { display: none; } }
+
+/* ---------- 🌅 Le site vit avec l'heure ---------- */
+:root[data-sky] body::before { content: ''; position: fixed; inset: 0; z-index: 2990; pointer-events: none; transition: background 3s; }
+:root[data-sky="aube"] body::before { background: linear-gradient(180deg, rgba(255, 140, 120, .16), rgba(255, 190, 120, .07) 40%, transparent 75%); }
+:root[data-sky="jour"] body::before { background: linear-gradient(180deg, rgba(140, 200, 255, .07), transparent 50%); }
+:root[data-sky="soir"] body::before { background: linear-gradient(180deg, rgba(255, 120, 60, .17), rgba(200, 80, 200, .09) 45%, transparent 85%); }
+:root[data-sky="nuit"] body::before { background: radial-gradient(1px 1px at 12% 8%, rgba(255, 255, 255, .7), transparent), radial-gradient(1px 1px at 38% 14%, rgba(255, 255, 255, .55), transparent), radial-gradient(1.5px 1.5px at 66% 6%, rgba(255, 255, 255, .7), transparent), radial-gradient(1px 1px at 86% 16%, rgba(255, 255, 255, .5), transparent), linear-gradient(180deg, rgba(40, 60, 160, .12), transparent 45%); background-size: 520px 300px, 520px 300px, 520px 300px, 520px 300px, 100% 100%; background-repeat: repeat-x, repeat-x, repeat-x, repeat-x, no-repeat; }
+:root[data-theme="light"][data-sky] body::before { opacity: .6; }
+:root[data-sky] body:has(.lgame)::before, :root[data-sky] body:has(.island:not(.hidden))::before { display: none; }
+.skin-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 700; }

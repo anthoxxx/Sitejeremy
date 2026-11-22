@@ -3259,7 +3259,7 @@ io.on('connection', socket => {
     entry.room = room.slug;
     const history = db.prepare(`SELECT m.*, u.username, u.color, u.gender, u.role, u.avatar, u.name_effect, u.avatar_frame, u.avatar_fx, u.is_dev, u.grey_heart, u.identity, u.msg_font, u.msg_color, u.name_ring, u.shop_badge, u.coins, u.birth_day, u.birth_month, u.show_birthday, u.verified, u.is_guest, u.mod_level FROM messages m JOIN users u ON u.id=m.user_id
       WHERE m.room_id=? ${isAdminRole(u) ? '' : 'AND m.staff_only=0'} ORDER BY m.id DESC LIMIT 60`).all(room.id).reverse();
-    ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : history.map(msgOut), voice: voiceList(room.slug) });
+    ack && ack({ room: roomOut(room), history: room.slug === PATCH_SLUG ? patchHistory() : withReactions(history.map(msgOut)), voice: voiceList(room.slug) });
     // Le propriétaire d'un salon de membre est prévenu quand quelqu'un y entre
     if (room.owner_id && room.owner_id !== uid && prev !== room.slug && !entry.ghost && !throttled(`visit:${uid}:${room.id}`, 1800000))
       notifyLive(room.owner_id, { type: 'room_visit', icon: '🚪', title: `${u.username} est entré dans ton salon « ${room.name} »`, data: { slug: room.slug } });
@@ -3277,6 +3277,20 @@ io.on('connection', socket => {
     schedulePresence();
   });
 
+  // ❤️ réagir à un message (on touche une deuxième fois pour retirer sa réaction)
+  socket.on('react', (p, ack) => {
+    const u = current(); if (!u || !p) return;
+    const emoji = String(p.emoji || ''), id = parseInt(p.id, 10);
+    if (!REACTIONS.includes(emoji) || !id) return;
+    if (tooMany('react:' + uid, 40, 60000)) return ack && ack({ error: 'Doucement avec les réactions !' });
+    const m = db.prepare('SELECT m.id, r.slug FROM messages m JOIN rooms r ON r.id=m.room_id WHERE m.id=?').get(id);
+    const entry = online.get(uid); if (!m || !entry || entry.room !== m.slug) return;
+    const had = db.prepare('SELECT 1 FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?').get(id, uid, emoji);
+    if (had) db.prepare('DELETE FROM message_reactions WHERE message_id=? AND user_id=? AND emoji=?').run(id, uid, emoji);
+    else db.prepare('INSERT INTO message_reactions (message_id,user_id,emoji,created_at) VALUES (?,?,?,?)').run(id, uid, emoji, now());
+    io.to('room:' + m.slug).emit('reaction', { room: m.slug, id, reactions: reactionsOf([id])[id] || {}, emoji, added: !had, by: u.username, byId: uid });
+    ack && ack({ ok: true });
+  });
   socket.on('message', (payload, ack) => {
     const u = current();
     if (!u || u.banned) return;
@@ -3820,6 +3834,14 @@ setTimeout(() => {
   for (const u of users) notify(u.id, { type: 'patch', icon: '📝', title: `Nouveauté sur le site : ${n?.title || 'patch note n°' + last}`, text: 'Va voir le salon 📝 Patch note pour tout découvrir !', data: { slug: 'patchnote' } });
 }, 15000).unref();
 
+// ❤️ les réactions possibles, et celles de chaque message : { emoji: [ids des membres] }
+const REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢', '🎉', '💯'];
+function reactionsOf(ids) {
+  const out = {}; if (!ids.length) return out;
+  for (const r of db.prepare(`SELECT message_id, user_id, emoji FROM message_reactions WHERE message_id IN (${ids.map(() => '?').join(',')}) ORDER BY created_at`).all(...ids)) ((out[r.message_id] = out[r.message_id] || {})[r.emoji] = out[r.message_id][r.emoji] || []).push(r.user_id);
+  return out;
+}
+const withReactions = list => { const R = reactionsOf(list.map(m => m.id).filter(Number.isInteger)); for (const m of list) if (R[m.id]) m.reactions = R[m.id]; return list; };
 const EDIT_WINDOW = 15 * 60 * 1000; // on peut corriger son message pendant 15 minutes
 function msgOut(m) {
   // Message signé « Modération » (super-admin en mode fantôme anonyme) : l'identité reste visible dans l'admin

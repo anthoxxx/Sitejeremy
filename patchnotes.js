@@ -1368,4 +1368,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 97,
+    date: '2026-11-22',
+    title: 'Réactions animées et un site qui vit avec l\'heure 🌅',
+    added: [
+      '😀 Réagis aux messages ! Passe sur un message (ou touche-le sur téléphone) et appuie sur 😀 : ❤️ 😂 🔥 👍 😮 😢 🎉 💯',
+      '🎆 Quand quelqu\'un réagit, l\'emoji explose en petites copies qui s\'envolent, pour tout le salon',
+      '🔢 Les réactions s\'affichent sous le message avec leur compteur. Touche une réaction pour réagir pareil, ou la retirer',
+      '🌅 Le site change doucement de couleurs avec l\'heure : aube rose le matin, ciel lumineux la journée, coucher de soleil orange et violet le soir, et une nuit bleue étoilée',
+      '🎆 Un petit feu d\'artifice à minuit le vendredi et le samedi soir',
+      '🎨 Tu peux couper les couleurs de l\'heure dans la fenêtre des thèmes (bouton 🎨)',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
