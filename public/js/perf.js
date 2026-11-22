@@ -14,7 +14,7 @@
   const io = 'IntersectionObserver' in window ? new IntersectionObserver(list => { for (const e of list) e.target.classList.toggle('offscreen', !e.isIntersecting); }, { rootMargin: '150px 0px' }) : null;
   const watched = new WeakSet();
   const watch = n => { if (io && n.nodeType === 1 && !watched.has(n)) { watched.add(n); io.observe(n); } };
-  const LISTS = ['messages', 'userList', 'roomList', 'userRoomList', 'tempRoomList', 'pmList', 'friendList'];
+  const LISTS = ['messages']; // seulement les messages : dans les menus (salons, membres), le téléphone se trompait et des salons restaient invisibles
   function hook() {
     for (const id of LISTS) {
       const box = document.getElementById(id); if (!box || box.__perf) continue; box.__perf = true;
