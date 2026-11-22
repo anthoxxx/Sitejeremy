@@ -1412,4 +1412,20 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 100,
+    date: '2026-11-22',
+    title: 'Le Bowling devient une vraie salle 🎳🍹',
+    added: [
+      '🛋️ Une vraie salle de bowling : des fauteuils en cuir autour de petites tables avec des verres, les retours de boules entre les pistes avec des boules de toutes les couleurs, et les écrans des scores suspendus',
+      '🍹 Un bar au fond de la salle : comptoir lumineux, tabourets, étagères de bouteilles qui brillent et enseigne néon « BAR »',
+      '📺 Un écran géant au-dessus des quilles (et un autre au-dessus du bar) avec un égaliseur qui danse sur la musique',
+      '🎵 Les boutons ⏮ 🎵 ⏭ : écoute le « Paradise Bowling Mix », la musique du bowling, ou les radios du site pendant que tu joues',
+      '🎥 Le bouton 🎥 pour admirer la salle, et une petite visite quand tu arrives sur la piste',
+    ],
+    changed: [
+      '🔊 De vrais sons de bowling : la boule qui gronde sur le bois (plus fort en approchant des quilles), le gros choc dans les quilles, le claquement en bois de chaque quille qui tombe, et la foule qui crie et applaudit sur un strike',
+    ],
+    removed: [],
+  },
 ];
