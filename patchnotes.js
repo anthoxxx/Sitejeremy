@@ -1503,6 +1503,7 @@ module.exports = [
     changed: [
       '🚶 Les personnages marchent et courent sans trembler (fini les jambes qui changent d\'animation sans arrêt)',
       '📺 La vidéo YouTube est maintenant collée dans l\'écran avec la bonne perspective, même vue de côté : elle ne « flotte » plus et ne saute plus d\'une TV à l\'autre',
+      '🎬 Pendant que la caméra bouge, la vidéo s\'efface (le son continue) et l\'écran montre la musique en cours ; dès que tu t\'arrêtes, la vidéo réapparaît pile dans l\'écran',
     ],
     removed: [],
   },

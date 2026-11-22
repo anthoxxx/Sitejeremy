@@ -4350,3 +4350,5 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-pv { left: 12px; top: calc(58px + env(safe-area-inset-top)); }
 .cs-hud .bw-frame.glued { transform-origin: 0 0; box-shadow: none; }
 .cs-hud .bw-frame.glued .bw-frame-t { display: none; }
+.cs-hud .bw-frame.glued { transition: opacity .25s; }
+.cs-hud .bw-frame.glued.moving { opacity: 0; transition: opacity .08s; }

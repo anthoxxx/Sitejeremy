@@ -373,9 +373,12 @@ const Casino = (() => {
     const [a, b, c, d, e, f, g, h] = B.map((v, k) => v / A[k][k]);
     return `matrix3d(${a},${d},0,${g},${b},${e},0,${h},0,0,1,0,${c},${f},0,1)`;
   }
-  let glueTo = null;
+  let glueTo = null, camPrev = null, camMovedAt = 0;
   function placeFrame() {
-    if (!ytOn) return; const W = innerWidth, H = innerHeight, cands = [];
+    if (!ytOn) return;
+    // la caméra bouge-t-elle ? (la vidéo YouTube est toujours un peu en retard sur la 3D : on la cache pendant le mouvement)
+    const e = camera.matrixWorld.elements; if (camPrev) { let d = 0; for (let k = 0; k < 16; k++) d += Math.abs(e[k] - camPrev[k]); if (d > .002) camMovedAt = performance.now(); } camPrev = e.slice();
+    const still = performance.now() - camMovedAt > 280; const W = innerWidth, H = innerHeight, cands = [];
     for (const sc of screens) {
       const n = _v().set(0, 0, 1).applyQuaternion(sc.m.getWorldQuaternion(new THREE.Quaternion())), to = _v().subVectors(camera.position, sc.m.getWorldPosition(_v())); if (n.dot(to) <= 0) continue; // on voit l'écran de face
       const pts = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
@@ -390,8 +393,8 @@ const Casino = (() => {
     let best = cands.find(c => c.sc === glueTo && c.w > 90) || cands.find(c => c.sc === screens[0] && c.w > 140) || cands.sort((a, b) => b.w - a.w)[0];
     if (best && best.w < 110) best = null;
     const st = hud.frame.style, m = best && mode === 'walk' ? homography(best.px) : null;
-    if (m) { glueTo = best.sc; hud.frame.classList.remove('mini'); hud.frame.classList.add('glued'); st.left = st.top = '0px'; st.width = FW + 'px'; st.height = FH + 'px'; st.transform = m; }
-    else { glueTo = null; hud.frame.classList.add('mini'); hud.frame.classList.remove('glued'); st.left = st.top = st.width = st.height = st.transform = ''; }
+    if (m) { glueTo = best.sc; hud.frame.classList.remove('mini'); hud.frame.classList.add('glued'); hud.frame.classList.toggle('moving', !still); st.left = st.top = '0px'; st.width = FW + 'px'; st.height = FH + 'px'; st.transform = m; }
+    else { glueTo = null; hud.frame.classList.add('mini'); hud.frame.classList.remove('glued', 'moving'); st.left = st.top = st.width = st.height = st.transform = ''; }
   }
   function ytPanel() {
     const input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
@@ -744,7 +747,7 @@ const Casino = (() => {
       const cx = me.x + Math.sin(camYaw) * CAM_D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * CAM_D * Math.cos(camPitch), cy = 1.5 + CAM_D * Math.sin(camPitch);
       camera.position.set(cx, cy, cz); camera.lookAt(me.x, 1.35, me.z);
     }
-    placeFrame();
+    camera.updateMatrixWorld(); placeFrame(); // la position de la caméra de CETTE image (sinon la vidéo a une image de retard)
     R.render(scene, camera);
   }
 
