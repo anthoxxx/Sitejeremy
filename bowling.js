@@ -8,11 +8,17 @@ module.exports = function setupBowling({ io, coins = null, track = () => {}, sea
   const now = () => Date.now();
   const lanes = new Map(), where = new Map(), sockets = new Map(); let nextId = 1;
   const roomName = id => 'bw:' + id;
+  // 🏟️ la salle commune : 5 pistes côte à côte par salle ; chaque partie prend la première piste libre
+  const slots = new Map(); // numéro de piste → id de la partie
+  const hallOf = l => Math.floor(l.slot / 5), hallRoom = h => 'bwh:' + h;
+  const hallOut = h => [...lanes.values()].filter(l => hallOf(l) === h).map(l => ({ id: l.id, pos: l.slot % 5, status: l.status, turn: l.turn, standing: l.standing, busy: l.busy,
+    players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, gender: p.gender || 'h', total: Phys.score(p.rolls).total })) }));
+  const sendHall = l => io.to(hallRoom(hallOf(l))).emit('bw_hall', { hall: hallOf(l), lanes: hallOut(hallOf(l)) });
   const humans = l => l.players.filter(p => !p.bot);
-  const out = l => ({ id: l.id, name: l.name, host: l.host, status: l.status, turn: l.turn, busy: l.busy, turnEnd: l.turnEnd, serverNow: now(),
+  const out = l => ({ slot: l.slot, hall: hallOf(l), id: l.id, name: l.name, host: l.host, status: l.status, turn: l.turn, busy: l.busy, turnEnd: l.turnEnd, serverNow: now(),
     players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, ...Phys.score(p.rolls), rolls: p.rolls })), standing: l.standing, results: l.results || null, video: l.video || null });
-  const list = () => [...lanes.values()].map(l => ({ id: l.id, name: l.name, status: l.status, n: l.players.length, max: MAX }));
-  const send = l => io.to(roomName(l.id)).emit('bw_lane', out(l));
+  const list = () => [...lanes.values()].map(l => ({ hall: hallOf(l) + 1, pos: 5 - l.slot % 5, id: l.id, name: l.name, status: l.status, n: l.players.length, max: MAX }));
+  const send = l => { io.to(roomName(l.id)).emit('bw_lane', out(l)); sendHall(l); };
   const sendList = () => io.to('bw:lobby').emit('bw_list', list());
   function nextTurn(l) {
     // le joueur suivant qui n'a pas fini (le même joueur relance s'il a encore un lancer dans sa case)
@@ -40,6 +46,7 @@ module.exports = function setupBowling({ io, coins = null, track = () => {}, sea
     const kind = r.knocked.length === 10 && fresh ? 'strike' : l.standing.filter(Boolean).length === r.knocked.length && r.knocked.length ? 'spare' : r.gutter ? 'gutter' : '';
     if (kind === 'strike') p.strikes = (p.strikes || 0) + 1;
     l.busy = true;
+    io.to(hallRoom(hallOf(l))).emit('bw_hall_throw', { lane: l.id, pos: l.slot % 5, name: p.name, by: p.id, frames: r.frames, standing: l.standing, count: r.knocked.length, kind });
     io.to(roomName(l.id)).emit('bw_throw', { lane: l.id, by: p.id, name: p.name, params: q, frames: r.frames, knocked: r.knocked, count: r.knocked.length, kind, standing: l.standing });
     setTimeout(() => { if (!lanes.has(l.id)) return; l.busy = false; nextTurn(l); }, r.frames.length * 1000 / 30 + 1800);
   }
@@ -59,9 +66,9 @@ module.exports = function setupBowling({ io, coins = null, track = () => {}, sea
   function leave(uid) {
     const id = where.get(uid); if (!id) return; where.delete(uid);
     const l = lanes.get(id); if (!l) return;
-    for (const s of sockets.get(uid) || []) s.leave(roomName(id));
+    for (const s of sockets.get(uid) || []) { s.leave(roomName(id)); s.leave(hallRoom(hallOf(l))); }
     const i = l.players.findIndex(p => p.id === uid); if (i >= 0) { l.players.splice(i, 1); if (l.turn >= i && l.turn > 0) l.turn--; }
-    if (!humans(l).length) { clearTimeout(l.timer); lanes.delete(id); sendList(); return; }
+    if (!humans(l).length) { clearTimeout(l.timer); lanes.delete(id); slots.delete(l.slot); sendHall(l); sendList(); return; }
     if (l.host === uid) l.host = humans(l)[0].id;
     if (l.status === 'playing' && !l.busy) { l.turn = l.turn % l.players.length; nextTurn(l); } else send(l);
     sendList();
@@ -70,11 +77,13 @@ module.exports = function setupBowling({ io, coins = null, track = () => {}, sea
     let set = sockets.get(uid); if (!set) sockets.set(uid, set = new Set()); set.add(socket);
     const ack = (cb, v) => typeof cb === 'function' && cb(v);
     const mine = () => lanes.get(where.get(uid));
-    const join = (l, u) => { where.set(uid, l.id); for (const s of sockets.get(uid) || []) s.join(roomName(l.id)); l.players.push({ id: uid, name: u.username, rolls: [], knocked: [] }); send(l); sendList(); };
+    const join = (l, u) => { where.set(uid, l.id); for (const s of sockets.get(uid) || []) { s.join(roomName(l.id)); s.join(hallRoom(hallOf(l))); } l.players.push({ id: uid, name: u.username, gender: u.gender, rolls: [], knocked: [] }); send(l); sendList(); };
     socket.on('bw_list', cb => { socket.join('bw:lobby'); ack(cb, { lanes: list(), current: mine() ? out(mine()) : null }); });
+    socket.on('bw_hall', (h, cb) => ack(cb, { hall: Number(h) || 0, lanes: hallOut(Number(h) || 0) }));
     socket.on('bw_create', (o, cb) => {
       const u = currentUser(); if (!u) return; leave(uid);
-      const id = nextId++, l = { id, name: `Piste de ${u.username}`, host: uid, status: 'lobby', players: [], turn: 0, standing: Array(10).fill(true), busy: false };
+      const ORDER = [2, 1, 3, 0, 4]; let slot = 0; while (slots.has(Math.floor(slot / 5) * 5 + ORDER[slot % 5])) slot++; slot = Math.floor(slot / 5) * 5 + ORDER[slot % 5]; // on remplit d'abord la piste du milieu
+      const id = nextId++; slots.set(slot, id); const l = { slot, id, name: `Piste ${5 - slot % 5} · ${u.username}`, host: uid, status: 'lobby', players: [], turn: 0, standing: Array(10).fill(true), busy: false };
       lanes.set(id, l); join(l, u); ack(cb, { ok: true, lane: out(l) });
     });
     socket.on('bw_join', (id, cb) => {

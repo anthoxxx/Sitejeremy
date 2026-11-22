@@ -111,11 +111,12 @@ const Bowling = (() => {
     const laneM = new THREE.MeshPhysicalMaterial({ map: wood, roughness: .18, clearcoat: 1, clearcoatRoughness: .08, envMapIntensity: .8 });
     const pinM = new THREE.MeshPhysicalMaterial({ map: pinTex(), roughness: .25, clearcoat: .9 }), pg = pinGeo();
     // la piste du joueur et 2 pistes de chaque côté (le décor)
+    groups = [];
     for (let k = -2; k <= 2; k++) {
       const x = k * 1.7, L = new THREE.Mesh(new THREE.PlaneGeometry(1.06, 19.4), laneM); L.rotation.x = -Math.PI / 2; L.position.set(x, 0, 9.7 - .02); scene.add(L);
       for (const s of [-1, 1]) { const gt = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 19.4, 16, 1, true, 0, Math.PI), gutterM); gt.rotation.set(Math.PI / 2, 0, Math.PI); gt.position.set(x + s * .65, .06, 9.7); scene.add(gt); }
       const cap = new THREE.Mesh(new THREE.BoxGeometry(.28, .09, 19.4), new THREE.MeshStandardMaterial({ color: 0x15131d, roughness: .5 })); cap.position.set(x + .85, .045, 9.7); scene.add(cap);
-      if (k) for (const [px, pz] of P.PINS) { const m = new THREE.Mesh(pg, pinM); m.position.set(x + px, 0, pz); scene.add(m); }
+      const G = new THREE.Group(); G.position.x = x; scene.add(G); G.pins = P.PINS.map(([px, pz]) => { const m = new THREE.Mesh(pg, pinM); m.position.set(px, 0, pz); G.add(m); return m; }); G.pos = k + 2; groups.push(G);
     }
     // le sol, le mur du fond (cache des quilles) avec ses néons, le plafond et ses lumières
     const carpet = (() => { const [c, g] = cnv(256, 256); g.fillStyle = '#120b26'; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 40; i++) { g.strokeStyle = ['#ff2bd6', '#38e8ff', '#ffd23f', '#2bff88'][i % 4]; g.globalAlpha = .55; g.lineWidth = 3; g.beginPath(); const x = Math.random() * 256, y = Math.random() * 256; g.arc(x, y, 6 + Math.random() * 14, 0, Math.PI * (1 + Math.random())); g.stroke(); } return tex(c, [8, 4]); })();
@@ -130,11 +131,11 @@ const Bowling = (() => {
     for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(36, 4.8), new THREE.MeshStandardMaterial({ color: 0x120c24 })); w.rotation.y = -s * Math.PI / 2; w.position.set(s * 6.6, 2.4, 4); scene.add(w); const n = new THREE.Mesh(new THREE.BoxGeometry(.02, .05, 36), new THREE.MeshBasicMaterial({ color: s < 0 ? 0x38e8ff : 0xffd23f })); n.position.set(s * 6.58, 2.6, 4); scene.add(n); }
     room();
     // les quilles et la boule du joueur
-    pins = P.PINS.map(([x, z]) => { const m = new THREE.Mesh(pg, pinM); m.position.set(x, 0, z); m.castShadow = true; scene.add(m); return m; });
+    myG = groups[myPos()]; pins = myG.pins; xOff = myG.position.x; pinGeoM = [pg, pinM];
     const col = { red: '#c0392b', blue: '#1f4fd6', purple: '#7b2ff7', green: '#18a558', pink: '#ff4fa2', gold: '#d4a017' }[['red', 'blue', 'purple', 'green', 'pink', 'gold'][Math.abs(myId() || 0) % 6]];
-    ball = new THREE.Mesh(new THREE.SphereGeometry(P.BALL.r, 40, 28), new THREE.MeshPhysicalMaterial({ map: ballTex(col), roughness: .08, clearcoat: 1, clearcoatRoughness: .02, metalness: .1 })); ball.position.set(0, P.BALL.r, 0); scene.add(ball);
+    ball = new THREE.Mesh(new THREE.SphereGeometry(P.BALL.r, 40, 28), new THREE.MeshPhysicalMaterial({ map: ballTex(col), roughness: .08, clearcoat: 1, clearcoatRoughness: .02, metalness: .1 })); ball.position.set(0, P.BALL.r, 0); myG.add(ball);
     // la flèche de visée
-    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(.05, 3.5), new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: .45 })); arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, .006, 2.2); scene.add(arrow); hud.arrow = arrow;
+    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(.05, 3.5), new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: .45 })); arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, .006, 2.2); myG.add(arrow); hud.arrow = arrow;
     // les reflets (une salle sombre et colorée)
     const pm = new THREE.PMREMGenerator(R), env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), new THREE.MeshBasicMaterial({ color: 0x1a1430, side: THREE.BackSide })));
     for (const [x, y, z, c] of [[3, 4, 2, 0xff2bd6], [-3, 4, 6, 0x38e8ff], [0, 5, -4, 0xffffff]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: c })); s.position.set(x, y, z); env.add(s); }
@@ -143,6 +144,9 @@ const Bowling = (() => {
   }
   // 🛋️ la salle : la zone d'élan, les retours de boules, les écrans des scores, les fauteuils, le bar et l'écran géant
   let screenTex = null, screenCtx = null, bigScreen = null;
+  // 🏟️ la salle commune : 5 pistes ; la mienne est celle de ma partie, les autres montrent les parties des autres joueurs
+  let groups = [], myG = null, xOff = 0, pinGeoM = null, hall = [], others = {}, avatars = new Map();
+  const myPos = () => (lane?.slot ?? 2) % 5;
   function room() {
     const std = o => new THREE.MeshStandardMaterial(o), q = new THREE.Object3D();
     // la zone d'élan en bois et la marche vers les fauteuils
@@ -215,7 +219,7 @@ const Bowling = (() => {
     if (!active) return;
     const canvas = el('canvas', { class: 'lg-cv' });
     R = new THREE.WebGLRenderer({ canvas, antialias: true }); R.setPixelRatio(Math.min(devicePixelRatio || 1, mobile() ? 1.6 : 1.75)); R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.15;
-    build(); placePins(lane.standing || Array(10).fill(true)); ov.replaceChildren(canvas, buildHud(canvas)); ytOn = ''; syncVideo(); fit(); addEventListener('resize', fit);
+    others = {}; avatars = new Map(); build(); placePins(lane.standing || Array(10).fill(true)); ack('bw_hall', lane.hall).then(d => setHall(d.lanes)); ov.replaceChildren(canvas, buildHud(canvas)); ytOn = ''; syncVideo(); fit(); addEventListener('resize', fit);
     intro = performance.now(); // une petite visite de la salle en arrivant
     last = performance.now(); raf = requestAnimationFrame(loop); renderHud();
   }
@@ -306,6 +310,43 @@ const Bowling = (() => {
   }
   function big(text, cls) { hud.big.textContent = text; hud.big.className = 'bw-big ' + cls; clearTimeout(msgT); msgT = setTimeout(() => hud.big.classList.add('hidden'), 1800); }
 
+  // ---------- 👀 les autres pistes de la salle ----------
+  function setHall(L) {
+    hall = L || []; if (!active || !groups.length) return;
+    for (const G of groups) { if (G === myG) continue; const ln = hall.find(x => x.pos === G.pos); if (!others[G.pos]) G.pins.forEach((m, i) => { const st = ln ? ln.standing[i] : true; m.visible = !!st; const [x, z] = P.PINS[i]; m.position.set(x, 0, z); m.rotation.set(0, 0, 0); }); }
+    // les joueurs : celui dont c'est le tour se tient sur sa piste, les autres attendent dans les fauteuils
+    const seen = new Set();
+    for (const ln of hall) ln.players.forEach((p, i) => {
+      if (p.id === myId()) return; seen.add(p.id);
+      let a = avatars.get(p.id); if (!a) { a = makeAvatar(p); avatars.set(p.id, a); }
+      const x = (ln.pos - 2) * 1.7, up = ln.status === 'playing' && ln.turn === i && ln.pos !== myPos(); // sur ma piste, on ne se met pas devant la caméra
+      a.want = up ? [x - .12, -1.1, 0] : [x + [-.95, .95, -.4, .4][i % 4], [-6.15, -6.15, -6.9, -6.9][i % 4], i % 4 < 2 ? (i % 4 ? -Math.PI / 2 : Math.PI / 2) : 0];
+      a.tagText(`${p.name} · ${p.total}`);
+    });
+    for (const [id, a] of avatars) if (!seen.has(id)) { scene.remove(a.g); avatars.delete(id); }
+  }
+  function makeAvatar(p) {
+    const L = p.gender === 'f' ? K.people.women : K.people.men, src = L[Math.abs(p.id) % L.length], h = K.makeHuman(src, src.k * 1.74 / 43);
+    const [c, g] = cnv(512, 96), t = tex(c), tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false })); tag.scale.set(1.3, .25, 1); tag.position.y = 2.05; h.g.add(tag);
+    h.tagText = txt => { if (h._t === txt) return; h._t = txt; g.clearRect(0, 0, 512, 96); g.font = '800 44px Outfit, Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; const w = Math.min(500, g.measureText(txt).width + 36); g.fillStyle = 'rgba(8,6,20,.75)'; g.beginPath(); g.roundRect?.(256 - w / 2, 8, w, 80, 40); g.fill(); g.fillStyle = p.bot ? '#ffd23f' : '#38e8ff'; g.fillText(txt, 256, 50, 480); t.needsUpdate = true; };
+    h.g.position.set((Math.random() - .5) * 2, 0, -6.5); scene.add(h.g); return h;
+  }
+  function animAvatars(dt) {
+    for (const a of avatars.values()) { if (!a.want) continue; const [x, z, ry] = a.want, dx = x - a.g.position.x, dz = z - a.g.position.z, d = Math.hypot(dx, dz);
+      const go = d > .08; if (go) { const st = Math.min(d, dt * 1.6); a.g.position.x += dx / d * st; a.g.position.z += dz / d * st; a.g.rotation.y = Math.atan2(dx, dz); } else a.g.rotation.y += (ry - a.g.rotation.y) * Math.min(1, dt * 4);
+      const want = go ? 'walk' : 'idle'; if (want !== a.cur) { const n = a.act[want]; n.reset().play(); a.act[a.cur].crossFadeTo(n, .25, false); a.cur = want; } a.mixer.update(dt); }
+  }
+  function animOthers(ts, dt) {
+    for (const pos in others) {
+      const o = others[pos], G = groups[pos], t = (performance.now() - o.t0) / 1000, fr = o.frames, k = Math.min(fr.length - 1, Math.floor(t * 30)), f = fr[k];
+      if (!o.ball) { o.ball = new THREE.Mesh(new THREE.SphereGeometry(P.BALL.r, 24, 16), new THREE.MeshPhysicalMaterial({ color: [0xff2bd6, 0x38e8ff, 0xffd23f, 0x2bff88, 0xff6a00][pos % 5], roughness: .1, clearcoat: 1 })); G.add(o.ball); }
+      o.ball.visible = !f[3]; o.ball.position.set(f[0], P.BALL.r, f[1]);
+      f[4].forEach((q, i) => { const m = G.pins[i]; if (!q) { if (!o.standing[i]) m.visible = false; return; } m.visible = o.standing[i] && !q[5]; m.position.set(q[0], 0, q[1]);
+        if (q[2]) { m.rotation.order = 'YXZ'; m.rotation.y = q[3]; m.rotation.x = Math.min(Math.PI / 2 * .98, (m.rotation.x || 0) + dt * 9); if (!o.fell[i]) { o.fell[i] = 1; knock(0, .25, .9 + Math.random() * .3, (G.position.x - xOff) / 6); } } });
+      if (t > fr.length / 30 + 1.2) { G.remove(o.ball); delete others[pos]; setHall(hall); }
+    }
+  }
+
   // ---------- chaque image ----------
   function loop(ts) {
     if (!active || !R) return; raf = requestAnimationFrame(loop);
@@ -325,12 +366,13 @@ const Bowling = (() => {
     if (ts - scrT > 80) { scrT = ts; drawScreen(ts); }
     placeFrame();
     hud.arrow.visible = myTurn(); hud.arrow.position.x = aimX; hud.arrow.rotation.z = -spin * .08;
-    const near = camZ > 6; camera.position.set(near ? 0 : aimX * .5, near ? 1.15 : 1.05, camZ); camera.lookAt(near ? 0 : aimX * .3, near ? .1 : 0, near ? 18.6 : camZ + 7.5);
+    const near = camZ > 6; camera.position.set(xOff + (near ? 0 : aimX * .5), near ? 1.15 : 1.05, camZ); camera.lookAt(xOff + (near ? 0 : aimX * .3), near ? .1 : 0, near ? 18.6 : camZ + 7.5);
+    animOthers(ts, dt); animAvatars(dt);
     const it = intro ? (ts - intro) / 3800 : 1;
     if (it < 1 && !anim) { // l'arrivée : on part du bar, on passe au-dessus des fauteuils, et on arrive sur la piste
       const e = it * it * (3 - 2 * it), a = Math.PI * (1 - e) * .9;
-      camera.position.set(Math.sin(a) * 4.2 * (1 - e) + aimX * .5 * e, 2.4 - 1.35 * e, -6 - Math.cos(a) * 4 * (1 - e) + (camZ + 6) * e);
-      camera.lookAt(0, .4 * (1 - e), (camZ + 7.5) * e + -8 * (1 - e) * Math.cos(a) * .2 + 10 * (1 - e));
+      camera.position.set(Math.sin(a) * 4.2 * (1 - e) + (xOff + aimX * .5) * e, 2.4 - 1.35 * e, -6 - Math.cos(a) * 4 * (1 - e) + (camZ + 6) * e);
+      camera.lookAt(xOff * e, .4 * (1 - e), (camZ + 7.5) * e + -8 * (1 - e) * Math.cos(a) * .2 + 10 * (1 - e));
     } else intro = 0;
     if (roomCam && !anim) { const a = ts / 9000; camera.position.set(Math.sin(a) * 3.5, 2.2, -2.5 + Math.cos(a) * 1.5); camera.lookAt(0, .8, -8); } // 🎥 la vue de la salle
     R.render(scene, camera);
@@ -338,6 +380,8 @@ const Bowling = (() => {
 
   // ---------- les nouvelles du serveur ----------
   socket.on('bw_list', l => { list = l; if (view === 'list') render(); });
+  socket.on('bw_hall', d => { if (lane && d.hall === lane.hall) setHall(d.lanes); });
+  socket.on('bw_hall_throw', d => { if (!active || !lane || d.lane === lane.id || !groups[d.pos]) return; if (others[d.pos]?.ball) groups[d.pos].remove(others[d.pos].ball); others[d.pos] = { frames: d.frames, standing: d.standing, t0: performance.now(), fell: {} }; groups[d.pos].pins.forEach((m, i) => { m.visible = !!d.standing[i]; m.rotation.set(0, 0, 0); }); });
   socket.on('bw_lane', l => {
     if (!lane || lane.id !== l.id) return;
     const was = lane.status; lane = l;

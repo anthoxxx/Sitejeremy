@@ -1441,4 +1441,16 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 102,
+    date: '2026-11-22',
+    title: 'Une vraie salle de bowling commune 🎳',
+    added: [
+    'Toutes les parties se jouent dans la même salle : chaque partie a sa piste, côte à côte',
+    'On voit les autres joueurs : leurs personnages qui attendent dans les fauteuils ou se lèvent pour lancer, avec leur nom et leur score',
+    'On voit leurs lancers en direct sur les pistes d\'à côté : la boule qui roule et les quilles qui tombent',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
