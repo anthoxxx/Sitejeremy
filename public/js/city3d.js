@@ -634,7 +634,7 @@ const City3D = (() => {
   }
   // ---------- chaque image ----------
   function step(t, dt) {
-    if (!window.Island.isOpen() || window.Island.kind() !== 'island' || window.LaserGame?.active?.() || window.Bowling?.active?.()) return;
+    if (!window.Island.isOpen() || window.Island.kind() !== 'island' || window.LaserGame?.active?.() || window.Bowling?.active?.() || window.Casino?.active?.()) return;
     const K = A.keys, fwd = K.has('ArrowUp') || K.has('z') || K.has('w'), back = K.has('ArrowDown') || K.has('s');
     const left = K.has('ArrowLeft') || K.has('q') || K.has('a'), right = K.has('ArrowRight') || K.has('d');
     const dz = v => (Math.abs(v) < .18 ? 0 : v);

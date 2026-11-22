@@ -4265,3 +4265,67 @@ body { background:
 .bw-ytitem img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; flex: none; }
 .bw-ytitem span { display: flex; flex-direction: column; min-width: 0; } .bw-ytitem b { font-size: 13px; line-height: 1.25; } .bw-ytitem small { opacity: .7; font-size: 11px; }
 .bw-spin .bw-go { background: linear-gradient(135deg, #ff2bd6, #ff6a00); border-color: #fff; }
+
+/* ---------- 🎰 Le Paradise Club ---------- */
+body.casino-open .modal-back { z-index: 2100; }
+.isl-act.casino { background: linear-gradient(135deg, rgba(242,193,78,.6), rgba(255,43,214,.45)); }
+.cs-hud .cs-top { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; background: rgba(8,5,16,.7); padding: 8px 14px; border-radius: 999px; font-weight: 800; font-size: 14px; border: 1px solid rgba(242,193,78,.35); }
+.cs-act { position: absolute; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); border: 0; border-radius: 999px; padding: 14px 24px; font: 800 17px Outfit, Inter, sans-serif; color: #1a0a00; background: linear-gradient(135deg, #ffd23f, #ff8a3d); box-shadow: 0 8px 30px rgba(255,170,60,.45); cursor: pointer; animation: csPulse 1.6s ease-in-out infinite; white-space: nowrap; }
+.cs-act.hidden { display: none; }
+@keyframes csPulse { 50% { transform: translateX(-50%) scale(1.05); } }
+.cs-emotes { position: absolute; right: 12px; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; gap: 6px; }
+.cs-emotes.hidden { display: none; }
+.cs-emotes button { width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); background: rgba(10,8,20,.7); font-size: 20px; cursor: pointer; }
+.cs-joy { bottom: calc(24px + env(safe-area-inset-bottom)); }
+.cs-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(92vw, 420px); max-height: 84vh; overflow: auto; background: #140c1c; border: 1px solid rgba(242,193,78,.4); border-radius: 20px; padding: 18px; pointer-events: auto; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.cs-panel.hidden, .cs-pool.hidden, .cs-poker.hidden { display: none; }
+.cs-panel h3 { margin: 0 0 6px; }
+.cs-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); color: #fff; cursor: pointer; }
+.cs-drinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cs-reels { display: flex; justify-content: center; gap: 10px; margin: 12px 0; }
+.cs-reel { width: 74px; height: 84px; display: grid; place-items: center; font-size: 46px; background: #fff8e0; border-radius: 12px; box-shadow: inset 0 0 12px rgba(0,0,0,.4); }
+.cs-pool, .cs-poker { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; background: linear-gradient(transparent, rgba(5,3,10,.85) 40%); }
+.cs-pool > *, .cs-poker > * { pointer-events: auto; }
+.cs-pool .help, .cs-poker .help { margin: 0; font-size: 12px; opacity: .8; text-align: center; }
+.cs-pls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.cs-pl { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 6px 12px; display: flex; flex-direction: column; min-width: 130px; }
+.cs-pl.on { border-color: #ffd23f; box-shadow: 0 0 16px rgba(255,210,63,.4); }
+.cs-pl small { opacity: .8; }
+.cs-msg { font-weight: 700; text-align: center; text-shadow: 0 2px 8px #000; font-size: 15px; }
+.cs-msg.gold { color: #ffd23f; }
+.cs-aim, .cs-spin, .cs-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.cs-pw { display: flex; align-items: center; gap: 10px; width: min(94vw, 420px); }
+.cs-pw small { white-space: nowrap; font-weight: 800; }
+.cs-power { flex: 1; accent-color: #ff8a3d; height: 28px; }
+.cs-shoot { min-width: 200px; font-size: 18px; padding: 12px 20px; }
+.cs-poker { top: auto; }
+.cs-seats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 760px; }
+.cs-seat { background: rgba(20,10,20,.8); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 5px 10px; display: flex; flex-direction: column; font-size: 13px; min-width: 104px; }
+.cs-seat.on { border-color: #ffd23f; box-shadow: 0 0 14px rgba(255,210,63,.5); }
+.cs-seat.out { opacity: .45; }
+.cs-seat.me { border-color: #2bff88; }
+.cs-seat em { font-style: normal; color: #ffd23f; font-size: 12px; }
+.cs-mini { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.cs-mini .cs-card { width: 24px; height: 34px; font-size: 11px; }
+.cs-board { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.cs-pot { margin-left: 8px; color: #ffd23f; }
+.cs-card { width: 40px; height: 56px; border-radius: 7px; background: #fbfaf6; color: #141414; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; line-height: 1; box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+.cs-card i { font-style: normal; font-size: 1.15em; }
+.cs-card.red { color: #d11a2a; }
+.cs-card.back { background: repeating-linear-gradient(45deg, #7b1030 0 6px, #5a0a22 6px 12px); border: 2px solid #f2c14e; }
+.cs-card.empty { background: rgba(255,255,255,.06); border: 1px dashed rgba(255,255,255,.25); box-shadow: none; }
+.cs-card.big { width: 62px; height: 88px; font-size: 26px; border-radius: 10px; }
+.cs-hole { display: flex; gap: 8px; align-items: center; }
+.cs-hole small { font-weight: 800; color: #2bff88; }
+.cs-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.cs-raise { display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,.06); padding: 6px 10px; border-radius: 12px; }
+.cs-raise input { accent-color: #ffd23f; }
+.cs-quick { display: flex; gap: 4px; flex-wrap: wrap; }
+.cs-rules { padding-left: 20px; margin: 6px 0; }
+@media (max-width: 600px) { .cs-act { font-size: 15px; padding: 12px 18px; } .cs-card { width: 32px; height: 46px; font-size: 13px; } .cs-card.big { width: 52px; height: 74px; font-size: 22px; } .cs-seat { min-width: 86px; font-size: 12px; padding: 4px 8px; } .cs-emotes button { width: 36px; height: 36px; font-size: 17px; } }
+.cs-pooltop { position: absolute; top: calc(56px + env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; padding: 0 10px; }
+.cs-pooltop.hidden { display: none; }
+.cs-pooltop .cs-pl { background: rgba(10,6,18,.75); padding: 4px 10px; min-width: 110px; font-size: 13px; }
+.cs-pw .cs-shoot { min-width: 120px; padding: 10px 16px; font-size: 16px; }
+.cs-pool { background: linear-gradient(transparent, rgba(5,3,10,.8) 30%); gap: 6px; }
+@media (max-width: 600px) { .cs-pw { flex-wrap: wrap; justify-content: center; } .cs-pooltop .cs-pl { min-width: 0; font-size: 12px; } }

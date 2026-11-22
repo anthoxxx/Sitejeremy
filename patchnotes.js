@@ -1453,4 +1453,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 103,
+    date: '2026-11-22',
+    title: 'Le Paradise Club : un casino en 3D où tout est réuni 🎰',
+    added: [
+      '🎰 Nouveau bouton « Paradise Club » dans la Ville : un grand complexe en 3D où tu te promènes avec les autres joueurs',
+      '🍹 Un vrai bar avec son barman : commande un cocktail, tout le monde voit ton verre',
+      '🎳 L\'entrée du Bowling et 🔫 du Laser Game sont dans le club : on voit les pistes et l\'arène derrière les vitres',
+      '🎱 2 billards en 3D (billard américain, règles du « 8 ») : joue contre un ami ou contre Soldat76-Billard, avec visée, force, effet et vue de dessus',
+      '🃏 Une table de poker Texas Hold\'em jusqu\'à 6 joueurs (avec des robots s\'il manque du monde) : jetons gratuits, et les gros pots rapportent des pièces',
+      '🎰 Des machines à sous pour le plaisir, des émotes (👋 😂 🔥 ❤️ 💃) et des lustres dorés',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
