@@ -4264,3 +4264,4 @@ body { background:
 .bw-ytitem { display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); color: #fff; border-radius: 12px; padding: 6px; cursor: pointer; font: inherit; }
 .bw-ytitem img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; flex: none; }
 .bw-ytitem span { display: flex; flex-direction: column; min-width: 0; } .bw-ytitem b { font-size: 13px; line-height: 1.25; } .bw-ytitem small { opacity: .7; font-size: 11px; }
+.bw-spin .bw-go { background: linear-gradient(135deg, #ff2bd6, #ff6a00); border-color: #fff; }

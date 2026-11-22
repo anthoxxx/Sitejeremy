@@ -225,7 +225,8 @@ const Bowling = (() => {
   // ---------- l'écran : tableau des scores, consignes, effet ----------
   function buildHud(canvas) {
     hud.board = el('div', { class: 'bw-board' }); hud.msg = el('div', { class: 'bw-msg' }); hud.big = el('div', { class: 'bw-big hidden' }); hud.end = el('div', { class: 'lg-end hidden' });
-    hud.spin = el('div', { class: 'bw-spin' }, ...[[-1, '↶ Effet'], [0, '↑ Droit'], [1, 'Effet ↷']].map(([v, l]) => el('button', { type: 'button', class: v === spin ? 'on' : '', onclick: e => { e.stopPropagation(); spin = v * .6; hud.spin.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.currentTarget)); } }, l)));
+    hud.spin = el('div', { class: 'bw-spin' }, ...[[-1, '↶ Effet'], [0, '↑ Droit'], [1, 'Effet ↷']].map(([v, l]) => el('button', { type: 'button', class: v === spin ? 'on' : '', onclick: e => { e.stopPropagation(); spin = v * .6; hud.spin.querySelectorAll('.on').forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } }, l)),
+      el('button', { type: 'button', class: 'bw-go', onclick: e => { e.stopPropagation(); ac(); if (!myTurn()) return; socket.emit('bw_throw', { x: aimX, angle: 0, speed: 7.6, spin }); hud.msg.textContent = '🎳 C\'est parti !'; } }, '🎳 Lancer')); // le bouton, si le geste ne passe pas
     // 🎵 la musique de l'écran géant (notre mix du bowling, puis les radios du site)
     const MIX = { name: 'Paradise Bowling Mix', url: '/city3d/bowling-music.mp3', icon: '🎳' };
     const tracks = () => [MIX, ...((RADIO()?.stations) || [])];
@@ -239,15 +240,17 @@ const Bowling = (() => {
       el('button', { type: 'button', title: 'Voir la salle', onclick: e => { e.stopPropagation(); roomCam = !roomCam; e.currentTarget.classList.toggle('on', roomCam); } }, '🎥'));
     const quit = el('button', { class: 'lg-quit', title: 'Quitter', onclick: () => { if (lane?.status === 'playing' && !confirm('Quitter la partie de bowling ?')) return; socket.emit('bw_leave'); lane = null; exit(); } }, '✕');
     canvas.addEventListener('pointerdown', e => { ac(); if (!myTurn()) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), ax: aimX, pts: [[e.clientX, e.clientY, performance.now()]] }; canvas.setPointerCapture?.(e.pointerId); });
-    canvas.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; drag.pts.push([e.clientX, e.clientY, performance.now()]); if (drag.pts.length > 12) drag.pts.shift(); const dy = drag.y - e.clientY; if (dy < 30) aimX = Math.max(-.45, Math.min(.45, drag.ax + (e.clientX - drag.x) * .0028)); });
+    canvas.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; drag.pts.push([e.clientX, e.clientY, performance.now()]); if (drag.pts.length > 80) drag.pts.shift(); const dy = drag.y - e.clientY; if (dy < 30) aimX = Math.max(-.45, Math.min(.45, drag.ax + (e.clientX - drag.x) * .0028)); });
     const up = e => {
       if (!drag || e.pointerId !== drag.id) return; const d = drag; drag = null;
-      const [x0, y0, t0] = d.pts[0], dy = y0 - e.clientY, dx = e.clientX - x0, dt = Math.max(30, performance.now() - t0);
-      if (dy < 60) return; // un petit geste : on a juste placé la boule
-      const speed = Math.max(4.5, Math.min(9.5, 3.5 + (dy / dt) * 3.2)), angle = Math.max(-.05, Math.min(.05, Math.atan2(dx, dy) * .12));
+      const ex = e.clientX ?? d.pts[d.pts.length - 1][0], ey = e.clientY ?? d.pts[d.pts.length - 1][1], total = d.y - ey; // tout le geste, depuis le début
+      if (total < 45) return; // un petit geste : on a juste placé la boule
+      const now = performance.now(), recent = d.pts.find(p => now - p[2] < 220) || d.pts[0]; // la vitesse : sur la fin du geste
+      const dt = Math.max(30, now - recent[2]), v = Math.max(0, recent[1] - ey) / dt;
+      const speed = Math.max(4.5, Math.min(9.5, 3.8 + v * 3.2)), angle = Math.max(-.05, Math.min(.05, Math.atan2(ex - d.x, total) * .12));
       socket.emit('bw_throw', { x: aimX, angle, speed, spin }); hud.msg.textContent = '🎳 C\'est parti !';
     };
-    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', () => { drag = null; });
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); // si le téléphone coupe le geste, on lance quand même
     hud.yt = el('div', { class: 'bw-ytbox hidden' }); hud.frame = el('div', { class: 'bw-frame hidden' });
     return el('div', { class: 'lg-hud bw-hud' }, hud.frame, hud.board, hud.msg, hud.big, hud.spin, hud.music, hud.yt, hud.end, quit);
   }
