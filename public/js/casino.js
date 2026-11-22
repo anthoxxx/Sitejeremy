@@ -363,18 +363,35 @@ const Casino = (() => {
   }
   function setMute(m) { muted = m; const f = hud.frame?.querySelector('iframe'); f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: m ? 'mute' : 'unMute', args: [] }), '*'); if (hud.mute) hud.mute.textContent = m ? '🔇' : '🔊'; }
   const _v = () => new THREE.Vector3();
+  // la vidéo est « collée » dans l'écran avec la bonne perspective (une transformation qui suit ses 4 coins)
+  const FW = 640, FH = 360;
+  function homography(P) { // P = les 4 coins à l'écran : haut-gauche, haut-droite, bas-droite, bas-gauche
+    const S = [[0, 0], [FW, 0], [FW, FH], [0, FH]], A = [], B = [];
+    for (let k = 0; k < 4; k++) { const [u, v] = S[k], [x, y] = P[k]; A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]); B.push(x); A.push([0, 0, 0, u, v, 1, -u * y, -v * y]); B.push(y); }
+    for (let c = 0; c < 8; c++) { let piv = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r; [A[c], A[piv]] = [A[piv], A[c]]; [B[c], B[piv]] = [B[piv], B[c]]; const d = A[c][c]; if (Math.abs(d) < 1e-9) return null;
+      for (let r = 0; r < 8; r++) if (r !== c) { const f = A[r][c] / d; for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; B[r] -= f * B[c]; } }
+    const [a, b, c, d, e, f, g, h] = B.map((v, k) => v / A[k][k]);
+    return `matrix3d(${a},${d},0,${g},${b},${e},0,${h},0,0,1,0,${c},${f},0,1)`;
+  }
+  let glueTo = null;
   function placeFrame() {
-    if (!ytOn) return; const W = innerWidth, H = innerHeight; let best = null;
+    if (!ytOn) return; const W = innerWidth, H = innerHeight, cands = [];
     for (const sc of screens) {
-      const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
-      if (!pts.every(p => p.z < 1 && Math.abs(p.x) < 1.5 && Math.abs(p.y) < 1.6)) continue;
       const n = _v().set(0, 0, 1).applyQuaternion(sc.m.getWorldQuaternion(new THREE.Quaternion())), to = _v().subVectors(camera.position, sc.m.getWorldPosition(_v())); if (n.dot(to) <= 0) continue; // on voit l'écran de face
-      const xs = pts.map(p => (p.x + 1) / 2 * W), ys = pts.map(p => (1 - p.y) / 2 * H), w = Math.max(...xs) - Math.min(...xs);
-      if (!best || w > best.w) best = { w, x: Math.min(...xs), y: Math.min(...ys), h: Math.max(...ys) - Math.min(...ys) };
+      const pts = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
+      if (!pts.every(p => p.z < 1 && p.z > -1 && Math.abs(p.x) < 2 && Math.abs(p.y) < 2)) continue;
+      const px = pts.map(p => [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H]), w = Math.max(...px.map(q => q[0])) - Math.min(...px.map(q => q[0]));
+      const xs = px.map(q => q[0]), ys = px.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const vis = Math.max(0, Math.min(W, x1) - Math.max(0, x0)) * Math.max(0, Math.min(H, y1) - Math.max(0, y0)) / Math.max(1, (x1 - x0) * (y1 - y0));
+      if (vis < .5) continue; // on ne colle la vidéo que sur un écran qu'on voit au moins à moitié
+      cands.push({ sc, px, w: w * vis });
     }
-    const st = hud.frame.style;
-    if (best && best.w > 110 && mode === 'walk') { hud.frame.classList.remove('mini'); st.left = best.x + 'px'; st.top = best.y + 'px'; st.width = best.w + 'px'; st.height = best.h + 'px'; }
-    else { hud.frame.classList.add('mini'); st.left = st.top = st.width = st.height = ''; }
+    // on reste sur le même écran tant qu'on le voit (sinon la vidéo « saute » d'une TV à l'autre) ; le mur géant d'abord
+    let best = cands.find(c => c.sc === glueTo && c.w > 90) || cands.find(c => c.sc === screens[0] && c.w > 140) || cands.sort((a, b) => b.w - a.w)[0];
+    if (best && best.w < 110) best = null;
+    const st = hud.frame.style, m = best && mode === 'walk' ? homography(best.px) : null;
+    if (m) { glueTo = best.sc; hud.frame.classList.remove('mini'); hud.frame.classList.add('glued'); st.left = st.top = '0px'; st.width = FW + 'px'; st.height = FH + 'px'; st.transform = m; }
+    else { glueTo = null; hud.frame.classList.add('mini'); hud.frame.classList.remove('glued'); st.left = st.top = st.width = st.height = st.transform = ''; }
   }
   function ytPanel() {
     const input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
@@ -424,7 +441,9 @@ const Casino = (() => {
       const sp = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-3);
       let da = ((a.tyaw - a.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; a.yaw += da * Math.min(1, dt * 10);
       a.g.position.set(a.x, 0, a.z); a.g.rotation.y = a.yaw + Math.PI;
-      const w = a.dance > 0 ? 'dance' : sp > 3.2 ? 'run' : sp > .35 ? 'walk' : 'idle';
+      a.spd = (a.spd || 0) + (Math.min(sp, 8) - (a.spd || 0)) * Math.min(1, dt * 6); // vitesse lissée
+      const cur0 = a.cur === 'dance' ? 'idle' : a.cur, v = a.spd;
+      const w = a.dance > 0 ? 'dance' : cur0 === 'run' ? (v > 2.4 ? 'run' : v > .3 ? 'walk' : 'idle') : cur0 === 'walk' ? (v > 3.4 ? 'run' : v > .2 ? 'walk' : 'idle') : (v > 3.4 ? 'run' : v > .5 ? 'walk' : 'idle');
       if (a.dance > 0) a.dance -= dt;
       if (w !== a.cur && a.act[w]) { const n = a.act[w]; n.reset().play(); a.act[a.cur]?.crossFadeTo(n, .25, false); a.cur = w; }
       a.mixer.update(dt);

@@ -4348,3 +4348,5 @@ body.casino-open .modal-back { z-index: 2100; }
 .pv-x { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.12); font-size: 12px !important; }
 .isl-pv { left: 12px; top: calc(60px + env(safe-area-inset-top)); }
 .cs-pv { left: 12px; top: calc(58px + env(safe-area-inset-top)); }
+.cs-hud .bw-frame.glued { transform-origin: 0 0; box-shadow: none; }
+.cs-hud .bw-frame.glued .bw-frame-t { display: none; }
