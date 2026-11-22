@@ -2942,6 +2942,8 @@ const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) 
 CityGames.routes(app, auth);
 // 🔫 Le Laser Game : parties en équipes (Rouges contre Bleus), 3 cartes, robots
 const LaserGame = require('./lasergame')({ io, coins: Coins, track });
+// 🎳 Le Bowling en 3D (pistes à part, seul, entre amis ou contre les soldats)
+const Bowling = require('./bowling')({ io, coins: Coins, track });
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
 // 🎤 The Voice du Paradise
@@ -3479,6 +3481,7 @@ io.on('connection', socket => {
   Island.onConnection(socket, uid, current);
   CityGames.onConnection(socket, uid);
   LaserGame.onConnection(socket, uid, current);
+  Bowling.onConnection(socket, uid, current);
   TheVoice.onConnection(socket, uid, current);
   Events.onConnection(socket);
 

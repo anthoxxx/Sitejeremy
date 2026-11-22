@@ -1473,7 +1473,7 @@ const Island = (() => {
   function frame(ts) {
     if (!open) return;
     raf = requestAnimationFrame(frame);
-    if (window.LaserGame?.active?.()) return; // pendant une partie de Laser Game, la Ville se met en pause
+    if (window.LaserGame?.active?.() || window.Bowling?.active?.()) return; // pendant une partie de Laser Game ou de bowling, la Ville se met en pause
     // quand une vidéo passe, on dessine 30 images par seconde (et sans effets lumineux sur téléphone) pour laisser YouTube respirer
     const video = kind !== 'island' && !!media?.current;
     lowFx = video || innerWidth < 700;
@@ -1861,7 +1861,7 @@ const Island = (() => {
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => startBuild() }, el('span', {}, '🧱'), 'Construire'), el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island' && window.CityGames?.winter()) acts.push(el('button', { type: 'button', class: 'isl-act snow' + (window.CityGames.snowOn() ? ' on' : ''), onclick: e => { window.CityGames.toggleSnow(); e.currentTarget.classList.toggle('on', window.CityGames.snowOn()); } }, el('span', {}, '⛄'), 'Boules de neige'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
-    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act laser', onclick: () => window.LaserGame?.panel() }, el('span', {}, '🔫'), 'Laser Game'));
+    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act laser', onclick: () => window.LaserGame?.panel() }, el('span', {}, '🔫'), 'Laser Game'), el('button', { type: 'button', class: 'isl-act bowl', onclick: () => window.Bowling?.panel() }, el('span', {}, '🎳'), 'Bowling'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
     if (kind === 'island' || kind === 'pool' || kind === 'campfire') acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (!confirm('Lancer un feu d\'artifice pour toute l\'Île ? (30 pièces 💰)')) return; socket.emit('island_fw', r => r?.error && toast(r.error)); } }, el('span', {}, '🎆'), 'Feu d\'artifice'));

@@ -4213,3 +4213,36 @@ body { background:
 :root[data-theme="light"][data-sky] body::before { opacity: .6; }
 :root[data-sky] body:has(.lgame)::before, :root[data-sky] body:has(.island:not(.hidden))::before { display: none; }
 .skin-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 700; }
+
+/* ---------- 🎳 Bowling ---------- */
+.isl-act.bowl { background: linear-gradient(135deg, rgba(56,232,255,.5), rgba(255,210,63,.45)); }
+.bw-players { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.bw-players li { padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.06); display: flex; justify-content: space-between; }
+.bw-players li.me { border: 1px solid var(--rose); }
+.bw-board { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 8px; right: 56px; overflow-x: auto; scrollbar-width: none; }
+.bw-board table { border-collapse: separate; border-spacing: 2px; font-size: 11px; color: #fff; }
+.bw-board th { text-align: left; padding: 3px 8px; background: rgba(5,6,14,.75); border-radius: 6px; white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.bw-board td { min-width: 28px; background: rgba(5,6,14,.7); border-radius: 5px; text-align: center; padding: 1px 2px; vertical-align: top; }
+.bw-board td.tenth { min-width: 38px; }
+.bw-board td i { display: block; font-style: normal; font-weight: 800; font-size: 10px; color: #ffd23f; min-height: 13px; letter-spacing: 1px; }
+.bw-board td b { display: block; font-size: 11px; min-height: 14px; }
+.bw-board td.sum { background: rgba(255,43,214,.4); font-weight: 900; font-size: 14px; vertical-align: middle; min-width: 36px; }
+.bw-board tr.turn th { background: linear-gradient(90deg, #ff2bd6, #8b5cff); }
+.bw-board tr.me th { box-shadow: 0 0 0 1px #38e8ff inset; }
+.bw-msg { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom)); background: rgba(5,6,14,.78); padding: 8px 16px; border-radius: 999px; font-weight: 800; font-size: 14px; text-align: center; max-width: calc(100% - 24px); }
+.bw-spin { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; gap: 8px; pointer-events: auto; }
+.bw-spin.hidden { display: none; }
+.bw-spin button { border: 1px solid rgba(255,255,255,.3); background: rgba(5,6,14,.75); color: #fff; font: 800 14px Outfit, Inter, sans-serif; padding: 9px 14px; border-radius: 999px; cursor: pointer; }
+.bw-spin button.on { background: linear-gradient(135deg, #38e8ff, #8b5cff); border-color: #fff; }
+.bw-big { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); font: 900 64px Outfit, Inter, sans-serif; color: #fff; text-shadow: 0 0 20px #ff2bd6, 0 0 40px #38e8ff; animation: bwPop .5s cubic-bezier(.2,.8,.3,1.5); white-space: nowrap; }
+.bw-big.strike { font-size: 84px; color: #ffd23f; text-shadow: 0 0 24px #ff6a00, 0 0 50px #ff2bd6; }
+.bw-big.spare { color: #38e8ff; }
+.bw-big.gutter { font-size: 40px; }
+.bw-big.hidden { display: none; }
+@keyframes bwPop { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } }
+.bw .lg-quit { z-index: 5; }
+.bw-board table { width: auto; border-collapse: separate; border-spacing: 2px; }
+.bw-board th, .bw-board td { border-bottom: 0; padding: 2px 4px; text-transform: none; letter-spacing: 0; color: #fff; font-size: 11px; }
+.bw-board th { font-weight: 800; padding: 4px 8px; }
+.bw-board td { background: rgba(20, 18, 40, .85); border: 1px solid rgba(255, 255, 255, .12); }
+.bw-board td i { font-size: 12px; }

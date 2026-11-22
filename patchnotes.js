@@ -1394,4 +1394,22 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 99,
+    date: '2026-11-22',
+    title: 'Nouveau : le Bowling en 3D ! 🎳',
+    added: [
+      '🎳 Un vrai bowling en 3D dans la Ville : touche « 🎳 Bowling » en bas de la Ville',
+      '🏟️ Une salle néon « Bowling Paradise » avec une vraie piste en bois vernie, ses flèches, les rigoles, les 10 quilles et une boule brillante',
+      '👆 Glisse le doigt (ou la souris) de côté pour placer ta boule, puis vers le haut pour la lancer : plus ton geste est rapide, plus elle va vite. Les boutons ↶ ↑ ↷ donnent de l\'effet pour viser la « poche »',
+      '💥 Une vraie physique : les quilles s\'entrechoquent et tombent, avec STRIKE !, SPARE ! et le bruit des quilles',
+      '👥 Joue seul, avec tes amis (jusqu\'à 4 par piste, chacun son tour) ou contre les soldats du Paradise',
+      '📋 Le vrai tableau des scores en 10 cases, avec les bonus des strikes et des spares (300 points pour une partie parfaite !)',
+      '💰 15 pièces pour le gagnant, 5 pour les autres, et 30 de plus si tu dépasses 200 points',
+    ],
+    changed: [
+      '🐛 Corrigé : sur téléphone, certains salons disparaissaient du menu et il fallait recharger la page',
+    ],
+    removed: [],
+  },
 ];

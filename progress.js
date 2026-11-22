@@ -60,7 +60,7 @@ const ACHIEVEMENTS = [
   { id: 'lvl25', kind: 'level', goal: 25, icon: '👑', name: 'Légende du Paradise', desc: 'Atteins le niveau 25', coins: 600 },
 ];
 // Expérience gagnée pour chaque chose qu'on fait
-const XP = { room_create: 20, temp_room: 5, photo: 10, verified: 20, friend: 5, pm: 1, voice: 5, look: 10, house_deco: 5, shop: 5, member: 5, message: 1, game: 5, game_win: 25, babyfoot: 8, babyfoot_win: 15, lasergame: 8, island: 5, visit_place: 3, visit_house: 8, dance: 1, cafe: 3, pet: 2, pet_adopt: 20, fortune: 5, arcade: 1, emote: 0, daily: 10, party: 20, gift: 5, night: 0 };
+const XP = { room_create: 20, temp_room: 5, photo: 10, verified: 20, friend: 5, pm: 1, voice: 5, look: 10, house_deco: 5, shop: 5, member: 5, message: 1, game: 5, game_win: 25, babyfoot: 8, babyfoot_win: 15, lasergame: 8, bowling: 8, island: 5, visit_place: 3, visit_house: 8, dance: 1, cafe: 3, pet: 2, pet_adopt: 20, fortune: 5, arcade: 1, emote: 0, daily: 10, party: 20, gift: 5, night: 0 };
 const XP_CAP = { pm: 20, voice: 15, message: 120, dance: 20, arcade: 30, pet: 30, visit_place: 30 }; // XP maximum par jour pour ces actions
 // Niveau : il faut 100 XP pour passer au niveau 2, puis 50 de plus à chaque niveau
 const levelOf = xp => { let lvl = 1, need = 100, rest = xp; while (rest >= need) { rest -= need; lvl++; need += 50; } return { level: lvl, into: rest, need }; };
