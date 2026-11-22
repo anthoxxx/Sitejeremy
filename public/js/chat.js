@@ -812,7 +812,7 @@ async function deleteEmote(e) {
 // Créer une émoticône : on choisit une photo, on lui donne un nom, et hop !
 function openCreateEmote() {
   let blob = null;
-  const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' });
+  const file = el('input', { type: 'file', accept: LC.IMG_ACCEPT, class: 'hidden' });
   const preview = el('div', { class: 'emote-preview' }, el('span', {}, '🖼️'));
   const name = el('input', { class: 'input', maxlength: 15, placeholder: 'ex : anthony, rire, fiesta…' });
   const err = el('div', { class: 'error' });
@@ -858,15 +858,12 @@ function openCreateEmote() {
 // Recadre une photo en carré (centre) et la réduit
 function squareImage(f, size) {
   return new Promise((ok, ko) => {
-    const img = new Image();
-    img.onload = () => {
+    LC.loadImage(f).then(img => {
       const c = document.createElement('canvas'); c.width = c.height = size;
       const s = Math.min(img.width, img.height);
       c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
-      c.toBlob(b => (b ? ok(b) : ko(new Error('Image illisible'))), 'image/png');
-    };
-    img.onerror = () => ko(new Error('Image illisible'));
-    img.src = URL.createObjectURL(f);
+      c.toBlob(b => (b ? ok(b) : ko(new Error('Cette image n\'a pas pu être préparée : essaie avec une autre photo'))), 'image/png');
+    }).catch(ko);
   });
 }
 renderEmojiPanel();

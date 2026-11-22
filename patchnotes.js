@@ -1383,4 +1383,15 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 98,
+    date: '2026-11-22',
+    title: 'Les photos d\'iPhone passent partout 📷',
+    added: [],
+    changed: [
+      '📷 Fini le message « Image illisible » : les photos d\'iPhone (format HEIC) sont maintenant converties toutes seules, pour ta photo de profil, ta bannière, ta galerie, les photos du chat, les émoticônes et le téléphone du site',
+      '💬 Si une image est vraiment abîmée, un message clair t\'explique quoi faire',
+    ],
+    removed: [],
+  },
 ];

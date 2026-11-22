@@ -401,7 +401,7 @@ const Phone = (() => {
   }
   const flash = () => { const f = el('div', { class: 'ph-flash' }); screen.append(f); setTimeout(() => f.remove(), 300); };
   async function blobToCanvas(f) {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Image illisible')); i.src = URL.createObjectURL(f); });
+    const img = await LC.loadImage(f);
     const k = Math.min(1, 1440 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return c;
   }
   // Après la photo : texte, filtres, minuteur, puis on choisit à qui l'envoyer
@@ -794,7 +794,7 @@ const Phone = (() => {
     let target = body.dataset.target || 'wall'; // 'wall' = accueil, 'lockwall' = écran verrouillé
     const file = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => {
       const f = file.files[0]; file.value = ''; if (!f) return;
-      const img = await createImageBitmap(f).catch(() => null); if (!img) return toast('Image illisible');
+      let img; try { img = await LC.loadImage(f); } catch (e) { return toast(e.message); }
       const c = document.createElement('canvas'), k = Math.min(1, 900 / Math.max(img.width, img.height)); c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       const l = myWalls(); l.unshift(c.toDataURL('image/jpeg', .78)); if (l.length > 6) l.length = 6;
       if (saveWalls(l)) { setOpt(target, 'photo:0'); toast('🖼️ Ta photo est ton fond d\'écran !'); }

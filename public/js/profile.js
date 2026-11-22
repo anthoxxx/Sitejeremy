@@ -138,7 +138,7 @@ async function openProfile(id) {
 // ---------- Redimensionnement des images dans le navigateur ----------
 function readImage(file, w, h) {
   return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) return reject(new Error('Choisis une image (JPG, PNG, GIF ou WEBP)'));
+    if (!file.type.startsWith('image/') && !LC.isHeic(file)) return reject(new Error('Choisis une image (JPG, PNG, GIF, WEBP ou une photo d\'iPhone)'));
     // Les photos animées (GIF et WEBP animés) sont gardées telles quelles jusqu'à 4 Mo
     if ((file.type === 'image/gif' || file.type === 'image/webp') && file.size <= 4 * 1024 * 1024) {
       const fr = new FileReader();
@@ -147,19 +147,15 @@ function readImage(file, w, h) {
       return fr.readAsDataURL(file);
     }
     if (file.size > 15 * 1024 * 1024) return reject(new Error('Image trop lourde (15 Mo maximum)'));
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
+    LC.loadImage(file).then(img => {
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       const scale = Math.max(w / img.width, h / img.height);
       const sw = w / scale, sh = h / scale;
       c.getContext('2d').drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, w, h);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(img.src);
       resolve(c.toDataURL('image/jpeg', 0.88));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
-    img.src = url;
+    }).catch(reject);
   });
 }
 
@@ -222,7 +218,7 @@ function openMyProfile(target) {
 
   // Envoi d'image (photo ou bannière), enregistré tout de suite
   const imageButtons = (kind, w, h) => {
-    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' });
+    const file = el('input', { type: 'file', accept: LC.IMG_ACCEPT, class: 'hidden' });
     const status = el('small', { class: 'help' });
     file.onchange = async () => {
       if (!file.files[0]) return;
@@ -247,7 +243,7 @@ function openMyProfile(target) {
   const namePick = colorPick('color');
   // 🖼️ la galerie : ajouter / retirer des photos (vérifiées par le staff)
   const galleryEditor = () => {
-    const box = el('div', { class: 'gal-edit' }), file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'hidden' }), status = el('small', { class: 'help' });
+    const box = el('div', { class: 'gal-edit' }), file = el('input', { type: 'file', accept: LC.IMG_ACCEPT, class: 'hidden' }), status = el('small', { class: 'help' });
     const draw = g => { d.gallery = g; refresh(); box.replaceChildren(...g.map(p => el('div', { class: 'gal-item' + (p.ok ? '' : ' wait') }, el('img', { src: p.url, alt: '' }), p.ok ? null : el('span', { class: 'gal-wait' }, '⏳'),
         el('button', { type: 'button', class: 'gal-del', title: 'Retirer', onclick: async () => { try { draw((await api('/api/me/gallery/' + p.id, { method: 'DELETE' })).gallery); } catch (e) { toast(e.message); } } }, '✕'))),
       g.length < 6 ? el('button', { type: 'button', class: 'gal-add', onclick: () => file.click() }, '➕') : null, file, status); };

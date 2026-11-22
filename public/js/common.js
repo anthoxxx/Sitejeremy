@@ -46,6 +46,25 @@ window.LC = {
     if (!res.ok) { const err = new Error(data.error || 'Erreur ' + res.status); err.status = res.status; throw err; }
     return data;
   },
+  // 📷 Ouvre une photo choisie par quelqu'un, même une photo d'iPhone (HEIC) que beaucoup de navigateurs ne savent pas lire :
+  // on la convertit alors en JPEG dans le navigateur (l'outil n'est chargé que si besoin).
+  isHeic: f => /hei[cf]/i.test(f?.type || '') || /\.(heic|heif)$/i.test(f?.name || ''),
+  IMG_ACCEPT: 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif',
+  async loadImage(file) {
+    const open = blob => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bad')); i.src = URL.createObjectURL(blob); });
+    if (!LC.isHeic(file)) { try { return await open(file); } catch (e) {} }
+    // une photo HEIC (ou qu'on n'arrive pas à lire) : on essaie de la convertir
+    let head = ''; try { head = new TextDecoder().decode(await file.slice(4, 12).arrayBuffer()); } catch (e) {}
+    if (LC.isHeic(file) || /ftyp(hei|mif|msf|hev)/.test(head)) {
+      try {
+        if (!window.heic2any) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = '/js/vendor/heic2any.min.js'; s.onload = res; s.onerror = rej; document.head.append(s); });
+        const out = await window.heic2any({ blob: file, toType: 'image/jpeg', quality: .9 });
+        return await open(Array.isArray(out) ? out[0] : out);
+      } catch (e) { throw new Error('Cette photo d\'iPhone n\'a pas pu être convertie : essaie une capture d\'écran de la photo, ou change le réglage Appareil photo → Formats → « Le plus compatible »'); }
+    }
+    try { const b = await createImageBitmap(file); const c = document.createElement('canvas'); c.width = b.width; c.height = b.height; c.getContext('2d').drawImage(b, 0, 0); return await open(await new Promise(r => c.toBlob(r, 'image/jpeg', .92))); } catch (e) {}
+    throw new Error('Cette image n\'a pas pu être lue : choisis une photo JPG, PNG, GIF ou WEBP');
+  },
   el(tag, attrs = {}, ...children) {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {

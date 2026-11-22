@@ -127,7 +127,7 @@ mainEl.addEventListener('drop', e => {
 async function shrinkPhoto(file) {
   // Les GIF restent animés (s'ils ne sont pas trop lourds) ; les autres photos sont réduites à 1600 px
   if (file.type === 'image/gif' && file.size <= 6 * 1024 * 1024) return file;
-  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Image illisible')); i.src = URL.createObjectURL(file); });
+  const img = await LC.loadImage(file);
   const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
   const c = el('canvas', { width: Math.round(img.width * scale), height: Math.round(img.height * scale) });
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
