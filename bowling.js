@@ -3,13 +3,14 @@
 // tout le monde voit exactement la même chose, et personne ne peut tricher sur son score.
 const Phys = require('./public/js/bowlphys');
 const MAX = 4, TURN_MS = 45000;
-module.exports = function setupBowling({ io, coins = null, track = () => {} }) {
+module.exports = function setupBowling({ io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
+  const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
   const now = () => Date.now();
   const lanes = new Map(), where = new Map(), sockets = new Map(); let nextId = 1;
   const roomName = id => 'bw:' + id;
   const humans = l => l.players.filter(p => !p.bot);
   const out = l => ({ id: l.id, name: l.name, host: l.host, status: l.status, turn: l.turn, busy: l.busy, turnEnd: l.turnEnd, serverNow: now(),
-    players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, ...Phys.score(p.rolls), rolls: p.rolls })), standing: l.standing, results: l.results || null });
+    players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, ...Phys.score(p.rolls), rolls: p.rolls })), standing: l.standing, results: l.results || null, video: l.video || null });
   const list = () => [...lanes.values()].map(l => ({ id: l.id, name: l.name, status: l.status, n: l.players.length, max: MAX }));
   const send = l => io.to(roomName(l.id)).emit('bw_lane', out(l));
   const sendList = () => io.to('bw:lobby').emit('bw_list', list());
@@ -88,6 +89,22 @@ module.exports = function setupBowling({ io, coins = null, track = () => {} }) {
     socket.on('bw_start', () => { const l = mine(); if (!l || l.host !== uid || l.status !== 'lobby') return; l.status = 'playing'; l.turn = 0; for (const p of l.players) { p.rolls = []; p.knocked = []; p.strikes = 0; } sendList(); nextTurnStart(l); });
     const nextTurnStart = l => { l.standing = Array(10).fill(true); l.turnEnd = now() + TURN_MS; send(l); clearTimeout(l.timer); const p = l.players[0]; l.timer = setTimeout(() => { if (l.status === 'playing' && !l.busy && l.players[l.turn] === p) throwBall(l, p, p.bot ? botParams(p) : { x: 0, angle: 0, speed: 5.5, spin: 0 }); }, p.bot ? 2200 : TURN_MS); };
     socket.on('bw_throw', p => { const l = mine(); if (!l || !p) return; const me = l.players.find(x => x.id === uid); if (!me) return; const v = ['x', 'angle', 'speed', 'spin'].map(k => Number(p[k])); if (v.some(n => !Number.isFinite(n))) return; throwBall(l, me, { x: v[0], angle: v[1], speed: v[2], spin: v[3] }); });
+    // 📺 l'écran géant : n'importe qui sur la piste met la musique (avec la vidéo) qu'il veut, par un lien ou une recherche YouTube
+    socket.on('bw_search', async (q, cb) => {
+      const s = String(q || '').trim().slice(0, 120); if (!s) return ack(cb, { results: [] });
+      const id = ytId(s); if (id) return ack(cb, { results: [{ videoId: id, title: 'Vidéo YouTube (lien)', length: '' }] });
+      if (!search) return ack(cb, { error: 'Colle plutôt un lien YouTube' });
+      try { const r = await search(s); ack(cb, { results: r.slice(0, 8).map(x => ({ videoId: x.videoId, title: x.title, length: x.length || '', channel: x.channel || '' })) }); } catch (e) { ack(cb, { error: 'La recherche ne marche pas pour le moment : colle un lien YouTube' }); }
+    });
+    socket.on('bw_video', async (item, cb) => {
+      const l = mine(), u = currentUser(); if (!l || !u || !item) return ack(cb, { error: 'Prends d\'abord une piste' });
+      if (item.stop) { l.video = null; send(l); return ack(cb, { ok: true }); }
+      const id = ytId(item.videoId || item.url); if (!id) return ack(cb, { error: 'Lien YouTube invalide' });
+      if (isEmbeddable && !(await isEmbeddable(id))) return ack(cb, { error: '⚠️ Cette vidéo ne peut pas être lue en dehors de YouTube (son propriétaire l\'interdit). Choisis-en une autre !' });
+      const t = String(item.title || 'Vidéo YouTube').slice(0, 120);
+      l.video = { videoId: id, title: modScan ? modScan(t).text : t, by: u.username, at: now() };
+      send(l); ack(cb, { ok: true });
+    });
     socket.on('bw_leave', () => leave(uid));
     socket.on('disconnect', () => { set.delete(socket); if (set.size) return; sockets.delete(uid); leave(uid); });
   }

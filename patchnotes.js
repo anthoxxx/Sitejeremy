@@ -1428,4 +1428,17 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 101,
+    date: '2026-11-22',
+    title: 'Mets ta musique YouTube sur l\'écran géant du bowling 📺',
+    added: [
+      '📺 Au bowling, le bouton « 📺 YouTube » : colle un lien YouTube ou cherche une musique, et son clip passe sur l\'écran géant de la salle',
+      '👥 Tout le monde sur la piste voit et entend la même vidéo, au même moment (même celui qui arrive en retard)',
+      '🎥 Quand tu regardes ailleurs (vue de la salle), le clip continue en petit dans un coin',
+      '⏹ N\'importe quel joueur de la piste peut changer la musique ou l\'arrêter',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

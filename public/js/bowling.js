@@ -142,7 +142,7 @@ const Bowling = (() => {
     camera = new THREE.PerspectiveCamera(mobile() ? 62 : 52, 1, .05, 60);
   }
   // 🛋️ la salle : la zone d'élan, les retours de boules, les écrans des scores, les fauteuils, le bar et l'écran géant
-  let screenTex = null, screenCtx = null;
+  let screenTex = null, screenCtx = null, bigScreen = null;
   function room() {
     const std = o => new THREE.MeshStandardMaterial(o), q = new THREE.Object3D();
     // la zone d'élan en bois et la marche vers les fauteuils
@@ -188,7 +188,7 @@ const Bowling = (() => {
     // 📺 l'écran géant au-dessus des quilles (et un autre au-dessus du bar) : ce qui passe à la musique
     const [c2, g2] = cnv(1024, 512); screenCtx = g2; screenTex = tex(c2);
     const sm = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
-    const s1 = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.5), sm); s1.position.set(0, 3.25, 18.0); s1.rotation.y = Math.PI; scene.add(s1);
+    const s1 = new THREE.Mesh(new THREE.PlaneGeometry(7, 3.5), sm); s1.position.set(0, 3.25, 18.0); s1.rotation.y = Math.PI; scene.add(s1); bigScreen = s1;
     const f1 = new THREE.Mesh(new THREE.BoxGeometry(7.3, 3.8, .1), std({ color: 0x050505 })); f1.position.set(0, 3.25, 18.1); scene.add(f1);
     const s2 = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), sm); s2.position.set(0, 3.75, -12.15); scene.add(s2);
     drawScreen(0);
@@ -200,7 +200,7 @@ const Bowling = (() => {
     const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#2a0a4a'); gr.addColorStop(.5, '#0b1a3a'); gr.addColorStop(1, '#3a0a2a'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 48; i++) { const h = on ? (Math.sin(ts / 180 + i * .7) * .5 + .5) * (Math.sin(ts / 97 + i * 1.3) * .3 + .7) * 220 + 20 : 12; const x = 40 + i * 20; const c = g.createLinearGradient(0, H - 40, 0, H - 40 - h); c.addColorStop(0, '#38e8ff'); c.addColorStop(1, '#ff2bd6'); g.fillStyle = c; g.fillRect(x, H - 40 - h, 14, h); }
     g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = '#ff2bd6'; g.shadowBlur = 24; g.font = '900 64px Outfit, Inter, sans-serif';
-    g.fillText(st ? `${st.icon || '🎵'} ${st.name}` : '🎳 BOWLING PARADISE', W / 2, 120, W - 60); g.shadowBlur = 0;
+    const yv = lane?.video; g.fillText(yv ? `📺 ${yv.title}` : st ? `${st.icon || '🎵'} ${st.name}` : '🎳 BOWLING PARADISE', W / 2, 120, W - 60); g.shadowBlur = 0;
     g.font = '700 34px Outfit, Inter, sans-serif'; g.fillStyle = on ? '#2bff88' : '#ffd23f'; g.fillText(on ? '♪ EN CE MOMENT ♪' : 'Touche 🎵 Musique pour lancer le son', W / 2, 180, W - 60);
     screenTex.needsUpdate = true;
   }
@@ -215,7 +215,7 @@ const Bowling = (() => {
     if (!active) return;
     const canvas = el('canvas', { class: 'lg-cv' });
     R = new THREE.WebGLRenderer({ canvas, antialias: true }); R.setPixelRatio(Math.min(devicePixelRatio || 1, mobile() ? 1.6 : 1.75)); R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.15;
-    build(); placePins(lane.standing || Array(10).fill(true)); ov.replaceChildren(canvas, buildHud(canvas)); fit(); addEventListener('resize', fit);
+    build(); placePins(lane.standing || Array(10).fill(true)); ov.replaceChildren(canvas, buildHud(canvas)); ytOn = ''; syncVideo(); fit(); addEventListener('resize', fit);
     intro = performance.now(); // une petite visite de la salle en arrivant
     last = performance.now(); raf = requestAnimationFrame(loop); renderHud();
   }
@@ -235,6 +235,7 @@ const Bowling = (() => {
       el('button', { type: 'button', title: 'Précédente', onclick: e => { e.stopPropagation(); playIdx(curIdx() - 1); } }, '⏮'),
       el('button', { type: 'button', class: 'bw-play', title: 'Musique', onclick: e => { e.stopPropagation(); const M = RADIO(); if (!M) return; if (M.playing) M.audio.pause(); else if (M.current) M.toggle(); else playIdx(0); } }, '🎵 Musique'),
       el('button', { type: 'button', title: 'Suivante', onclick: e => { e.stopPropagation(); playIdx(curIdx() + 1); } }, '⏭'),
+      el('button', { type: 'button', class: 'bw-yt', title: 'Mettre une vidéo YouTube sur l\'écran géant', onclick: e => { e.stopPropagation(); ytPanel(); } }, '📺 YouTube'),
       el('button', { type: 'button', title: 'Voir la salle', onclick: e => { e.stopPropagation(); roomCam = !roomCam; e.currentTarget.classList.toggle('on', roomCam); } }, '🎥'));
     const quit = el('button', { class: 'lg-quit', title: 'Quitter', onclick: () => { if (lane?.status === 'playing' && !confirm('Quitter la partie de bowling ?')) return; socket.emit('bw_leave'); lane = null; exit(); } }, '✕');
     canvas.addEventListener('pointerdown', e => { ac(); if (!myTurn()) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), ax: aimX, pts: [[e.clientX, e.clientY, performance.now()]] }; canvas.setPointerCapture?.(e.pointerId); });
@@ -247,7 +248,41 @@ const Bowling = (() => {
       socket.emit('bw_throw', { x: aimX, angle, speed, spin }); hud.msg.textContent = '🎳 C\'est parti !';
     };
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', () => { drag = null; });
-    return el('div', { class: 'lg-hud bw-hud' }, hud.board, hud.msg, hud.big, hud.spin, hud.music, hud.end, quit);
+    hud.yt = el('div', { class: 'bw-ytbox hidden' }); hud.frame = el('div', { class: 'bw-frame hidden' });
+    return el('div', { class: 'lg-hud bw-hud' }, hud.frame, hud.board, hud.msg, hud.big, hud.spin, hud.music, hud.yt, hud.end, quit);
+  }
+  // 📺 chercher une musique (ou coller un lien YouTube) pour l'écran géant
+  function ytPanel() {
+    const box = hud.yt, input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
+    const go = async () => { err.textContent = '⏳ Recherche…'; res.replaceChildren(); const r = await ack('bw_search', input.value); err.textContent = r.error || (r.results?.length ? '' : 'Aucun résultat');
+      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('bw_video', v); if (x.error) { err.textContent = x.error; return; } box.classList.add('hidden'); RADIO()?.audio.pause(); } },
+        el('img', { src: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`, alt: '' }), el('span', {}, el('b', {}, v.title), el('small', {}, [v.channel, v.length].filter(Boolean).join(' · ')))))); };
+    input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') go(); });
+    box.replaceChildren(el('div', { class: 'bw-ythead' }, el('b', {}, '📺 L\'écran géant'), el('button', { type: 'button', onclick: () => box.classList.add('hidden') }, '✕')),
+      el('p', { class: 'help' }, 'Mets la musique que tu veux, avec son clip : tout le monde sur la piste la voit et l\'entend en même temps.'),
+      el('div', { class: 'row', style: 'gap:6px' }, input, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: go }, '🔎')), err, res,
+      lane?.video ? el('button', { type: 'button', class: 'btn btn-sm', style: 'width:100%;margin-top:8px', onclick: () => { socket.emit('bw_video', { stop: true }, () => {}); box.classList.add('hidden'); } }, '⏹ Arrêter la vidéo') : null);
+    box.classList.remove('hidden'); setTimeout(() => input.focus(), 50);
+  }
+  let ytOn = '';
+  function syncVideo() { // la vidéo YouTube, posée sur l'écran géant
+    const v = lane?.video;
+    if (!v) { if (ytOn) { hud.frame.replaceChildren(); hud.frame.classList.add('hidden'); ytOn = ''; } return; }
+    const key = v.videoId + v.at; if (ytOn === key) return; ytOn = key;
+    const start = Math.max(0, Math.floor(((lane.serverNow || v.at) - v.at + (lane._recv ? Date.now() - lane._recv : 0)) / 1000)); // on reprend la vidéo là où en sont les autres
+    const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&controls=0&enablejsapi=1&start=${start}&origin=${encodeURIComponent(location.origin)}`, allow: 'autoplay; encrypted-media', title: v.title });
+    f.addEventListener('load', () => setTimeout(() => { for (const c of ['unMute', 'playVideo']) f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: c, args: [] }), '*'); }, 600));
+    hud.frame.replaceChildren(f, el('div', { class: 'bw-frame-t' }, `🎵 ${v.title} · par ${v.by}`)); hud.frame.classList.remove('hidden');
+    RADIO()?.audio.pause();
+  }
+  const V3 = () => new THREE.Vector3();
+  function placeFrame() { // à chaque image : l'écran géant vu par la caméra → la vidéo se met pile dessus (sinon en petit dans un coin)
+    if (!ytOn || !bigScreen) return; const pts = [[-3.5, -1.75], [3.5, -1.75], [3.5, 1.75], [-3.5, 1.75]].map(([x, y]) => bigScreen.localToWorld(V3().set(x, y, 0)).project(camera));
+    const ok = pts.every(p => p.z < 1 && Math.abs(p.x) < 1.15 && Math.abs(p.y) < 1.15) && !roomCam;
+    const W = innerWidth, H = innerHeight, xs = pts.map(p => (p.x + 1) / 2 * W), ys = pts.map(p => (1 - p.y) / 2 * H);
+    const st = hud.frame.style;
+    if (ok && Math.max(...xs) - Math.min(...xs) > 90) { hud.frame.classList.remove('mini'); st.left = Math.min(...xs) + 'px'; st.top = Math.min(...ys) + 'px'; st.width = (Math.max(...xs) - Math.min(...xs)) + 'px'; st.height = (Math.max(...ys) - Math.min(...ys)) + 'px'; }
+    else { hud.frame.classList.add('mini'); st.left = st.top = st.width = st.height = ''; }
   }
   function renderHud() {
     if (!hud.board || !lane) return;
@@ -285,6 +320,7 @@ const Bowling = (() => {
       camZ += (-1.7 - camZ) * Math.min(1, dt * 3);
     }
     if (ts - scrT > 80) { scrT = ts; drawScreen(ts); }
+    placeFrame();
     hud.arrow.visible = myTurn(); hud.arrow.position.x = aimX; hud.arrow.rotation.z = -spin * .08;
     const near = camZ > 6; camera.position.set(near ? 0 : aimX * .5, near ? 1.15 : 1.05, camZ); camera.lookAt(near ? 0 : aimX * .3, near ? .1 : 0, near ? 18.6 : camZ + 7.5);
     const it = intro ? (ts - intro) / 3800 : 1;
@@ -306,6 +342,7 @@ const Bowling = (() => {
     if (active && !anim) placePins(l.standing);
     if (l.status === 'ended' && active) showEnd();
     if (l.status === 'lobby' && was === 'ended' && active) { exit(); view = 'lane'; panel(); }
+    lane._recv = Date.now(); if (active) syncVideo();
     renderHud(); render();
   });
   socket.on('bw_throw', d => {

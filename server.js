@@ -2943,7 +2943,7 @@ CityGames.routes(app, auth);
 // 🔫 Le Laser Game : parties en équipes (Rouges contre Bleus), 3 cartes, robots
 const LaserGame = require('./lasergame')({ io, coins: Coins, track });
 // 🎳 Le Bowling en 3D (pistes à part, seul, entre amis ou contre les soldats)
-const Bowling = require('./bowling')({ io, coins: Coins, track });
+const Bowling = require('./bowling')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
 // 🎤 The Voice du Paradise
