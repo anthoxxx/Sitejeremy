@@ -410,7 +410,7 @@ const Casino = (() => {
     const put = (id, name, gender, bot, base, extra = '') => {
       const a = avatarFor(id, name, gender, bot), p = poseOf(id) || base; want.add(id); if (!p) return;
       a.tx = p.x; a.tz = p.z; a.tyaw = p.yaw; if (p.tag && Math.hypot(a.tx - a.x, a.tz - a.z) > 1.2) a.init = false; /* autour d'une table : on se place directement (sans traverser le billard) */ if (!a.init) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; a.init = true; }
-      a.tag.set(`${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
+      a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
     };
     for (const p of people.values()) { if (p.id === myId()) continue; put(p.id, p.name, p.gender, false, { x: p.x, z: p.z, yaw: p.yaw }, (p.drink && drinks[p.drink] ? ' ' + drinks[p.drink].split(' ')[0] : '') + (p.st ? ' · ' + p.st : '')); }
     const mine = people.get(myId()); if (mine) put(myId(), mine.name, mine.gender, false, { x: me.x, z: me.z, yaw: me.yaw }, mine.drink && drinks[mine.drink] ? ' ' + drinks[mine.drink].split(' ')[0] : '');
@@ -448,7 +448,8 @@ const Casino = (() => {
     avatars.clear(); people.clear(); build(); applyEnter(d);
     me.x = (Math.random() - .5) * 2; me.z = 10.3; me.yaw = 0; camYaw = 0;
     try { document.activeElement?.blur?.(); } catch (e) {}
-    ov.replaceChildren(canvas, buildHud()); ytOn = ''; syncVideo(); fit(); addEventListener('resize', fit); bindInput();
+    ov.replaceChildren(canvas, buildHud()); ytOn = ''; syncVideo(); fit();
+    window.ProxVoice?.use('casino', { space: () => (info ? 'cs:' + info.inst : null), me: () => { const a = avatars.get(myId()); return a ? { x: a.x, z: a.z } : { x: me.x, z: me.z }; }, pos: uid => { const a = avatars.get(uid); return a && uid !== myId() ? { x: a.x, z: a.z } : null; }, yaw: () => (mode === 'walk' ? camYaw : camera ? Math.atan2(-(camera.getWorldDirection(new THREE.Vector3()).x), -(camera.getWorldDirection(new THREE.Vector3()).z)) : 0) }); addEventListener('resize', fit); bindInput();
     last = performance.now(); raf = requestAnimationFrame(loop);
     toast('🎰 Bienvenue au Paradise Club ! Promène-toi : bar, bowling, laser game, billards et poker');
   }
@@ -459,7 +460,7 @@ const Casino = (() => {
   function close() {
     active = false; cancelAnimationFrame(raf); removeEventListener('resize', fit); unbindInput();
     ytOn = ''; try { R?.dispose(); } catch (e) {} R = null; scene = null; ov?.remove(); ov = null; avatars.clear(); people.clear(); tables.length = 0; pk.meshes = null; pk.st = null;
-    document.body.classList.remove('casino-open'); mode = 'walk';
+    document.body.classList.remove('casino-open'); mode = 'walk'; window.ProxVoice?.use('casino', null);
   }
   function leave() { socket.emit('cs_leave'); close(); }
   const fit = () => { if (!R) return; const w = innerWidth, h = innerHeight; R.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
@@ -480,7 +481,7 @@ const Casino = (() => {
     const quit = el('button', { class: 'lg-quit', title: 'Sortir', onclick: () => { if (mode !== 'walk') return backToWalk(); if (confirm('Sortir du Paradise Club ?')) leave(); } }, '✕');
     hud.frame = el('div', { class: 'bw-frame hidden' }); hud.mute = el('button', { class: 'cs-tvb', title: 'Couper / remettre le son de la vidéo', onclick: () => setMute(!muted) }, '🔊');
     const tvBtns = el('div', { class: 'cs-tv' }, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
-    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, tvBtns, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
+    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
     const knob = el('div', { class: 'joy-knob' }), pad = el('div', { class: 'joy lg-joy cs-joy' + (mobile() ? '' : ' hidden') }, el('i', { class: 'joy-ring' }), knob); hud.joy = pad;
     let id = null;
     const mv = e => { const r = pad.getBoundingClientRect(), Rr = r.width / 2; let dx = e.clientX - (r.left + Rr), dy = e.clientY - (r.top + Rr); const d = Math.hypot(dx, dy), mx = Rr * .62; if (d > mx) { dx *= mx / d; dy *= mx / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / mx; stick.y = dy / mx; };

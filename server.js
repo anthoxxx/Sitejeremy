@@ -2946,6 +2946,8 @@ const LaserGame = require('./lasergame')({ io, coins: Coins, track });
 const Bowling = require('./bowling')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎰 Le Paradise Club : le complexe en 3D (bar, bowling, laser game, billards, poker)
 const Casino = require('./casino')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
+// 🎙️ Le vocal de proximité (la Ville, les maisons, le Paradise Club)
+const ProxVoice = require('./proxvoice')({ io, canTalk: u => voiceAllowed(u), spacesOf: uid => { const L = [], c = Casino.where(uid), s = Island.where(uid); if (c) L.push('cs:' + c); if (s) L.push('isl:' + s); return L; } });
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);
 // 🎤 The Voice du Paradise
@@ -3485,6 +3487,7 @@ io.on('connection', socket => {
   LaserGame.onConnection(socket, uid, current);
   Bowling.onConnection(socket, uid, current);
   Casino.onConnection(socket, uid, current);
+  ProxVoice.onConnection(socket, uid, current);
   TheVoice.onConnection(socket, uid, current);
   Events.onConnection(socket);
 

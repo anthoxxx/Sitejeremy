@@ -2008,12 +2008,13 @@ const Island = (() => {
     resize();
     setTimeout(() => root.querySelector('.isl-hint')?.classList.add('gone'), 7000);
     socket.emit('island_join');
+    if (window.ProxVoice) { if (!root.querySelector('.pv-btn')) root.append(ProxVoice.button('isl-pv')); ProxVoice.use('island', { space: () => (scene ? 'isl:' + scene : null), me: () => { const m = players.get(me); return m ? { x: m.x, z: m.y } : null; }, pos: uid => { const p = players.get(uid), m = players.get(me); return p && uid !== me && (p.floor || 0) === (m?.floor || 0) ? { x: p.x, z: p.y } : null; }, yaw: () => (view3d && window.City3D?.yaw ? City3D.yaw() : null) }); }
     last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
   }
   function close() {
     if (!open) return;
     open = false; cancelAnimationFrame(raf); root.classList.add('hidden'); document.body.classList.remove('island-open');
-    socket.emit('island_leave'); players.clear(); near = null; keys.clear(); target = null;
+    socket.emit('island_leave'); players.clear(); window.ProxVoice?.use('island', null); near = null; keys.clear(); target = null;
     window.Babyfoot?.close();
     scene = 'island'; kind = 'island'; media = null; syncScreen(); root.querySelector('.isl-panel')?.remove();
   }

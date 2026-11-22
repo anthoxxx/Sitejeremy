@@ -1481,4 +1481,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 105,
+    date: '2026-11-22',
+    title: 'Le vocal de proximité 🎙️',
+    added: [
+      '🎙️ Nouveau bouton « Vocal de proximité » dans la Ville, les maisons et le Paradise Club : parle aux gens qui sont autour de toi',
+      '📏 Plus tu t\'approches de quelqu\'un, plus tu l\'entends fort ; quand tu t\'éloignes, sa voix baisse doucement jusqu\'au silence',
+      '🎧 Le son vient du bon côté : quelqu\'un à ta gauche, tu l\'entends à gauche (avec un casque, c\'est bluffant)',
+      '🔊 Au Paradise Club, un petit haut-parleur s\'allume à côté du nom de ceux qui parlent',
+      '🔇 Tu peux couper ton micro à tout moment ; si ta voix n\'est pas encore validée, tu peux quand même écouter',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

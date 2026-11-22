@@ -54,6 +54,7 @@ const Voice = {
   // listen = true : écouter le vocal sans micro
   async join(listen = false) {
     if (this.joining || state.view?.type !== 'room') return;
+    window.ProxVoice?.stop(true); // un seul vocal à la fois
     if (!listen && state.view.slug !== 'douane' && !mediaOk('voice')) return askVerify('voice');
     this.unlock(); // tout de suite, pendant le clic : sinon le navigateur bloque le son
     if (!window.RTCPeerConnection || (!listen && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)))

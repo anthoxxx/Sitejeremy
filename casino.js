@@ -312,5 +312,5 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
     socket.on('cs_leave', () => leave(uid));
     socket.on('disconnect', () => { set.delete(socket); if (set.size) return; sockets.delete(uid); leave(uid); });
   }
-  return { onConnection, _test: { eval5, best7 } };
+  return { onConnection, where: uid => where.get(uid) || null, _test: { eval5, best7 } };
 };

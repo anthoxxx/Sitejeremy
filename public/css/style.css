@@ -4336,3 +4336,15 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-tvb { border: 0; border-radius: 999px; height: 38px; padding: 0 12px; font: 800 14px Outfit, Inter, sans-serif; color: #fff; background: rgba(10,8,20,.75); border: 1px solid rgba(255,255,255,.2); cursor: pointer; }
 .cs-tvb.yt { background: linear-gradient(135deg, #ff0033, #ff5f6d); border: 0; }
 .cs-panel .row input { flex: 1; min-width: 0; }
+
+/* ---------- 🎙️ Le vocal de proximité ---------- */
+.pv-btn { position: absolute; z-index: 3; display: flex; align-items: center; gap: 4px; pointer-events: auto; font-family: Outfit, Inter, sans-serif; }
+.pv-btn button { border: 0; cursor: pointer; font: 800 14px Outfit, Inter, sans-serif; color: #fff; }
+.pv-main { height: 38px; padding: 0 14px; border-radius: 999px; background: linear-gradient(135deg, #2bff88, #18a558); color: #04210f !important; box-shadow: 0 6px 18px rgba(43,255,136,.3); }
+.pv-btn.on { background: rgba(8,6,18,.8); border: 1px solid rgba(43,255,136,.5); border-radius: 999px; padding: 3px; color: #fff; box-shadow: 0 0 18px rgba(43,255,136,.25); }
+.pv-mic { width: 34px; height: 34px; border-radius: 50%; background: #18a558; font-size: 17px !important; }
+.pv-mic.off { background: #ff3b5c; }
+.pv-info { font-size: 13px; font-weight: 700; padding: 0 6px; max-width: 46vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-x { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.12); font-size: 12px !important; }
+.isl-pv { left: 12px; top: calc(60px + env(safe-area-inset-top)); }
+.cs-pv { left: 12px; top: calc(58px + env(safe-area-inset-top)); }
