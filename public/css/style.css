@@ -4329,3 +4329,10 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-pw .cs-shoot { min-width: 120px; padding: 10px 16px; font-size: 16px; }
 .cs-pool { background: linear-gradient(transparent, rgba(5,3,10,.8) 30%); gap: 6px; }
 @media (max-width: 600px) { .cs-pw { flex-wrap: wrap; justify-content: center; } .cs-pooltop .cs-pl { min-width: 0; font-size: 12px; } }
+.cs-hud .bw-frame { z-index: 0; }
+.cs-hud > *:not(.bw-frame) { z-index: 1; }
+.cs-hud .bw-frame.mini { bottom: calc(170px + env(safe-area-inset-bottom)); }
+.cs-tv { position: absolute; top: calc(58px + env(safe-area-inset-top)); right: 10px; display: flex; gap: 6px; }
+.cs-tvb { border: 0; border-radius: 999px; height: 38px; padding: 0 12px; font: 800 14px Outfit, Inter, sans-serif; color: #fff; background: rgba(10,8,20,.75); border: 1px solid rgba(255,255,255,.2); cursor: pointer; }
+.cs-tvb.yt { background: linear-gradient(135deg, #ff0033, #ff5f6d); border: 0; }
+.cs-panel .row input { flex: 1; min-width: 0; }

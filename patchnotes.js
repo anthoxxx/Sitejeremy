@@ -1468,4 +1468,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 104,
+    date: '2026-11-22',
+    title: 'Le Paradise Club fait la fête 🎉📺',
+    added: [
+      '📺 Un mur d\'écran géant et 6 TV dans le club : mets ta vidéo YouTube (lien ou recherche) et tout le monde la voit et l\'entend en même temps',
+      '💃 Une piste de danse lumineuse qui s\'allume en rythme, avec une boule à facettes et un DJ',
+      '✨ Des faisceaux de lumière qui balayent la salle, des confettis, et des néons partout qui changent de couleur',
+      '🔊 Un bouton pour couper ou remettre le son de la vidéo',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

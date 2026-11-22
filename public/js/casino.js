@@ -77,7 +77,7 @@ const Casino = (() => {
   const anims = []; // petites animations du décor
   let spots = []; // les endroits où l'on peut faire quelque chose
   function build() {
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x07040c); scene.fog = new THREE.Fog(0x07040c, 22, 48);
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x07040c); scene.fog = new THREE.Fog(0x07040c, 32, 70);
     boxes.length = 0; anims.length = 0;
     scene.add(new THREE.HemisphereLight(0xffd9c0, 0x301020, 1.25));
     const key = new THREE.DirectionalLight(0xfff0e0, .9); key.position.set(4, 10, 6); scene.add(key);
@@ -100,7 +100,7 @@ const Casino = (() => {
     const exitS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .3), neon('🚪 SORTIE', '#2bff88', 512, 90)); exitS.position.set(0, 3.45, 13.9); exitS.rotation.y = Math.PI; scene.add(exitS);
     // des lustres
     for (const [x, z] of [[-5, 3.5], [7.5, 3.5], [0, -5], [0, 9]]) chandelier(x, z);
-    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge();
+    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge(); buildParty();
     // les reflets
     const pm = new THREE.PMREMGenerator(R), env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), new THREE.MeshBasicMaterial({ color: 0x24121e, side: THREE.BackSide })));
     for (const [x, y, z, c] of [[3, 4, 2, 0xff2bd6], [-3, 4, 6, 0x38e8ff], [0, 6, -4, 0xfff0d0], [0, -3, 0, 0x301018]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), new THREE.MeshBasicMaterial({ color: c })); s.position.set(x, y, z); env.add(s); }
@@ -114,6 +114,8 @@ const Casino = (() => {
       ...POOLS.map((p, i) => ({ x: p.x, z: p.z, r: 2.4, icon: '🎱', label: () => { const T = tables[i]?.st; return T && (T.status === 'playing' || T.status === 'ended' || T.players.length >= 2) ? `Regarder le billard ${i + 1}` : `Jouer au billard ${i + 1}`; }, act: () => poolSit(i) })),
       { x: PK.x, z: PK.z, r: 3.4, icon: '🃏', label: 'S\'asseoir au poker', act: () => pokerSit() },
       { x: 16.2, z: 1, r: 2.2, icon: '🎰', label: 'Jouer à la machine à sous', act: () => slotGame() },
+      { x: 0, z: -11.2, r: 1.9, icon: '📺', label: 'Choisir la vidéo des écrans', act: () => ytPanel() },
+      { x: 0, z: -7.6, r: 3, icon: '💃', label: 'Danser', act: () => socket.emit('cs_emote', '💃') },
     ];
   }
   function chandelier(x, z) {
@@ -275,6 +277,117 @@ const Casino = (() => {
     for (const [x, z] of [[-2.6, 13], [2.6, 13], [-17, 12.8], [17, 12.8], [-3.5, -13.2], [3.5, -13.2]]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.25, .2, .5, 12), potM); p.position.set(x, .25, z); scene.add(p); for (let k = 0; k < 6; k++) { const l = new THREE.Mesh(new THREE.ConeGeometry(.12, .9, 6), leafM); l.position.set(x + Math.cos(k) * .1, .9, z + Math.sin(k) * .1); l.rotation.set(Math.cos(k) * .5, 0, Math.sin(k) * .5); scene.add(l); } block(x - .3, z - .3, x + .3, z + .3); }
   }
 
+  // ---------- 🎉 l'ambiance de fête : piste de danse, boule à facettes, faisceaux, confettis, néons qui changent de couleur, écrans ----------
+  const screens = []; let tvCtx = null, tvTex = null, tvThumb = null, tvThumbId = '';
+  function buildParty() {
+    screens.length = 0;
+    // le mur d'écran géant (au fond, entre les deux vitres) et la cabine du DJ
+    const [c, g] = cnv(512, 288); tvCtx = g; tvTex = tex(c); const tvM = new THREE.MeshBasicMaterial({ map: tvTex, fog: false });
+    const big = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 4.05), tvM); big.position.set(0, 3.15, -13.86); scene.add(big); screens.push({ m: big, w: 7.2, h: 4.05 });
+    const bz = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4.35, .1), std(0x08060e, { metalness: .6, roughness: .3 })); bz.position.set(0, 3.15, -13.95); scene.add(bz);
+    const partyMats = [];
+    const tube = (w, h, d, x, y, z, hue) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 1, .6) }); m.userData.hue = hue; partyMats.push(m); const t = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); t.position.set(x, y, z); scene.add(t); return t; };
+    for (const [y, h] of [[1.08, .05], [5.25, .05]]) tube(7.6, h, .05, 0, y, -13.85, .85);
+    for (const x of [-3.8, 3.8]) tube(.05, 4.2, .05, x, 3.15, -13.85, .55);
+    const dj = new THREE.Group(); dj.position.set(0, 0, -12.6); scene.add(dj);
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, .8), std(0x0d0816, { metalness: .4, roughness: .4 })); desk.position.y = .52; dj.add(desk);
+    for (const x of [-.7, .7]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, .03, 24), std(0x111111, { metalness: .8, roughness: .2 })); p.position.set(x, 1.07, 0); dj.add(p); anims.push(dt => { p.rotation.y += dt * 3.5; }); }
+    const djS = new THREE.Mesh(new THREE.PlaneGeometry(2.5, .5), neon('🎧 DJ PARADISE', '#ff2bd6', 1024, 120)); djS.position.set(0, .55, .41); dj.add(djS);
+    block(-1.4, -13.1, 1.4, -12.15);
+    // la piste de danse : des dalles qui s'allument en rythme
+    const tiles = [], tg = new THREE.PlaneGeometry(.96, .96);
+    for (let i = 0; i < 7; i++) for (let j = 0; j < 5; j++) { const m = new THREE.MeshBasicMaterial({ color: 0x220022 }), t = new THREE.Mesh(tg, m); t.rotation.x = -Math.PI / 2; t.position.set(-3 + i, .012, -10.4 + j); scene.add(t); tiles.push({ m, i, j }); }
+    const rim = tube(7.1, .03, .03, 0, .03, -10.95, .1); const rim2 = tube(7.1, .03, .03, 0, .03, -5.85, .1); tube(.03, .03, 5.1, -3.55, .03, -8.4, .1); tube(.03, .03, 5.1, 3.55, .03, -8.4, .1); void rim; void rim2;
+    const floorS = new THREE.Mesh(new THREE.PlaneGeometry(4, .7), neon('💃 DANCE FLOOR 🕺', '#ffd23f')); floorS.position.set(0, 5.75, -13.8); floorS.scale.setScalar(.8); scene.add(floorS);
+    // la boule à facettes et ses éclats de lumière
+    const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(.45, 2), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: .05, flatShading: true })); ball.position.set(0, 5.1, -8.4); scene.add(ball);
+    const wire = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .9), std(0x888888)); wire.position.set(0, 5.6, -8.4); scene.add(wire);
+    const dotTex = (() => { const [c, g] = cnv(64, 64), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.4, 'rgba(255,255,255,.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return tex(c); })();
+    const dots = []; for (let k = 0; k < 40; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color: new THREE.Color().setHSL(Math.random(), 1, .7), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); sp.scale.setScalar(.35); scene.add(sp); dots.push({ sp, a: Math.random() * 6.28, r: 1 + Math.random() * 6, y: Math.random() < .6 ? .03 : 1 + Math.random() * 3 }); }
+    // les faisceaux qui balayent la salle
+    const beams = []; for (let k = 0; k < 6; k++) { const cone = new THREE.Mesh(new THREE.ConeGeometry(.9, 6, 20, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(k / 6, 1, .55), transparent: true, opacity: .1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.geometry.translate(0, -3, 0); const piv = new THREE.Group(); piv.position.set([-8, -3, 3, 8, -12, 12][k], 5.95, [-9, -11, -11, -9, 4, 4][k]); piv.add(cone); scene.add(piv); beams.push(piv); }
+    // les confettis qui tombent doucement sur la piste
+    const N = mobile() ? 160 : 380, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), cc = new THREE.Color();
+    for (let k = 0; k < N; k++) { pos[k * 3] = (Math.random() - .5) * 9; pos[k * 3 + 1] = Math.random() * 5.5; pos[k * 3 + 2] = -8.4 + (Math.random() - .5) * 7; cc.setHSL(Math.random(), 1, .6); col.set([cc.r, cc.g, cc.b], k * 3); }
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const conf = new THREE.Points(pg, new THREE.PointsMaterial({ size: .07, vertexColors: true, transparent: true, opacity: .9, depthWrite: false })); scene.add(conf);
+    // des néons partout : colonnes lumineuses le long des murs, cadres au plafond, enseignes
+    for (const z of [-8, -2, 4, 10]) { tube(.06, 5.6, .06, -17.9, 2.9, z + (z === -2 || z === 4 ? 3.6 * Math.sign(z) + (z === -2 ? -2 : 2.5) : 0), (z + 10) / 24); tube(.06, 5.6, .06, 17.9, 2.9, z === 4 ? 7 : z, (z + 14) / 24); }
+    for (const x of [-12, -6, 6, 12]) tube(.06, 5.6, .06, x, 2.9, 13.9, (x + 12) / 24);
+    for (const [x, z, w, d] of [[-5, 3.5, 4.5, 8.5], [7.5, 3.5, 6, 4.5], [0, -8.4, 8, 6]]) { tube(w, .04, .04, x, 5.95, z - d / 2, .8); tube(w, .04, .04, x, 5.95, z + d / 2, .8); tube(.04, .04, d, x - w / 2, 5.95, z, .5); tube(.04, .04, d, x + w / 2, 5.95, z, .5); }
+    for (const [txt, colr, x, y, z, ry] of [['✨ PARTY TIME ✨', '#ff2bd6', 9, 4.3, 13.88, Math.PI], ['🍾 VIP LOUNGE', '#ffd23f', -9, 4.3, 13.88, Math.PI], ['🎉 FIESTA', '#38e8ff', 17.88, 4.4, -9, -Math.PI / 2], ['⭐ PARADISE ⭐', '#2bff88', -17.88, 4.4, 9, Math.PI / 2]]) { const sgn = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .75), neon(txt, colr)); sgn.position.set(x, y, z); sgn.rotation.y = ry; scene.add(sgn); }
+    // les TV accrochées aux murs (elles passent toutes la même vidéo)
+    for (const [x, y, z, ry] of [[17.86, 3, -6.2, -Math.PI / 2], [17.86, 3, 12, -Math.PI / 2], [-17.86, 3, -10.6, Math.PI / 2], [-17.86, 3, 12.2, Math.PI / 2], [-12, 3.1, 13.86, Math.PI], [12, 3.1, 13.86, Math.PI]]) {
+      const G = new THREE.Group(); G.position.set(x, y, z); G.rotation.y = ry; scene.add(G);
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.42, .08), std(0x050505, { metalness: .7, roughness: .3 })); frame.position.z = -.03; G.add(frame);
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(2.24, 1.26), tvM); scr.position.z = .015; G.add(scr); screens.push({ m: scr, w: 2.24, h: 1.26 });
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.7), new THREE.MeshBasicMaterial({ color: 0xff2bd6, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false })); glow.position.z = -.08; G.add(glow); partyMats.push(glow.material); glow.material.userData.hue = Math.random();
+    }
+    // tout bouge en rythme (environ 124 battements par minute)
+    let tvAcc = 0;
+    anims.push((dt, t) => {
+      const beat = t * 124 / 60, pulse = Math.pow(1 - (beat % 1), 3), step = Math.floor(beat);
+      for (const m of partyMats) m.color.setHSL((m.userData.hue + t * .05) % 1, 1, .5 + pulse * .15);
+      for (const T of tiles) { const v = Math.sin(T.i * 1.3 + T.j * .9 + step * 1.7), on = v > .1; T.m.color.setHSL(((T.i + T.j) / 12 + step * .13) % 1, 1, on ? .35 + pulse * .25 : .06); }
+      ball.rotation.y += dt * .6;
+      for (const d of dots) { d.a += dt * .35; const r = d.r; d.sp.position.set(Math.cos(d.a) * r, d.y, -8.4 + Math.sin(d.a) * r * .7); d.sp.material.opacity = .5 + pulse * .5; }
+      beams.forEach((b, k) => { b.rotation.x = Math.sin(t * .7 + k) * .55; b.rotation.z = Math.cos(t * .5 + k * 1.7) * .55; b.children[0].material.color.setHSL((k / 6 + t * .07) % 1, 1, .55); b.children[0].material.opacity = .07 + pulse * .07; });
+      const P = conf.geometry.attributes.position; for (let k = 0; k < N; k++) { let y = P.array[k * 3 + 1] - dt * (.25 + (k % 5) * .06); if (y < 0) y = 5.5; P.array[k * 3 + 1] = y; P.array[k * 3] += Math.sin(t + k) * dt * .05; } P.needsUpdate = true;
+      tvAcc += dt; if (tvAcc > .12) { tvAcc = 0; drawTv(t); }
+    });
+  }
+  // l'image des écrans : la miniature de la vidéo en cours, son titre, et un égaliseur qui danse
+  function drawTv(t) {
+    const g = tvCtx, v = info?.video; if (!g) return;
+    if (v && tvThumbId !== v.videoId) { tvThumbId = v.videoId; tvThumb = null; const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { if (tvThumbId === v.videoId) tvThumb = im; }; im.src = `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`; }
+    const gr = g.createLinearGradient(0, 0, 512, 288); gr.addColorStop(0, `hsl(${(t * 30) % 360},80%,18%)`); gr.addColorStop(1, `hsl(${(t * 30 + 140) % 360},80%,10%)`); g.fillStyle = gr; g.fillRect(0, 0, 512, 288);
+    if (v && tvThumb) { try { g.globalAlpha = .9; g.drawImage(tvThumb, 0, -36, 512, 384); g.globalAlpha = 1; } catch (e) { tvThumb = null; } }
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, 218, 512, 70);
+    for (let k = 0; k < 32; k++) { const h = 6 + Math.abs(Math.sin(t * 6 + k * .7) * Math.cos(t * 2.3 + k)) * (v ? 52 : 24); g.fillStyle = `hsl(${(k * 11 + t * 60) % 360},100%,60%)`; g.fillRect(k * 16 + 2, 216 - h, 12, h); }
+    g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '800 26px Outfit, Inter, sans-serif';
+    g.fillText(v ? '🎵 ' + v.title : '📺 Mets ta vidéo YouTube sur les écrans !', 256, 248, 490); g.font = '600 18px Outfit, Inter, sans-serif'; g.fillStyle = '#ffd23f'; g.fillText(v ? 'mise par ' + v.by : 'Va voir le DJ (au fond) ou touche 📺', 256, 274, 490);
+    tvTex.needsUpdate = true;
+  }
+  // 📺 la vraie vidéo YouTube, posée pile sur l'écran le plus visible (sinon en petit dans un coin)
+  let ytOn = '', muted = false;
+  const RADIO = () => (typeof Media !== 'undefined' ? Media : null);
+  function syncVideo() {
+    const v = info?.video;
+    if (!v || paused) { if (ytOn) { hud.frame.replaceChildren(); hud.frame.classList.add('hidden'); ytOn = ''; } return; }
+    const key = v.videoId + v.at; if (ytOn === key) return; ytOn = key;
+    const start = Math.max(0, Math.floor(((info.serverNow || v.at) - v.at + (info._recv ? Date.now() - info._recv : 0)) / 1000));
+    const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&controls=0&enablejsapi=1&start=${start}&origin=${encodeURIComponent(location.origin)}`, allow: 'autoplay; encrypted-media', title: v.title });
+    f.addEventListener('load', () => setTimeout(() => { for (const c of [muted ? 'mute' : 'unMute', 'playVideo']) f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: c, args: [] }), '*'); }, 600));
+    hud.frame.replaceChildren(f, el('div', { class: 'bw-frame-t' }, `🎵 ${v.title} · par ${v.by}`)); hud.frame.classList.remove('hidden');
+    try { RADIO()?.audio?.pause(); } catch (e) {}
+  }
+  function setMute(m) { muted = m; const f = hud.frame?.querySelector('iframe'); f?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: m ? 'mute' : 'unMute', args: [] }), '*'); if (hud.mute) hud.mute.textContent = m ? '🔇' : '🔊'; }
+  const _v = () => new THREE.Vector3();
+  function placeFrame() {
+    if (!ytOn) return; const W = innerWidth, H = innerHeight; let best = null;
+    for (const sc of screens) {
+      const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
+      if (!pts.every(p => p.z < 1 && Math.abs(p.x) < 1.5 && Math.abs(p.y) < 1.6)) continue;
+      const n = _v().set(0, 0, 1).applyQuaternion(sc.m.getWorldQuaternion(new THREE.Quaternion())), to = _v().subVectors(camera.position, sc.m.getWorldPosition(_v())); if (n.dot(to) <= 0) continue; // on voit l'écran de face
+      const xs = pts.map(p => (p.x + 1) / 2 * W), ys = pts.map(p => (1 - p.y) / 2 * H), w = Math.max(...xs) - Math.min(...xs);
+      if (!best || w > best.w) best = { w, x: Math.min(...xs), y: Math.min(...ys), h: Math.max(...ys) - Math.min(...ys) };
+    }
+    const st = hud.frame.style;
+    if (best && best.w > 110 && mode === 'walk') { hud.frame.classList.remove('mini'); st.left = best.x + 'px'; st.top = best.y + 'px'; st.width = best.w + 'px'; st.height = best.h + 'px'; }
+    else { hud.frame.classList.add('mini'); st.left = st.top = st.width = st.height = ''; }
+  }
+  function ytPanel() {
+    const input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
+    const go = async () => { err.textContent = '⏳ Recherche…'; res.replaceChildren(); const r = await ack('cs_search', input.value); err.textContent = r.error || (r.results?.length ? '' : 'Aucun résultat');
+      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('cs_video', v); if (x.error) { err.textContent = x.error; return; } hidePanel(); setMute(false); toast('📺 Ta vidéo passe sur tous les écrans du club !'); } },
+        el('img', { src: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`, alt: '' }), el('span', {}, el('b', {}, v.title), el('small', {}, [v.channel, v.length].filter(Boolean).join(' · ')))))); };
+    input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') go(); }); input.addEventListener('keyup', e => e.stopPropagation());
+    showPanel(el('h3', {}, '📺 Les écrans du club'), el('p', { class: 'help' }, 'Mets la musique ou la vidéo que tu veux : elle passe sur le mur géant et sur toutes les TV, et tout le monde dans le club la voit et l\'entend en même temps.'),
+      el('div', { class: 'row', style: 'gap:6px' }, input, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: go }, '🔎')), err, res,
+      info?.video ? el('button', { type: 'button', class: 'btn btn-sm', style: 'width:100%;margin-top:8px', onclick: () => { socket.emit('cs_video', { stop: true }, () => {}); hidePanel(); } }, '⏹ Arrêter la vidéo') : null);
+    setTimeout(() => input.focus(), 50);
+  }
+
   // ---------- 🧍 les personnages ----------
   function avatarFor(id, name, gender, bot) {
     let a = avatars.get(id); if (a) return a;
@@ -335,17 +448,17 @@ const Casino = (() => {
     avatars.clear(); people.clear(); build(); applyEnter(d);
     me.x = (Math.random() - .5) * 2; me.z = 10.3; me.yaw = 0; camYaw = 0;
     try { document.activeElement?.blur?.(); } catch (e) {}
-    ov.replaceChildren(canvas, buildHud()); fit(); addEventListener('resize', fit); bindInput();
+    ov.replaceChildren(canvas, buildHud()); ytOn = ''; syncVideo(); fit(); addEventListener('resize', fit); bindInput();
     last = performance.now(); raf = requestAnimationFrame(loop);
     toast('🎰 Bienvenue au Paradise Club ! Promène-toi : bar, bowling, laser game, billards et poker');
   }
   function applyEnter(d) {
-    info = d; drinks = d.drinks || {}; people.clear(); for (const p of d.players) people.set(p.id, p);
-    d.pool.forEach(s => setPool(s)); pk.hole = d.hole; setPoker(d.poker);
+    info = d; info._recv = Date.now(); drinks = d.drinks || {}; people.clear(); for (const p of d.players) people.set(p.id, p);
+    d.pool.forEach(s => setPool(s)); pk.hole = d.hole; setPoker(d.poker); if (hud.frame) { ytOn = ''; syncVideo(); }
   }
   function close() {
     active = false; cancelAnimationFrame(raf); removeEventListener('resize', fit); unbindInput();
-    try { R?.dispose(); } catch (e) {} R = null; scene = null; ov?.remove(); ov = null; avatars.clear(); people.clear(); tables.length = 0; pk.meshes = null; pk.st = null;
+    ytOn = ''; try { R?.dispose(); } catch (e) {} R = null; scene = null; ov?.remove(); ov = null; avatars.clear(); people.clear(); tables.length = 0; pk.meshes = null; pk.st = null;
     document.body.classList.remove('casino-open'); mode = 'walk';
   }
   function leave() { socket.emit('cs_leave'); close(); }
@@ -365,7 +478,9 @@ const Casino = (() => {
     hud.emotes = el('div', { class: 'cs-emotes' }, ...['👋', '😂', '🔥', '❤️', '💃'].map(e => el('button', { onclick: () => { socket.emit('cs_emote', e); } }, e)));
     hud.pool = el('div', { class: 'cs-pool hidden' }); hud.poolTop = el('div', { class: 'cs-pooltop hidden' }); hud.poker = el('div', { class: 'cs-poker hidden' }); hud.panel = el('div', { class: 'cs-panel hidden' });
     const quit = el('button', { class: 'lg-quit', title: 'Sortir', onclick: () => { if (mode !== 'walk') return backToWalk(); if (confirm('Sortir du Paradise Club ?')) leave(); } }, '✕');
-    const box = el('div', { class: 'lg-hud cs-hud' }, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
+    hud.frame = el('div', { class: 'bw-frame hidden' }); hud.mute = el('button', { class: 'cs-tvb', title: 'Couper / remettre le son de la vidéo', onclick: () => setMute(!muted) }, '🔊');
+    const tvBtns = el('div', { class: 'cs-tv' }, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
+    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, tvBtns, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
     const knob = el('div', { class: 'joy-knob' }), pad = el('div', { class: 'joy lg-joy cs-joy' + (mobile() ? '' : ' hidden') }, el('i', { class: 'joy-ring' }), knob); hud.joy = pad;
     let id = null;
     const mv = e => { const r = pad.getBoundingClientRect(), Rr = r.width / 2; let dx = e.clientX - (r.left + Rr), dy = e.clientY - (r.top + Rr); const d = Math.hypot(dx, dy), mx = Rr * .62; if (d > mx) { dx *= mx / d; dy *= mx / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / mx; stick.y = dy / mx; };
@@ -571,8 +686,8 @@ const Casino = (() => {
     raf = requestAnimationFrame(loop);
     const dt = Math.min(.05, (ts - last) / 1000); last = ts;
     // pendant le bowling ou le laser game, le club se met en pause
-    if (busyElsewhere()) { if (!paused) { paused = true; ov.style.visibility = 'hidden'; keys.clear(); } return; }
-    if (paused) { paused = false; ov.style.visibility = ''; }
+    if (busyElsewhere()) { if (!paused) { paused = true; ov.style.visibility = 'hidden'; keys.clear(); syncVideo(); } return; }
+    if (paused) { paused = false; ov.style.visibility = ''; syncVideo(); }
     const t = ts / 1000;
     // je marche
     if (mode === 'walk' && !document.querySelector('.modal-back')) {
@@ -609,6 +724,7 @@ const Casino = (() => {
       const cx = me.x + Math.sin(camYaw) * CAM_D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * CAM_D * Math.cos(camPitch), cy = 1.5 + CAM_D * Math.sin(camPitch);
       camera.position.set(cx, cy, cz); camera.lookAt(me.x, 1.35, me.z);
     }
+    placeFrame();
     R.render(scene, camera);
   }
 
@@ -619,6 +735,7 @@ const Casino = (() => {
   socket.on('cs_player', p => { if (!active) return; const o = people.get(p.id); people.set(p.id, { ...o, ...p, ...(p.id === myId() ? {} : {}) }); });
   socket.on('cs_say', d => { if (active) say(d.id, d.text); });
   socket.on('cs_emote', d => { if (!active) return; say(d.id, d.e); const a = avatars.get(d.id); if (a && d.e === '💃') a.dance = 6; });
+  socket.on('cs_videoset', d => { if (!active || !info) return; info.video = d.video; info.serverNow = d.serverNow; info._recv = Date.now(); syncVideo(); });
   socket.on('pl_table', s => { if (active) setPool(s); });
   socket.on('pl_shot', d => { if (active) startShot(d); });
   socket.on('pk_table', P => { if (active) setPoker(P); });

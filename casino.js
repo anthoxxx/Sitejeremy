@@ -5,7 +5,8 @@ const Pool = require('./public/js/poolphys');
 const MAX_INST = 30, POOL_TABLES = 2, SEATS = 6, START_CHIPS = 1000, SB = 10, BB = 20, POOL_TURN = 45000, PK_TURN = 25000;
 const DRINKS = { mojito: '🍹 Mojito', cocktail: '🍸 Cocktail', biere: '🍺 Bière', soda: '🥤 Soda', cafe: '☕ Café', jus: '🧃 Jus de fruits', champ: '🍾 Champagne', milk: '🥛 Milkshake' };
 const BOT_NAMES = ['Soldat76-Bluff', 'Soldat76-AllIn', 'Soldat76-Croupier', 'Soldat76-Jetons', 'Soldat76-As', 'Soldat76-Brelan'];
-module.exports = function setupCasino({ io, coins = null, track = () => {} }) {
+module.exports = function setupCasino({ io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
+  const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
   const now = () => Date.now();
   const insts = new Map(), where = new Map(), sockets = new Map(); let nextInst = 1, botSeq = 1;
   const room = i => 'cs:' + i;
@@ -13,7 +14,7 @@ module.exports = function setupCasino({ io, coins = null, track = () => {} }) {
 
   // ---------- 🏛️ les instances ----------
   function makeInst() {
-    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set() };
+    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set(), video: null };
     for (let t = 0; t < POOL_TABLES; t++) I.pool.push(freeTable(t));
     I.poker = newPoker(I); insts.set(I.id, I); return I;
   }
@@ -258,7 +259,7 @@ module.exports = function setupCasino({ io, coins = null, track = () => {} }) {
       if (!I) { I = pickInst(); where.set(uid, I.id); I.players.set(uid, { id: uid, name: u.username, gender: u.gender || 'h', x: (Math.random() - .5) * 3, z: 11, yaw: Math.PI, st: '', drink: '' }); io.to(room(I.id)).emit('cs_join', pubPlayer(I.players.get(uid))); }
       for (const s of sockets.get(uid) || []) s.join(room(I.id));
       const P = I.poker, me = P.seats.find(s => s && s.id === uid);
-      ack(cb, { inst: I.id, me: uid, drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
+      ack(cb, { inst: I.id, me: uid, video: I.video, serverNow: now(), drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
     });
     socket.on('cs_move', m => { const I = mine(), p = I && I.players.get(uid); if (!p || !m) return; const x = Number(m.x), z = Number(m.z), y = Number(m.yaw); if (![x, z, y].every(Number.isFinite)) return; p.x = Math.max(-20, Math.min(20, x)); p.z = Math.max(-16, Math.min(16, z)); p.yaw = y; I.dirty.add(uid); });
     socket.on('cs_status', st => { const I = mine(), p = I && I.players.get(uid); if (!p) return; p.st = String(st || '').slice(0, 40); io.to(room(I.id)).emit('cs_player', pubPlayer(p)); });
@@ -292,6 +293,22 @@ module.exports = function setupCasino({ io, coins = null, track = () => {} }) {
     });
     socket.on('pk_stand', () => { const I = mine(); if (I) pkLeave(I.poker, uid); });
     socket.on('pk_act', a => { const I = mine(); if (!I || !a) return; const P = I.poker, i = P.seats.findIndex(s => s && s.id === uid); if (i < 0) return; pkAct(P, i, { type: String(a.type), to: a.to }); });
+    // 📺 les écrans du club : n'importe qui met la vidéo YouTube qu'il veut, tout le monde la voit en même temps
+    socket.on('cs_search', async (q, cb) => {
+      const s = String(q || '').trim().slice(0, 120); if (!s) return ack(cb, { results: [] });
+      const id = ytId(s); if (id) return ack(cb, { results: [{ videoId: id, title: 'Vidéo YouTube (lien)', length: '' }] });
+      if (!search) return ack(cb, { error: 'Colle plutôt un lien YouTube' });
+      try { const r = await search(s); ack(cb, { results: r.slice(0, 8).map(x => ({ videoId: x.videoId, title: x.title, length: x.length || '', channel: x.channel || '' })) }); } catch (e) { ack(cb, { error: 'La recherche ne marche pas pour le moment : colle un lien YouTube' }); }
+    });
+    socket.on('cs_video', async (item, cb) => {
+      const I = mine(), u = currentUser(); if (!I || !u || !item) return ack(cb, { error: 'Entre d\'abord dans le club' });
+      if (item.stop) { I.video = null; io.to(room(I.id)).emit('cs_videoset', { video: null, serverNow: now() }); return ack(cb, { ok: true }); }
+      const id = ytId(item.videoId || item.url); if (!id) return ack(cb, { error: 'Lien YouTube invalide' });
+      if (isEmbeddable && !(await isEmbeddable(id))) return ack(cb, { error: '⚠️ Cette vidéo ne peut pas être lue en dehors de YouTube (son propriétaire l\'interdit). Choisis-en une autre !' });
+      const t = String(item.title || 'Vidéo YouTube').slice(0, 120);
+      I.video = { videoId: id, title: modScan ? modScan(t).text : t, by: u.username, at: now() };
+      io.to(room(I.id)).emit('cs_videoset', { video: I.video, serverNow: now() }); ack(cb, { ok: true });
+    });
     socket.on('cs_leave', () => leave(uid));
     socket.on('disconnect', () => { set.delete(socket); if (set.size) return; sockets.delete(uid); leave(uid); });
   }
