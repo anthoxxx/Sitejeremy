@@ -4355,3 +4355,22 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-prog { display: flex; flex-direction: column; gap: 8px; }
 .cs-prog-s { display: flex; flex-direction: column; background: rgba(255,255,255,.05); border: 1px solid rgba(255,43,214,.3); border-radius: 12px; padding: 8px 12px; }
 .cs-prog-s small { opacity: .7; }
+.isl-act.cine { background: linear-gradient(135deg, rgba(255,43,214,.55), rgba(155,92,255,.5)); }
+.cs-tvb.cine { background: linear-gradient(135deg, #ff2bd6, #9b5cff); border: 0; }
+@keyframes csPulse { 50% { box-shadow: 0 8px 40px rgba(255,170,60,.85); } }
+@media (max-width: 600px) { .cs-tv { top: calc(104px + env(safe-area-inset-top)); } }
+
+/* ---------- 🏬 Paradise Complex : le plan, le karting ---------- */
+.cs-map { display: flex; flex-direction: column; gap: 8px; }
+.cs-mapb { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #fff; cursor: pointer; font: inherit; }
+.cs-mapb.on { border-color: #2bff88; background: rgba(43,255,136,.12); }
+.cs-mapb span:last-child { display: flex; flex-direction: column; } .cs-mapb small { opacity: .7; }
+.cs-mapi { font-size: 30px; width: 40px; text-align: center; }
+.cs-kart { position: absolute; right: 12px; bottom: calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; text-shadow: 0 2px 8px #000; }
+.cs-kart.hidden { display: none; }
+.cs-kspd { font: 900 34px Outfit, Inter, sans-serif; color: #ffd23f; }
+.cs-klap { font: 800 18px Outfit, Inter, sans-serif; }
+.cs-kart small { font-weight: 700; opacity: .9; }
+.cs-krow { display: flex; gap: 6px; pointer-events: auto; margin-top: 4px; }
+.cs-kb { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.05); margin-bottom: 4px; }
+@media (max-width: 600px) { .cs-kspd { font-size: 26px; } .cs-klap { font-size: 15px; } }

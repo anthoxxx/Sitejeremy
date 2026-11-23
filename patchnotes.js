@@ -1522,4 +1522,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 108,
+    date: '2026-11-23',
+    title: 'Le Paradise Complex : un énorme complexe multi-activités 🏬🪩🏎️',
+    added: [
+      '🏬 Le bouton « Paradise Complex » ouvre un grand atrium sur 2 étages, avec sol en marbre, verrière étoilée, fontaine à jets d\'eau, palmiers, boutiques, bancs, passants et le plan du complexe',
+      '🛗 Des escalators électriques relient le rez-de-chaussée (casino & jeux, karting) et l\'étage (boîte de nuit, cinéma)',
+      '🪩 The Paradise Night, une vraie boîte de nuit : videur et cordon de velours, DJ sur scène, mur LED géant (mets le son sur YouTube), piste lumineuse, lasers, lyres, stroboscope, fumée, danseuses sur podiums, bar et carré VIP avec bouteilles à étincelles',
+      '🏎️ Paradise Karting : un vrai circuit éclairé (vibreurs, murs de pneus, stands, tour des chronos, ville autour) ; prends un kart, départ aux feux comme en F1, chrono au tour et karts robots sur la piste',
+      '🏁 Classement des meilleurs tours du jour : chaque tour rapporte 2 💰, battre le record du jour rapporte 15 💰',
+      '🗺️ Un bouton « Plan » pour aller dans n\'importe quelle zone en un clic (pratique sur téléphone)',
+      '🎬 Un bouton « Cinéma » dans la Ville pour aller directement au cinéma',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

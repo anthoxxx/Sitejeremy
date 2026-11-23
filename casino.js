@@ -14,14 +14,14 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
 
   // ---------- 🏛️ les instances ----------
   function makeInst() {
-    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set(), video: null, cine: [null, null, null, null] }; // cine = le film de chaque salle du cinéma
+    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set(), video: null, cine: [null, null, null, null, null], kart: new Map() }; // cine[4] = la boîte de nuit ; kart = meilleurs tours (uid → { name, ms }) // cine = le film de chaque salle du cinéma
     for (let t = 0; t < POOL_TABLES; t++) I.pool.push(freeTable(t));
     I.poker = newPoker(I); insts.set(I.id, I); return I;
   }
   const pickInst = () => [...insts.values()].find(I => I.players.size < MAX_INST) || makeInst();
-  const pubPlayer = p => ({ id: p.id, name: p.name, gender: p.gender, x: p.x, z: p.z, y: p.y || 0, yaw: p.yaw, st: p.st || '', drink: p.drink || '' });
+  const pubPlayer = p => ({ id: p.id, name: p.name, gender: p.gender, x: p.x, z: p.z, y: p.y || 0, k: p.k || 0, yaw: p.yaw, st: p.st || '', drink: p.drink || '' });
   // 10 fois par seconde : les positions de ceux qui ont bougé
-  setInterval(() => { for (const I of insts.values()) { if (!I.dirty.size) continue; const L = []; for (const id of I.dirty) { const p = I.players.get(id); if (p) L.push([id, +p.x.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(2), +(p.y || 0).toFixed(2)]); } I.dirty.clear(); io.to(room(I.id)).emit('cs_pos', L); } }, 100).unref?.();
+  setInterval(() => { for (const I of insts.values()) { if (!I.dirty.size) continue; const L = []; for (const id of I.dirty) { const p = I.players.get(id); if (p) L.push([id, +p.x.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(2), +(p.y || 0).toFixed(2), p.k || 0]); } I.dirty.clear(); io.to(room(I.id)).emit('cs_pos', L); } }, 100).unref?.();
 
   // ---------- 🎱 le billard ----------
   function freeTable(t) { return { t, status: 'free', players: [], balls: Pool.rack(), groups: null, turn: 0, broke: false, busy: false, msg: '', inHand: false, turnEnd: 0, winner: null, timer: null }; }
@@ -241,6 +241,11 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
     } else { P.seats[i] = null; if (P.phase === 'wait') pkMaybeStart(P); else sendPk(P); }
   }
 
+  // le classement du karting : les meilleurs tours du club, et les meilleurs du jour sur tout le site
+  const lastLap = new Map(), kartDay = new Map(); let kartDayKey = '';
+  const kartBoard = I => { const d = new Date().toDateString(); if (d !== kartDayKey) { kartDayKey = d; kartDay.clear(); }
+    return { here: [...I.kart.values()].sort((a, b) => a.ms - b.ms).slice(0, 8), day: [...kartDay.values()].sort((a, b) => a.ms - b.ms).slice(0, 8) }; };
+
   // ---------- la connexion ----------
   function leave(uid) {
     const I = insts.get(where.get(uid)); where.delete(uid); if (!I) return;
@@ -259,9 +264,9 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
       if (!I) { I = pickInst(); where.set(uid, I.id); I.players.set(uid, { id: uid, name: u.username, gender: u.gender || 'h', x: (Math.random() - .5) * 3, z: 11, yaw: Math.PI, st: '', drink: '' }); io.to(room(I.id)).emit('cs_join', pubPlayer(I.players.get(uid))); }
       for (const s of sockets.get(uid) || []) s.join(room(I.id));
       const P = I.poker, me = P.seats.find(s => s && s.id === uid);
-      ack(cb, { inst: I.id, me: uid, video: I.video, cine: I.cine, serverNow: now(), drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
+      ack(cb, { inst: I.id, me: uid, video: I.video, cine: I.cine, kart: kartBoard(I), serverNow: now(), drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
     });
-    socket.on('cs_move', m => { const I = mine(), p = I && I.players.get(uid); if (!p || !m) return; const x = Number(m.x), z = Number(m.z), y = Number(m.yaw); if (![x, z, y].every(Number.isFinite)) return; p.x = Math.max(-20, Math.min(80, x)); p.z = Math.max(-40, Math.min(16, z)); p.yaw = y; p.y = Number.isFinite(+m.y) ? Math.max(-1, Math.min(8, +m.y)) : 0; I.dirty.add(uid); }); // x jusqu'à 80 : le cinéma est à côté du club
+    socket.on('cs_move', m => { const I = mine(), p = I && I.players.get(uid); if (!p || !m) return; const x = Number(m.x), z = Number(m.z), y = Number(m.yaw); if (![x, z, y].every(Number.isFinite)) return; p.x = Math.max(-270, Math.min(140, x)); p.z = Math.max(-70, Math.min(60, z)); p.k = m.k ? 1 : 0; p.yaw = y; p.y = Number.isFinite(+m.y) ? Math.max(-1, Math.min(8, +m.y)) : 0; I.dirty.add(uid); }); // x jusqu'à 80 : le cinéma est à côté du club
     socket.on('cs_status', st => { const I = mine(), p = I && I.players.get(uid); if (!p) return; p.st = String(st || '').slice(0, 40); io.to(room(I.id)).emit('cs_player', pubPlayer(p)); });
     socket.on('cs_drink', (k, cb) => { const I = mine(), p = I && I.players.get(uid); if (!p || !DRINKS[k]) return ack(cb, { error: 'Boisson inconnue' }); p.drink = k; io.to(room(I.id)).emit('cs_player', pubPlayer(p)); io.to(room(I.id)).emit('cs_say', { id: uid, text: `${DRINKS[k]}, s'il vous plaît !` }); ack(cb, { ok: true });
       clearTimeout(p.drinkT); p.drinkT = setTimeout(() => { if (p.drink === k) { p.drink = ''; io.to(room(I.id)).emit('cs_player', pubPlayer(p)); } }, 90000); });
@@ -310,6 +315,20 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
       const t = String(item.title || 'Vidéo YouTube').slice(0, 120);
       put({ videoId: id, title: modScan ? modScan(t).text : t, by: u.username, at: now() }); ack(cb, { ok: true });
     });
+    // 🏎️ le karting : chaque tour bouclé est envoyé ; on garde le meilleur de chacun (et le record du jour pour tout le site)
+    socket.on('kt_lap', (ms, cb) => {
+      const I = mine(), u = currentUser(), t = Math.round(Number(ms)); if (!I || !u || !Number.isFinite(t)) return;
+      if (t < 15000 || t > 600000) return ack(cb, { error: 'Tour non valable' }); // plus rapide que possible = triche
+      const now0 = now(); if (now0 - (lastLap.get(uid) || 0) < 14000) return ack(cb, { error: 'Tour non valable' }); lastLap.set(uid, now0);
+      const old = I.kart.get(uid), best = !old || t < old.ms; if (best) I.kart.set(uid, { name: u.username, ms: t });
+      const g = kartDay.get(uid); let record = false; if (!g || t < g.ms) { kartDay.set(uid, { name: u.username, ms: t }); }
+      const top = [...kartDay.values()].sort((a, b) => a.ms - b.ms)[0]; if (top && top.ms === t && top.name === u.username) record = true;
+      if (coins) coins.earnCapped(uid, 'kart_lap', 2, '🏎️ Tour de karting', 10);
+      if (record && coins) coins.earnCapped(uid, 'kart_record', 15, '🏆 Record du karting', 2);
+      track(uid, 'game');
+      io.to(room(I.id)).emit('kt_board', kartBoard(I)); ack(cb, { ok: true, best, record });
+    });
+    socket.on('kt_board', cb => { const I = mine(); if (I) ack(cb, kartBoard(I)); });
     socket.on('cs_leave', () => leave(uid));
     socket.on('disconnect', () => { set.delete(socket); if (set.size) return; sockets.delete(uid); leave(uid); });
   }

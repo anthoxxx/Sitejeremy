@@ -73,7 +73,7 @@ const Casino = (() => {
   // ---------- 🏗️ le bâtiment ----------
   const boxes = []; // les obstacles [x0, z0, x1, z1]
   const block = (x0, z0, x1, z1) => boxes.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
-  const fits = (x, z) => me.zone === 'cine' ? cineFits(x, z) : x > -17.6 && x < 17.6 && z > -13.5 && z < 13.4 && !boxes.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD);
+  const fits = (x, z) => me.zone === 'cine' ? cineFits(x, z) : me.zone === 'hall' ? hallFits(x, z) : me.zone === 'night' ? nightFits(x, z) : me.zone === 'kart' ? kartFits(x, z) : x > -17.6 && x < 17.6 && z > -13.5 && z < 13.4 && !boxes.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD);
   const anims = []; // petites animations du décor
   let spots = []; // les endroits où l'on peut faire quelque chose
   function build() {
@@ -100,16 +100,31 @@ const Casino = (() => {
     const exitS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .3), neon('🚪 SORTIE', '#2bff88', 512, 90)); exitS.position.set(0, 3.45, 13.9); exitS.rotation.y = Math.PI; scene.add(exitS);
     // des lustres
     for (const [x, z] of [[-5, 3.5], [7.5, 3.5], [0, -5], [0, 9]]) chandelier(x, z);
-    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge(); buildParty(); buildCinema();
+    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge(); buildParty(); buildCinema(); buildHall(); buildNight(); buildKart();
     // les reflets
     const pm = new THREE.PMREMGenerator(R), env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), new THREE.MeshBasicMaterial({ color: 0x24121e, side: THREE.BackSide })));
     for (const [x, y, z, c] of [[3, 4, 2, 0xff2bd6], [-3, 4, 6, 0x38e8ff], [0, 6, -4, 0xfff0d0], [0, -3, 0, 0x301018]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), new THREE.MeshBasicMaterial({ color: c })); s.position.set(x, y, z); env.add(s); }
     scene.environment = pm.fromScene(env, .04).texture;
     camera = new THREE.PerspectiveCamera(mobile() ? 64 : 55, 1, .03, 80);
     spots = [
-      { x: 0, z: 12.6, r: 1.6, icon: '🚪', label: 'Sortir du club', act: () => { if (confirm('Sortir du Paradise Club ?')) leave(); } },
+      { x: 0, z: 12.6, r: 1.6, icon: '🏬', label: 'Retour à l\'atrium', act: () => goZone('hallFromClub') },
+      { zone: 'hall', lvl: 0, x: -80, z: 19, r: 1.8, icon: '🚪', label: 'Quitter le Paradise Complex', act: () => { if (confirm('Quitter le Paradise Complex ?')) leave(); } },
+      { zone: 'hall', lvl: 0, x: -99, z: 8, r: 2, icon: '🏎️', label: 'Aller au karting', act: () => goZone('kart') },
+      { zone: 'hall', lvl: 0, x: -61, z: 8, r: 2, icon: '🎰', label: 'Aller au casino & jeux', act: () => goZone('club') },
+      { zone: 'hall', lvl: 0, x: -72, z: 3.2, r: 1.6, icon: '🗺️', label: 'Voir le plan du complexe', act: () => mapPanel() },
+      { zone: 'hall', lvl: 0, x: -90, z: 10, r: 3.9, icon: '🪙', label: 'Faire un vœu dans la fontaine', act: () => { socket.emit('cs_emote', '✨'); sDing(); toast('🪙 Plouf ! Ton vœu est fait ✨'); } },
+      { zone: 'hall', lvl: 1, x: -90, z: -19.3, r: 1.7, icon: '🪩', label: 'Entrer dans la boîte de nuit', act: () => goZone('night') },
+      { zone: 'hall', lvl: 1, x: -70, z: -19.3, r: 1.7, icon: '🎬', label: 'Entrer au cinéma', act: () => goZone('cine') },
+      { zone: 'night', x: 115, z: 14.1, r: 1.7, icon: '🚪', label: 'Sortir de la boîte de nuit', act: () => goZone('hallFromNight') },
+      { zone: 'night', x: 115, z: -9.6, r: 2.6, icon: '🎧', label: 'Choisir le son du DJ (YouTube)', act: () => ytPanel() },
+      { zone: 'night', x: 115, z: -4, r: 5.5, icon: '💃', label: 'Danser sur la piste', act: () => socket.emit('cs_emote', '💃') },
+      { zone: 'night', x: 124, z: 0, r: 2.4, icon: '🍸', label: 'Commander au bar', act: () => drinkMenu() },
+      { zone: 'night', x: 107.5, z: 0, r: 3, icon: '🍾', label: 'Commander une bouteille au carré VIP', act: () => { ack('cs_drink', 'champ'); socket.emit('cs_emote', '🍾'); sDing(); toast('🍾 Bouteille VIP servie avec ses étincelles !'); } },
+      { zone: 'kart', x: -145, z: 23.5, r: 1.8, icon: '🏬', label: 'Retour au complexe', act: () => goZone('hallFromKart') },
+      { zone: 'kart', x: -147, z: 0, r: 3.2, icon: '🏎️', label: 'Prendre un kart', act: () => takeKart() },
+      { zone: 'kart', x: -146, z: 10, r: 2.2, icon: '🏁', label: 'Voir le classement', act: () => kartBoardPanel() },
       { x: 4, z: 12.7, r: 1.5, icon: '🎬', label: 'Aller au cinéma', act: () => goCine(true) },
-      { zone: 'cine', lvl: 0, x: CI.mid, z: 14.1, r: 1.6, icon: '🚪', label: 'Retour au Paradise Club', act: () => goCine(false) },
+      { zone: 'cine', lvl: 0, x: CI.mid, z: 14.1, r: 1.6, icon: '🏬', label: 'Retour à l\'atrium', act: () => goCine(false) },
       { zone: 'cine', lvl: 0, x: 70.5, z: 6.2, r: 2.2, icon: '🍿', label: 'Prendre du popcorn', act: () => drinkMenu(true) },
       { zone: 'cine', lvl: 0, x: 49.5, z: 6.2, r: 2.2, icon: '🎟️', label: 'Voir les films à l\'affiche', act: () => cineProgram() },
       ...[0, 1, 2, 3].map(k => ({ zone: 'cine', lvl: 1, x: CI.c(k), z: -23.5, r: 4.6, icon: '🪑', label: `S'asseoir (salle ${k + 1})`, act: () => sitDown(k) })),
@@ -339,7 +354,7 @@ const Casino = (() => {
       for (const d of dots) { d.a += dt * .35; const r = d.r; d.sp.position.set(Math.cos(d.a) * r, d.y, -8.4 + Math.sin(d.a) * r * .7); d.sp.material.opacity = .5 + pulse * .5; }
       beams.forEach((b, k) => { b.rotation.x = Math.sin(t * .7 + k) * .55; b.rotation.z = Math.cos(t * .5 + k * 1.7) * .55; b.children[0].material.color.setHSL((k / 6 + t * .07) % 1, 1, .55); b.children[0].material.opacity = .07 + pulse * .07; });
       const P = conf.geometry.attributes.position; for (let k = 0; k < N; k++) { let y = P.array[k * 3 + 1] - dt * (.25 + (k % 5) * .06); if (y < 0) y = 5.5; P.array[k * 3 + 1] = y; P.array[k * 3] += Math.sin(t + k) * dt * .05; } P.needsUpdate = true;
-      tvAcc += dt; if (tvAcc > .12) { tvAcc = 0; drawTv(t); salleAcc = (salleAcc + 1) % 4; drawSalle(salleAcc, t); }
+      tvAcc += dt; if (tvAcc > .12) { tvAcc = 0; drawTv(t); salleAcc = (salleAcc + 1) % 5; drawSalle(salleAcc, t); }
     });
   }
   const thumbs = new Map(); // les miniatures YouTube déjà chargées
@@ -350,7 +365,8 @@ const Casino = (() => {
     if (th) { try { g.drawImage(th, 0, -26, 512, 284); } catch (e) {} }
     else { const gr = g.createRadialGradient(256, 115, 10, 256, 115, 300); gr.addColorStop(0, '#2a1840'); gr.addColorStop(1, '#05040a'); g.fillStyle = gr; g.fillRect(0, 0, 512, 230); }
     g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, 186, 512, 44); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '800 22px Outfit, Inter, sans-serif';
-    g.fillText(v ? '🎬 ' + v.title : `🎬 SALLE ${k + 1} · Choisis un film !`, 256, 214, 490); S.tex.needsUpdate = true;
+    if (k === NT.LED && !th) for (let b = 0; b < 32; b++) { const hh = 10 + Math.abs(Math.sin(t * 7 + b * .6) * Math.cos(t * 2 + b)) * 120; g.fillStyle = `hsl(${(b * 11 + t * 80) % 360},100%,60%)`; g.fillRect(b * 16 + 2, 180 - hh, 12, hh); }
+    g.fillText(v ? (k === NT.LED ? '🎧 ' : '🎬 ') + v.title : k === NT.LED ? '🪩 THE PARADISE NIGHT · Va voir le DJ pour mettre le son !' : `🎬 SALLE ${k + 1} · Choisis un film !`, 256, 214, 490); S.tex.needsUpdate = true;
   }
   // l'image des écrans : la miniature de la vidéo en cours, son titre, et un égaliseur qui danse
   function drawTv(t) {
@@ -367,11 +383,12 @@ const Casino = (() => {
   // 📺 la vraie vidéo YouTube, posée pile sur l'écran le plus visible (sinon en petit dans un coin)
   let ytOn = '', muted = false;
   const RADIO = () => (typeof Media !== 'undefined' ? Media : null);
-  const curVideo = () => (me.zone === 'cine' ? (salleAt(me.x, me.z) >= 0 ? info?.cine?.[salleAt(me.x, me.z)] || null : null) : info?.video || null);
+  const screenHere = () => (me.zone === 'cine' ? salleAt(me.x, me.z) : me.zone === 'night' ? NT.LED : me.zone === 'club' ? -1 : null); // l'écran (ou la salle) qui me concerne
+  const curVideo = () => { const k = screenHere(); return k == null || (me.zone === 'cine' && k < 0) ? null : k < 0 ? info?.video || null : info?.cine?.[k] || null; };
   function syncVideo() {
     const v = curVideo();
     if (!v || paused) { if (ytOn) { hud.frame.replaceChildren(); hud.frame.classList.add('hidden'); ytOn = ''; } return; }
-    const key = v.videoId + v.at + me.zone + salleAt(me.x, me.z); if (ytOn === key) return; ytOn = key;
+    const key = v.videoId + v.at + me.zone + screenHere(); if (ytOn === key) return; ytOn = key;
     const start = Math.max(0, Math.floor(((info.serverNow || v.at) - v.at + (info._recv ? Date.now() - info._recv : 0)) / 1000));
     const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&controls=0&enablejsapi=1&start=${start}&origin=${encodeURIComponent(location.origin)}`, allow: 'autoplay; encrypted-media', title: v.title });
     f.addEventListener('load', () => setTimeout(() => { for (const c of [muted ? 'mute' : 'unMute', 'playVideo']) f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: c, args: [] }), '*'); }, 600));
@@ -396,9 +413,9 @@ const Casino = (() => {
     // la caméra bouge-t-elle ? (la vidéo YouTube est toujours un peu en retard sur la 3D : on la cache pendant le mouvement)
     const e = camera.matrixWorld.elements; if (camPrev) { let d = 0; for (let k = 0; k < 16; k++) d += Math.abs(e[k] - camPrev[k]); if (d > .002) camMovedAt = performance.now(); } camPrev = e.slice();
     const still = performance.now() - camMovedAt > 280; const W = innerWidth, H = innerHeight, cands = [];
-    const here = me.zone === 'cine' ? salleAt(me.x, me.z) : -1;
+    const here = screenHere();
     for (const sc of screens) {
-      if ((sc.salle ?? -1) !== here || (me.zone === 'cine' && here < 0)) continue;
+      if (here == null || (sc.salle ?? -1) !== here || (me.zone === 'cine' && here < 0)) continue;
       const n = _v().set(0, 0, 1).applyQuaternion(sc.m.getWorldQuaternion(new THREE.Quaternion())), to = _v().subVectors(camera.position, sc.m.getWorldPosition(_v())); if (n.dot(to) <= 0) continue; // on voit l'écran de face
       const pts = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
       if (!pts.every(p => p.z < 1 && p.z > -1 && Math.abs(p.x) < 2 && Math.abs(p.y) < 2)) continue;
@@ -417,14 +434,15 @@ const Casino = (() => {
   }
   function ytPanel() {
     const input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
-    const salle = me.zone === 'cine' ? salleAt(me.x, me.z) : -1;
+    const salle = screenHere() ?? -2;
+    if (salle === -2) return toast('📺 Il y a des écrans au casino, dans la boîte de nuit et dans les salles de cinéma');
     if (me.zone === 'cine' && salle < 0) return toast('🎬 Entre dans une salle (à l\'étage) pour choisir son film');
     const go = async () => { err.textContent = '⏳ Recherche…'; res.replaceChildren(); const r = await ack('cs_search', input.value); err.textContent = r.error || (r.results?.length ? '' : 'Aucun résultat');
-      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('cs_video', { ...v, salle }); if (x.error) { err.textContent = x.error; return; } hidePanel(); setMute(false); toast(salle >= 0 ? `🎬 Ton film commence dans la salle ${salle + 1} !` : '📺 Ta vidéo passe sur tous les écrans du club !'); } },
+      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('cs_video', { ...v, salle }); if (x.error) { err.textContent = x.error; return; } hidePanel(); setMute(false); toast(salle === NT.LED ? '🎧 Ton son passe dans la boîte de nuit !' : salle >= 0 ? `🎬 Ton film commence dans la salle ${salle + 1} !` : '📺 Ta vidéo passe sur tous les écrans du club !'); } },
         el('img', { src: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`, alt: '' }), el('span', {}, el('b', {}, v.title), el('small', {}, [v.channel, v.length].filter(Boolean).join(' · ')))))); };
     input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') go(); }); input.addEventListener('keyup', e => e.stopPropagation());
     const cur = salle >= 0 ? info?.cine?.[salle] : info?.video;
-    showPanel(el('h3', {}, salle >= 0 ? `🎬 Le film de la salle ${salle + 1}` : '📺 Les écrans du club'), el('p', { class: 'help' }, salle >= 0 ? 'Choisis un film, une bande-annonce ou un clip sur YouTube : il passe sur le grand écran de la salle, et tous ceux qui sont dans la salle le regardent ensemble.' : 'Mets la musique ou la vidéo que tu veux : elle passe sur le mur géant et sur toutes les TV, et tout le monde dans le club la voit et l\'entend en même temps.'),
+    showPanel(el('h3', {}, salle === NT.LED ? '🎧 Le son de la boîte de nuit' : salle >= 0 ? `🎬 Le film de la salle ${salle + 1}` : '📺 Les écrans du club'), el('p', { class: 'help' }, salle === NT.LED ? 'Mets le son que tu veux (avec son clip sur le mur LED) : tout le monde dans la boîte l\'entend et danse dessus.' : salle >= 0 ? 'Choisis un film, une bande-annonce ou un clip sur YouTube : il passe sur le grand écran de la salle, et tous ceux qui sont dans la salle le regardent ensemble.' : 'Mets la musique ou la vidéo que tu veux : elle passe sur le mur géant et sur toutes les TV, et tout le monde dans le club la voit et l\'entend en même temps.'),
       el('div', { class: 'row', style: 'gap:6px' }, input, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: go }, '🔎')), err, res,
       cur ? el('button', { type: 'button', class: 'btn btn-sm', style: 'width:100%;margin-top:8px', onclick: () => { socket.emit('cs_video', { stop: true, salle }, () => {}); hidePanel(); } }, '⏹ Arrêter la vidéo') : null);
     setTimeout(() => input.focus(), 50);
@@ -439,11 +457,7 @@ const Casino = (() => {
   for (let k = 0; k < 4; k++) { const c = CI.c(k), x0 = CI.x0 + k * CI.sw; cineRects[1].push([c - .55, -15.7, c + .55, -14.3], [x0 + .45, -32.4, x0 + CI.sw - .45, -15.4]); for (let r = 0; r < 6; r++) cineBoxes[1].push([x0 + 1.15, CI.rowZ(r) - .32, x0 + 6.4, CI.rowZ(r) + .36]); }
   cineBoxes[0].push([57.9, -10.5, 62.1, -.15], [46, 4.2, 53, 5.3], [67, 4.2, 74, 5.3]); // les escalators, la caisse, le comptoir à popcorn
   function cineFits(x, z) { const L = me.lvl ? 1 : 0; return cineRects[L].some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d) && !cineBoxes[L].some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD); }
-  function goCine(inside) {
-    if (inside) { Object.assign(me, { zone: 'cine', lvl: 0, x: CI.mid, z: 12.6, y: 0, yaw: 0, ride: null, seat: null }); camYaw = 0; toast('🎬 Bienvenue au Paradise Ciné ! Prends l\'escalator pour aller dans les salles'); }
-    else { Object.assign(me, { zone: 'club', lvl: 0, x: 4, z: 11.8, y: 0, yaw: 0, ride: null, seat: null }); camYaw = 0; }
-    hidePanel(); socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); syncVideo();
-  }
+  function goCine(inside) { goZone(inside ? 'cine' : 'hallFromCine'); }
   const POSTERS = [['NUIT NÉON', '🌃', '#ff2bd6', '#1a0430'], ['LES ROIS DU PARADISE', '👑', '#ffd23f', '#2a1400'], ['OPÉRATION SOLDAT 76', '🎖️', '#2bff88', '#04210f'], ['LA VILLE ENDORMIE', '🌙', '#38e8ff', '#041826'],
     ['BOWLING STORY', '🎳', '#ff8a3d', '#2a0c00'], ['LE DERNIER JACKPOT', '🎰', '#ffd23f', '#200018'], ['CŒUR DE PIXEL', '💖', '#ff5fa2', '#22041a'], ['MISSION LASER', '🔫', '#9b5cff', '#0c0424']];
   function posterTex(i) {
@@ -455,7 +469,7 @@ const Casino = (() => {
     g.fillStyle = '#fff'; g.font = '700 14px Outfit, Inter, sans-serif'; g.fillText('AU PARADISE CINÉ', 128, 320); g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '600 11px Inter, sans-serif'; g.fillText('UN FILM DU PARADISE · BIENTÔT', 128, 350);
     g.strokeStyle = col; g.lineWidth = 6; g.strokeRect(3, 3, 250, 374); return tex(c);
   }
-  function poster(i, x, y, z, ry, s = 1) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; const m = new THREE.Mesh(new THREE.PlaneGeometry(1.3 * s, 1.93 * s), new THREE.MeshBasicMaterial({ map: posterTex(i) })); g.add(m); const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 2.03 * s, .05), std(0xd4a24a, { metalness: .8, roughness: .3 })); fr.position.z = -.03; g.add(fr); scene.add(g); return g; }
+  function poster(i, x, y, z, ry, s = 1) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; const m = new THREE.Mesh(new THREE.PlaneGeometry(1.3 * s, 1.93 * s), new THREE.MeshBasicMaterial({ map: posterTex(i) })); g.add(m); const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 2.03 * s, .05), std(0xd4a24a, { metalness: .8, roughness: .3 })); fr.position.z = -.03; g.add(fr); (BG || scene).add(g); return g; }
   const salleScreens = [];
   function buildCinema() {
     const X0 = CI.x0, X1 = CI.x1, W = X1 - X0, MX = CI.mid, wallM = std(0x14102a, { roughness: .8 }), darkM = std(0x0a0814), redM = std(0x5a0c1e, { roughness: .7 });
@@ -521,22 +535,8 @@ const Casino = (() => {
       }
     }
     scene.add(seats, backs, arms);
-    // les escalators électriques : marches qui défilent, flancs en verre, mains courantes et lumières bleues
-    for (const [lx, dir] of [[CI.upX, 1], [CI.dnX, -1]]) {
-      const ang = Math.atan2(5, 10), Lc = Math.hypot(5, 10);
-      const truss = box(1.35, .5, Lc, std(0x2a2d36, { metalness: .7, roughness: .35 }), lx, 2.2, -5); truss.rotation.x = ang;
-      for (const sx of [-.62, .62]) {
-        const gl = box(.04, .9, Lc, glassM, lx + sx, 3.0, -5); gl.rotation.x = ang;
-        const rail = box(.09, .07, Lc + .4, std(0x0a0a0a, { roughness: .4 }), lx + sx, 3.5, -5); rail.rotation.x = ang;
-        const led = box(.03, .03, Lc, basic(dir > 0 ? 0x38e8ff : 0xff2bd6), lx + sx, 2.58, -5); led.rotation.x = ang;
-      }
-      const sign = plane(1.2, .3, neon(dir > 0 ? '⬆ MONTÉE' : '⬇ DESCENTE', dir > 0 ? '#38e8ff' : '#ff2bd6', 512, 90), lx, 2.4, .9, Math.PI); void sign;
-      const NS = 30, steps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .14, .42), std(0x8a8f99, { metalness: .85, roughness: .3 }), NS), edge = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .02, .04), basic(0xffd23f), NS);
-      scene.add(steps, edge); const qq = new THREE.Object3D(); let off = 0;
-      anims.push(dt => { off = (off + dt * .17 * dir + 1) % 1;
-        for (let i = 0; i < NS; i++) { const u = (i / NS + off) % 1, z = .7 - u * 11.4, y = Math.max(0, Math.min(1, -z / 10)) * 5; qq.position.set(lx, y + .02, z); qq.updateMatrix(); steps.setMatrixAt(i, qq.matrix); qq.position.set(lx, y + .095, z + .2); qq.updateMatrix(); edge.setMatrixAt(i, qq.matrix); }
-        steps.instanceMatrix.needsUpdate = true; edge.instanceMatrix.needsUpdate = true; });
-    }
+    // les escalators électriques (la même pièce que dans l'atrium)
+    ESC.filter(e => e.zone === 'cine').forEach(buildEscalator);
     // la porte du cinéma dans le club (mur du sud)
     plane(2, 2.4, std(0x05030a, { emissive: 0x2a0418 }), 4, 1.2, 13.95, Math.PI);
     plane(2.4, .5, neon('🎬 CINÉMA', '#ff2bd6', 512, 100), 4, 2.75, 13.93, Math.PI);
@@ -558,6 +558,364 @@ const Casino = (() => {
   function cineProgram() {
     showPanel(el('h3', {}, '🎟️ À l\'affiche au Paradise Ciné'), el('p', { class: 'help' }, 'Prends l\'escalator ⬆ pour monter aux salles. Dans une salle, assieds-toi et choisis le film (n\'importe quelle vidéo YouTube) : tout le monde dans la salle le voit en même temps.'),
       el('div', { class: 'cs-prog' }, ...[0, 1, 2, 3].map(k => { const v = info?.cine?.[k]; return el('div', { class: 'cs-prog-s' }, el('b', {}, `🎬 Salle ${k + 1}`), el('span', {}, v ? `▶ ${v.title}` : 'Pas encore de film'), v ? el('small', {}, `lancé par ${v.by}`) : null); })));
+  }
+
+  // ---------- 🏬 le Paradise Complex : l'atrium (2 étages), la boîte de nuit, le karting, et les escalators partout ----------
+  // Chaque zone est à part dans la 3D (on passe de l'une à l'autre par des portes) ; seule celle où l'on est est dessinée.
+  const ZG = {}; let BG = null; // les groupes de chaque zone ; BG = le groupe en cours de construction
+  const addPlane = (w, h, m, x, y, z, ry = 0, rx = 0) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); (BG || scene).add(p); return p; };
+  const addBox = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); (BG || scene).add(b); return b; };
+  const glassMat = () => new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, transparent: true, opacity: .18, roughness: .05, depthWrite: false });
+  function npc(list, idx, x, z, yaw, zone, dance = false, y = 0) { // un figurant (vendeur, DJ, videur, danseuse…)
+    const L = list === 'f' ? K.people.women : K.people.men, src = L[idx % L.length], h = K.makeHuman(src, src.k * 1.75 / 43);
+    h.g.position.set(x, y, z); h.g.rotation.y = yaw; (BG || scene).add(h.g);
+    if (dance && h.act.dance) { h.act.idle.stop(); h.act.dance.play(); h.act.dance.time = Math.random() * 3; }
+    anims.push(dt => { if (me.zone === zone) h.mixer.update(dt); }); return h;
+  }
+  // les escalators : un qui monte, un qui descend (cinéma et atrium)
+  const ESC = [
+    { zone: 'cine', x: 58.9, z0: 0, z1: -10, h: 5, dir: 1 }, { zone: 'cine', x: 61.1, z0: 0, z1: -10, h: 5, dir: -1 },
+    { zone: 'hall', x: -81.1, z0: 8, z1: -4, h: 6, dir: 1 }, { zone: 'hall', x: -78.9, z0: 8, z1: -4, h: 6, dir: -1 }];
+  function buildEscalator(e) {
+    const D = e.z0 - e.z1, ang = Math.atan2(e.h, D), Lc = Math.hypot(e.h, D), zc = (e.z0 + e.z1) / 2, yc = e.h / 2, gm = glassMat();
+    const truss = addBox(1.35, .5, Lc, std(0x2a2d36, { metalness: .7, roughness: .35 }), e.x, yc - .3, zc); truss.rotation.x = ang;
+    for (const sx of [-.62, .62]) {
+      const gl = addBox(.04, .9, Lc, gm, e.x + sx, yc + .5, zc); gl.rotation.x = ang;
+      const rail = addBox(.09, .07, Lc + .4, std(0x0a0a0a, { roughness: .4 }), e.x + sx, yc + 1, zc); rail.rotation.x = ang;
+      const led = addBox(.03, .03, Lc, basic(e.dir > 0 ? 0x38e8ff : 0xff2bd6), e.x + sx, yc + .08, zc); led.rotation.x = ang;
+    }
+    addPlane(1.2, .3, neon(e.dir > 0 ? '⬆ MONTÉE' : '⬇ DESCENTE', e.dir > 0 ? '#38e8ff' : '#ff2bd6', 512, 90), e.x, 2.4, e.z0 + .9, Math.PI);
+    const NS = Math.round(D * 3), steps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .14, .42), std(0x8a8f99, { metalness: .85, roughness: .3 }), NS), edge = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .02, .04), basic(0xffd23f), NS);
+    (BG || scene).add(steps, edge); const qq = new THREE.Object3D(); let off = 0;
+    anims.push(dt => { if (me.zone !== e.zone) return; off = (off + dt * 1.9 / (D + 1.4) * e.dir + 1) % 1;
+      for (let i = 0; i < NS; i++) { const u = (i / NS + off) % 1, z = e.z0 + .7 - u * (D + 1.4), y = Math.max(0, Math.min(1, (e.z0 - z) / D)) * e.h; qq.position.set(e.x, y + .02, z); qq.updateMatrix(); steps.setMatrixAt(i, qq.matrix); qq.position.set(e.x, y + .095, z + .2); qq.updateMatrix(); edge.setMatrixAt(i, qq.matrix); }
+      steps.instanceMatrix.needsUpdate = true; edge.instanceMatrix.needsUpdate = true; });
+  }
+  // aller d'une zone à l'autre
+  const SPAWN = {
+    hall: { zone: 'hall', x: -80, z: 17.6, y: 0, lvl: 0, yaw: 0 }, hallFromClub: { zone: 'hall', x: -61.6, z: 8, y: 0, lvl: 0, yaw: Math.PI / 2 }, hallFromKart: { zone: 'hall', x: -98.4, z: 8, y: 0, lvl: 0, yaw: -Math.PI / 2 },
+    hallFromNight: { zone: 'hall', x: -90, z: -18.3, y: 6, lvl: 1, yaw: Math.PI }, hallFromCine: { zone: 'hall', x: -70, z: -18.3, y: 6, lvl: 1, yaw: Math.PI },
+    club: { zone: 'club', x: 0, z: 10.3, y: 0, lvl: 0, yaw: 0 }, cine: { zone: 'cine', x: 60, z: 12.6, y: 0, lvl: 0, yaw: 0 },
+    night: { zone: 'night', x: 115, z: 12.6, y: 0, lvl: 0, yaw: 0 }, kart: { zone: 'kart', x: -145, z: 20, y: 0, lvl: 0, yaw: 0 } };
+  const WELCOME = { hall: '🏬 Bienvenue au Paradise Complex ! Prends l\'escalator pour la boîte de nuit et le cinéma', club: '🎰 Le casino et les jeux : bar, billards, poker, bowling, laser game…', cine: '🎬 Bienvenue au Paradise Ciné ! Prends l\'escalator pour aller dans les salles', night: '🪩 Bienvenue à The Paradise Night ! Va sur la piste, au bar ou au carré VIP', kart: '🏎️ Bienvenue au Paradise Karting ! Prends un kart au stand pour faire un tour' };
+  function goZone(key, quiet) {
+    const S = SPAWN[key]; if (!S) return; if (mode === 'kart') leaveKart(true); if (mode === 'seat') { me.seat = null; mode = 'walk'; }
+    Object.assign(me, { zone: S.zone, x: S.x, z: S.z, y: S.y, lvl: S.lvl, yaw: S.yaw, ride: null, seat: null }); camYaw = S.yaw;
+    for (const k in ZG) ZG[k].visible = k === S.zone;
+    hidePanel(); socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); syncVideo(); if (!quiet && WELCOME[S.zone]) toast(WELCOME[S.zone]);
+  }
+  const ZONES = [['hall', '🏬', 'L\'atrium (accueil, boutiques, fontaine)'], ['club', '🎰', 'Casino & jeux (bar, billards, poker, bowling, laser game)'], ['night', '🪩', 'The Paradise Night (la boîte de nuit)'], ['cine', '🎬', 'Paradise Ciné (4 salles)'], ['kart', '🏎️', 'Paradise Karting (circuit)']];
+  const zoneOfX = x => (x < -120 ? 'kart' : x < -40 ? 'hall' : x < 30 ? 'club' : x < 90 ? 'cine' : 'night');
+  function mapPanel() {
+    const cnt = z => [...people.values()].filter(p => zoneOfX(p.x) === z).length;
+    showPanel(el('h3', {}, '🗺️ Le plan du Paradise Complex'), el('p', { class: 'help' }, 'Choisis où aller : tu y es tout de suite. (Dans le complexe, des portes et des escalators relient aussi toutes les zones.)'),
+      el('div', { class: 'cs-map' }, ...ZONES.map(([k, ic, lbl]) => el('button', { class: 'cs-mapb' + (me.zone === k ? ' on' : ''), onclick: () => goZone(k) }, el('span', { class: 'cs-mapi' }, ic), el('span', {}, el('b', {}, lbl), el('small', {}, me.zone === k ? '📍 Tu es ici' : `${cnt(k)} joueur${cnt(k) > 1 ? 's' : ''}`))))));
+  }
+
+  // ---------- 🏬 l'atrium : le grand hall central sur 2 étages ----------
+  const HL = { x0: -100, x1: -60, z0: -20, z1: 20, up: 6, H: 14 };
+  const hallRects = [[[-99.5, -3.5, -60.5, 19.5]], [[-99.5, -19.5, -60.5, -4.35]]];
+  const hallBoxes = [[[-82.1, -4.5, -77.9, 7.85], [-93.4, 6.6, -86.6, 13.4], [-73.2, 1.4, -70.8, 2.6], [-99.5, 17, -97.5, 19.5], [-62.5, 17, -60.5, 19.5], [-99.5, -3.5, -97.6, -1.6], [-62.4, -3.5, -60.5, -1.6]], []];
+  function hallFits(x, z) { const L = me.lvl ? 1 : 0; return hallRects[L].some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d) && !hallBoxes[L].some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD); }
+  function marbleTex() { const [c, g] = cnv(512, 512); g.fillStyle = '#e9e4dc'; g.fillRect(0, 0, 512, 512); for (let k = 0; k < 60; k++) { g.strokeStyle = `rgba(${120 + Math.random() * 60 | 0},${110 + Math.random() * 50 | 0},${100 + Math.random() * 40 | 0},${.15 + Math.random() * .2})`; g.lineWidth = .5 + Math.random() * 2; g.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; g.moveTo(x, y); for (let i = 0; i < 8; i++) { x += (Math.random() - .5) * 120; y += (Math.random() - .5) * 120; g.lineTo(x, y); } g.stroke(); } g.strokeStyle = 'rgba(180,140,60,.6)'; g.lineWidth = 3; g.strokeRect(0, 0, 512, 512); return tex(c, [10, 10]); }
+  function shopFront(x, y, z, w, ry, name, col, inside) { // une vitrine de boutique avec son enseigne lumineuse
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; (BG || scene).add(g);
+    const [c, gg] = cnv(256, 128); const gr = gg.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, inside); gr.addColorStop(1, '#0a0a12'); gg.fillStyle = gr; gg.fillRect(0, 0, 256, 128);
+    for (let k = 0; k < 10; k++) { gg.fillStyle = `hsla(${Math.random() * 360},70%,60%,.8)`; gg.fillRect(10 + k * 24, 70 + Math.random() * 20, 16, 30); } gg.fillStyle = 'rgba(255,255,255,.12)'; gg.fillRect(0, 0, 256, 6);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(w - .4, 3.2), new THREE.MeshBasicMaterial({ map: tex(c) })); win.position.set(0, 1.9, .02); g.add(win);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(w, .25, .2), std(0x1a1a1a, { metalness: .6 })); frame.position.set(0, 3.65, .05); g.add(frame);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(w - .6, .9), neon(name, col, 1024, 100)); sign.position.set(0, 4.35, .1); g.add(sign);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.6), new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transparent: true, opacity: .25, roughness: .05 })); door.position.set(0, 1.3, .06); g.add(door);
+  }
+  function palm(x, z, s = 1, y = 0) {
+    const trunk = addBox(.25 * s, 3.2 * s, .25 * s, std(0x6b4a2a, { roughness: .9 }), x, y + 1.6 * s, z); void trunk;
+    for (let k = 0; k < 7; k++) { const l = new THREE.Mesh(new THREE.ConeGeometry(.18 * s, 2.2 * s, 5), std(0x1f8a3a, { roughness: .8 })); l.position.set(x + Math.cos(k) * .7 * s, y + 3.1 * s, z + Math.sin(k) * .7 * s); l.rotation.set(Math.sin(k) * 1.3, 0, -Math.cos(k) * 1.3); (BG || scene).add(l); }
+    const pot = addBox(.9 * s, .6 * s, .9 * s, std(0xd4a24a, { metalness: .7, roughness: .3 }), x, y + .3 * s, z); void pot;
+  }
+  function buildHall() {
+    BG = ZG.hall = new THREE.Group(); scene.add(BG); BG.visible = false;
+    const { x0, x1, z0, z1, up, H } = HL, MX = (x0 + x1) / 2, W = x1 - x0, D = z1 - z0, wallM = std(0x1b1626, { roughness: .7, side: THREE.DoubleSide });
+    const marble = new THREE.MeshPhysicalMaterial({ map: marbleTex(), roughness: .15, clearcoat: .8, clearcoatRoughness: .1 });
+    addPlane(W, D, marble, MX, 0, 0, 0, -Math.PI / 2);
+    // la verrière : un plafond de verre avec le ciel étoilé
+    const [sc, sg] = cnv(512, 512); sg.fillStyle = '#060818'; sg.fillRect(0, 0, 512, 512); for (let k = 0; k < 500; k++) { sg.fillStyle = `rgba(255,255,255,${Math.random()})`; sg.fillRect(Math.random() * 512, Math.random() * 512, 1.5, 1.5); }
+    addPlane(W, D, new THREE.MeshBasicMaterial({ map: tex(sc) }), MX, H, 0, 0, Math.PI / 2);
+    for (let x = x0 + 4; x < x1; x += 4) addBox(.15, .15, D, std(0xcfd3da, { metalness: .9, roughness: .2 }), x, H - .1, 0);
+    for (let z = z0 + 4; z < z1; z += 4) addBox(W, .15, .15, std(0xcfd3da, { metalness: .9, roughness: .2 }), MX, H - .1, z);
+    // les murs
+    addPlane(D, H, wallM, x0, H / 2, 0, Math.PI / 2); addPlane(D, H, wallM, x1, H / 2, 0, -Math.PI / 2); addPlane(W, H, wallM, MX, H / 2, z1, Math.PI); addPlane(W, H, wallM, MX, H / 2, z0);
+    // la mezzanine (l'étage) : dalle, sol en marbre, rambarde en verre avec une lumière
+    addBox(W, .3, 16, std(0x2a2433, { roughness: .5 }), MX, up - .15, -12);
+    addPlane(W, 16, marble, MX, up + .01, -12, 0, -Math.PI / 2);
+    const gm = glassMat();
+    for (const [a, b] of [[x0, -82], [-78, x1]]) { addPlane(b - a, 1.05, gm, (a + b) / 2, up + .55, -4.02); addBox(b - a, .06, .1, std(0xd4a24a, { metalness: .9, roughness: .2 }), (a + b) / 2, up + 1.1, -4.02); addBox(b - a, .04, .04, basic(0x38e8ff), (a + b) / 2, up - .32, -3.96); }
+    // le rez-de-chaussée : les boutiques sous la mezzanine
+    for (const [x, w, name, col, ins] of [[-94, 8, '👟 SNEAKERS', '#38e8ff', '#103048'], [-86.5, 6, '🎮 GAME ZONE', '#9b5cff', '#1c0c40'], [-74, 6, '☕ CAFÉ', '#ffb070', '#3a2010'], [-66, 8, '🍦 GLACIER', '#ff7ad9', '#3a1030']]) shopFront(x, 0, -4, w, 0, name, col, ins);
+    // l'étage : les boutiques et les grandes entrées (boîte de nuit, cinéma)
+    for (const [x, w, name, col, ins] of [[-97, 5, '📱 PHONE', '#2bff88', '#0c3020'], [-63, 5, '👕 MODE', '#ffd23f', '#302a08']]) shopFront(x, up, z0, w, 0, name, col, ins);
+    // la boîte de nuit : grande porte noire, néon, cordon de velours, videur
+    addPlane(6, 4.2, std(0x05030a, { emissive: 0x1a0430 }), -90, up + 2.1, z0 + .02);
+    addPlane(8, 1.3, neon('🪩 THE PARADISE NIGHT', '#ff2bd6'), -90, up + 4.9, z0 + .05);
+    for (const px of [-94.4, -91.6, -88.4, -85.6]) addBox(.12, 1, .12, std(0xd4a24a, { metalness: .9, roughness: .2 }), px, up + .5, z0 + 1.6);
+    for (const cx of [-93, -87]) addBox(2.8, .06, .06, std(0x8a0020, { roughness: .6 }), cx, up + .9, z0 + 1.6); // le cordon de velours (on passe au milieu)
+    npc('h', 3, -93.6, z0 + 1.9, 0, 'hall', false, up);
+    // le cinéma
+    addPlane(6, 4.2, std(0x05030a, { emissive: 0x2a0418 }), -70, up + 2.1, z0 + .02);
+    addPlane(8, 1.3, neon('🎬 PARADISE CINÉ', '#ffd23f'), -70, up + 4.9, z0 + .05);
+    for (let k = 0; k < 4; k++) poster(k + 1, -76 + (k > 1 ? 10.2 : 0) + (k % 2) * 1.5, up + 2.2, z0 + .05, 0, .7);
+    // les portes du rez-de-chaussée : karting (ouest), casino (est), sortie (sud)
+    for (const [x, z, ry, txt, col] of [[x0 + .03, 8, Math.PI / 2, '🏎️ KARTING', '#ff8a3d'], [x1 - .03, 8, -Math.PI / 2, '🎰 CASINO & JEUX', '#2bff88'], [MX, z1 - .03, Math.PI, '🚪 SORTIE', '#38e8ff']]) {
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; BG.add(g);
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), std(0x05030a, { emissive: new THREE.Color(col).multiplyScalar(.04) })); d.position.y = 1.7; g.add(d);
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(5, .9), neon(txt, col, 1024, 100)); s.position.set(0, 4, .02); g.add(s);
+    }
+    addPlane(16, 2.4, neon('✨ PARADISE COMPLEX ✨', '#ff2bd6'), MX, 10.5, z1 - .05, Math.PI);
+    // la fontaine : bassin, eau qui brille, jets d'eau
+    const basin = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.2, .6, 40), std(0xd8d2c8, { roughness: .3 })); basin.position.set(-90, .3, 10); BG.add(basin);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(2.8, 40), new THREE.MeshPhysicalMaterial({ color: 0x2a9fd8, transparent: true, opacity: .75, roughness: .05, emissive: 0x0a3050 })); water.rotation.x = -Math.PI / 2; water.position.set(-90, .58, 10); BG.add(water);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(.3, .5, 1.6, 20), std(0xd8d2c8, { roughness: .3 })); col.position.set(-90, 1.1, 10); BG.add(col);
+    const NJ = 260, jp = new Float32Array(NJ * 3), jv = new Float32Array(NJ * 3), jg = new THREE.BufferGeometry(); jg.setAttribute('position', new THREE.BufferAttribute(jp, 3));
+    const resetDrop = k => { const a = Math.random() * Math.PI * 2, s = .6 + Math.random() * .8; jp[k * 3] = -90; jp[k * 3 + 1] = 1.9; jp[k * 3 + 2] = 10; jv[k * 3] = Math.cos(a) * s; jv[k * 3 + 1] = 3.2 + Math.random() * 1.2; jv[k * 3 + 2] = Math.sin(a) * s; };
+    for (let k = 0; k < NJ; k++) { resetDrop(k); jp[k * 3 + 1] = -5; }
+    const jets = new THREE.Points(jg, new THREE.PointsMaterial({ color: 0xbfe8ff, size: .08, transparent: true, opacity: .85 })); BG.add(jets);
+    let jacc = 0; anims.push(dt => { if (me.zone !== 'hall') return; jacc += dt * 120; while (jacc > 1) { jacc--; const k = Math.random() * NJ | 0; if (jp[k * 3 + 1] < .6) resetDrop(k); } for (let k = 0; k < NJ; k++) { if (jp[k * 3 + 1] < .55) continue; jv[k * 3 + 1] -= 9.8 * dt; jp[k * 3] += jv[k * 3] * dt; jp[k * 3 + 1] += jv[k * 3 + 1] * dt; jp[k * 3 + 2] += jv[k * 3 + 2] * dt; } jg.attributes.position.needsUpdate = true; water.material.emissiveIntensity = .8 + Math.sin(performance.now() / 400) * .2; });
+    // palmiers, bancs, le plan du complexe, des suspensions lumineuses
+    for (const [x, z] of [[-98.5, 18.2], [-61.5, 18.2], [-98.5, -2.5], [-61.5, -2.5]]) palm(x, z);
+    for (const [x, z] of [[-96, -12], [-64, -12]]) palm(x, z, .8, up);
+    for (const [x, z, ry] of [[-84.5, 14, 0], [-75.5, 14, 0], [-96, 4, Math.PI / 2], [-64, 4, -Math.PI / 2]]) { const b = addBox(2.2, .45, .6, std(0x3a2a1a, { roughness: .6 }), x, .45, z); b.rotation.y = ry; const l = addBox(2.2, .1, .5, std(0x111111, { metalness: .8 }), x, .2, z); l.rotation.y = ry; hallBoxes[0].push(ry ? [x - .5, z - 1.2, x + .5, z + 1.2] : [x - 1.2, z - .5, x + 1.2, z + .5]); }
+    const [dc, dg] = cnv(256, 400); dg.fillStyle = '#0c0a18'; dg.fillRect(0, 0, 256, 400); dg.fillStyle = '#ff2bd6'; dg.font = '900 26px Outfit, Inter, sans-serif'; dg.textAlign = 'center'; dg.fillText('PLAN DU COMPLEXE', 128, 40);
+    [['NIVEAU 1', '#ffd23f'], ['🪩 Boîte de nuit', '#fff'], ['🎬 Cinéma', '#fff'], ['NIVEAU 0', '#ffd23f'], ['🎰 Casino & jeux →', '#fff'], ['🏎️ ← Karting', '#fff'], ['⛲ Fontaine', '#fff'], ['🚪 Sortie ↓', '#fff']].forEach(([t, c], i) => { dg.fillStyle = c; dg.font = (c === '#ffd23f' ? '900 22px' : '700 20px') + ' Outfit, Inter, sans-serif'; dg.fillText(t, 128, 90 + i * 38); });
+    const tot = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3, .3), [std(0x111111), std(0x111111), std(0x111111), std(0x111111), new THREE.MeshBasicMaterial({ map: tex(dc) }), new THREE.MeshBasicMaterial({ map: tex(dc) })]); tot.position.set(-72, 1.5, 2); BG.add(tot);
+    for (let k = 0; k < 10; k++) { const x = x0 + 4 + (k % 5) * 8, z = k < 5 ? 2 : 13; const lamp = new THREE.Mesh(new THREE.SphereGeometry(.35, 16, 12), basic(0xfff1d0)); lamp.position.set(x, 9.5, z); BG.add(lamp); const w = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, 4.4), std(0x888888)); w.position.set(x, 11.8, z); BG.add(w); }
+    for (const [x, t, c] of [[-92, 'SOLDES -50%', '#ff3b5c'], [-68, 'NOUVEAU : KARTING', '#ff8a3d']]) { const b = addPlane(4, 6, new THREE.MeshBasicMaterial({ map: (() => { const [c2, g2] = cnv(128, 192); g2.fillStyle = c; g2.fillRect(0, 0, 128, 192); g2.fillStyle = '#fff'; g2.font = '900 18px Outfit, Inter, sans-serif'; g2.textAlign = 'center'; g2.fillText('PARADISE', 64, 40); g2.font = '900 15px Outfit, Inter, sans-serif'; g2.fillText(t, 64, 100, 120); return tex(c2); })(), side: THREE.DoubleSide }), x, 10, 6); void b; }
+    ESC.filter(e => e.zone === 'hall').forEach(buildEscalator);
+    // des passants qui se promènent
+    const path = [[-96, 16], [-66, 16], [-66, 1], [-96, 1]], per = path.reduce((a, p, i) => a + Math.hypot(path[(i + 1) % 4][0] - p[0], path[(i + 1) % 4][1] - p[1]), 0);
+    for (let k = 0; k < 5; k++) { const h = npc(k % 2 ? 'f' : 'h', k + 4, -90, 10, 0, 'hall'); h.act.idle.stop(); h.act.walk.play(); let s = k / 5 * per, sp = 1.1 + Math.random() * .3;
+      anims.push(dt => { if (me.zone !== 'hall') return; s = (s + dt * sp) % per; let d = s; for (let i = 0; i < 4; i++) { const a = path[i], b = path[(i + 1) % 4], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d <= L) { const u = d / L; h.g.position.set(a[0] + (b[0] - a[0]) * u, 0, a[1] + (b[1] - a[1]) * u); h.g.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]); break; } d -= L; } }); }
+    BG = null;
+  }
+
+  // ---------- 🪩 The Paradise Night : la boîte de nuit ----------
+  const NT = { x0: 100, x1: 130, z0: -15, z1: 15, H: 9, LED: 4 };
+  const nightBoxes = [[107, -15, 123, -10.6], [125.3, -9, 130, 9], [100, -9, 106.2, 9], [102.2, -12.2, 103.8, -10.6], [126.2, -12.2, 127.8, -10.6]];
+  function nightFits(x, z) { return x > 100.5 && x < 129.5 && z > -14.5 && z < 14.5 && !nightBoxes.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD); }
+  let strobe = 0;
+  function buildNight() {
+    BG = ZG.night = new THREE.Group(); scene.add(BG); BG.visible = false;
+    const { x0, x1, z0, z1, H } = NT, MX = (x0 + x1) / 2, W = x1 - x0, D = z1 - z0, wallM = std(0x07050c, { roughness: .9 });
+    addPlane(W, D, std(0x0a0810, { roughness: .4, metalness: .3 }), MX, 0, 0, 0, -Math.PI / 2);
+    addPlane(W, D, basic(0x030206), MX, H, 0, 0, Math.PI / 2);
+    addPlane(D, H, wallM, x0, H / 2, 0, Math.PI / 2); addPlane(D, H, wallM, x1, H / 2, 0, -Math.PI / 2); addPlane(W, H, wallM, MX, H / 2, z1, Math.PI); addPlane(W, H, wallM, MX, H / 2, z0);
+    const party = [];
+    const tubeN = (w, h, d, x, y, z, hue) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 1, .6) }); m.userData.hue = hue; party.push(m); return addBox(w, h, d, m, x, y, z); };
+    for (const z of [-7, 0, 7]) { tubeN(.05, 8, .05, x0 + .05, 4.5, z, .8); tubeN(.05, 8, .05, x1 - .05, 4.5, z, .55); }
+    for (let k = 0; k < 6; k++) tubeN(W, .05, .05, MX, H - .05, z0 + 3 + k * 5, k / 6);
+    // la scène du DJ, son mur LED géant (la vidéo YouTube de la boîte), les platines et le DJ
+    addBox(16, .8, 4.4, std(0x111118, { metalness: .5, roughness: .4 }), MX, .4, z0 + 2.2);
+    tubeN(16, .04, .04, MX, .82, z0 + 4.42, .9);
+    const [cc, gg] = cnv(512, 230), t = tex(cc), scr = addPlane(12, 5.4, new THREE.MeshBasicMaterial({ map: t, fog: false }), MX, 4.6, z0 + .06);
+    salleScreens[NT.LED] = { ctx: gg, tex: t }; screens.push({ m: scr, w: 12, h: 5.4, salle: NT.LED });
+    for (let k = 0; k < 2; k++) tubeN(12.4, .08, .05, MX, k ? 7.35 : 1.85, z0 + .08, .6);
+    const desk = addBox(4, 1.1, 1.1, std(0x0a0a10, { metalness: .6, roughness: .3 }), MX, 1.35, z0 + 3.2); void desk;
+    addPlane(3.8, .6, neon('🎧 DJ', '#ff2bd6', 512, 110), MX, 1.3, z0 + 3.76);
+    for (const x of [MX - 1.1, MX + 1.1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .04, 24), std(0x222222, { metalness: .8 })); p.position.set(x, 1.92, z0 + 3.2); BG.add(p); anims.push(dt => { if (me.zone === 'night') p.rotation.y += dt * 4; }); }
+    npc('h', 6, MX, z0 + 2.4, 0, 'night', true, .8);
+    for (const x of [MX - 7.2, MX + 7.2]) { addBox(1.6, 2.6, 1.2, std(0x0c0c0c, { roughness: .5 }), x, 2.1, z0 + 1.2); const c1 = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .06, 24), std(0x333333)); c1.rotation.x = Math.PI / 2; c1.position.set(x, 2.5, z0 + 1.81); BG.add(c1); }
+    // la piste de danse lumineuse
+    const tiles = [], tg = new THREE.PlaneGeometry(.96, .96);
+    for (let i = 0; i < 14; i++) for (let j = 0; j < 9; j++) { const m = new THREE.MeshBasicMaterial({ color: 0x220022 }), tl = new THREE.Mesh(tg, m); tl.rotation.x = -Math.PI / 2; tl.position.set(108.5 + i, .012, -9.5 + j); BG.add(tl); tiles.push({ m, i, j }); }
+    // les podiums avec les danseuses
+    for (const x of [103, 127]) { const pd = new THREE.Mesh(new THREE.CylinderGeometry(.8, .9, 1.2, 24), std(0x1a1a24, { metalness: .6 })); pd.position.set(x, .6, -11.4); BG.add(pd); const ring = new THREE.Mesh(new THREE.TorusGeometry(.85, .03, 6, 32), basic(0xff2bd6)); ring.rotation.x = Math.PI / 2; ring.position.set(x, 1.2, -11.4); BG.add(ring); party.push(ring.material); ring.material.userData.hue = .85; npc('f', x === 103 ? 1 : 3, x, -11.4, 0, 'night', true, 1.2); }
+    // le bar (à droite)
+    addBox(.9, 1.15, 17, std(0x120a1a, { emissive: 0x1a0420 }), 125.8, .58, 0); addBox(1, .06, 17.2, std(0xd4a24a, { metalness: .9, roughness: .2 }), 125.8, 1.17, 0); tubeN(.03, .04, 17, 125.33, .15, 0, .1);
+    for (const y of [1.7, 2.4]) { addBox(.4, .04, 16, std(0x3a2414), 129.7, y, 0); for (let z = -7.6; z < 7.7; z += .38) { const h2 = .25 + Math.random() * .15, cl = [0x39ff8a, 0xff2bd6, 0xffd23f, 0x38e8ff][Math.random() * 4 | 0], b = new THREE.Mesh(new THREE.CylinderGeometry(.045, .05, h2, 8), new THREE.MeshPhysicalMaterial({ color: cl, transparent: true, opacity: .85, emissive: cl, emissiveIntensity: .4 })); b.position.set(129.7, y + .02 + h2 / 2, z); BG.add(b); } }
+    addPlane(4.4, .9, neon('🍸 BAR', '#38e8ff', 512, 110), x1 - .05, 3.6, 0, -Math.PI / 2);
+    npc('f', 5, 127.2, 0, -Math.PI / 2, 'night');
+    // le carré VIP (à gauche) : canapés, tables, champagne avec des étincelles
+    addBox(6.2, .35, 18, std(0x1a1018, { roughness: .5 }), 103.1, .17, 0); tubeN(.04, .04, 18, 106.2, .36, 0, .13);
+    addPlane(3, .7, neon('👑 VIP', '#ffd23f', 512, 110), x0 + .05, 3.4, 0, Math.PI / 2);
+    const sparks = [];
+    for (const z of [-5, 0, 5]) { const so = addBox(1, .7, 3.4, std(0x4a0a2a, { roughness: .6 }), 101.2, .7, z); void so; const tb = addBox(1, .5, 1, std(0x111111, { metalness: .8, roughness: .2 }), 103.4, .6, z); void tb;
+      const bot = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, .4, 10), std(0x0a3a1a, { metalness: .4, roughness: .2 })); bot.position.set(103.4, 1.05, z); BG.add(bot);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffe08a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); sp.position.set(103.4, 1.35, z); sp.scale.setScalar(.25); BG.add(sp); sparks.push(sp); }
+    // les lasers et les lyres (faisceaux qui bougent), la fumée
+    const lasers = []; for (let k = 0; k < 18; k++) { const L = new THREE.Mesh(new THREE.BoxGeometry(.012, .012, 30), new THREE.MeshBasicMaterial({ color: [0x39ff8a, 0xff2b4a, 0x38e8ff][k % 3], transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false })); L.geometry.translate(0, 0, 15); const piv = new THREE.Group(); piv.position.set(MX + (k % 2 ? 2.5 : -2.5), 7.6, z0 + .5); piv.add(L); BG.add(piv); lasers.push(piv); }
+    const heads = []; for (let k = 0; k < 8; k++) { const cone = new THREE.Mesh(new THREE.ConeGeometry(1, 8.5, 20, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(k / 8, 1, .55), transparent: true, opacity: .1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.geometry.translate(0, -4.25, 0); const piv = new THREE.Group(); piv.position.set(103 + k * 3.4, 8.8, -3); piv.add(cone); BG.add(piv); heads.push(piv); }
+    const smokeT = (() => { const [c, g] = cnv(128, 128), r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,255,255,.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); return tex(c); })();
+    const smoke = []; for (let k = 0; k < 14; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeT, color: 0x9a7aff, transparent: true, opacity: .12, depthWrite: false })); s.position.set(104 + Math.random() * 22, .8 + Math.random() * 1.2, -10 + Math.random() * 14); s.scale.setScalar(5 + Math.random() * 4); BG.add(s); smoke.push({ s, v: (Math.random() - .5) * .3 }); }
+    for (const [x, z] of [[110, -4], [120, -4]]) { const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(.5, 2), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: .05, flatShading: true })); ball.position.set(x, 7.8, z); BG.add(ball); anims.push(dt => { if (me.zone === 'night') ball.rotation.y += dt * .7; }); }
+    addPlane(12, 1.8, neon('THE PARADISE NIGHT', '#ff2bd6'), MX, 6.5, z1 - .05, Math.PI);
+    addPlane(3, 3.2, std(0x05030a, { emissive: 0x2a0418 }), MX, 1.6, z1 - .03, Math.PI);
+    // tout bouge au rythme (128 BPM) ; un flash stroboscopique de temps en temps
+    anims.push((dt, tt) => {
+      if (me.zone !== 'night') return; const beat = tt * 128 / 60, pulse = Math.pow(1 - (beat % 1), 3), step = Math.floor(beat);
+      for (const m of party) m.color.setHSL((m.userData.hue + tt * .06) % 1, 1, .45 + pulse * .2);
+      for (const T of tiles) { const v = Math.sin(T.i * .9 + T.j * 1.4 + step * 2.1); T.m.color.setHSL(((T.i * .05 + T.j * .07) + step * .17) % 1, 1, v > 0 ? .3 + pulse * .3 : .05); }
+      lasers.forEach((p, k) => { p.rotation.y = Math.sin(tt * .8 + k * .6) * .8 + (k - 9) * .06; p.rotation.x = .12 + Math.sin(tt * 1.3 + k) * .18; p.children[0].material.opacity = (step % 8 < 6) ? .75 : 0; });
+      heads.forEach((p, k) => { p.rotation.x = Math.sin(tt * .9 + k) * .6; p.rotation.z = Math.cos(tt * .7 + k * 1.3) * .6; p.children[0].material.color.setHSL((k / 8 + tt * .08) % 1, 1, .55); p.children[0].material.opacity = .06 + pulse * .1; });
+      sparks.forEach((s, k) => { s.material.opacity = .5 + Math.random() * .5; s.scale.setScalar(.2 + Math.random() * .2); });
+      smoke.forEach(o => { o.s.position.x += o.v * dt; if (o.s.position.x < 103 || o.s.position.x > 127) o.v = -o.v; });
+      if (step % 16 === 15 && (beat % 1) < .5) strobe = Math.floor(beat * 8) % 2 ? .9 : 0; else strobe = 0;
+    });
+    BG = null;
+  }
+
+  // ---------- 🏎️ Paradise Karting : un vrai circuit, des karts, le chrono au tour ----------
+  const KPTS = [[-158, -40], [-158, 30], [-163, 44], [-180, 50], [-198, 38], [-214, 47], [-234, 42], [-246, 22], [-236, 2], [-246, -22], [-236, -44], [-212, -52], [-196, -38], [-180, -52], [-164, -52]];
+  const KW = 5, track = { P: [], T: [], N: [], S: [], L: 0, start: 0 };
+  (function makeTrack() { // une courbe douce qui passe par tous les points (Catmull-Rom), découpée en petits morceaux
+    const n = KPTS.length, M = 50;
+    for (let i = 0; i < n; i++) { const p0 = KPTS[(i - 1 + n) % n], p1 = KPTS[i], p2 = KPTS[(i + 1) % n], p3 = KPTS[(i + 2) % n];
+      for (let k = 0; k < M; k++) { const t = k / M, t2 = t * t, t3 = t2 * t; const f = (a, b, c, d) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); track.P.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]); } }
+    const N = track.P.length; let s = 0;
+    for (let i = 0; i < N; i++) { const a = track.P[(i - 1 + N) % N], b = track.P[(i + 1) % N], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; track.T.push([dx / l, dz / l]); track.N.push([-dz / l, dx / l]); track.S.push(s); s += Math.hypot(track.P[(i + 1) % N][0] - track.P[i][0], track.P[(i + 1) % N][1] - track.P[i][1]); }
+    track.L = s; let bd = 1e9; track.P.forEach(([x, z], i) => { const d = Math.hypot(x + 158, z); if (d < bd) { bd = d; track.start = i; } });
+  })();
+  function nearestIdx(x, z, from) { const N = track.P.length; let best = from, bd = 1e9; const span = from == null ? N : 40; const s0 = from == null ? 0 : from - span;
+    for (let k = s0; k < s0 + (from == null ? N : span * 2); k++) { const i = ((k % N) + N) % N, d = (track.P[i][0] - x) ** 2 + (track.P[i][1] - z) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
+  function atS(s) { const N = track.P.length; s = ((s % track.L) + track.L) % track.L; let lo = 0, hi = N - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (track.S[m] <= s) lo = m; else hi = m - 1; } return lo; }
+  function makeKart(col, number) { // un kart : châssis, pontons, pneus, volant, numéro
+    const g = new THREE.Group(), cm = std(col, { metalness: .3, roughness: .35 }), dark = std(0x111111, { roughness: .6 });
+    const ch = new THREE.Mesh(new THREE.BoxGeometry(1.1, .12, 1.8), dark); ch.position.y = .16; g.add(ch);
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(1, .22, .45), cm); nose.position.set(0, .26, -.85); nose.rotation.x = -.25; g.add(nose);
+    for (const sx of [-.5, .5]) { const pod = new THREE.Mesh(new THREE.BoxGeometry(.25, .22, .9), cm); pod.position.set(sx, .26, .05); g.add(pod); }
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(.45, .4, .35), dark); seat.position.set(0, .4, .35); g.add(seat);
+    const bump = new THREE.Mesh(new THREE.BoxGeometry(1.25, .2, .2), cm); bump.position.set(0, .22, .98); g.add(bump);
+    const wg = new THREE.CylinderGeometry(.17, .17, .2, 16); wg.rotateZ(Math.PI / 2); const wm = std(0x0a0a0a, { roughness: .9 }); g.wheels = [];
+    for (const [x, z, r] of [[-.62, -.62, .15], [.62, -.62, .15], [-.65, .62, .19], [.65, .62, .19]]) { const w = new THREE.Mesh(wg, wm); w.scale.setScalar(r / .17); w.position.set(x, r, z); g.add(w); g.wheels.push(w); }
+    const sw = new THREE.Mesh(new THREE.TorusGeometry(.13, .02, 6, 16), dark); sw.position.set(0, .5, -.25); sw.rotation.x = -1; g.add(sw);
+    if (number != null) { const [c, gg] = cnv(64, 64); gg.fillStyle = '#fff'; gg.fillRect(0, 0, 64, 64); gg.fillStyle = '#111'; gg.font = '900 40px Inter'; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText(String(number), 32, 34); const np = new THREE.Mesh(new THREE.PlaneGeometry(.28, .28), new THREE.MeshBasicMaterial({ map: tex(c) })); np.position.set(0, .4, -1.04); np.rotation.y = Math.PI; g.add(np); }
+    return g;
+  }
+  let gantryLights = [], towerTex = null, towerCtx = null, aiKarts = [];
+  function buildKart() {
+    BG = ZG.kart = new THREE.Group(); scene.add(BG); BG.visible = false;
+    const N = track.P.length;
+    // le sol (herbe), le ciel de la ville la nuit
+    const grass = (() => { const [c, g] = cnv(256, 256); g.fillStyle = '#16301a'; g.fillRect(0, 0, 256, 256); for (let k = 0; k < 4000; k++) { g.fillStyle = `rgba(${40 + Math.random() * 40 | 0},${90 + Math.random() * 60 | 0},${40 + Math.random() * 30 | 0},.5)`; g.fillRect(Math.random() * 256, Math.random() * 256, 1, 2); } return tex(c, [40, 40]); })();
+    addPlane(150, 140, std(0xffffff, { map: grass, roughness: 1 }), -200, -.01, -5, 0, -Math.PI / 2);
+    // la piste : asphalte, vibreurs rouges et blancs
+    const asph = (() => { const [c, g] = cnv(256, 256); g.fillStyle = '#2a2b2f'; g.fillRect(0, 0, 256, 256); for (let k = 0; k < 9000; k++) { const v = 30 + Math.random() * 50 | 0; g.fillStyle = `rgb(${v},${v},${v + 3})`; g.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); } g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(0, 0, 6, 256); g.fillRect(250, 0, 6, 256); return tex(c); })(); asph.wrapS = asph.wrapT = THREE.RepeatWrapping;
+    const curbT = (() => { const [c, g] = cnv(16, 64); g.fillStyle = '#e8e8e8'; g.fillRect(0, 0, 16, 64); g.fillStyle = '#d42020'; g.fillRect(0, 0, 16, 32); return tex(c); })(); curbT.wrapS = curbT.wrapT = THREE.RepeatWrapping;
+    const ribbon = (a, b, y, mat, vScale) => { const pos = [], uv = [], idx = []; for (let i = 0; i <= N; i++) { const k = i % N, [px, pz] = track.P[k], [nx, nz] = track.N[k], v = (i === N ? track.L : track.S[k]) / vScale; pos.push(px + nx * a, y, pz + nz * a, px + nx * b, y, pz + nz * b); uv.push(0, v, 1, v); if (i < N) { const o = i * 2; idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.material.side = THREE.DoubleSide; BG.add(m); return m; };
+    ribbon(KW, -KW, .02, std(0xffffff, { map: asph, roughness: .85 }), 10);
+    ribbon(KW + .9, KW, .03, std(0xffffff, { map: curbT, roughness: .7 }), 2); ribbon(-KW, -KW - .9, .03, std(0xffffff, { map: curbT, roughness: .7 }), 2);
+    // la ligne de départ (damier) et le portique avec les 5 feux
+    const st = track.start, [sx, sz] = track.P[st], [tx, tz] = track.T[st];
+    const chk = (() => { const [c, g] = cnv(128, 32); for (let i = 0; i < 16; i++) for (let j = 0; j < 4; j++) { g.fillStyle = (i + j) % 2 ? '#fff' : '#111'; g.fillRect(i * 8, j * 8, 8, 8); } return tex(c); })();
+    const gy = Math.atan2(tx, tz), lg = new THREE.Group(); lg.position.set(sx, .035, sz); lg.rotation.y = gy; BG.add(lg);
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(KW * 2, 1.2), new THREE.MeshBasicMaterial({ map: chk })); line.rotation.x = -Math.PI / 2; lg.add(line); const G = new THREE.Group(); G.position.set(sx, 0, sz); G.rotation.y = gy; BG.add(G);
+    for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.3, 5, .3), std(0x222222)); post.position.set(s * (KW + .9), 2.5, 0); G.add(post); }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(KW * 2 + 2.1, .8, .4), std(0x111111)); beam.position.y = 5; G.add(beam);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(6, .7), neon('🏁 PARADISE KARTING', '#ff8a3d', 1024, 100)); sign.position.set(0, 5.9, 0); sign.rotation.y = Math.PI; G.add(sign);
+    gantryLights = []; for (let k = 0; k < 5; k++) { const l = new THREE.Mesh(new THREE.CircleGeometry(.22, 16), new THREE.MeshBasicMaterial({ color: 0x220000 })); l.position.set((k - 2) * .7, 5, -.21); l.rotation.y = Math.PI; G.add(l); gantryLights.push(l); }
+    // les murs de pneus le long de la piste (sauf la ligne droite des stands, où il y a le muret)
+    const tireG = new THREE.CylinderGeometry(.32, .32, .26, 12), cnt = Math.floor(track.L / 1.3) * 2 * 2, tires = new THREE.InstancedMesh(tireG, std(0x151515, { roughness: .9 }), cnt), tireW = new THREE.InstancedMesh(tireG, std(0xe8e8e8, { roughness: .8 }), cnt);
+    let ti = 0, wi = 0; const q = new THREE.Object3D();
+    for (let s = 0; s < track.L; s += 1.3) { const i = atS(s), [px, pz] = track.P[i], [nx, nz] = track.N[i]; for (const side of [1, -1]) { if (side === -1 && pz > -36 && pz < 34 && px > -161) continue; const ox = px + nx * side * (KW + 1.6), oz = pz + nz * side * (KW + 1.6); for (let h = 0; h < 2; h++) { q.position.set(ox, .13 + h * .26, oz); q.updateMatrix(); if ((Math.floor(s / 1.3) + h) % 4 === 0) tireW.setMatrixAt(wi++, q.matrix); else tires.setMatrixAt(ti++, q.matrix); } } }
+    tires.count = ti; tireW.count = wi; BG.add(tires, tireW);
+    // le muret des stands avec des banderoles, le paddock, les garages, la tour des chronos
+    addBox(.5, 1.1, 68, std(0xcfcfcf, { roughness: .6 }), -152.4, .55, -1);
+    const banners = ['PARADISE', 'SOLDAT76 RACING', 'NÉON ENERGY', 'THE PARADISE NIGHT', 'PARADISE CINÉ', 'GO FAST'];
+    banners.forEach((b, k) => { const [c, g] = cnv(512, 96); g.fillStyle = ['#ff2bd6', '#111', '#2bff88', '#9b5cff', '#ffd23f', '#d42020'][k]; g.fillRect(0, 0, 512, 96); g.fillStyle = k === 4 || k === 2 ? '#111' : '#fff'; g.font = '900 52px Outfit, Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b, 256, 50, 490); const m = new THREE.MeshBasicMaterial({ map: tex(c) }); addPlane(9, 1.05, m, -152.68, .6, -28 + k * 11, -Math.PI / 2); });
+    const pad = addPlane(10, 52, std(0x3a3b40, { roughness: .8 }), -145, .01, 0, 0, -Math.PI / 2); void pad;
+    for (let k = 0; k < 3; k++) { const z = -16 + k * 6, g = new THREE.Group(); g.position.set(-140.5, 0, z); BG.add(g); const wall = std(0xe0e0e6, { roughness: .7 });
+      for (const [w, h, d, x, y, zz] of [[.2, 3, 5.6, .9, 1.5, 0], [3.6, .2, 5.6, -.8, 3, 0], [3.6, 3, .2, -.8, 1.5, -2.8], [3.6, 3, .2, -.8, 1.5, 2.8]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wall); m.position.set(x, y, zz); g.add(m); }
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .5), neon(`STAND ${k + 1}`, '#ff8a3d', 512, 100)); sg.position.set(-2.62, 2.6, 0); sg.rotation.y = -Math.PI / 2; g.add(sg);
+      for (const zz of [-1.2, 1.2]) { const kk = makeKart([0xd42020, 0x1c4fd8, 0xffd23f, 0x2bff88, 0xff2bd6, 0xff8a3d][k * 2 + (zz > 0 ? 1 : 0)], k * 2 + (zz > 0 ? 2 : 1)); kk.position.set(-.6, 0, zz); kk.rotation.y = Math.PI / 2; g.add(kk); } }
+    const tw = new THREE.Group(); tw.position.set(-143.5, 0, 10); BG.add(tw); const tb = new THREE.Mesh(new THREE.BoxGeometry(1.2, 6, 3.2), std(0x111118, { metalness: .5 })); tb.position.y = 3; tw.add(tb);
+    const [tc, tg] = cnv(256, 420); towerCtx = tg; towerTex = tex(tc); const tfront = new THREE.Mesh(new THREE.PlaneGeometry(3, 4.9), new THREE.MeshBasicMaterial({ map: towerTex })); tfront.position.set(-.61, 3.2, 0); tfront.rotation.y = -Math.PI / 2; tw.add(tfront); drawTower();
+    kartBlocks.push([-144.2, 8.3, -142.8, 11.7], [-142.6, -19, -139, 2]);
+    // les projecteurs autour du circuit, et la ville tout autour
+    for (let s = 0; s < track.L; s += 38) { const i = atS(s), [px, pz] = track.P[i], [nx, nz] = track.N[i], x = px + nx * (KW + 4.5), z = pz + nz * (KW + 4.5);
+      addBox(.25, 9, .25, std(0x333333, { metalness: .6 }), x, 4.5, z); const head = addBox(1.4, .4, .6, basic(0xfff8e0), x, 9, z); void head;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(4, 9, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: .06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); cone.position.set(x - nx * 2, 4.5, z - nz * 2); BG.add(cone); }
+    const winT = (() => { const [c, g] = cnv(128, 256); g.fillStyle = '#0a0c14'; g.fillRect(0, 0, 128, 256); for (let y = 6; y < 256; y += 12) for (let x = 6; x < 128; x += 12) if (Math.random() < .45) { g.fillStyle = Math.random() < .5 ? '#ffd890' : '#9fd0ff'; g.fillRect(x, y, 6, 7); } return tex(c); })();
+    const bm = new THREE.MeshBasicMaterial({ map: winT });
+    for (let k = 0; k < 34; k++) { const side = k % 4, f = Math.random(), h = 18 + Math.random() * 40, w = 8 + Math.random() * 10;
+      const [x, z] = side === 0 ? [-268 + f * 130, -78] : side === 1 ? [-268 + f * 130, 68] : side === 2 ? [-280, -70 + f * 135] : [-128, -70 + f * 135]; addBox(w, h, w, bm, x, h / 2, z); }
+    // 3 karts robots qui tournent en continu (tout le monde les voit au même endroit)
+    aiKarts = [[0xd42020, 'Soldat76-Kart', 15.5, 0], [0x1c4fd8, 'Turbo-76', 16.4, .33], [0x2bff88, 'Pixel-Racer', 14.6, .66]].map(([c, name, v, o], k) => {
+      const g = makeKart(c, 76 + k); BG.add(g); const drv = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(.45, .5, .3), std(c)); body.position.y = .65; const helmet = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), std(0xffffff, { metalness: .3, roughness: .2 })); helmet.position.y = 1.02; drv.add(body, helmet); drv.position.z = .3; g.add(drv);
+      const tag = tagSprite(); tag.set('🤖 ' + name, '#ffd23f'); tag.position.y = 1.6; tag.scale.multiplyScalar(.8); g.add(tag); return { g, v, o }; });
+    anims.push(() => { if (me.zone !== 'kart') return; const tt = Date.now() / 1000; for (const a of aiKarts) { const s = (tt * a.v + a.o * track.L) % track.L, i = atS(s), j = (i + 1) % track.P.length, u = (s - track.S[i]) / Math.max(.01, (track.S[j] || track.L) - track.S[i]); const [px, pz] = track.P[i], [qx, qz] = track.P[j], lat = Math.sin(s * .05) * 1.6; const [nx, nz] = track.N[i]; a.g.position.set(px + (qx - px) * u + nx * lat, 0, pz + (qz - pz) * u + nz * lat); const [ttx, ttz] = track.T[i]; a.g.rotation.y = Math.atan2(-ttx, -ttz); a.g.wheels.forEach(w => { w.rotation.x -= .3; }); } });
+    BG = null;
+  }
+  const kartBlocks = [];
+  function camInside(x, z) { // la caméra reste dans la pièce où je suis
+    const inR = (L, m) => L.some(([a, b, c, d]) => x >= a - m && x <= c + m && z >= b - m && z <= d + m);
+    if (me.zone === 'hall') return inR(hallRects[me.lvl ? 1 : 0], .3) || (me.lvl === 0 && x > -99.7 && x < -60.3 && z > -3.7 && z < 19.7);
+    if (me.zone === 'cine') return inR(cineRects[me.lvl ? 1 : 0], .3);
+    if (me.zone === 'night') return x > 100.2 && x < 129.8 && z > -14.8 && z < 14.8;
+    if (me.zone === 'club') return x > -17.8 && x < 17.8 && z > -13.8 && z < 13.8;
+    return true;
+  }
+  function kartFits(x, z) { return x > -151 && x < -139.8 && z > -25 && z < 25 && !kartBlocks.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD); }
+  function drawTower() {
+    const g = towerCtx; if (!g) return; const B = info?.kart || { here: [], day: [] };
+    g.fillStyle = '#05050c'; g.fillRect(0, 0, 256, 420); g.fillStyle = '#ff8a3d'; g.font = '900 24px Outfit, Inter, sans-serif'; g.textAlign = 'center'; g.fillText('🏁 MEILLEURS TOURS', 128, 34);
+    g.textAlign = 'left'; g.font = '700 18px Outfit, Inter, sans-serif';
+    const L = (B.day || []).slice(0, 10); if (!L.length) { g.fillStyle = '#aaa'; g.fillText('Aucun tour aujourd\'hui', 20, 80); }
+    L.forEach((r, i) => { g.fillStyle = i === 0 ? '#ffd23f' : '#fff'; g.fillText(`${i + 1}. ${r.name}`.slice(0, 16), 14, 76 + i * 33); g.textAlign = 'right'; g.fillText(fmtLap(r.ms), 244, 76 + i * 33); g.textAlign = 'left'; });
+    towerTex.needsUpdate = true;
+  }
+  const fmtLap = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
+
+  // ----- conduire son kart -----
+  const kt = { x: 0, z: 0, yaw: 0, v: 0, idx: 0, go: 0, lapStart: 0, half: false, last: 0, best: 0, lap: 0, camX: 0, camZ: 0, engine: null, screech: 0 };
+  function takeKart() {
+    const i = (track.start - 14 + track.P.length) % track.P.length, [px, pz] = track.P[i], [tx, tz] = track.T[i];
+    Object.assign(kt, { x: px - track.N[i][0] * 1.6, z: pz - track.N[i][1] * 1.6, yaw: Math.atan2(-tx, -tz), v: 0, idx: i, go: performance.now() + 3600, lapStart: 0, half: false, camX: px - tx * 6, camZ: pz - tz * 6 });
+    mode = 'kart'; hidePanel(); hud.emotes.classList.add('hidden'); hud.joy.classList.toggle('hidden', !mobile()); hud.kart.classList.remove('hidden'); engine(true);
+    toast(mobile() ? '🏎️ Joystick : en haut pour accélérer, en bas pour freiner, à gauche/droite pour tourner. Attends le départ aux feux !' : '🏎️ Z / ↑ accélérer · S / ↓ freiner · Q D / ← → tourner. Attends que les feux s\'éteignent !');
+  }
+  function leaveKart(quiet) { engine(false); mode = 'walk'; hud.kart?.classList.add('hidden'); hud.emotes?.classList.remove('hidden'); me.x = -147; me.z = 0; me.y = 0; me.yaw = Math.PI / 2; camYaw = Math.PI / 2; if (!quiet) socket.emit('cs_move', { x: me.x, z: me.z, y: 0, yaw: me.yaw, k: 0 }); }
+  function engine(on) {
+    const a = ac(); if (!a) return;
+    if (on && !kt.engine) { const o = a.createOscillator(), o2 = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = 'sawtooth'; o2.type = 'square'; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = .045; o.connect(f); o2.connect(f); f.connect(g).connect(MIX); o.start(); o2.start(); kt.engine = { o, o2, g }; }
+    if (!on && kt.engine) { try { kt.engine.o.stop(); kt.engine.o2.stop(); } catch (e) {} kt.engine = null; }
+  }
+  function driveKart(dt, ts) {
+    const now0 = performance.now(), started = now0 >= kt.go;
+    // les feux : ils s'allument un par un, puis s'éteignent tous = départ !
+    const lit = started ? 0 : Math.min(5, Math.floor((3600 - (kt.go - now0)) / 600) + 1); gantryLights.forEach((l, k) => l.material.color.setHex(k < lit ? 0xff1a1a : 0x220000));
+    if (!started && lit !== kt.lit) { kt.lit = lit; if (lit) tone(440, 440, .15, .12); } if (started && kt.lit) { kt.lit = 0; tone(880, 880, .4, .16); }
+    let f = 0, s = 0;
+    if (keys.has('z') || keys.has('w') || keys.has('ArrowUp')) f += 1; if (keys.has('s') || keys.has('ArrowDown')) f -= 1; if (keys.has('q') || keys.has('a') || keys.has('ArrowLeft')) s -= 1; if (keys.has('d') || keys.has('ArrowRight')) s += 1;
+    if (stick.on) { f = Math.abs(stick.y) > .15 ? -stick.y : 0; s = stick.x; }
+    if (!started) f = 0;
+    if (f > 0) kt.v += 8.5 * f * dt * (1 - kt.v / 22); else if (f < 0) kt.v += (kt.v > 0 ? -18 : -5) * -f * dt;
+    kt.v -= kt.v * .25 * dt; if (!f && Math.abs(kt.v) < .2) kt.v = 0; kt.v = Math.max(-5, Math.min(22, kt.v));
+    const steer = s * 1.9 * Math.min(1, Math.abs(kt.v) / 5) * (1 - Math.abs(kt.v) / 50) * Math.sign(kt.v || 1); kt.yaw -= steer * dt;
+    kt.x += -Math.sin(kt.yaw) * kt.v * dt; kt.z += -Math.cos(kt.yaw) * kt.v * dt;
+    // les murs de pneus
+    const i = nearestIdx(kt.x, kt.z, kt.idx), [px, pz] = track.P[i], [nx, nz] = track.N[i], lat = (kt.x - px) * nx + (kt.z - pz) * nz, lim = KW + .6;
+    if (Math.abs(lat) > lim) { const sg = Math.sign(lat); kt.x = px + nx * sg * lim; kt.z = pz + nz * sg * lim; if (Math.abs(kt.v) > 4) { noise(.15, 300, 1, .25); kt.v *= .55; } }
+    kt.screech = Math.abs(s) > .6 && Math.abs(kt.v) > 13 ? Math.min(1, kt.screech + dt * 3) : Math.max(0, kt.screech - dt * 4); if (kt.screech > .5 && Math.random() < .3) noise(.06, 2600, 3, .04 * kt.screech);
+    // le chrono : un tour = passer la mi-course puis recroiser la ligne
+    const N = track.P.length, rel = (i - track.start + N) % N, prev = (kt.idx - track.start + N) % N;
+    if (rel > N * .4 && rel < N * .6) kt.half = true;
+    if (prev > N * .9 && rel < N * .1 && kt.v > 0) {
+      if (!kt.lapStart) { kt.lapStart = now0; toast('⏱️ Chrono lancé !'); }
+      else if (kt.half) { const ms = Math.round(now0 - kt.lapStart); kt.last = ms; kt.lap++; const isBest = !kt.best || ms < kt.best; if (isBest) kt.best = ms; kt.lapStart = now0; sDing();
+        ack('kt_lap', ms).then(r => { if (r?.record) { toast(`🏆 Nouveau record du jour : ${fmtLap(ms)} !`); window.LC?.confetti?.(['🏁', '🏆', '🏎️']); } else toast(`🏁 Tour en ${fmtLap(ms)}${isBest ? ' · ton meilleur tour !' : ''}`); }); }
+      kt.half = false;
+    }
+    kt.idx = i;
+    for (const w of avatars.get(myId())?.kart?.wheels || []) w.rotation.x -= kt.v * dt / .17;
+    if (kt.engine) { const A = ac(); const fr = 55 + Math.abs(kt.v) * 9 + (f > 0 ? 12 : 0); kt.engine.o.frequency.setTargetAtTime(fr, A.currentTime, .05); kt.engine.o2.frequency.setTargetAtTime(fr * .5, A.currentTime, .05); }
+    me.x = kt.x; me.z = kt.z; me.yaw = kt.yaw; me.y = 0;
+    if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: 0, yaw: me.yaw, k: 1 }); }
+    // l'écran : vitesse, tour en cours, dernier tour, meilleur tour
+    const txt = `${Math.round(Math.abs(kt.v) * 3.6)}|${kt.lapStart ? fmtLap(Math.round(now0 - kt.lapStart)).slice(0, -2) : '--'}|${kt.last}|${kt.best}|${lit}`;
+    if (txt !== kt.hudTxt) { kt.hudTxt = txt; hud.kartSpd.textContent = `${Math.round(Math.abs(kt.v) * 3.6)} km/h`; hud.kartLap.textContent = kt.lapStart ? `⏱️ ${fmtLap(Math.round(now0 - kt.lapStart)).slice(0, -2)}` : started ? '⏱️ Passe la ligne pour lancer le chrono' : `🚦 ${'🔴'.repeat(lit)}${'⚫'.repeat(5 - lit)}`; hud.kartBest.textContent = `Dernier : ${kt.last ? fmtLap(kt.last) : '--'} · Meilleur : ${kt.best ? fmtLap(kt.best) : '--'}`; }
+  }
+  function kartBoardPanel() {
+    const B = info?.kart || { here: [], day: [] }, row = (r, i) => el('div', { class: 'cs-kb' }, el('b', {}, `${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${r.name}`), el('span', {}, fmtLap(r.ms)));
+    showPanel(el('h3', {}, '🏁 Le classement du karting'), el('h4', {}, '🌍 Les meilleurs tours du jour'), ...(B.day.length ? B.day.map(row) : [el('p', { class: 'help' }, 'Personne n\'a encore fait de tour aujourd\'hui : à toi !')]),
+      el('p', { class: 'help' }, 'Chaque tour bouclé rapporte 2 💰 (10 tours par jour). Battre le record du jour rapporte 15 💰 !'), el('button', { class: 'btn btn-primary', style: 'width:100%', onclick: () => takeKart() }, '🏎️ Prendre un kart'));
   }
 
   // ---------- 🧍 les personnages ----------
@@ -582,7 +940,7 @@ const Casino = (() => {
     const put = (id, name, gender, bot, base, extra = '') => {
       const a = avatarFor(id, name, gender, bot), p = poseOf(id) || base; want.add(id); if (!p) return;
       a.tx = p.x; a.tz = p.z; a.tyaw = p.yaw; a.ty = p.y || 0; if (p.tag && Math.hypot(a.tx - a.x, a.tz - a.z) > 1.2) a.init = false; /* autour d'une table : on se place directement (sans traverser le billard) */ if (!a.init) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; a.y = a.ty; a.init = true; }
-      a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
+      a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${people.get(id)?.k || (id === myId() && mode === 'kart') ? '🏎️ ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
     };
     for (const p of people.values()) { if (p.id === myId()) continue; put(p.id, p.name, p.gender, false, { x: p.x, z: p.z, y: p.y || 0, yaw: p.yaw }, (p.drink && drinks[p.drink] ? ' ' + drinks[p.drink].split(' ')[0] : '') + (p.st ? ' · ' + p.st : '')); }
     const mine = people.get(myId()); if (mine) put(myId(), mine.name, mine.gender, false, { x: me.x, z: me.z, y: me.y, yaw: me.yaw }, mine.drink && drinks[mine.drink] ? ' ' + drinks[mine.drink].split(' ')[0] : '');
@@ -595,11 +953,15 @@ const Casino = (() => {
       a.x += (a.tx - a.x) * k; a.z += (a.tz - a.z) * k; const d = Math.hypot(a.tx - a.x, a.tz - a.z); if (d > 6) { a.x = a.tx; a.z = a.tz; }
       const sp = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-3);
       let da = ((a.tyaw - a.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; a.yaw += da * Math.min(1, dt * 10);
+      const inKart = a.id === myId() ? mode === 'kart' : !!people.get(a.id)?.k; // en kart : on s'assoit dedans
+      if (inKart && !a.kart) { a.kart = makeKart([0xd42020, 0x1c4fd8, 0xffd23f, 0x2bff88, 0xff2bd6, 0xff8a3d][Math.abs(a.id) % 6], Math.abs(a.id) % 100); scene.add(a.kart); const hm = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), std(0xffffff, { metalness: .3, roughness: .2 })); hm.position.set(0, 1.08, .3); a.kart.add(hm); }
+      if (!inKart && a.kart) { scene.remove(a.kart); a.kart = null; }
+      if (a.kart) { if (a.id === myId()) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; } a.kart.position.set(a.x, 0, a.z); a.kart.rotation.y = a.yaw; }
       const oy = a.y ?? 0; a.y = oy + ((a.ty || 0) - oy) * Math.min(1, dt * (a.id === myId() ? 30 : 8)); if (Math.abs(a.ty - a.y) > 3) a.y = a.ty; const vy = Math.abs(a.y - oy) / Math.max(dt, 1e-3);
-      a.g.position.set(a.x, a.y, a.z); a.g.rotation.y = a.yaw + Math.PI;
+      a.g.position.set(a.x - (a.kart ? Math.sin(a.yaw) * -.3 : 0), a.y - (a.kart ? .62 : 0), a.z - (a.kart ? Math.cos(a.yaw) * -.3 : 0)); a.g.rotation.y = a.yaw + Math.PI;
       a.spd = (a.spd || 0) + (Math.min(sp, 8) - (a.spd || 0)) * Math.min(1, dt * 6); // vitesse lissée
       const cur0 = a.cur === 'dance' ? 'idle' : a.cur, v = a.spd;
-      const still = vy > .3 || (a.id === myId() && (me.ride || me.seat)) || (a.ty > 4.2 && Math.abs(a.ty - 5) > .05); // assis au cinéma (plus bas que le sol de l'étage, ou sur un gradin) // sur l'escalator ou assis : on ne marche pas
+      const still = !!a.kart || vy > .3 || (a.id === myId() && (me.ride || me.seat)) || (a.ty > 4.2 && Math.abs(a.ty - 5) > .05); // assis au cinéma (plus bas que le sol de l'étage, ou sur un gradin) // sur l'escalator ou assis : on ne marche pas
       const w = a.dance > 0 ? 'dance' : still ? 'idle' : cur0 === 'run' ? (v > 2.4 ? 'run' : v > .3 ? 'walk' : 'idle') : cur0 === 'walk' ? (v > 3.4 ? 'run' : v > .2 ? 'walk' : 'idle') : (v > 3.4 ? 'run' : v > .5 ? 'walk' : 'idle');
       if (a.dance > 0) a.dance -= dt;
       if (w !== a.cur && a.act[w]) { const n = a.act[w]; n.reset().play(); a.act[a.cur]?.crossFadeTo(n, .25, false); a.cur = w; }
@@ -611,10 +973,11 @@ const Casino = (() => {
   }
 
   // ---------- 🚪 entrer / sortir ----------
-  async function open() {
-    if (active) return; if (!window.City3D?.kit) return toast('😕 La 3D ne marche pas sur cet appareil');
+  async function open(opts = {}) {
+    const want = opts.zone || (opts.cine ? 'cine' : null);
+    if (active) { if (want && me.zone !== want) goZone(want); return; } if (!window.City3D?.kit) return toast('😕 La 3D ne marche pas sur cet appareil');
     active = true; mode = 'walk'; poolT = -1;
-    ov = el('div', { class: 'lgame cs' }, el('div', { class: 'lg-load' }, el('div', { class: 'lg-logo' }, '🎰'), el('b', {}, 'On ouvre les portes du Paradise Club…'))); document.body.append(ov); document.body.classList.add('casino-open');
+    ov = el('div', { class: 'lgame cs' }, el('div', { class: 'lg-load' }, el('div', { class: 'lg-logo' }, '🎰'), el('b', {}, 'On ouvre les portes du Paradise Complex…'))); document.body.append(ov); document.body.classList.add('casino-open');
     try { K = await window.City3D.kit(); THREE = K.THREE; } catch (e) { console.warn(e); toast('😕 La 3D ne marche pas sur cet appareil'); return close(); }
     if (!active) return;
     const d = await ack('cs_enter', {}); if (!active) return; if (d.error) { toast(d.error); return close(); }
@@ -627,7 +990,7 @@ const Casino = (() => {
     ov.replaceChildren(canvas, buildHud()); ytOn = ''; syncVideo(); fit();
     window.ProxVoice?.use('casino', { space: () => (info ? 'cs:' + info.inst : null), me: () => { const a = avatars.get(myId()); return a ? { x: a.x, z: a.z } : { x: me.x, z: me.z }; }, pos: uid => { const a = avatars.get(uid); return a && uid !== myId() ? { x: a.x, z: a.z } : null; }, yaw: () => (mode === 'walk' ? camYaw : camera ? Math.atan2(-(camera.getWorldDirection(new THREE.Vector3()).x), -(camera.getWorldDirection(new THREE.Vector3()).z)) : 0) }); addEventListener('resize', fit); bindInput();
     last = performance.now(); raf = requestAnimationFrame(loop);
-    toast('🎰 Bienvenue au Paradise Club ! Promène-toi : bar, bowling, laser game, billards et poker');
+    goZone(want || 'hall');
   }
   function applyEnter(d) {
     info = d; info._recv = Date.now(); drinks = d.drinks || {}; people.clear(); for (const p of d.players) people.set(p.id, p);
@@ -635,7 +998,7 @@ const Casino = (() => {
   }
   function close() {
     active = false; cancelAnimationFrame(raf); removeEventListener('resize', fit); unbindInput();
-    ytOn = ''; try { R?.dispose(); } catch (e) {} R = null; scene = null; ov?.remove(); ov = null; avatars.clear(); people.clear(); tables.length = 0; pk.meshes = null; pk.st = null;
+    ytOn = ''; engine(false); try { R?.dispose(); } catch (e) {} R = null; scene = null; ov?.remove(); ov = null; avatars.clear(); people.clear(); tables.length = 0; pk.meshes = null; pk.st = null;
     document.body.classList.remove('casino-open'); mode = 'walk'; window.ProxVoice?.use('casino', null);
   }
   function leave() { socket.emit('cs_leave'); close(); }
@@ -656,8 +1019,11 @@ const Casino = (() => {
     hud.pool = el('div', { class: 'cs-pool hidden' }); hud.poolTop = el('div', { class: 'cs-pooltop hidden' }); hud.poker = el('div', { class: 'cs-poker hidden' }); hud.panel = el('div', { class: 'cs-panel hidden' });
     const quit = el('button', { class: 'lg-quit', title: 'Sortir', onclick: () => { if (mode !== 'walk') return backToWalk(); if (confirm('Sortir du Paradise Club ?')) leave(); } }, '✕');
     hud.frame = el('div', { class: 'bw-frame hidden' }); hud.mute = el('button', { class: 'cs-tvb', title: 'Couper / remettre le son de la vidéo', onclick: () => setMute(!muted) }, '🔊');
-    const tvBtns = el('div', { class: 'cs-tv' }, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
-    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
+    hud.zoneBtn = el('button', { class: 'cs-tvb cine', onclick: () => { if (mode !== 'walk') backToWalk(); if (mode === 'walk') mapPanel(); } }, '🗺️ Plan');
+    hud.kartSpd = el('b', { class: 'cs-kspd' }); hud.kartLap = el('div', { class: 'cs-klap' }); hud.kartBest = el('small', {});
+    hud.kart = el('div', { class: 'cs-kart hidden' }, hud.kartSpd, hud.kartLap, hud.kartBest, el('div', { class: 'cs-krow' }, el('button', { class: 'btn btn-sm', onclick: () => kartBoardPanel() }, '🏁 Classement'), el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Descendre du kart')));
+    const tvBtns = el('div', { class: 'cs-tv' }, hud.zoneBtn, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
+    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, hud.kart, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
     const knob = el('div', { class: 'joy-knob' }), pad = el('div', { class: 'joy lg-joy cs-joy' + (mobile() ? '' : ' hidden') }, el('i', { class: 'joy-ring' }), knob); hud.joy = pad;
     let id = null;
     const mv = e => { const r = pad.getBoundingClientRect(), Rr = r.width / 2; let dx = e.clientX - (r.left + Rr), dy = e.clientY - (r.top + Rr); const d = Math.hypot(dx, dy), mx = Rr * .62; if (d > mx) { dx *= mx / d; dy *= mx / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / mx; stick.y = dy / mx; };
@@ -668,8 +1034,8 @@ const Casino = (() => {
     return box;
   }
   let nearSpot = null;
-  function renderTop() { const n = people.size, k = salleAt(me.x, me.z); hud.top.textContent = me.zone === 'cine' ? (k >= 0 ? `🎬 Paradise Ciné · Salle ${k + 1}` : `🎬 Paradise Ciné · ${me.lvl ? 'Étage des salles' : 'Hall'}`) : `🎰 Paradise Club · ${n} joueur${n > 1 ? 's' : ''} ici`; }
-  function doAct() { if (mode === 'seat') return standUp(); if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
+  function renderTop() { const n = people.size, k = salleAt(me.x, me.z); hud.top.textContent = me.zone === 'hall' ? `🏬 Paradise Complex · ${me.lvl ? 'Niveau 1' : 'Niveau 0'} · ${n} joueur${n > 1 ? 's' : ''}` : me.zone === 'night' ? '🪩 The Paradise Night' : me.zone === 'kart' ? '🏎️ Paradise Karting' : me.zone === 'cine' ? (k >= 0 ? `🎬 Paradise Ciné · Salle ${k + 1}` : `🎬 Paradise Ciné · ${me.lvl ? 'Étage des salles' : 'Hall'}`) : '🎰 Casino & jeux'; }
+  function doAct() { if (mode === 'seat') return standUp(); if (mode === 'kart') return; if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
   function showPanel(...kids) { hud.panel.replaceChildren(el('button', { class: 'cs-x', onclick: () => hidePanel() }, '✕'), ...kids); hud.panel.classList.remove('hidden'); }
   const hidePanel = () => hud.panel?.classList.add('hidden');
   const SNACKS = ['popcorn', 'nachos', 'glace', 'slush', 'soda'];
@@ -686,6 +1052,7 @@ const Casino = (() => {
   }
   function backToWalk() {
     if (mode === 'seat') return standUp();
+    if (mode === 'kart') return leaveKart();
     if (mode === 'pool') { const T = tables[poolT]?.st; if (T && T.players.some(p => p.id === myId())) { if (T.status === 'playing' && !confirm('Quitter la partie de billard ? (tu perds la partie)')) return; socket.emit('pl_stand'); } }
     if (mode === 'poker') { if (pk.st && ['preflop', 'flop', 'turn', 'river'].includes(pk.st.phase) && !confirm('Te lever de la table ? (tu abandonnes la main en cours)')) return; socket.emit('pk_stand'); pk.hole = null; }
     uiWalk();
@@ -870,14 +1237,17 @@ const Casino = (() => {
     const t = ts / 1000;
     // l'escalator m'emmène (on ne contrôle rien pendant la montée ou la descente)
     if (me.ride) {
-      const R0 = me.ride; R0.t += dt * 1.9; const u = Math.min(1, R0.t / 11.4), z = R0.dir > 0 ? .5 - u * 11.1 : -10.6 + u * 11.1;
-      me.z = z; me.y = Math.max(0, Math.min(1, -z / 10)) * CI.up; me.yaw = R0.dir > 0 ? 0 : Math.PI;
-      if (u >= 1) { me.lvl = R0.dir > 0 ? 1 : 0; me.y = me.lvl ? CI.up : 0; me.z = R0.dir > 0 ? -10.75 : .9; me.ride = null; if (me.lvl) toast('🎬 Les salles sont devant toi : entre, assieds-toi et lance un film !'); }
+      const R0 = me.ride, e = R0.e, Dz = e.z0 - e.z1, tot = Dz + 1.1; R0.t += dt * 1.9; const u = Math.min(1, R0.t / (tot + .3)), z = R0.dir > 0 ? e.z0 + .5 - u * tot : e.z1 - .6 + u * tot;
+      me.z = z; me.y = Math.max(0, Math.min(1, (e.z0 - z) / Dz)) * e.h; me.yaw = R0.dir > 0 ? 0 : Math.PI;
+      if (u >= 1) { me.lvl = R0.dir > 0 ? 1 : 0; me.y = me.lvl ? e.h : 0; me.z = R0.dir > 0 ? e.z1 - .75 : e.z0 + .9; me.ride = null;
+        if (me.lvl) toast(e.zone === 'cine' ? '🎬 Les salles sont devant toi : entre, assieds-toi et lance un film !' : '🪩 À l\'étage : la boîte de nuit (à gauche) et le cinéma (à droite) !'); }
       if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); }
     }
     if (mode === 'seat' && (keys.size || stick.on)) standUp();
+    if (mode === 'kart') driveKart(dt, ts);
+    R.toneMappingExposure = me.zone === 'night' ? 1.05 + strobe * 2.5 : me.zone === 'kart' ? 1.15 : 1.05;
     // je change de salle → la bonne vidéo
-    const hereNow = me.zone + salleAt(me.x, me.z); if (hereNow !== lastHere) { lastHere = hereNow; syncVideo(); }
+    const hereNow = me.zone + screenHere(); if (hereNow !== lastHere) { lastHere = hereNow; syncVideo(); }
     // je marche
     if (mode === 'walk' && !me.ride && !document.querySelector('.modal-back')) {
       let f = 0, s = 0;
@@ -890,8 +1260,9 @@ const Casino = (() => {
         const vx = (fx * f + rx * s) * SPEED, vz = (fz * f + rz * s) * SPEED, dx = vx * dt, dz = vz * dt;
         if (fits(me.x + dx, me.z)) me.x += dx; if (fits(me.x, me.z + dz)) me.z += dz; me.yaw = Math.atan2(-vx, -vz);
         // monter / descendre par l'escalator électrique
-        if (me.zone === 'cine' && !me.lvl && Math.abs(me.x - CI.upX) < .6 && me.z < .75 && vz < 0) { me.ride = { dir: 1, t: 0 }; me.x = CI.upX; sCard(); }
-        if (me.zone === 'cine' && me.lvl && Math.abs(me.x - CI.dnX) < .6 && me.z > -10.85 && vz > 0) { me.ride = { dir: -1, t: 0 }; me.x = CI.dnX; sCard(); }
+        for (const e of ESC) { if (e.zone !== me.zone || Math.abs(me.x - e.x) > .6) continue;
+          if (e.dir > 0 && !me.lvl && me.z < e.z0 + .75 && me.z > e.z0 - 1 && vz < 0) { me.ride = { e, dir: 1, t: 0 }; me.x = e.x; sCard(); }
+          if (e.dir < 0 && me.lvl && me.z > e.z1 - .85 && me.z < e.z1 + 1 && vz > 0) { me.ride = { e, dir: -1, t: 0 }; me.x = e.x; sCard(); } }
       }
       if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); }
       // près d'un endroit spécial ?
@@ -913,10 +1284,17 @@ const Casino = (() => {
     } else if (mode === 'poker') {
       const i = pk.st?.seats.findIndex(s => s && s.id === myId()) ?? -1; const [x, z] = seatXZ(Math.max(0, i), 1.25);
       camera.position.set(x, 1.65, z); camera.lookAt(PK.x + (PK.x - x) * .05, .75, PK.z + (PK.z - z) * .05);
+    } else if (mode === 'kart') {
+      const fx = -Math.sin(kt.yaw), fz = -Math.cos(kt.yaw), k = Math.min(1, dt * 5); kt.camX += (kt.x - fx * 5.4 - kt.camX) * k; kt.camZ += (kt.z - fz * 5.4 - kt.camZ) * k;
+      camera.fov = (mobile() ? 64 : 55) + Math.abs(kt.v) * .7; camera.updateProjectionMatrix();
+      camera.position.set(kt.camX, 2.3, kt.camZ); camera.lookAt(kt.x + fx * 5, .8, kt.z + fz * 5);
     } else if (mode === 'seat' && me.seat) {
       const c = CI.c(me.seat.k), hh = CI.rowH(me.seat.r); camera.position.set(me.seat.x, CI.up + 1.2 + hh, me.seat.z + .35); camera.lookAt(c + (me.seat.x - c) * .2, CI.up + 2.4, -32.9);
     } else {
-      const D = me.zone === 'cine' ? 3.4 : CAM_D, cx = me.x + Math.sin(camYaw) * D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * D * Math.cos(camPitch), cy = me.y + 1.5 + D * Math.sin(camPitch);
+      if (camera.fov !== (mobile() ? 64 : 55)) { camera.fov = mobile() ? 64 : 55; camera.updateProjectionMatrix(); }
+      // la caméra recule derrière moi, mais jamais à travers un mur
+      let D = me.zone === 'cine' ? 3.4 : CAM_D; for (let k = 0; k < 12 && D > .6; k++) { const tx = me.x + Math.sin(camYaw) * D * Math.cos(camPitch), tz = me.z + Math.cos(camYaw) * D * Math.cos(camPitch); if (camInside(tx, tz)) break; D -= .35; }
+      const cx = me.x + Math.sin(camYaw) * D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * D * Math.cos(camPitch), cy = me.y + 1.5 + D * Math.sin(camPitch);
       camera.position.set(cx, cy, cz); camera.lookAt(me.x, me.y + 1.35, me.z);
     }
     camera.updateMatrixWorld(); placeFrame(); // la position de la caméra de CETTE image (sinon la vidéo a une image de retard)
@@ -924,12 +1302,13 @@ const Casino = (() => {
   }
 
   // ---------- les messages du serveur ----------
-  socket.on('cs_pos', L => { if (!active) return; for (const [id, x, z, yaw, y] of L) { if (id === myId()) continue; const p = people.get(id); if (p) { p.x = x; p.z = z; p.yaw = yaw; p.y = y || 0; } } });
+  socket.on('cs_pos', L => { if (!active) return; for (const [id, x, z, yaw, y, k] of L) { if (id === myId()) continue; const p = people.get(id); if (p) { p.x = x; p.z = z; p.yaw = yaw; p.y = y || 0; p.k = k || 0; } } });
   socket.on('cs_join', p => { if (!active) return; people.set(p.id, p); });
   socket.on('cs_left', id => { if (!active) return; people.delete(id); });
   socket.on('cs_player', p => { if (!active) return; const o = people.get(p.id); people.set(p.id, { ...o, ...p, ...(p.id === myId() ? {} : {}) }); });
   socket.on('cs_say', d => { if (active) say(d.id, d.text); });
   socket.on('cs_emote', d => { if (!active) return; say(d.id, d.e); const a = avatars.get(d.id); if (a && d.e === '💃') a.dance = 6; });
+  socket.on('kt_board', B => { if (!active || !info) return; info.kart = B; drawTower(); });
   socket.on('cs_cineset', d => { if (!active || !info) return; info.cine = info.cine || []; info.cine[d.salle] = d.video; info.serverNow = d.serverNow; info._recv = Date.now(); syncVideo(); });
   socket.on('cs_videoset', d => { if (!active || !info) return; info.video = d.video; info.serverNow = d.serverNow; info._recv = Date.now(); syncVideo(); });
   socket.on('pl_table', s => { if (active) setPool(s); });
@@ -937,6 +1316,6 @@ const Casino = (() => {
   socket.on('pk_table', P => { if (active) setPoker(P); });
   socket.on('pk_hole', h => { if (!active) return; pk.hole = h; sCard(); if (pk.st) setPoker(pk.st); });
   socket.on('connect', async () => { if (!active) return; const d = await ack('cs_enter', {}); if (d && !d.error && active) applyEnter(d); });
-  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, sitDown, me: () => ({ ...me }) } };
+  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, sitDown, me: () => ({ ...me }) } };
 })();
 window.Casino = Casino;
