@@ -1538,4 +1538,20 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 109,
+    date: '2026-11-23',
+    title: 'Un aquarium géant et un zoo dans le Paradise Complex 🐠🦁',
+    added: [
+      '🐠 Paradise Aquarium (porte à gauche dans l\'atrium) : un grand bassin derrière une vitre géante, avec requins, raies, tortue de mer et bancs de poissons de toutes les couleurs',
+      '🌊 Un tunnel de verre traverse le bassin : les poissons et les requins nagent au-dessus de ta tête',
+      '🪼 Des colonnes de méduses lumineuses, deux récifs coralliens, des algues qui ondulent, des bulles et des reflets d\'eau au sol',
+      '🖐️ Un bassin tactile avec des étoiles de mer, et des panneaux pour en apprendre plus',
+      '🦁 Paradise Zoo (porte à droite dans l\'atrium) : en plein jour avec ciel bleu, allées, arbres, kiosque à glaces et boutique souvenirs',
+      '🦒 La savane (girafes, zèbres, éléphants), les lions, l\'île des singes, la banquise des pingouins et l\'étang des flamants roses : les animaux se promènent dans leur enclos',
+      '🐟 Donne du poisson aux pingouins : ils accourent !',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
