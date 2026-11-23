@@ -1583,4 +1583,15 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 112,
+    date: '2026-11-23',
+    title: 'Fête foraine : le tir à la carabine et le chamboule-tout sont de vrais jeux 🎯🥫',
+    added: [
+      '🎯 Tir à la carabine : des canards qui défilent et des ballons qui flottent ; vise en touchant l\'écran (ou à la souris) et tire, tu as 10 balles. Touche 7 cibles pour gagner une peluche !',
+      '🥫 Chamboule-tout : une vraie pyramide de 10 boîtes qui tombent pour de vrai ; lance 3 balles là où tu touches l\'écran et fais tout tomber pour gagner une peluche !',
+    ],
+    changed: ['🎡 Les manèges sont corrigés : chaises volantes, carrousel dans le bon sens, grande roue, montagnes russes plus fluides, attente sur le quai'],
+    removed: [],
+  },
 ];

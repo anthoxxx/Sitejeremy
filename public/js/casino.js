@@ -124,8 +124,8 @@ const Casino = (() => {
       { zone: 'fair', x: 364.9, z: 10, r: 1.8, icon: '🍭', label: 'Acheter une barbe à papa', act: () => { ack('cs_drink', 'barbe'); sDing(); toast('🍭 Une barbe à papa toute rose !'); } },
       { zone: 'fair', x: 364.9, z: 17, r: 1.8, icon: '🥨', label: 'Acheter des churros', act: () => { ack('cs_drink', 'churros'); sDing(); toast('🥨 Des churros tout chauds !'); } },
       { zone: 'fair', x: 364.9, z: 24, r: 1.8, icon: '🦆', label: 'Jouer à la pêche aux canards', act: () => fairGame('canards') },
-      { zone: 'fair', x: 375.1, z: 10, r: 1.8, icon: '🎯', label: 'Jouer au tir à la carabine', act: () => fairGame('tir') },
-      { zone: 'fair', x: 375.1, z: 24, r: 1.8, icon: '🥫', label: 'Jouer au chamboule-tout', act: () => fairGame('chamboule') },
+      { zone: 'fair', x: 375.1, z: 10, r: 1.8, icon: '🎯', label: 'Jouer au tir à la carabine', act: () => startStandGame('tir') },
+      { zone: 'fair', x: 375.1, z: 24, r: 1.8, icon: '🥫', label: 'Jouer au chamboule-tout', act: () => startStandGame('chamboule') },
       { zone: 'hall', lvl: 0, x: -99, z: 14.5, r: 2, icon: '🐠', label: 'Entrer dans l\'aquarium', act: () => goZone('aqua') },
       { zone: 'hall', lvl: 0, x: -61, z: 14.5, r: 2, icon: '🦁', label: 'Entrer dans le zoo', act: () => goZone('zoo') },
       { zone: 'aqua', x: 170, z: 19, r: 1.7, icon: '🏬', label: 'Retour à l\'atrium', act: () => goZone('hallFromAqua') },
@@ -628,10 +628,10 @@ const Casino = (() => {
     night: { zone: 'night', x: 115, z: 12.6, y: 0, lvl: 0, yaw: 0 }, kart: { zone: 'kart', x: -145, z: 20, y: 0, lvl: 0, yaw: 0 } };
   const WELCOME = { fair: '🎡 Bienvenue à la fête foraine ! Grande roue, montagnes russes, carrousel… et mets la musique sur la scène !', aqua: '🐠 Bienvenue au Paradise Aquarium ! Passe dans le tunnel de verre, les requins nagent au-dessus de toi', zoo: '🦁 Bienvenue au Paradise Zoo ! Girafes, éléphants, lions, singes, pingouins et flamants roses t\'attendent', hall: '🏬 Bienvenue au Paradise Complex ! Prends l\'escalator pour la boîte de nuit et le cinéma', club: '🎰 Le casino et les jeux : bar, billards, poker, bowling, laser game…', cine: '🎬 Bienvenue au Paradise Ciné ! Prends l\'escalator pour aller dans les salles', night: '🪩 Bienvenue à The Paradise Night ! Va sur la piste, au bar ou au carré VIP', kart: '🏎️ Bienvenue au Paradise Karting ! Prends un kart au stand pour faire un tour' };
   function goZone(key, quiet) {
-    const S = SPAWN[key]; if (!S) return; if (mode === 'kart') leaveKart(true); if (mode === 'ride') leaveRide(true); if (mode === 'seat') { me.seat = null; mode = 'walk'; }
+    const S = SPAWN[key]; if (!S) return; if (mode === 'kart') leaveKart(true); if (mode === 'ride') leaveRide(true); if (mode === 'game') endStandGame(); if (mode === 'seat') { me.seat = null; mode = 'walk'; }
     Object.assign(me, { zone: S.zone, x: S.x, z: S.z, y: S.y, lvl: S.lvl, yaw: S.yaw, ride: null, seat: null }); camYaw = S.yaw;
     for (const k in ZG) ZG[k].visible = k === S.zone;
-    const sky = S.zone === 'zoo' ? 0x9fd0f0 : S.zone === 'aqua' ? 0x02101e : S.zone === 'fair' ? 0x0a0618 : 0x07040c; scene.background.setHex(sky); scene.fog.color.setHex(sky); scene.fog.near = S.zone === 'zoo' || S.zone === 'fair' ? 60 : 32; scene.fog.far = S.zone === 'zoo' || S.zone === 'fair' ? 170 : 70; if (zooSun) zooSun.intensity = S.zone === 'zoo' ? 1.8 : 0; fairLights.forEach(l => { l.intensity = S.zone === 'fair' ? 35 : 0; });
+    const sky = S.zone === 'zoo' ? 0x9fd0f0 : S.zone === 'aqua' ? 0x02101e : S.zone === 'fair' ? 0x0a0618 : 0x07040c; scene.background.setHex(sky); scene.fog.color.setHex(sky); scene.fog.near = S.zone === 'zoo' || S.zone === 'fair' ? 60 : 32; scene.fog.far = S.zone === 'zoo' || S.zone === 'fair' ? 170 : 70; if (zooSun) zooSun.intensity = S.zone === 'zoo' ? 1.8 : 0; fairLights.forEach(l => { l.intensity = S.zone === 'fair' ? 35 : 0; }); if (S.zone === 'fair') buildStandGames();
     hidePanel(); socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); syncVideo(); if (!quiet && WELCOME[S.zone]) toast(WELCOME[S.zone]);
   }
   const ZONES = [['hall', '🏬', 'L\'atrium (accueil, boutiques, fontaine)'], ['club', '🎰', 'Casino & jeux (bar, billards, poker, bowling, laser game)'], ['night', '🪩', 'The Paradise Night (la boîte de nuit)'], ['cine', '🎬', 'Paradise Ciné (4 salles)'], ['kart', '🏎️', 'Paradise Karting (circuit)'], ['aqua', '🐠', 'Paradise Aquarium (tunnel, requins, méduses)'], ['zoo', '🦁', 'Paradise Zoo (savane, lions, singes, pingouins…)'], ['fair', '🎡', 'Fête foraine (grande roue, montagnes russes, manèges)']];
@@ -1233,7 +1233,7 @@ const Casino = (() => {
     for (const [x, z, r] of [[-.15, -.35, .5], [.15, -.35, -.6], [-.15, .35, -.5], [.15, .35, .6]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(.04, .03, .55, 6), m); l.position.set(x, -.35, z); l.rotation.x = r; g.add(l); }
     const saddle = new THREE.Mesh(new THREE.BoxGeometry(.3, .06, .3), std(0xd42020)); saddle.position.y = .3; g.add(saddle); const mane = new THREE.Mesh(new THREE.BoxGeometry(.04, .14, .5), gold); mane.position.set(0, .45, -.45); mane.rotation.x = -.6; g.add(mane); return g; }
   function buildFair() {
-    BG = ZG.fair = new THREE.Group(); scene.add(BG); BG.visible = false; bulbHue = [];
+    BG = ZG.fair = new THREE.Group(); scene.add(BG); BG.visible = false; bulbHue = []; Object.assign(SG, { built: false, ducks: [], balloons: [], cans: [], balls: [], kind: null }); anims.push(animTargets);
     const { x0, x1, z0, z1 } = FR, MX = (x0 + x1) / 2, MZ = (z0 + z1) / 2, W = x1 - x0, D = z1 - z0;
     const RB = (w, h, d, r, m) => new THREE.Mesh(new LIB2.RoundedBoxGeometry(w, h, d, 3, r), m); // boîte aux coins arrondis
     const glowM = (c, k = 2.2) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), toneMapped: false }); // ça brille (lueur)
@@ -1384,7 +1384,7 @@ const Casino = (() => {
     const churro = G => { for (let k = 0; k < 8; k++) { const c2 = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .6, 8), std(0xc8843a, { roughness: .8 })); c2.position.set(-1.4 + k * .4, 1.45, -.3); c2.rotation.z = .3; G.add(c2); } };
     const cans = G => { for (let r = 0; r < 4; r++) for (let k = 0; k <= 3 - r; k++) { const c2 = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, .26, 12), std([0xff2b4a, 0x2a5aff, 0xffd23f][(r + k) % 3], { metalness: .7, roughness: .3 })); c2.position.set(-.4 + k * .26 + r * .13, 1.25 + r * .27, -.3); G.add(c2); } };
     fancyStall(363, 10, Math.PI / 2, '🍭 BARBE À PAPA', '#ff7ad9', candy); fancyStall(363, 17, Math.PI / 2, '🥨 CHURROS', '#ffb070', churro); fancyStall(363, 24, Math.PI / 2, '🦆 PÊCHE AUX CANARDS', '#38e8ff', ducks);
-    fancyStall(377, 10, -Math.PI / 2, '🎯 TIR À LA CARABINE', '#2bff88', plush); fancyStall(377, 24, -Math.PI / 2, '🥫 CHAMBOULE-TOUT', '#ffd23f', cans);
+    fancyStall(377, 10, -Math.PI / 2, '🎯 TIR À LA CARABINE', '#2bff88'); fancyStall(377, 24, -Math.PI / 2, '🥫 CHAMBOULE-TOUT', '#ffd23f'); // les cibles et les boîtes sont de vrais jeux (voir plus bas)
     for (const z of [10, 17, 24]) fairBoxes.push([361.5, z - 2.2, 364.6, z + 2.2]); for (const z of [10, 24]) fairBoxes.push([375.4, z - 2.2, 378.5, z + 2.2]);
     // ---- la scène : écran géant (musique YouTube), arche de projecteurs, enceintes
     const stage = RB(13, 1, 5.5, .3, std(0x1a1430, { metalness: .5, roughness: .3 })); stage.position.set(MX, .5, -37.3); BG.add(stage);
@@ -1449,6 +1449,87 @@ const Casino = (() => {
     if (kind === 'tir') { const sc = Math.floor(Math.random() * 11); sDing(); toast(sc >= 8 ? `🎯 ${sc}/10 ! Bravo, tu gagnes ${prizes[Math.random() * prizes.length | 0]} !` : `🎯 ${sc}/10… retente ta chance !`); if (sc >= 8) socket.emit('cs_emote', '🧸'); }
     if (kind === 'canards') { const w = Math.random() < .5; sDing(); toast(w ? `🦆 Gagné ! Tu repars avec ${prizes[Math.random() * prizes.length | 0]}` : '🦆 Pas de chance, ce canard n\'avait pas de numéro gagnant !'); }
     if (kind === 'chamboule') { const n = Math.floor(Math.random() * 11); sDing(); toast(n === 10 ? '🥫 Toutes les boîtes sont tombées : tu gagnes une peluche !' : `🥫 ${n} boîtes sur 10 tombées !`); }
+  }
+
+  // ---------- 🎯🥫 les vrais jeux des stands : tir à la carabine et chamboule-tout ----------
+  const SG = { built: false, ducks: [], balloons: [], cans: [], balls: [], kind: null, shots: 0, score: 0, rifle: null, flash: 0, done: false };
+  const CAN = { r: .11, h: .26, x: 377.3, z: 24, top: 1.2 }; // les boîtes posées sur le comptoir du chamboule-tout
+  function buildStandGames() { // construit une fois les canards, les ballons et la pyramide de boîtes
+    if (SG.built) return; SG.built = true; const G = ZG.fair;
+    // le tir : 7 canards qui défilent sur un rail, 4 ballons qui flottent au-dessus
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.05, .06, 3.6), std(0x333333, { metalness: .7 })); rail.position.set(377.75, 1.5, 10); G.add(rail);
+    const bgP = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 1.7), new THREE.MeshStandardMaterial({ map: stripes('#1f6a3a', '#2a8a4a'), roughness: .8 })); bgP.position.set(377.85, 2.05, 10); bgP.rotation.y = -Math.PI / 2; G.add(bgP);
+    for (let k = 0; k < 7; k++) { const g = new THREE.Group(), y = std(0xffd23f, { roughness: .5 }); const b = new THREE.Mesh(new THREE.SphereGeometry(.12, 14, 10), y); b.scale.set(1, .85, 1.3); g.add(b); const h = new THREE.Mesh(new THREE.SphereGeometry(.08, 12, 10), y); h.position.set(0, .12, -.1); g.add(h); const bk = new THREE.Mesh(new THREE.ConeGeometry(.035, .09, 8), std(0xff7a1f)); bk.rotation.x = -Math.PI / 2; bk.position.set(0, .11, -.2); g.add(bk);
+      const tg = new THREE.Mesh(new THREE.CircleGeometry(.09, 20), new THREE.MeshBasicMaterial({ map: (() => { const [c, gg] = cnv(64, 64); for (let r = 4; r > 0; r--) { gg.fillStyle = r % 2 ? '#d42020' : '#ffffff'; gg.beginPath(); gg.arc(32, 32, r * 7.5, 0, 7); gg.fill(); } return tex(c); })() })); tg.position.set(-.135, .02, 0); tg.rotation.y = -Math.PI / 2; g.add(tg);
+      g.rotation.y = Math.PI / 2; G.add(g); SG.ducks.push({ g, s: k / 7, hit: 0 }); }
+    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.14, 16, 12), std([0xff2b7a, 0x2a8aff, 0xffd23f, 0x2bdf88][k], { roughness: .2, metalness: .1 })); b.scale.y = 1.2; G.add(b); const str = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .35), white0()); str.position.y = -.33; b.add(str); SG.balloons.push({ g: b, z: 8.8 + k * .8, ph: k * 1.7, hit: 0 }); }
+    // le chamboule-tout : une pyramide de 10 boîtes (4, 3, 2, 1)
+    const cg = new THREE.CylinderGeometry(CAN.r, CAN.r, CAN.h, 16);
+    for (let row = 0; row < 4; row++) for (let i = 0; i < 4 - row; i++) { const m = new THREE.Mesh(cg, std([0xff2b4a, 0x2a5aff, 0xffd23f, 0x2bdf88][(row + i) % 4], { metalness: .7, roughness: .3 })); const z = CAN.z + (i - (3 - row) / 2) * (CAN.r * 2 + .01), y = CAN.top + CAN.h / 2 + row * CAN.h; m.position.set(CAN.x, y, z); G.add(m); SG.cans.push({ m, home: [CAN.x, y, z], p: new THREE.Vector3(CAN.x, y, z), v: new THREE.Vector3(), awake: false, row }); }
+    // la carabine (accrochée à la caméra quand on joue)
+    const rf = new THREE.Group(); const stock = new THREE.Mesh(new THREE.BoxGeometry(.06, .08, .35), std(0x6b3a1a, { roughness: .6 })); stock.position.z = .15; rf.add(stock); const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, .55, 10), std(0x222222, { metalness: .9, roughness: .3 })); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, .03, -.25); rf.add(barrel);
+    rf.position.set(.18, -.2, -.45); rf.visible = false; camera.add(rf); scene.add(camera); SG.rifle = rf;
+  }
+  const white0 = () => std(0xffffff);
+  function resetCans() { for (const c of SG.cans) { c.p.set(...c.home); c.v.set(0, 0, 0); c.awake = false; c.m.position.copy(c.p); c.m.rotation.set(0, 0, 0); } for (const b of SG.balls) ZG.fair.remove(b.m); SG.balls = []; }
+  function startStandGame(kind) {
+    buildStandGames(); Object.assign(SG, { kind, shots: kind === 'tir' ? 10 : 3, score: 0, done: false }); if (kind === 'chamboule') resetCans();
+    SG.ducks.forEach(d => { d.hit = 0; }); SG.balloons.forEach(b => { b.hit = 0; b.g.visible = true; });
+    mode = 'game'; hidePanel(); hud.emotes.classList.add('hidden'); hud.joy.classList.add('hidden'); hud.game.classList.remove('hidden'); SG.rifle.visible = kind === 'tir'; renderGame();
+    toast(kind === 'tir' ? (mobile() ? '🎯 Touche un canard ou un ballon pour tirer : 10 balles !' : '🎯 Clique sur un canard ou un ballon pour tirer : 10 balles !') : (mobile() ? '🥫 Touche l\'écran là où tu veux lancer la balle : fais tout tomber en 3 lancers !' : '🥫 Clique là où tu veux lancer la balle : fais tout tomber en 3 lancers !'));
+  }
+  function endStandGame() { mode = 'walk'; SG.kind = null; if (SG.rifle) SG.rifle.visible = false; hud.game.classList.add('hidden'); hud.emotes.classList.remove('hidden'); hud.joy.classList.toggle('hidden', !mobile()); }
+  const PRIZES = ['🧸 un nounours géant', '🐰 un lapin en peluche', '🦄 une licorne en peluche', '🐻 un ours tout doux', '🐶 un petit chien en peluche', '🐬 un dauphin en peluche'];
+  function renderGame() {
+    const T = SG.kind === 'tir', knocked = SG.cans.filter(c => c.p.distanceTo(new THREE.Vector3(...c.home)) > .12).length;
+    hud.gameTxt.textContent = T ? `🎯 Score : ${SG.score} · 🔫 ${SG.shots} balle${SG.shots > 1 ? 's' : ''}` : `🥫 ${knocked}/10 boîtes tombées · ⚾ ${SG.shots} balle${SG.shots > 1 ? 's' : ''}`;
+    hud.gameAgain.classList.toggle('hidden', !SG.done);
+  }
+  function finishGame() {
+    SG.done = true; const T = SG.kind === 'tir', knocked = SG.cans.filter(c => c.p.distanceTo(new THREE.Vector3(...c.home)) > .12).length;
+    const win = T ? SG.score >= 7 : knocked === 10, prize = PRIZES[Math.random() * PRIZES.length | 0];
+    if (win) { sDing(); setTimeout(sDing, 250); window.LC?.confetti?.(['🧸', '🎉', '✨']); socket.emit('cs_emote', '🧸'); toast(T ? `🏆 ${SG.score} cibles touchées : tu gagnes ${prize} !` : `🏆 Tout est tombé : tu gagnes ${prize} !`); }
+    else toast(T ? `🎯 ${SG.score} cibles sur 10… il en faut 7 pour gagner une peluche. Rejoue !` : `🥫 ${knocked} boîtes sur 10… il faut tout faire tomber. Rejoue !`);
+    renderGame();
+  }
+  const _rc = () => new THREE.Raycaster(), _nd = new (function () { this.x = 0; this.y = 0; })();
+  function gameClick(e) {
+    if (mode !== 'game' || SG.done || SG.shots <= 0) return; const r = canvas.getBoundingClientRect(), v = new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), rc = _rc(); rc.setFromCamera(v, camera);
+    if (SG.kind === 'tir') {
+      SG.shots--; noise(.08, 2500, 1, .35); tone(220, 90, .08, .2); SG.flash = 1;
+      const targets = [...SG.ducks.filter(d => !d.hit).map(d => ({ o: d.g, d })), ...SG.balloons.filter(b => !b.hit).map(b => ({ o: b.g, b }))];
+      const hits = rc.intersectObjects(targets.map(t => t.o), true); if (hits.length) { const obj = hits[0].object; const t = targets.find(t => t.o === obj || t.o.getObjectById(obj.id)); if (t) { SG.score++; tone(880, 1320, .12, .15); if (t.d) t.d.hit = 1.2; else { t.b.hit = 1; t.b.g.visible = false; noise(.15, 1500, 1, .3); } } }
+      renderGame(); if (SG.shots <= 0) setTimeout(finishGame, 600);
+    } else {
+      SG.shots--; const m = new THREE.Mesh(new THREE.SphereGeometry(.09, 14, 10), std(0xf4f0ea, { roughness: .6 })), p = camera.position.clone().addScaledVector(rc.ray.direction, .5);
+      const vel = rc.ray.direction.clone().multiplyScalar(11); vel.y += 1.2; m.position.copy(p); ZG.fair.add(m); SG.balls.push({ m, p, v: vel, t: 0 }); noise(.1, 600, 1, .2); renderGame();
+      if (SG.shots <= 0) setTimeout(finishGame, 3200);
+    }
+  }
+  function gameFrame(dt, t) {
+    // la caméra devant le stand
+    if (SG.kind === 'tir') { camera.position.set(373.3, 1.75, 10); camera.lookAt(377.8, 1.85, 10); } else { camera.position.set(375.2, 1.7, 24); camera.lookAt(377.3, 1.55, 24); }
+    if (SG.rifle) { SG.flash = Math.max(0, SG.flash - dt * 8); SG.rifle.position.z = -.45 + SG.flash * .05; SG.rifle.rotation.x = SG.flash * .15; }
+    // les boîtes : la gravité, le comptoir, les chocs entre boîtes et avec les balles
+    if (SG.kind === 'chamboule') {
+      const onCounter = p => p.x > 376.15 && p.x < 377.95 && p.z > 22 && p.z < 26, R = CAN.r + .015, steps = 4, h = dt / steps;
+      for (let s = 0; s < steps; s++) {
+        for (const b of SG.balls) { b.v.y -= 9.8 * h; b.p.addScaledVector(b.v, h); if (b.p.y < .09) { b.p.y = .09; b.v.y *= -.3; b.v.multiplyScalar(.8); } if (onCounter(b.p) && b.p.y < CAN.top + .09 && b.p.y > CAN.top - .2) { b.p.y = CAN.top + .09; b.v.y *= -.3; } b.t += h;
+          for (const c of SG.cans) { const d = c.p.clone().sub(b.p), dist = d.length(); if (dist < R + .09 && dist > 1e-4) { d.normalize(); const rel = b.v.dot(d) - c.v.dot(d); if (rel > 0) { c.v.addScaledVector(d, rel * 1.2); b.v.addScaledVector(d, -rel * .6); if (!c.awake) { c.awake = true; tone(500 + Math.random() * 300, 300, .08, .2); } } c.p.addScaledVector(d, (R + .09 - dist) * .5); } } }
+        for (const c of SG.cans) { if (!c.awake) continue; c.v.y -= 9.8 * h; c.p.addScaledVector(c.v, h); const floor = onCounter(c.p) ? CAN.top + CAN.h / 2 : CAN.h / 2; if (c.p.y < floor) { c.p.y = floor; c.v.y *= -.25; c.v.x *= .9; c.v.z *= .9; } }
+        for (let i = 0; i < SG.cans.length; i++) for (let j = i + 1; j < SG.cans.length; j++) { const A = SG.cans[i], B = SG.cans[j]; if (!A.awake && !B.awake) continue; const d = B.p.clone().sub(A.p), dist = d.length(); if (dist < R * 2 && dist > 1e-4) { d.normalize(); const push = (R * 2 - dist) / 2; if (A.awake) A.p.addScaledVector(d, -push); if (B.awake) B.p.addScaledVector(d, push); const rel = A.v.dot(d) - B.v.dot(d); if (rel > 0) { A.v.addScaledVector(d, -rel * .5); B.v.addScaledVector(d, rel * .5); if (!B.awake) B.awake = true; if (!A.awake) A.awake = true; } } }
+        // une boîte du dessus tombe si celle du dessous n'est plus là
+        for (const c of SG.cans) { if (c.awake || !c.row) continue; const below = SG.cans.filter(o => o.row === c.row - 1 && Math.abs(o.home[2] - c.home[2]) < CAN.r * 2.2); if (below.some(o => o.awake && o.p.distanceTo(new THREE.Vector3(...o.home)) > .05)) c.awake = true; }
+      }
+      for (const c of SG.cans) { c.m.position.copy(c.p); if (c.awake) { c.m.rotation.x += c.v.z * dt * 3; c.m.rotation.z -= c.v.x * dt * 3; } }
+      for (const b of SG.balls) b.m.position.copy(b.p);
+      SG.hudT = (SG.hudT || 0) + dt; if (SG.hudT > .25) { SG.hudT = 0; renderGame(); }
+    }
+  }
+  function animTargets(dt, t) { // les canards défilent, les ballons flottent (aussi quand on ne joue pas)
+    if (!SG.built || me.zone !== 'fair') return;
+    for (const d of SG.ducks) { d.s = (d.s + dt * .12) % 1; const z = 8.3 + d.s * 3.4; d.g.position.set(377.7, 1.62, z); if (d.hit > 0) { d.hit -= dt; d.g.rotation.z = Math.min(1.5, (1.2 - d.hit) * 6); if (d.hit <= 0) d.g.rotation.z = 0; } }
+    for (const b of SG.balloons) { b.g.position.set(377.75, 2.35 + Math.sin(t * 1.5 + b.ph) * .1, b.z); if (b.hit && !SG.kind) { b.hit = 0; b.g.visible = true; } }
   }
 
   // ---------- 🧍 les personnages ----------
@@ -1557,10 +1638,12 @@ const Casino = (() => {
     hud.frame = el('div', { class: 'bw-frame hidden' }); hud.mute = el('button', { class: 'cs-tvb', title: 'Couper / remettre le son de la vidéo', onclick: () => setMute(!muted) }, '🔊');
     hud.zoneBtn = el('button', { class: 'cs-tvb cine', onclick: () => { if (mode !== 'walk') backToWalk(); if (mode === 'walk') mapPanel(); } }, '🗺️ Plan');
     hud.kartSpd = el('b', { class: 'cs-kspd' }); hud.kartLap = el('div', { class: 'cs-klap' }); hud.kartBest = el('small', {});
+    hud.gameTxt = el('b', {}); hud.gameAgain = el('button', { class: 'btn btn-sm btn-primary hidden', onclick: () => startStandGame(SG.kind) }, '🔁 Rejouer');
+    hud.game = el('div', { class: 'cs-ride hidden' }, hud.gameTxt, hud.gameAgain, el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Partir'));
     hud.rideTxt = el('b', {}); hud.ride = el('div', { class: 'cs-ride hidden' }, hud.rideTxt, el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Descendre'));
     hud.kart = el('div', { class: 'cs-kart hidden' }, hud.kartSpd, hud.kartLap, hud.kartBest, el('div', { class: 'cs-krow' }, el('button', { class: 'btn btn-sm', onclick: () => kartBoardPanel() }, '🏁 Classement'), el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Descendre du kart')));
     const tvBtns = el('div', { class: 'cs-tv' }, hud.zoneBtn, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
-    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, hud.kart, hud.ride, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
+    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, hud.kart, hud.ride, hud.game, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
     const knob = el('div', { class: 'joy-knob' }), pad = el('div', { class: 'joy lg-joy cs-joy' + (mobile() ? '' : ' hidden') }, el('i', { class: 'joy-ring' }), knob); hud.joy = pad;
     let id = null;
     const mv = e => { const r = pad.getBoundingClientRect(), Rr = r.width / 2; let dx = e.clientX - (r.left + Rr), dy = e.clientY - (r.top + Rr); const d = Math.hypot(dx, dy), mx = Rr * .62; if (d > mx) { dx *= mx / d; dy *= mx / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / mx; stick.y = dy / mx; };
@@ -1572,7 +1655,7 @@ const Casino = (() => {
   }
   let nearSpot = null;
   function renderTop() { const n = people.size, k = salleAt(me.x, me.z); hud.top.textContent = me.zone === 'hall' ? `🏬 Paradise Complex · ${me.lvl ? 'Niveau 1' : 'Niveau 0'} · ${n} joueur${n > 1 ? 's' : ''}` : me.zone === 'night' ? '🪩 The Paradise Night' : me.zone === 'kart' ? '🏎️ Paradise Karting' : me.zone === 'aqua' ? '🐠 Paradise Aquarium' : me.zone === 'zoo' ? '🦁 Paradise Zoo' : me.zone === 'fair' ? '🎡 Fête foraine' : me.zone === 'cine' ? (k >= 0 ? `🎬 Paradise Ciné · Salle ${k + 1}` : `🎬 Paradise Ciné · ${me.lvl ? 'Étage des salles' : 'Hall'}`) : '🎰 Casino & jeux'; }
-  function doAct() { if (mode === 'seat') return standUp(); if (mode === 'kart' || mode === 'ride') return; if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
+  function doAct() { if (mode === 'seat') return standUp(); if (mode === 'kart' || mode === 'ride' || mode === 'game') return; if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
   function showPanel(...kids) { hud.panel.replaceChildren(el('button', { class: 'cs-x', onclick: () => hidePanel() }, '✕'), ...kids); hud.panel.classList.remove('hidden'); }
   const hidePanel = () => hud.panel?.classList.add('hidden');
   const SNACKS = ['popcorn', 'nachos', 'glace', 'slush', 'soda'];
@@ -1588,6 +1671,7 @@ const Casino = (() => {
     showPanel(el('h3', {}, '🎰 Machine à sous'), el('div', { class: 'cs-reels' }, ...reels), res, el('button', { class: 'btn btn-primary', style: 'width:100%', onclick: spin }, '🎰 Tirer le levier'));
   }
   function backToWalk() {
+    if (mode === 'game') return endStandGame();
     if (mode === 'ride') return leaveRide();
     if (mode === 'seat') return standUp();
     if (mode === 'kart') return leaveKart();
@@ -1757,6 +1841,7 @@ const Casino = (() => {
   };
   const onUp = e => {
     if (!drag || e.pointerId !== drag.id) return; const tap = drag.moved < 10; drag = null;
+    if (tap && mode === 'game') return gameClick(e);
     if (tap && mode === 'pool' && myTurnPool()) { const T = tables[poolT], p = tablePoint(e); if (!p) return; const S = T.st;
       if (T.place) { const ok = Math.abs(p[0]) < PP.T.L / 2 - PP.R && Math.abs(p[1]) < PP.T.W / 2 - PP.R && S.balls.every((b, n) => !n || !b || Math.hypot(b[0] - p[0], b[1] - p[1]) > PP.R * 2.1); if (!ok) return toast('Pas de place ici'); T.local = S.balls.map((b, n) => n ? b : p); T.balls[0].visible = true; T.balls[0].position.set(p[0], TH + PP.R, p[1]); T.place = false; T.aim = bestAimGuess({ ...S, balls: T.local }); renderPool(); return; }
       const c = (T.local || S.balls)[0]; if (c) T.aim = Math.atan2(p[1] - c[1], p[0] - c[0]); }
@@ -1823,6 +1908,8 @@ const Casino = (() => {
     } else if (mode === 'poker') {
       const i = pk.st?.seats.findIndex(s => s && s.id === myId()) ?? -1; const [x, z] = seatXZ(Math.max(0, i), 1.25);
       camera.position.set(x, 1.65, z); camera.lookAt(PK.x + (PK.x - x) * .05, .75, PK.z + (PK.z - z) * .05);
+    } else if (mode === 'game') {
+      gameFrame(dt, t);
     } else if (mode === 'ride') {
       rideFrame(dt, ts);
     } else if (mode === 'kart') {
@@ -1857,6 +1944,6 @@ const Casino = (() => {
   socket.on('pk_table', P => { if (active) setPoker(P); });
   socket.on('pk_hole', h => { if (!active) return; pk.hole = h; sCard(); if (pk.st) setPoker(pk.st); });
   socket.on('connect', async () => { if (!active) return; const d = await ack('cs_enter', {}); if (d && !d.error && active) applyEnter(d); });
-  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, boardRide, sitDown, me: () => ({ ...me }), set: o => Object.assign(me, o), av: () => { const a = avatars.get(myId()); return a && { cur: a.cur, spd: +(a.spd || 0).toFixed(2), y: +(a.y || 0).toFixed(2), ty: a.ty, w: Object.fromEntries(Object.entries(a.act).map(([k, x]) => [k, [+x.getEffectiveWeight().toFixed(2), x.isRunning(), +x.time.toFixed(2), x.enabled]])) }; } } };
+  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, boardRide, startStandGame, shoot: (x, y) => gameClick({ clientX: x, clientY: y }), proj: w => { const L = w === 'cans' ? SG.cans.map(c => c.m) : SG.ducks.filter(d => !d.hit).map(d => d.g); return L.map(o => { const v = o.getWorldPosition(new THREE.Vector3()).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }); }, sg: () => ({ score: SG.score, shots: SG.shots, done: SG.done, down: SG.cans.filter(c => c.p.distanceTo(new THREE.Vector3(...c.home)) > .12).length }), sitDown, me: () => ({ ...me }), set: o => Object.assign(me, o), av: () => { const a = avatars.get(myId()); return a && { cur: a.cur, spd: +(a.spd || 0).toFixed(2), y: +(a.y || 0).toFixed(2), ty: a.ty, w: Object.fromEntries(Object.entries(a.act).map(([k, x]) => [k, [+x.getEffectiveWeight().toFixed(2), x.isRunning(), +x.time.toFixed(2), x.enabled]])) }; } } };
 })();
 window.Casino = Casino;
