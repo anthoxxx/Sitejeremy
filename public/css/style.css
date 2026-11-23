@@ -1697,7 +1697,9 @@ body { background:
   50% { box-shadow: 0 0 10px var(--neon-glow, var(--neon)), 0 0 24px color-mix(in srgb, var(--neon-glow, var(--neon)) 80%, transparent), inset 0 0 12px color-mix(in srgb, var(--neon-glow, var(--neon)) 35%, transparent); }
 }
 /* Petit scintillement d'enseigne lumineuse (chaque salon à son rythme) */
-@keyframes neonFlicker { 0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; } 20%, 24%, 55% { opacity: .6; } }
+/* (on fait clignoter le contour, pas la transparence : sur téléphone, faire varier la transparence de chaque salon
+   créait un calque par salon, et le navigateur finissait par ne plus en dessiner certains → des salons invisibles) */
+@keyframes neonFlicker { 20%, 24%, 55% { border-color: rgba(255, 255, 255, .22); } }
 #roomList .list-item:nth-child(2n) { animation-delay: -.7s, -1.3s; }
 #roomList .list-item:nth-child(3n) { animation-delay: -1.4s, -2.6s; }
 #roomList .list-item:nth-child(5n) { animation-delay: -.3s, -3.9s; }
