@@ -9,7 +9,7 @@ const Casino = (() => {
   const POOLS = [{ x: -5, z: .5 }, { x: -5, z: 6.5 }], PK = { x: 7.5, z: 3.5, rx: 2.0, rz: 1.15 }, TH = .8; // TH = hauteur du tapis du billard
   let active = false, K = null, THREE = null, R = null, scene = null, camera = null, canvas = null, ov = null, raf = 0, last = 0, paused = false;
   let info = null, hud = {}, mode = 'walk', poolT = -1, lastSend = 0, camYaw = 0, camPitch = .32, drinks = {};
-  const me = { x: 0, z: 11, yaw: 0 }, people = new Map(), avatars = new Map(), keys = new Set(), stick = { x: 0, y: 0, on: false };
+  const me = { x: 0, z: 11, yaw: 0, y: 0, zone: 'club', lvl: 0, ride: null, seat: null }, people = new Map(), avatars = new Map(), keys = new Set(), stick = { x: 0, y: 0, on: false };
   const tables = [], pk = { st: null, hole: null, meshes: null };
   const mobile = () => innerWidth < 760 || matchMedia('(pointer: coarse)').matches;
   const myId = () => state.me?.id;
@@ -73,7 +73,7 @@ const Casino = (() => {
   // ---------- 🏗️ le bâtiment ----------
   const boxes = []; // les obstacles [x0, z0, x1, z1]
   const block = (x0, z0, x1, z1) => boxes.push([Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)]);
-  const fits = (x, z) => x > -17.6 && x < 17.6 && z > -13.5 && z < 13.4 && !boxes.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD);
+  const fits = (x, z) => me.zone === 'cine' ? cineFits(x, z) : x > -17.6 && x < 17.6 && z > -13.5 && z < 13.4 && !boxes.some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD);
   const anims = []; // petites animations du décor
   let spots = []; // les endroits où l'on peut faire quelque chose
   function build() {
@@ -100,7 +100,7 @@ const Casino = (() => {
     const exitS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .3), neon('🚪 SORTIE', '#2bff88', 512, 90)); exitS.position.set(0, 3.45, 13.9); exitS.rotation.y = Math.PI; scene.add(exitS);
     // des lustres
     for (const [x, z] of [[-5, 3.5], [7.5, 3.5], [0, -5], [0, 9]]) chandelier(x, z);
-    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge(); buildParty();
+    buildBowling(); buildLaser(); buildBar(); POOLS.forEach((p, i) => buildPool(i, p)); buildPoker(); buildSlots(); buildLounge(); buildParty(); buildCinema();
     // les reflets
     const pm = new THREE.PMREMGenerator(R), env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(10, 16, 8), new THREE.MeshBasicMaterial({ color: 0x24121e, side: THREE.BackSide })));
     for (const [x, y, z, c] of [[3, 4, 2, 0xff2bd6], [-3, 4, 6, 0x38e8ff], [0, 6, -4, 0xfff0d0], [0, -3, 0, 0x301018]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), new THREE.MeshBasicMaterial({ color: c })); s.position.set(x, y, z); env.add(s); }
@@ -108,6 +108,12 @@ const Casino = (() => {
     camera = new THREE.PerspectiveCamera(mobile() ? 64 : 55, 1, .03, 80);
     spots = [
       { x: 0, z: 12.6, r: 1.6, icon: '🚪', label: 'Sortir du club', act: () => { if (confirm('Sortir du Paradise Club ?')) leave(); } },
+      { x: 4, z: 12.7, r: 1.5, icon: '🎬', label: 'Aller au cinéma', act: () => goCine(true) },
+      { zone: 'cine', lvl: 0, x: CI.mid, z: 14.1, r: 1.6, icon: '🚪', label: 'Retour au Paradise Club', act: () => goCine(false) },
+      { zone: 'cine', lvl: 0, x: 70.5, z: 6.2, r: 2.2, icon: '🍿', label: 'Prendre du popcorn', act: () => drinkMenu(true) },
+      { zone: 'cine', lvl: 0, x: 49.5, z: 6.2, r: 2.2, icon: '🎟️', label: 'Voir les films à l\'affiche', act: () => cineProgram() },
+      ...[0, 1, 2, 3].map(k => ({ zone: 'cine', lvl: 1, x: CI.c(k), z: -23.5, r: 4.6, icon: '🪑', label: `S'asseoir (salle ${k + 1})`, act: () => sitDown(k) })),
+      ...[0, 1, 2, 3].map(k => ({ zone: 'cine', lvl: 1, x: CI.c(k), z: -16.3, r: 1.3, icon: '🎬', label: `Choisir le film de la salle ${k + 1}`, act: () => ytPanel() })),
       { x: -10, z: -12.8, r: 2.4, icon: '🎳', label: 'Entrer au Bowling', act: () => goTo('bowling') },
       { x: 10, z: -12.8, r: 2.4, icon: '🔫', label: 'Entrer au Laser Game', act: () => goTo('laser') },
       { x: -13.9, z: 0, r: 2.6, icon: '🍹', label: 'Commander au bar', act: () => drinkMenu() },
@@ -324,7 +330,7 @@ const Casino = (() => {
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.7), new THREE.MeshBasicMaterial({ color: 0xff2bd6, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false })); glow.position.z = -.08; G.add(glow); partyMats.push(glow.material); glow.material.userData.hue = Math.random();
     }
     // tout bouge en rythme (environ 124 battements par minute)
-    let tvAcc = 0;
+    let tvAcc = 0, salleAcc = 0;
     anims.push((dt, t) => {
       const beat = t * 124 / 60, pulse = Math.pow(1 - (beat % 1), 3), step = Math.floor(beat);
       for (const m of partyMats) m.color.setHSL((m.userData.hue + t * .05) % 1, 1, .5 + pulse * .15);
@@ -333,8 +339,18 @@ const Casino = (() => {
       for (const d of dots) { d.a += dt * .35; const r = d.r; d.sp.position.set(Math.cos(d.a) * r, d.y, -8.4 + Math.sin(d.a) * r * .7); d.sp.material.opacity = .5 + pulse * .5; }
       beams.forEach((b, k) => { b.rotation.x = Math.sin(t * .7 + k) * .55; b.rotation.z = Math.cos(t * .5 + k * 1.7) * .55; b.children[0].material.color.setHSL((k / 6 + t * .07) % 1, 1, .55); b.children[0].material.opacity = .07 + pulse * .07; });
       const P = conf.geometry.attributes.position; for (let k = 0; k < N; k++) { let y = P.array[k * 3 + 1] - dt * (.25 + (k % 5) * .06); if (y < 0) y = 5.5; P.array[k * 3 + 1] = y; P.array[k * 3] += Math.sin(t + k) * dt * .05; } P.needsUpdate = true;
-      tvAcc += dt; if (tvAcc > .12) { tvAcc = 0; drawTv(t); }
+      tvAcc += dt; if (tvAcc > .12) { tvAcc = 0; drawTv(t); salleAcc = (salleAcc + 1) % 4; drawSalle(salleAcc, t); }
     });
+  }
+  const thumbs = new Map(); // les miniatures YouTube déjà chargées
+  function thumbOf(id) { if (!thumbs.has(id)) { thumbs.set(id, null); const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => thumbs.set(id, im); im.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`; } return thumbs.get(id); }
+  function drawSalle(k, t) { // l'écran d'une salle de cinéma quand on n'y est pas (ou pendant que la caméra bouge)
+    const S = salleScreens[k]; if (!S) return; const g = S.ctx, v = info?.cine?.[k], th = v && thumbOf(v.videoId);
+    g.fillStyle = '#05040a'; g.fillRect(0, 0, 512, 230);
+    if (th) { try { g.drawImage(th, 0, -26, 512, 284); } catch (e) {} }
+    else { const gr = g.createRadialGradient(256, 115, 10, 256, 115, 300); gr.addColorStop(0, '#2a1840'); gr.addColorStop(1, '#05040a'); g.fillStyle = gr; g.fillRect(0, 0, 512, 230); }
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, 186, 512, 44); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '800 22px Outfit, Inter, sans-serif';
+    g.fillText(v ? '🎬 ' + v.title : `🎬 SALLE ${k + 1} · Choisis un film !`, 256, 214, 490); S.tex.needsUpdate = true;
   }
   // l'image des écrans : la miniature de la vidéo en cours, son titre, et un égaliseur qui danse
   function drawTv(t) {
@@ -351,10 +367,11 @@ const Casino = (() => {
   // 📺 la vraie vidéo YouTube, posée pile sur l'écran le plus visible (sinon en petit dans un coin)
   let ytOn = '', muted = false;
   const RADIO = () => (typeof Media !== 'undefined' ? Media : null);
+  const curVideo = () => (me.zone === 'cine' ? (salleAt(me.x, me.z) >= 0 ? info?.cine?.[salleAt(me.x, me.z)] || null : null) : info?.video || null);
   function syncVideo() {
-    const v = info?.video;
+    const v = curVideo();
     if (!v || paused) { if (ytOn) { hud.frame.replaceChildren(); hud.frame.classList.add('hidden'); ytOn = ''; } return; }
-    const key = v.videoId + v.at; if (ytOn === key) return; ytOn = key;
+    const key = v.videoId + v.at + me.zone + salleAt(me.x, me.z); if (ytOn === key) return; ytOn = key;
     const start = Math.max(0, Math.floor(((info.serverNow || v.at) - v.at + (info._recv ? Date.now() - info._recv : 0)) / 1000));
     const f = el('iframe', { src: `https://www.youtube-nocookie.com/embed/${v.videoId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&controls=0&enablejsapi=1&start=${start}&origin=${encodeURIComponent(location.origin)}`, allow: 'autoplay; encrypted-media', title: v.title });
     f.addEventListener('load', () => setTimeout(() => { for (const c of [muted ? 'mute' : 'unMute', 'playVideo']) f.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: c, args: [] }), '*'); }, 600));
@@ -379,7 +396,9 @@ const Casino = (() => {
     // la caméra bouge-t-elle ? (la vidéo YouTube est toujours un peu en retard sur la 3D : on la cache pendant le mouvement)
     const e = camera.matrixWorld.elements; if (camPrev) { let d = 0; for (let k = 0; k < 16; k++) d += Math.abs(e[k] - camPrev[k]); if (d > .002) camMovedAt = performance.now(); } camPrev = e.slice();
     const still = performance.now() - camMovedAt > 280; const W = innerWidth, H = innerHeight, cands = [];
+    const here = me.zone === 'cine' ? salleAt(me.x, me.z) : -1;
     for (const sc of screens) {
+      if ((sc.salle ?? -1) !== here || (me.zone === 'cine' && here < 0)) continue;
       const n = _v().set(0, 0, 1).applyQuaternion(sc.m.getWorldQuaternion(new THREE.Quaternion())), to = _v().subVectors(camera.position, sc.m.getWorldPosition(_v())); if (n.dot(to) <= 0) continue; // on voit l'écran de face
       const pts = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => sc.m.localToWorld(_v().set(a * sc.w / 2, b * sc.h / 2, 0)).project(camera));
       if (!pts.every(p => p.z < 1 && p.z > -1 && Math.abs(p.x) < 2 && Math.abs(p.y) < 2)) continue;
@@ -390,22 +409,155 @@ const Casino = (() => {
       cands.push({ sc, px, w: w * vis });
     }
     // on reste sur le même écran tant qu'on le voit (sinon la vidéo « saute » d'une TV à l'autre) ; le mur géant d'abord
-    let best = cands.find(c => c.sc === glueTo && c.w > 90) || cands.find(c => c.sc === screens[0] && c.w > 140) || cands.sort((a, b) => b.w - a.w)[0];
+    let best = cands.find(c => c.sc === glueTo && c.w > 90) || cands.find(c => c.sc === screens[0] && c.w > 140 && me.zone === 'club') || cands.sort((a, b) => b.w - a.w)[0];
     if (best && best.w < 110) best = null;
-    const st = hud.frame.style, m = best && mode === 'walk' ? homography(best.px) : null;
+    const st = hud.frame.style, m = best && (mode === 'walk' || mode === 'seat') ? homography(best.px) : null;
     if (m) { glueTo = best.sc; hud.frame.classList.remove('mini'); hud.frame.classList.add('glued'); hud.frame.classList.toggle('moving', !still); st.left = st.top = '0px'; st.width = FW + 'px'; st.height = FH + 'px'; st.transform = m; }
     else { glueTo = null; hud.frame.classList.add('mini'); hud.frame.classList.remove('glued', 'moving'); st.left = st.top = st.width = st.height = st.transform = ''; }
   }
   function ytPanel() {
     const input = el('input', { class: 'input', placeholder: 'Colle un lien YouTube ou cherche une musique…', maxlength: 120 }), res = el('div', { class: 'bw-ytres' }), err = el('small', { class: 'help' });
+    const salle = me.zone === 'cine' ? salleAt(me.x, me.z) : -1;
+    if (me.zone === 'cine' && salle < 0) return toast('🎬 Entre dans une salle (à l\'étage) pour choisir son film');
     const go = async () => { err.textContent = '⏳ Recherche…'; res.replaceChildren(); const r = await ack('cs_search', input.value); err.textContent = r.error || (r.results?.length ? '' : 'Aucun résultat');
-      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('cs_video', v); if (x.error) { err.textContent = x.error; return; } hidePanel(); setMute(false); toast('📺 Ta vidéo passe sur tous les écrans du club !'); } },
+      res.replaceChildren(...(r.results || []).map(v => el('button', { type: 'button', class: 'bw-ytitem', onclick: async () => { const x = await ack('cs_video', { ...v, salle }); if (x.error) { err.textContent = x.error; return; } hidePanel(); setMute(false); toast(salle >= 0 ? `🎬 Ton film commence dans la salle ${salle + 1} !` : '📺 Ta vidéo passe sur tous les écrans du club !'); } },
         el('img', { src: `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`, alt: '' }), el('span', {}, el('b', {}, v.title), el('small', {}, [v.channel, v.length].filter(Boolean).join(' · ')))))); };
     input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') go(); }); input.addEventListener('keyup', e => e.stopPropagation());
-    showPanel(el('h3', {}, '📺 Les écrans du club'), el('p', { class: 'help' }, 'Mets la musique ou la vidéo que tu veux : elle passe sur le mur géant et sur toutes les TV, et tout le monde dans le club la voit et l\'entend en même temps.'),
+    const cur = salle >= 0 ? info?.cine?.[salle] : info?.video;
+    showPanel(el('h3', {}, salle >= 0 ? `🎬 Le film de la salle ${salle + 1}` : '📺 Les écrans du club'), el('p', { class: 'help' }, salle >= 0 ? 'Choisis un film, une bande-annonce ou un clip sur YouTube : il passe sur le grand écran de la salle, et tous ceux qui sont dans la salle le regardent ensemble.' : 'Mets la musique ou la vidéo que tu veux : elle passe sur le mur géant et sur toutes les TV, et tout le monde dans le club la voit et l\'entend en même temps.'),
       el('div', { class: 'row', style: 'gap:6px' }, input, el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: go }, '🔎')), err, res,
-      info?.video ? el('button', { type: 'button', class: 'btn btn-sm', style: 'width:100%;margin-top:8px', onclick: () => { socket.emit('cs_video', { stop: true }, () => {}); hidePanel(); } }, '⏹ Arrêter la vidéo') : null);
+      cur ? el('button', { type: 'button', class: 'btn btn-sm', style: 'width:100%;margin-top:8px', onclick: () => { socket.emit('cs_video', { stop: true, salle }, () => {}); hidePanel(); } }, '⏹ Arrêter la vidéo') : null);
     setTimeout(() => input.focus(), 50);
+  }
+
+  // ---------- 🎬 le cinéma : un grand multiplexe relié au club (hall, escalators électriques, mezzanine, 4 salles) ----------
+  // Il est construit à côté du club (x de 45 à 75) : on y passe par la porte « CINÉMA ».
+  const CI = { x0: 45, x1: 75, sw: 7.5, up: 5, upX: 58.9, dnX: 61.1, mid: 60, c: k => 45 + 7.5 * k + 3.75, rowZ: r => -26 + r * 1.1, rowH: r => .1 + r * .32 /* les gradins : chaque rangée un peu plus haute */, seatX: (k, i) => 45 + 7.5 * k + 1.5 + i * .57 };
+  const salleAt = (x, z) => (me.zone === 'cine' && z < -15.2 && x > CI.x0 && x < CI.x1 ? Math.min(3, Math.floor((x - CI.x0) / CI.sw)) : -1);
+  const cineBoxes = [[], []]; // les obstacles du rez-de-chaussée et de l'étage
+  const cineRects = [[[45.4, -9.6, 74.6, 14.6]], [[45.4, -14.7, 74.6, -10.3]]]; // où l'on peut marcher à chaque étage
+  for (let k = 0; k < 4; k++) { const c = CI.c(k), x0 = CI.x0 + k * CI.sw; cineRects[1].push([c - .55, -15.7, c + .55, -14.3], [x0 + .45, -32.4, x0 + CI.sw - .45, -15.4]); for (let r = 0; r < 6; r++) cineBoxes[1].push([x0 + 1.15, CI.rowZ(r) - .32, x0 + 6.4, CI.rowZ(r) + .36]); }
+  cineBoxes[0].push([57.9, -10.5, 62.1, -.15], [46, 4.2, 53, 5.3], [67, 4.2, 74, 5.3]); // les escalators, la caisse, le comptoir à popcorn
+  function cineFits(x, z) { const L = me.lvl ? 1 : 0; return cineRects[L].some(([a, b, c, d]) => x >= a && x <= c && z >= b && z <= d) && !cineBoxes[L].some(([a, b, c, d]) => x > a - RAD && x < c + RAD && z > b - RAD && z < d + RAD); }
+  function goCine(inside) {
+    if (inside) { Object.assign(me, { zone: 'cine', lvl: 0, x: CI.mid, z: 12.6, y: 0, yaw: 0, ride: null, seat: null }); camYaw = 0; toast('🎬 Bienvenue au Paradise Ciné ! Prends l\'escalator pour aller dans les salles'); }
+    else { Object.assign(me, { zone: 'club', lvl: 0, x: 4, z: 11.8, y: 0, yaw: 0, ride: null, seat: null }); camYaw = 0; }
+    hidePanel(); socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); syncVideo();
+  }
+  const POSTERS = [['NUIT NÉON', '🌃', '#ff2bd6', '#1a0430'], ['LES ROIS DU PARADISE', '👑', '#ffd23f', '#2a1400'], ['OPÉRATION SOLDAT 76', '🎖️', '#2bff88', '#04210f'], ['LA VILLE ENDORMIE', '🌙', '#38e8ff', '#041826'],
+    ['BOWLING STORY', '🎳', '#ff8a3d', '#2a0c00'], ['LE DERNIER JACKPOT', '🎰', '#ffd23f', '#200018'], ['CŒUR DE PIXEL', '💖', '#ff5fa2', '#22041a'], ['MISSION LASER', '🔫', '#9b5cff', '#0c0424']];
+  function posterTex(i) {
+    const [t, e, col, bg] = POSTERS[i % POSTERS.length], [c, g] = cnv(256, 380);
+    const gr = g.createLinearGradient(0, 0, 0, 380); gr.addColorStop(0, bg); gr.addColorStop(1, '#000'); g.fillStyle = gr; g.fillRect(0, 0, 256, 380);
+    g.globalAlpha = .25; g.fillStyle = col; for (let k = 0; k < 12; k++) { g.beginPath(); g.arc(Math.random() * 256, Math.random() * 250, 10 + Math.random() * 40, 0, 7); g.fill(); } g.globalAlpha = 1;
+    g.font = '120px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(e, 128, 150);
+    g.fillStyle = col; g.font = '900 26px Outfit, Inter, sans-serif'; g.shadowColor = col; g.shadowBlur = 12; g.fillText(t, 128, 285, 236); g.shadowBlur = 0;
+    g.fillStyle = '#fff'; g.font = '700 14px Outfit, Inter, sans-serif'; g.fillText('AU PARADISE CINÉ', 128, 320); g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '600 11px Inter, sans-serif'; g.fillText('UN FILM DU PARADISE · BIENTÔT', 128, 350);
+    g.strokeStyle = col; g.lineWidth = 6; g.strokeRect(3, 3, 250, 374); return tex(c);
+  }
+  function poster(i, x, y, z, ry, s = 1) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; const m = new THREE.Mesh(new THREE.PlaneGeometry(1.3 * s, 1.93 * s), new THREE.MeshBasicMaterial({ map: posterTex(i) })); g.add(m); const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4 * s, 2.03 * s, .05), std(0xd4a24a, { metalness: .8, roughness: .3 })); fr.position.z = -.03; g.add(fr); scene.add(g); return g; }
+  const salleScreens = [];
+  function buildCinema() {
+    const X0 = CI.x0, X1 = CI.x1, W = X1 - X0, MX = CI.mid, wallM = std(0x14102a, { roughness: .8 }), darkM = std(0x0a0814), redM = std(0x5a0c1e, { roughness: .7 });
+    const plane = (w, h, m, x, y, z, ry = 0, rx = 0) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); scene.add(p); return p; };
+    const box = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); scene.add(b); return b; };
+    // le hall : sol brillant, murs, plafond haut avec des spots
+    const floorT = (() => { const [c, g] = cnv(256, 256); g.fillStyle = '#100c1c'; g.fillRect(0, 0, 256, 256); g.strokeStyle = 'rgba(212,162,74,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, 254, 254); g.strokeRect(96, 96, 64, 64); return tex(c, [15, 13]); })();
+    plane(W, 25, new THREE.MeshPhysicalMaterial({ map: floorT, roughness: .25, clearcoat: .6 }), MX, 0, 2.5, 0, -Math.PI / 2);
+    plane(W, 25, basic(0x07050d), MX, 10, 2.5, 0, Math.PI / 2);
+    plane(25, 10, wallM, X0, 5, 2.5, Math.PI / 2); plane(25, 10, wallM, X1, 5, 2.5, -Math.PI / 2); plane(W, 10, wallM, MX, 5, 15, Math.PI);
+    for (let x = X0 + 2; x < X1; x += 3.5) for (let z = -8; z < 15; z += 3.5) plane(.25, .25, basic(0xfff1d0), x, 9.98, z, 0, Math.PI / 2);
+    const exitD = plane(3, 3, std(0x05030a, { emissive: 0x10203a }), MX, 1.5, 14.97, Math.PI);
+    plane(3.6, .6, neon('🚪 PARADISE CLUB', '#2bff88', 1024, 90), MX, 3.4, 14.95, Math.PI); void exitD;
+    plane(14, 2.2, neon('🎬 PARADISE CINÉ', '#ff2bd6'), MX, 7.4, 14.94, Math.PI);
+    // la caisse et le comptoir à popcorn (avec leurs vendeurs)
+    for (const [x0, x1, label, col, emo] of [[46, 53, '🎟️ BILLETTERIE', '#38e8ff', 0x0c2a3a], [67, 74, '🍿 POPCORN · BOISSONS', '#ffd23f', 0x3a2a04]]) {
+      box(x1 - x0, 1.1, 1.1, std(0x1a1024, { emissive: emo, roughness: .4 }), (x0 + x1) / 2, .55, 4.75);
+      box(x1 - x0 + .1, .06, 1.2, std(0xd4a24a, { metalness: .8, roughness: .25 }), (x0 + x1) / 2, 1.13, 4.75);
+      box(x1 - x0, .04, .02, basic(new THREE.Color(col).getHex()), (x0 + x1) / 2, .2, 5.31);
+      plane(5.5, 1, neon(label, col, 1024, 96), (x0 + x1) / 2, 3.2, 3.6);
+      const src = (x0 < 60 ? K.people.women : K.people.men)[2 % (x0 < 60 ? K.people.women : K.people.men).length], h = K.makeHuman(src, src.k * 1.74 / 43); h.g.position.set((x0 + x1) / 2, 0, 3.7); scene.add(h.g); anims.push(dt => h.mixer.update(dt));
+    }
+    // la machine à popcorn : une vitrine avec du popcorn qui saute
+    const vit = box(1, 1, .7, new THREE.MeshPhysicalMaterial({ color: 0xfff0c0, transparent: true, opacity: .25, roughness: .05 }), 72.6, 1.7, 4.6); void vit;
+    const pops = []; for (let k = 0; k < 40; k++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(.035, 0), basic(0xfff2b0)); p.position.set(72.6 + (Math.random() - .5) * .8, 1.3 + Math.random() * .2, 4.6 + (Math.random() - .5) * .5); scene.add(p); pops.push({ p, v: 0 }); }
+    anims.push(dt => { for (const o of pops) { if (o.p.position.y <= 1.25 && Math.random() < .02) o.v = 1 + Math.random() * 1.5; o.v -= dt * 6; o.p.position.y = Math.max(1.25, o.p.position.y + o.v * dt); } });
+    // les affiches du hall
+    for (let k = 0; k < 4; k++) { poster(k, X0 + .06, 2.4, -6 + k * 3.2, Math.PI / 2); poster(k + 4, X1 - .06, 2.4, -6 + k * 3.2, -Math.PI / 2); }
+    // le mur du fond (sous la mezzanine) : « à l'affiche »
+    plane(W, 5, wallM, MX, 2.5, -10, 0);
+    for (let k = 0; k < 6; k++) poster(k + 2, k < 3 ? 47.5 + k * 3 : 64.5 + (k - 3) * 3, 2.3, -9.94, 0);
+    plane(6, .9, neon('⭐ À L\'AFFICHE ⭐', '#ffd23f'), MX, 4.2, -9.9);
+    // la mezzanine (l'étage) et sa rambarde en verre lumineuse
+    box(W, .3, 5, std(0x1a1430, { roughness: .5 }), MX, 4.85, -12.5);
+    plane(W, 5, new THREE.MeshPhysicalMaterial({ map: floorT, roughness: .3 }), MX, 5.01, -12.5, 0, -Math.PI / 2);
+    const glassM = new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, transparent: true, opacity: .18, roughness: .05, depthWrite: false });
+    for (const [a, b] of [[X0, 57.8], [62.2, X1]]) { plane(b - a, 1.05, glassM, (a + b) / 2, 5.55, -10.02); box(b - a, .05, .08, basic(0x38e8ff), (a + b) / 2, 6.1, -10.02); box(b - a, .04, .04, basic(0xff2bd6), (a + b) / 2, 4.68, -9.98); }
+    // le mur des salles, avec une porte, un panneau lumineux et une affiche par salle
+    let xa = X0; for (let k = 0; k < 4; k++) { const c = CI.c(k); plane(c - .8 - xa, 5, wallM, (xa + c - .8) / 2, 7.5, -15); xa = c + .8; plane(1.6, 2.6, wallM, c, 8.7, -15); plane(1.6, 2.4, new THREE.MeshBasicMaterial({ color: 0x14020a, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }), c, 6.2, -15.3);
+      plane(1.7, .4, neon(`SALLE ${k + 1}`, ['#ff2bd6', '#38e8ff', '#ffd23f', '#2bff88'][k], 512, 100), c, 7.75, -14.97); poster(k * 2 + 1, c + 2.1, 6.6, -14.95, 0, .7); }
+    plane(X1 - xa, 5, wallM, (xa + X1) / 2, 7.5, -15);
+    // les 4 salles : murs sombres, petites lumières, grand écran avec rideaux, rangées de fauteuils rouges
+    const seatG = new THREE.BoxGeometry(.5, .12, .48), backG = new THREE.BoxGeometry(.5, .6, .1), armG = new THREE.BoxGeometry(.06, .25, .45);
+    const seatM = std(0x9a1028, { roughness: .6 }), N = 4 * 6 * 9;
+    const seats = new THREE.InstancedMesh(seatG, seatM, N), backs = new THREE.InstancedMesh(backG, seatM, N), arms = new THREE.InstancedMesh(armG, std(0x1a1a1a), N); const q = new THREE.Object3D(); let n = 0;
+    for (let k = 0; k < 4; k++) {
+      const x0 = X0 + k * CI.sw, c = CI.c(k);
+      plane(CI.sw, 18, redM, c, 5.005, -24, 0, -Math.PI / 2); plane(CI.sw, 18, darkM, c, 9.5, -24, 0, Math.PI / 2);
+      plane(18, 4.5, std(0x1c0614, { roughness: .9 }), x0 + .02, 7.25, -24, Math.PI / 2); plane(18, 4.5, std(0x1c0614, { roughness: .9 }), x0 + CI.sw - .02, 7.25, -24, -Math.PI / 2);
+      plane(CI.sw, 4.5, darkM, c, 7.25, -33, 0); for (const [a, b] of [[x0, c - .8], [c + .8, x0 + CI.sw]]) plane(b - a, 4.5, darkM, (a + b) / 2, 7.25, -15.05, Math.PI); plane(1.6, 2, darkM, c, 8.5, -15.05, Math.PI);
+      for (let z = -31; z < -16; z += 3) for (const x of [x0 + .05, x0 + CI.sw - .05]) { const l = box(.05, .25, .12, basic(0xffb070), x, 6.4, z); void l; }
+      // l'écran (sa propre image) et les rideaux
+      const [cc, gg] = cnv(512, 230), t = tex(cc), scr = plane(6.4, 2.88, new THREE.MeshBasicMaterial({ map: t, fog: false }), c, 7.65, -32.9);
+      salleScreens[k] = { ctx: gg, tex: t }; screens.push({ m: scr, w: 6.4, h: 2.88, salle: k });
+      box(6.7, 3.15, .05, basic(0x000000), c, 7.65, -32.97);
+      for (const s2 of [-1, 1]) { const cur = box(.5, 4.2, .2, std(0x7a0a1a, { roughness: .9 }), c + s2 * 3.5, 7.25, -32.7); void cur; }
+      for (let r = 0; r < 6; r++) { const st = box(5.3, CI.rowH(r), 1.1, std(0x3a0612, { roughness: .9 }), x0 + 3.78, 5 + CI.rowH(r) / 2, CI.rowZ(r) + .1); void st; const led = box(5.3, .02, .02, basic(0xffb070), x0 + 3.78, 5 + CI.rowH(r) + .01, CI.rowZ(r) - .45); void led; }
+      for (let r = 0; r < 6; r++) for (let i = 0; i < 9; i++) {
+        const x = CI.seatX(k, i), z = CI.rowZ(r);
+        const hh = CI.rowH(r); q.position.set(x, 5.42 + hh, z); q.rotation.set(0, 0, 0); q.updateMatrix(); seats.setMatrixAt(n, q.matrix);
+        q.position.set(x, 5.75 + hh, z + .25); q.rotation.set(-.12, 0, 0); q.updateMatrix(); backs.setMatrixAt(n, q.matrix);
+        q.position.set(x - .285, 5.55 + hh, z); q.rotation.set(0, 0, 0); q.updateMatrix(); arms.setMatrixAt(n, q.matrix); n++;
+      }
+    }
+    scene.add(seats, backs, arms);
+    // les escalators électriques : marches qui défilent, flancs en verre, mains courantes et lumières bleues
+    for (const [lx, dir] of [[CI.upX, 1], [CI.dnX, -1]]) {
+      const ang = Math.atan2(5, 10), Lc = Math.hypot(5, 10);
+      const truss = box(1.35, .5, Lc, std(0x2a2d36, { metalness: .7, roughness: .35 }), lx, 2.2, -5); truss.rotation.x = ang;
+      for (const sx of [-.62, .62]) {
+        const gl = box(.04, .9, Lc, glassM, lx + sx, 3.0, -5); gl.rotation.x = ang;
+        const rail = box(.09, .07, Lc + .4, std(0x0a0a0a, { roughness: .4 }), lx + sx, 3.5, -5); rail.rotation.x = ang;
+        const led = box(.03, .03, Lc, basic(dir > 0 ? 0x38e8ff : 0xff2bd6), lx + sx, 2.58, -5); led.rotation.x = ang;
+      }
+      const sign = plane(1.2, .3, neon(dir > 0 ? '⬆ MONTÉE' : '⬇ DESCENTE', dir > 0 ? '#38e8ff' : '#ff2bd6', 512, 90), lx, 2.4, .9, Math.PI); void sign;
+      const NS = 30, steps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .14, .42), std(0x8a8f99, { metalness: .85, roughness: .3 }), NS), edge = new THREE.InstancedMesh(new THREE.BoxGeometry(1.05, .02, .04), basic(0xffd23f), NS);
+      scene.add(steps, edge); const qq = new THREE.Object3D(); let off = 0;
+      anims.push(dt => { off = (off + dt * .17 * dir + 1) % 1;
+        for (let i = 0; i < NS; i++) { const u = (i / NS + off) % 1, z = .7 - u * 11.4, y = Math.max(0, Math.min(1, -z / 10)) * 5; qq.position.set(lx, y + .02, z); qq.updateMatrix(); steps.setMatrixAt(i, qq.matrix); qq.position.set(lx, y + .095, z + .2); qq.updateMatrix(); edge.setMatrixAt(i, qq.matrix); }
+        steps.instanceMatrix.needsUpdate = true; edge.instanceMatrix.needsUpdate = true; });
+    }
+    // la porte du cinéma dans le club (mur du sud)
+    plane(2, 2.4, std(0x05030a, { emissive: 0x2a0418 }), 4, 1.2, 13.95, Math.PI);
+    plane(2.4, .5, neon('🎬 CINÉMA', '#ff2bd6', 512, 100), 4, 2.75, 13.93, Math.PI);
+  }
+  // les sièges : on prend le plus proche de libre
+  function sitDown(k) {
+    let best = null, bd = 99;
+    for (let r = 0; r < 6; r++) for (let i = 0; i < 9; i++) { const x = CI.seatX(k, i), z = CI.rowZ(r); if ([...avatars.values()].some(a => a.id !== myId() && Math.hypot(a.x - x, a.z - z) < .3)) continue; const d = Math.hypot(x - me.x, z - me.z); if (d < bd) { bd = d; best = { k, r, i, x, z }; } }
+    if (!best) return toast('😕 La salle est pleine !');
+    me.ride = null; me.lvl = 1; me.seat = best; me.x = best.x; me.z = best.z; me.y = CI.up - .5 + CI.rowH(best.r); me.yaw = 0; mode = 'seat'; hud.joy.classList.add('hidden');
+    socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); sCard();
+    if (!info?.cine?.[k]) setTimeout(() => toast(`🎬 Aucun film dans la salle ${k + 1} : touche « 📺 YouTube » pour en lancer un !`), 400);
+  }
+  function standUp() {
+    const st = me.seat; if (!st) return; me.seat = null; mode = 'walk'; hud.joy.classList.toggle('hidden', !mobile());
+    const x0 = CI.x0 + st.k * CI.sw; me.x = st.i < 5 ? x0 + .7 : x0 + CI.sw - .7; me.z = st.z; me.y = CI.up;
+    socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw });
+  }
+  function cineProgram() {
+    showPanel(el('h3', {}, '🎟️ À l\'affiche au Paradise Ciné'), el('p', { class: 'help' }, 'Prends l\'escalator ⬆ pour monter aux salles. Dans une salle, assieds-toi et choisis le film (n\'importe quelle vidéo YouTube) : tout le monde dans la salle le voit en même temps.'),
+      el('div', { class: 'cs-prog' }, ...[0, 1, 2, 3].map(k => { const v = info?.cine?.[k]; return el('div', { class: 'cs-prog-s' }, el('b', {}, `🎬 Salle ${k + 1}`), el('span', {}, v ? `▶ ${v.title}` : 'Pas encore de film'), v ? el('small', {}, `lancé par ${v.by}`) : null); })));
   }
 
   // ---------- 🧍 les personnages ----------
@@ -429,11 +581,11 @@ const Casino = (() => {
     const want = new Set();
     const put = (id, name, gender, bot, base, extra = '') => {
       const a = avatarFor(id, name, gender, bot), p = poseOf(id) || base; want.add(id); if (!p) return;
-      a.tx = p.x; a.tz = p.z; a.tyaw = p.yaw; if (p.tag && Math.hypot(a.tx - a.x, a.tz - a.z) > 1.2) a.init = false; /* autour d'une table : on se place directement (sans traverser le billard) */ if (!a.init) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; a.init = true; }
+      a.tx = p.x; a.tz = p.z; a.tyaw = p.yaw; a.ty = p.y || 0; if (p.tag && Math.hypot(a.tx - a.x, a.tz - a.z) > 1.2) a.init = false; /* autour d'une table : on se place directement (sans traverser le billard) */ if (!a.init) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; a.y = a.ty; a.init = true; }
       a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
     };
-    for (const p of people.values()) { if (p.id === myId()) continue; put(p.id, p.name, p.gender, false, { x: p.x, z: p.z, yaw: p.yaw }, (p.drink && drinks[p.drink] ? ' ' + drinks[p.drink].split(' ')[0] : '') + (p.st ? ' · ' + p.st : '')); }
-    const mine = people.get(myId()); if (mine) put(myId(), mine.name, mine.gender, false, { x: me.x, z: me.z, yaw: me.yaw }, mine.drink && drinks[mine.drink] ? ' ' + drinks[mine.drink].split(' ')[0] : '');
+    for (const p of people.values()) { if (p.id === myId()) continue; put(p.id, p.name, p.gender, false, { x: p.x, z: p.z, y: p.y || 0, yaw: p.yaw }, (p.drink && drinks[p.drink] ? ' ' + drinks[p.drink].split(' ')[0] : '') + (p.st ? ' · ' + p.st : '')); }
+    const mine = people.get(myId()); if (mine) put(myId(), mine.name, mine.gender, false, { x: me.x, z: me.z, y: me.y, yaw: me.yaw }, mine.drink && drinks[mine.drink] ? ' ' + drinks[mine.drink].split(' ')[0] : '');
     // les robots du poker et du billard
     if (pk.st) for (const s of pk.st.seats) if (s && s.bot) put(s.id, s.name, s.id % 2 ? 'f' : 'h', true, null);
     for (const T of tables) if (T.st) for (const p of T.st.players) if (p.bot) put(p.id, p.name, 'h', true, null);
@@ -443,16 +595,18 @@ const Casino = (() => {
       a.x += (a.tx - a.x) * k; a.z += (a.tz - a.z) * k; const d = Math.hypot(a.tx - a.x, a.tz - a.z); if (d > 6) { a.x = a.tx; a.z = a.tz; }
       const sp = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-3);
       let da = ((a.tyaw - a.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; a.yaw += da * Math.min(1, dt * 10);
-      a.g.position.set(a.x, 0, a.z); a.g.rotation.y = a.yaw + Math.PI;
+      const oy = a.y ?? 0; a.y = oy + ((a.ty || 0) - oy) * Math.min(1, dt * (a.id === myId() ? 30 : 8)); if (Math.abs(a.ty - a.y) > 3) a.y = a.ty; const vy = Math.abs(a.y - oy) / Math.max(dt, 1e-3);
+      a.g.position.set(a.x, a.y, a.z); a.g.rotation.y = a.yaw + Math.PI;
       a.spd = (a.spd || 0) + (Math.min(sp, 8) - (a.spd || 0)) * Math.min(1, dt * 6); // vitesse lissée
       const cur0 = a.cur === 'dance' ? 'idle' : a.cur, v = a.spd;
-      const w = a.dance > 0 ? 'dance' : cur0 === 'run' ? (v > 2.4 ? 'run' : v > .3 ? 'walk' : 'idle') : cur0 === 'walk' ? (v > 3.4 ? 'run' : v > .2 ? 'walk' : 'idle') : (v > 3.4 ? 'run' : v > .5 ? 'walk' : 'idle');
+      const still = vy > .3 || (a.id === myId() && (me.ride || me.seat)) || (a.ty > 4.2 && Math.abs(a.ty - 5) > .05); // assis au cinéma (plus bas que le sol de l'étage, ou sur un gradin) // sur l'escalator ou assis : on ne marche pas
+      const w = a.dance > 0 ? 'dance' : still ? 'idle' : cur0 === 'run' ? (v > 2.4 ? 'run' : v > .3 ? 'walk' : 'idle') : cur0 === 'walk' ? (v > 3.4 ? 'run' : v > .2 ? 'walk' : 'idle') : (v > 3.4 ? 'run' : v > .5 ? 'walk' : 'idle');
       if (a.dance > 0) a.dance -= dt;
       if (w !== a.cur && a.act[w]) { const n = a.act[w]; n.reset().play(); a.act[a.cur]?.crossFadeTo(n, .25, false); a.cur = w; }
       a.mixer.update(dt);
       a.tag.visible = camera.position.distanceTo(a.g.position) > (mode === 'walk' ? 1.5 : 2.4); // pas d'étiquette géante devant la caméra
       if (a.bubble && a.bubbleT > 0) { a.bubbleT -= dt; if (a.bubbleT <= 0) a.bubble.visible = false; }
-      a.g.visible = !(a.id === myId() && (mode === 'poker' || (mode === 'pool' && myTurnPool() && poolView !== 'top')));
+      a.g.visible = !(a.id === myId() && (mode === 'seat' || mode === 'poker' || (mode === 'pool' && myTurnPool() && poolView !== 'top')));
     }
   }
 
@@ -468,7 +622,7 @@ const Casino = (() => {
     R = new THREE.WebGLRenderer({ canvas, antialias: !mobile(), powerPreference: 'high-performance' }); R.setPixelRatio(Math.min(devicePixelRatio || 1, mobile() ? 1.35 : 1.75));
     R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.05;
     avatars.clear(); people.clear(); build(); applyEnter(d);
-    me.x = (Math.random() - .5) * 2; me.z = 10.3; me.yaw = 0; camYaw = 0;
+    me.x = (Math.random() - .5) * 2; me.z = 10.3; me.yaw = 0; camYaw = 0; Object.assign(me, { y: 0, zone: 'club', lvl: 0, ride: null, seat: null });
     try { document.activeElement?.blur?.(); } catch (e) {}
     ov.replaceChildren(canvas, buildHud()); ytOn = ''; syncVideo(); fit();
     window.ProxVoice?.use('casino', { space: () => (info ? 'cs:' + info.inst : null), me: () => { const a = avatars.get(myId()); return a ? { x: a.x, z: a.z } : { x: me.x, z: me.z }; }, pos: uid => { const a = avatars.get(uid); return a && uid !== myId() ? { x: a.x, z: a.z } : null; }, yaw: () => (mode === 'walk' ? camYaw : camera ? Math.atan2(-(camera.getWorldDirection(new THREE.Vector3()).x), -(camera.getWorldDirection(new THREE.Vector3()).z)) : 0) }); addEventListener('resize', fit); bindInput();
@@ -514,13 +668,14 @@ const Casino = (() => {
     return box;
   }
   let nearSpot = null;
-  function renderTop() { const n = people.size; hud.top.textContent = `🎰 Paradise Club · ${n} joueur${n > 1 ? 's' : ''} ici`; }
-  function doAct() { if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
+  function renderTop() { const n = people.size, k = salleAt(me.x, me.z); hud.top.textContent = me.zone === 'cine' ? (k >= 0 ? `🎬 Paradise Ciné · Salle ${k + 1}` : `🎬 Paradise Ciné · ${me.lvl ? 'Étage des salles' : 'Hall'}`) : `🎰 Paradise Club · ${n} joueur${n > 1 ? 's' : ''} ici`; }
+  function doAct() { if (mode === 'seat') return standUp(); if (nearSpot && mode === 'walk') { ac(); nearSpot.act(); } }
   function showPanel(...kids) { hud.panel.replaceChildren(el('button', { class: 'cs-x', onclick: () => hidePanel() }, '✕'), ...kids); hud.panel.classList.remove('hidden'); }
   const hidePanel = () => hud.panel?.classList.add('hidden');
-  function drinkMenu() {
-    showPanel(el('h3', {}, '🍸 Le bar'), el('p', { class: 'help' }, 'Choisis ce que tu veux boire (c\'est offert par la maison 😉). Les autres verront ton verre au-dessus de ta tête.'),
-      el('div', { class: 'cs-drinks' }, ...Object.entries(drinks).map(([k, v]) => el('button', { class: 'btn', onclick: async () => { const r = await ack('cs_drink', k); if (r?.error) return toast(r.error); hidePanel(); sDing(); toast(`${v} servi ! Santé 🥂`); } }, v))));
+  const SNACKS = ['popcorn', 'nachos', 'glace', 'slush', 'soda'];
+  function drinkMenu(cine) {
+    showPanel(el('h3', {}, cine ? '🍿 Popcorn et boissons' : '🍸 Le bar'), el('p', { class: 'help' }, cine ? 'Prends de quoi grignoter pendant le film (c\'est offert 😉).' : 'Choisis ce que tu veux boire (c\'est offert par la maison 😉). Les autres verront ton verre au-dessus de ta tête.'),
+      el('div', { class: 'cs-drinks' }, ...Object.entries(drinks).filter(([k]) => (cine ? SNACKS.includes(k) : !SNACKS.includes(k) || k === 'soda')).map(([k, v]) => el('button', { class: 'btn', onclick: async () => { const r = await ack('cs_drink', k); if (r?.error) return toast(r.error); hidePanel(); sDing(); toast(`${v} servi ! Santé 🥂`); } }, v))));
   }
   function slotGame() {
     const E = ['🍒', '🍋', '⭐', '💎', '7️⃣', '🔔'], reels = [0, 1, 2].map(() => el('span', { class: 'cs-reel' }, '❔')), res = el('p', { class: 'help' }, 'Pour le plaisir : ça ne coûte rien et ça ne rapporte rien, juste pour le frisson !');
@@ -530,6 +685,7 @@ const Casino = (() => {
     showPanel(el('h3', {}, '🎰 Machine à sous'), el('div', { class: 'cs-reels' }, ...reels), res, el('button', { class: 'btn btn-primary', style: 'width:100%', onclick: spin }, '🎰 Tirer le levier'));
   }
   function backToWalk() {
+    if (mode === 'seat') return standUp();
     if (mode === 'pool') { const T = tables[poolT]?.st; if (T && T.players.some(p => p.id === myId())) { if (T.status === 'playing' && !confirm('Quitter la partie de billard ? (tu perds la partie)')) return; socket.emit('pl_stand'); } }
     if (mode === 'poker') { if (pk.st && ['preflop', 'flop', 'turn', 'river'].includes(pk.st.phase) && !confirm('Te lever de la table ? (tu abandonnes la main en cours)')) return; socket.emit('pk_stand'); pk.hole = null; }
     uiWalk();
@@ -537,7 +693,7 @@ const Casino = (() => {
   function uiWalk() {
     mode = 'walk'; poolT = -1; hud.pool.classList.add('hidden'); hud.poolTop.classList.add('hidden'); hud.poker.classList.add('hidden'); hud.emotes.classList.remove('hidden'); hud.joy.classList.toggle('hidden', !mobile());
     // on se replace à côté
-    for (let k = 0; k < 40 && !fits(me.x, me.z); k++) me.z += .2;
+    if (me.zone === 'club') for (let k = 0; k < 40 && !fits(me.x, me.z); k++) me.z += .2;
   }
 
   // ---------- 🎱 le billard ----------
@@ -703,7 +859,7 @@ const Casino = (() => {
   function unbindInput() { removeEventListener('keydown', onKey, true); removeEventListener('keyup', onKey, true); canvas?.removeEventListener('pointerdown', onDown); removeEventListener('pointermove', onMove); removeEventListener('pointerup', onUp); removeEventListener('pointercancel', onUp); keys.clear(); stick.on = false; }
 
   // ---------- chaque image ----------
-  let lastTop = 0;
+  let lastTop = 0, lastHere = '';
   function loop(ts) {
     if (!active || !R) return;
     raf = requestAnimationFrame(loop);
@@ -712,8 +868,18 @@ const Casino = (() => {
     if (busyElsewhere()) { if (!paused) { paused = true; ov.style.visibility = 'hidden'; keys.clear(); syncVideo(); } return; }
     if (paused) { paused = false; ov.style.visibility = ''; syncVideo(); }
     const t = ts / 1000;
+    // l'escalator m'emmène (on ne contrôle rien pendant la montée ou la descente)
+    if (me.ride) {
+      const R0 = me.ride; R0.t += dt * 1.9; const u = Math.min(1, R0.t / 11.4), z = R0.dir > 0 ? .5 - u * 11.1 : -10.6 + u * 11.1;
+      me.z = z; me.y = Math.max(0, Math.min(1, -z / 10)) * CI.up; me.yaw = R0.dir > 0 ? 0 : Math.PI;
+      if (u >= 1) { me.lvl = R0.dir > 0 ? 1 : 0; me.y = me.lvl ? CI.up : 0; me.z = R0.dir > 0 ? -10.75 : .9; me.ride = null; if (me.lvl) toast('🎬 Les salles sont devant toi : entre, assieds-toi et lance un film !'); }
+      if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); }
+    }
+    if (mode === 'seat' && (keys.size || stick.on)) standUp();
+    // je change de salle → la bonne vidéo
+    const hereNow = me.zone + salleAt(me.x, me.z); if (hereNow !== lastHere) { lastHere = hereNow; syncVideo(); }
     // je marche
-    if (mode === 'walk' && !document.querySelector('.modal-back')) {
+    if (mode === 'walk' && !me.ride && !document.querySelector('.modal-back')) {
       let f = 0, s = 0;
       if (keys.has('z') || keys.has('w') || keys.has('ArrowUp')) f += 1; if (keys.has('s') || keys.has('ArrowDown')) f -= 1;
       if (keys.has('q') || keys.has('a')) s -= 1; if (keys.has('d')) s += 1; if (keys.has('ArrowLeft')) camYaw += dt * 2.2; if (keys.has('ArrowRight')) camYaw -= dt * 2.2;
@@ -723,12 +889,16 @@ const Casino = (() => {
         const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
         const vx = (fx * f + rx * s) * SPEED, vz = (fz * f + rz * s) * SPEED, dx = vx * dt, dz = vz * dt;
         if (fits(me.x + dx, me.z)) me.x += dx; if (fits(me.x, me.z + dz)) me.z += dz; me.yaw = Math.atan2(-vx, -vz);
+        // monter / descendre par l'escalator électrique
+        if (me.zone === 'cine' && !me.lvl && Math.abs(me.x - CI.upX) < .6 && me.z < .75 && vz < 0) { me.ride = { dir: 1, t: 0 }; me.x = CI.upX; sCard(); }
+        if (me.zone === 'cine' && me.lvl && Math.abs(me.x - CI.dnX) < .6 && me.z > -10.85 && vz > 0) { me.ride = { dir: -1, t: 0 }; me.x = CI.dnX; sCard(); }
       }
-      if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, yaw: me.yaw }); }
+      if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); }
       // près d'un endroit spécial ?
-      let best = null, bd = 99; for (const sp of spots) { const d = Math.hypot(sp.x - me.x, sp.z - me.z); if (d < sp.r && d < bd) { bd = d; best = sp; } }
+      let best = null, bd = 99; for (const sp of spots) { if ((sp.zone || 'club') !== me.zone || (sp.lvl != null && sp.lvl !== me.lvl)) continue; const d = Math.hypot(sp.x - me.x, sp.z - me.z); if (d < sp.r && d < bd) { bd = d; best = sp; } }
       nearSpot = best; if (best) { const lbl = typeof best.label === 'function' ? best.label() : best.label; const txt = `${best.icon} ${lbl}${mobile() ? '' : ' (E)'}`; if (hud.act.textContent !== txt) hud.act.textContent = txt; hud.act.classList.remove('hidden'); } else hud.act.classList.add('hidden');
-    } else { nearSpot = null; hud.act.classList.add('hidden'); }
+    } else if (mode === 'seat') { nearSpot = null; const txt = `🚶 Se lever${mobile() ? '' : ' (E)'}`; if (hud.act.textContent !== txt) hud.act.textContent = txt; hud.act.classList.remove('hidden'); }
+    else { nearSpot = null; hud.act.classList.add('hidden'); }
     if (ts - lastTop > 1000) { lastTop = ts; renderTop(); }
     // le décor, les billards, les personnages
     for (const a of anims) a(dt, t);
@@ -743,27 +913,30 @@ const Casino = (() => {
     } else if (mode === 'poker') {
       const i = pk.st?.seats.findIndex(s => s && s.id === myId()) ?? -1; const [x, z] = seatXZ(Math.max(0, i), 1.25);
       camera.position.set(x, 1.65, z); camera.lookAt(PK.x + (PK.x - x) * .05, .75, PK.z + (PK.z - z) * .05);
+    } else if (mode === 'seat' && me.seat) {
+      const c = CI.c(me.seat.k), hh = CI.rowH(me.seat.r); camera.position.set(me.seat.x, CI.up + 1.2 + hh, me.seat.z + .35); camera.lookAt(c + (me.seat.x - c) * .2, CI.up + 2.4, -32.9);
     } else {
-      const cx = me.x + Math.sin(camYaw) * CAM_D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * CAM_D * Math.cos(camPitch), cy = 1.5 + CAM_D * Math.sin(camPitch);
-      camera.position.set(cx, cy, cz); camera.lookAt(me.x, 1.35, me.z);
+      const D = me.zone === 'cine' ? 3.4 : CAM_D, cx = me.x + Math.sin(camYaw) * D * Math.cos(camPitch), cz = me.z + Math.cos(camYaw) * D * Math.cos(camPitch), cy = me.y + 1.5 + D * Math.sin(camPitch);
+      camera.position.set(cx, cy, cz); camera.lookAt(me.x, me.y + 1.35, me.z);
     }
     camera.updateMatrixWorld(); placeFrame(); // la position de la caméra de CETTE image (sinon la vidéo a une image de retard)
     R.render(scene, camera);
   }
 
   // ---------- les messages du serveur ----------
-  socket.on('cs_pos', L => { if (!active) return; for (const [id, x, z, yaw] of L) { if (id === myId()) continue; const p = people.get(id); if (p) { p.x = x; p.z = z; p.yaw = yaw; } } });
+  socket.on('cs_pos', L => { if (!active) return; for (const [id, x, z, yaw, y] of L) { if (id === myId()) continue; const p = people.get(id); if (p) { p.x = x; p.z = z; p.yaw = yaw; p.y = y || 0; } } });
   socket.on('cs_join', p => { if (!active) return; people.set(p.id, p); });
   socket.on('cs_left', id => { if (!active) return; people.delete(id); });
   socket.on('cs_player', p => { if (!active) return; const o = people.get(p.id); people.set(p.id, { ...o, ...p, ...(p.id === myId() ? {} : {}) }); });
   socket.on('cs_say', d => { if (active) say(d.id, d.text); });
   socket.on('cs_emote', d => { if (!active) return; say(d.id, d.e); const a = avatars.get(d.id); if (a && d.e === '💃') a.dance = 6; });
+  socket.on('cs_cineset', d => { if (!active || !info) return; info.cine = info.cine || []; info.cine[d.salle] = d.video; info.serverNow = d.serverNow; info._recv = Date.now(); syncVideo(); });
   socket.on('cs_videoset', d => { if (!active || !info) return; info.video = d.video; info.serverNow = d.serverNow; info._recv = Date.now(); syncVideo(); });
   socket.on('pl_table', s => { if (active) setPool(s); });
   socket.on('pl_shot', d => { if (active) startShot(d); });
   socket.on('pk_table', P => { if (active) setPoker(P); });
   socket.on('pk_hole', h => { if (!active) return; pk.hole = h; sCard(); if (pk.st) setPoker(pk.st); });
   socket.on('connect', async () => { if (!active) return; const d = await ack('cs_enter', {}); if (d && !d.error && active) applyEnter(d); });
-  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; } } };
+  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, sitDown, me: () => ({ ...me }) } };
 })();
 window.Casino = Casino;

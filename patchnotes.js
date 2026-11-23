@@ -1507,4 +1507,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 107,
+    date: '2026-11-23',
+    title: 'Le Paradise Ciné : un vrai multiplexe 🎬🍿',
+    added: [
+      '🎬 Une porte « CINÉMA » dans le Paradise Club mène à un grand cinéma en 3D',
+      '🎟️ Un grand hall avec la billetterie, le comptoir à popcorn (et sa machine qui fait sauter le popcorn), et des affiches de films',
+      '🛗 Des escalators électriques avec des marches qui défilent : un pour monter aux salles, un pour redescendre',
+      '🎞️ 4 salles de cinéma avec des gradins, des fauteuils rouges, des rideaux et un grand écran',
+      '▶️ Dans chaque salle, choisis le film (n\'importe quelle vidéo YouTube) : tous ceux qui sont dans la salle le regardent ensemble',
+      '🪑 Assieds-toi dans un fauteuil pour regarder le film comme au vrai cinéma, avec ton popcorn 🍿',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];
