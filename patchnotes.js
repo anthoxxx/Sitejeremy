@@ -1554,4 +1554,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 110,
+    date: '2026-11-23',
+    title: 'Une fête foraine géante dans le Paradise Complex 🎡🎢',
+    added: [
+      '🎡 Nouvelle porte « Fête foraine » dans l\'atrium : un grand parc d\'attractions de nuit, plein de guirlandes d\'ampoules qui changent de couleur, avec des feux d\'artifice',
+      '🎢 Monte dans les manèges et vis-les de l\'intérieur : grande roue, montagnes russes (départ en gare, vue du premier wagon), carrousel à chevaux de bois, chaises volantes et tour de chute libre',
+      '🚗 Conduis une auto-tamponneuse et fonce dans les autres voitures !',
+      '🎵 Une scène avec un écran géant : mets la musique (YouTube) qui passe dans toute la fête foraine',
+      '🍭 Des stands : barbe à papa, churros, pêche aux canards, tir à la carabine et chamboule-tout (gagne des peluches !)',
+      '👀 Pendant les manèges, glisse le doigt ou la souris pour regarder autour de toi',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

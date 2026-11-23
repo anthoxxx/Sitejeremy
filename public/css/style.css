@@ -4381,3 +4381,6 @@ body.casino-open .modal-back { z-index: 2100; }
 .island.load3d > canvas:not(.isl-3d) { visibility: hidden; }
 .island.load3d::before { content: '🏙️ La Ville arrive…'; position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; color: #fff; font: 800 20px Outfit, Inter, sans-serif; background: radial-gradient(ellipse at center, #2a1a50, #07050f 70%); pointer-events: none; animation: load3dPulse 1.6s ease-in-out infinite; }
 @keyframes load3dPulse { 50% { color: #ff9be8; } }
+.cs-ride { position: absolute; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(10,6,20,.75); padding: 8px 14px; border-radius: 999px; pointer-events: auto; border: 1px solid rgba(255,43,214,.4); }
+.cs-ride.hidden { display: none; }
+.cs-ride b { font: 800 16px Outfit, Inter, sans-serif; white-space: nowrap; }

@@ -3,7 +3,7 @@
 // Le serveur calcule chaque coup de billard (public/js/poolphys.js) et distribue les cartes du poker : personne ne peut tricher.
 const Pool = require('./public/js/poolphys');
 const MAX_INST = 30, POOL_TABLES = 2, SEATS = 6, START_CHIPS = 1000, SB = 10, BB = 20, POOL_TURN = 45000, PK_TURN = 25000;
-const DRINKS = { popcorn: '🍿 Popcorn', nachos: '🌮 Nachos', glace: '🍦 Glace', slush: '🧊 Slush', mojito: '🍹 Mojito', cocktail: '🍸 Cocktail', biere: '🍺 Bière', soda: '🥤 Soda', cafe: '☕ Café', jus: '🧃 Jus de fruits', champ: '🍾 Champagne', milk: '🥛 Milkshake' };
+const DRINKS = { barbe: '🍭 Barbe à papa', churros: '🥨 Churros', popcorn: '🍿 Popcorn', nachos: '🌮 Nachos', glace: '🍦 Glace', slush: '🧊 Slush', mojito: '🍹 Mojito', cocktail: '🍸 Cocktail', biere: '🍺 Bière', soda: '🥤 Soda', cafe: '☕ Café', jus: '🧃 Jus de fruits', champ: '🍾 Champagne', milk: '🥛 Milkshake' };
 const BOT_NAMES = ['Soldat76-Bluff', 'Soldat76-AllIn', 'Soldat76-Croupier', 'Soldat76-Jetons', 'Soldat76-As', 'Soldat76-Brelan'];
 module.exports = function setupCasino({ io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
   const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
@@ -14,7 +14,7 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
 
   // ---------- 🏛️ les instances ----------
   function makeInst() {
-    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set(), video: null, cine: [null, null, null, null, null], kart: new Map() }; // cine[4] = la boîte de nuit ; kart = meilleurs tours (uid → { name, ms }) // cine = le film de chaque salle du cinéma
+    const I = { id: nextInst++, players: new Map(), pool: [], poker: null, dirty: new Set(), video: null, cine: [null, null, null, null, null, null], kart: new Map() }; // cine[4] = la boîte de nuit ; kart = meilleurs tours (uid → { name, ms }) // cine = le film de chaque salle du cinéma
     for (let t = 0; t < POOL_TABLES; t++) I.pool.push(freeTable(t));
     I.poker = newPoker(I); insts.set(I.id, I); return I;
   }
@@ -266,7 +266,7 @@ module.exports = function setupCasino({ io, coins = null, track = () => {}, sear
       const P = I.poker, me = P.seats.find(s => s && s.id === uid);
       ack(cb, { inst: I.id, me: uid, video: I.video, cine: I.cine, kart: kartBoard(I), serverNow: now(), drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
     });
-    socket.on('cs_move', m => { const I = mine(), p = I && I.players.get(uid); if (!p || !m) return; const x = Number(m.x), z = Number(m.z), y = Number(m.yaw); if (![x, z, y].every(Number.isFinite)) return; p.x = Math.max(-270, Math.min(310, x)); /* jusqu'au zoo */ p.z = Math.max(-70, Math.min(60, z)); p.k = Math.max(0, Math.min(2, m.k | 0)); /* 0 debout, 1 en kart, 2 assis */ p.yaw = y; p.y = Number.isFinite(+m.y) ? Math.max(-1, Math.min(8, +m.y)) : 0; I.dirty.add(uid); }); // x jusqu'à 80 : le cinéma est à côté du club
+    socket.on('cs_move', m => { const I = mine(), p = I && I.players.get(uid); if (!p || !m) return; const x = Number(m.x), z = Number(m.z), y = Number(m.yaw); if (![x, z, y].every(Number.isFinite)) return; p.x = Math.max(-270, Math.min(420, x)); /* jusqu'à la fête foraine */ p.z = Math.max(-70, Math.min(60, z)); p.k = Math.max(0, Math.min(2, m.k | 0)); /* 0 debout, 1 en kart, 2 assis */ p.yaw = y; p.y = Number.isFinite(+m.y) ? Math.max(-1, Math.min(8, +m.y)) : 0; I.dirty.add(uid); }); // x jusqu'à 80 : le cinéma est à côté du club
     socket.on('cs_status', st => { const I = mine(), p = I && I.players.get(uid); if (!p) return; p.st = String(st || '').slice(0, 40); io.to(room(I.id)).emit('cs_player', pubPlayer(p)); });
     socket.on('cs_drink', (k, cb) => { const I = mine(), p = I && I.players.get(uid); if (!p || !DRINKS[k]) return ack(cb, { error: 'Boisson inconnue' }); p.drink = k; io.to(room(I.id)).emit('cs_player', pubPlayer(p)); io.to(room(I.id)).emit('cs_say', { id: uid, text: `${DRINKS[k]}, s'il vous plaît !` }); ack(cb, { ok: true });
       clearTimeout(p.drinkT); p.drinkT = setTimeout(() => { if (p.drink === k) { p.drink = ''; io.to(room(I.id)).emit('cs_player', pubPlayer(p)); } }, 90000); });
