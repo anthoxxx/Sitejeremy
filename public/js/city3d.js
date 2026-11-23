@@ -4,7 +4,9 @@
 // La bibliothèque 3D (three.js) n'est chargée que si on choisit la vue 3D.
 const City3D = (() => {
   let mode = 'top'; // 'top' = vue du dessus (2D) · 'third' = 3ᵉ personne · 'first' = 1ʳᵉ personne
-  try { mode = localStorage.getItem('lc_city_view') || 'top'; } catch (e) {}
+  try { mode = localStorage.getItem('lc_city_view') || 'third'; } catch (e) {}
+  if (mode === 'top') mode = 'third'; // la Ville est toujours en 3D (le plan vu du dessus n'existe plus)
+  let no3d = false; // seulement si l'appareil ne sait pas faire de 3D : on garde alors le plan en secours
   let THREE = null, R = null, scene = null, camera = null, canvas = null, A = null, built = false, pad = null, carBtn = null;
   let camLen = 120, yaw = 0, pitch = -0.08, pos = { x: 0, y: 0 }, bob = 0, driving = false, speed = 0, lift = 0, lastSky = 0, starting = false, ray = null, nightNow = -1;
   const people = new Map(), solids = [], cars = [], glowMats = [], walls = []; // walls = le sol occupé par les bâtiments (on ne passe pas à travers)
@@ -112,13 +114,13 @@ const City3D = (() => {
     b.textContent = LABEL[mode][0] + ' ' + (mobile() ? '' : LABEL[mode][1]);
     b.classList.toggle('hidden', window.Island.kind() !== 'island');
   }
-  function cycle() { setMode({ top: 'third', third: 'first', first: 'top' }[mode]); }
+  function cycle() { setMode(mode === 'third' ? 'first' : 'third'); }
   async function setMode(m, quiet) {
     mode = m; try { localStorage.setItem('lc_city_view', m); } catch (e) {}
     ensureButton();
     if (m === 'top') return stop();
     if (!quiet) toast(m === 'first' ? '👀 Vue à la 1ʳᵉ personne : tu vois la Ville par tes yeux' : '🎥 Vue à la 3ᵉ personne · 🚗 touche « Conduire » pour prendre une voiture');
-    try { THREE = await loadThree(); } catch (e) { toast('😕 La 3D ne marche pas sur cet appareil'); mode = 'top'; return ensureButton(); }
+    try { THREE = await loadThree(); } catch (e) { toast('😕 La 3D ne marche pas sur cet appareil : on affiche le plan'); mode = 'top'; no3d = true; window.Island?.root?.()?.classList.remove('load3d'); return ensureButton(); }
     start();
   }
   // ---------- démarrage ----------
@@ -142,8 +144,8 @@ const City3D = (() => {
       buildPad(root);
       carBtn = el('button', { class: 'btn car3d', onclick: () => toggleCar() }, '🚗 Conduire'); root.append(carBtn);
     }
-    if (!built) { if (!ASSET) { toast('🏙️ Chargement de la ville 3D…'); loadAssets().then(() => start()); return; } build(); }
-    canvas.classList.remove('hidden'); pad.classList.remove('hidden'); carBtn.classList.remove('hidden'); root.classList.add('view3d');
+    if (!built) { if (!ASSET) { loadAssets().then(() => start()).catch(() => { toast('😕 La Ville 3D n\'a pas pu se charger : on affiche le plan'); mode = 'top'; no3d = true; root.classList.remove('load3d'); }); return; } build(); }
+    canvas.classList.remove('hidden'); pad.classList.remove('hidden'); carBtn.classList.remove('hidden'); root.classList.add('view3d'); root.classList.remove('load3d');
     const m = A.players.get(A.me); if (m) pos = { x: m.x, y: m.y };
     fit(); window.Island.set3d({ step });
   }
@@ -690,9 +692,11 @@ const City3D = (() => {
     if (!window.Island?.isOpen?.()) { if (canvas && !canvas.classList.contains('hidden')) stop(); return; }
     ensureButton();
     const inCity = window.Island.kind() === 'island';
+    // tant que la 3D n'est pas prête : un écran de chargement à la place du plan
+    window.Island.root()?.classList.toggle('load3d', inCity && !no3d && (!canvas || canvas.classList.contains('hidden')));
     if (!inCity && canvas && !canvas.classList.contains('hidden')) stop();
     if (inCity && mode !== 'top' && (!canvas || canvas.classList.contains('hidden')) && !starting) { starting = true; setMode(mode, true).finally(() => { starting = false; }); }
-  }, 700);
+  }, 250);
   return { kit, setMode, mode: () => mode, yaw: () => yaw, face: a => { yaw = a; }, drive: () => toggleCar(), debug: () => ({ m: (() => { const m = A?.players.get(A.me); return m ? [Math.round(m.x), Math.round(m.y), Math.round(m.dx), Math.round(m.dy)] : null; })(), pos: [Math.round(pos.x), Math.round(pos.y)], people: people.size, me: A?.me, players: A ? [...A.players.keys()] : [], vis: [...people.values()].map(o => [o.g.visible, Math.round(o.g.position.x), Math.round(o.g.position.y), Math.round(o.g.position.z)]), cam: camera ? camera.position.toArray().map(Math.round) : null, calls: R?.info.render.calls, car: cars[0] ? (() => { const g = cars[0].car; const b = new THREE.Box3().setFromObject(g); return [g.children.length, g.children[0]?.children.map(m => m.geometry?.attributes.position.count), b.min.toArray().map(Math.round), b.max.toArray().map(Math.round)]; })() : null }) };
 })();
 window.City3D = City3D;

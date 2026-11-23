@@ -4376,3 +4376,8 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-krow { display: flex; gap: 6px; pointer-events: auto; margin-top: 4px; }
 .cs-kb { display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.05); margin-bottom: 4px; }
 @media (max-width: 600px) { .cs-kspd { font-size: 26px; } .cs-klap { font-size: 15px; } }
+
+/* ---------- La Ville : uniquement en 3D (écran de chargement à la place du plan) ---------- */
+.island.load3d > canvas:not(.isl-3d) { visibility: hidden; }
+.island.load3d::before { content: '🏙️ La Ville arrive…'; position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; color: #fff; font: 800 20px Outfit, Inter, sans-serif; background: radial-gradient(ellipse at center, #2a1a50, #07050f 70%); pointer-events: none; animation: load3dPulse 1.6s ease-in-out infinite; }
+@keyframes load3dPulse { 50% { color: #ff9be8; } }
