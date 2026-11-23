@@ -1569,4 +1569,18 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 111,
+    date: '2026-11-23',
+    title: 'La fête foraine refaite en beaucoup plus beau ✨🎡',
+    added: [],
+    changed: [
+      '✨ Les ampoules, les néons et les globes brillent vraiment maintenant, avec une lueur autour (aussi dans la boîte de nuit)',
+      '🎠 Fini le carré : stands arrondis avec toits rayés festonnés, nacelles et wagons arrondis, voitures tamponneuses toutes rondes',
+      '🎡 La grande roue a des rayons en câbles couverts d\'ampoules, le carrousel a un toit à deux étages avec miroirs et barres dorées',
+      '🎢 Les montagnes russes ont des rails ronds, des piliers en treillis et des wagons avec des phares',
+      '🌙 Un ciel violet avec la lune et la ville au loin, des pavés, des massifs de fleurs, des arbres illuminés, des lampadaires à l\'ancienne et des fanions colorés',
+    ],
+    removed: [],
+  },
 ];
