@@ -547,7 +547,7 @@ const Casino = (() => {
     for (let r = 0; r < 6; r++) for (let i = 0; i < 9; i++) { const x = CI.seatX(k, i), z = CI.rowZ(r); if ([...avatars.values()].some(a => a.id !== myId() && Math.hypot(a.x - x, a.z - z) < .3)) continue; const d = Math.hypot(x - me.x, z - me.z); if (d < bd) { bd = d; best = { k, r, i, x, z }; } }
     if (!best) return toast('😕 La salle est pleine !');
     me.ride = null; me.lvl = 1; me.seat = best; me.x = best.x; me.z = best.z; me.y = CI.up - .5 + CI.rowH(best.r); me.yaw = 0; mode = 'seat'; hud.joy.classList.add('hidden');
-    socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); sCard();
+    socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw, k: 2 }); sCard();
     if (!info?.cine?.[k]) setTimeout(() => toast(`🎬 Aucun film dans la salle ${k + 1} : touche « 📺 YouTube » pour en lancer un !`), 400);
   }
   function standUp() {
@@ -940,7 +940,7 @@ const Casino = (() => {
     const put = (id, name, gender, bot, base, extra = '') => {
       const a = avatarFor(id, name, gender, bot), p = poseOf(id) || base; want.add(id); if (!p) return;
       a.tx = p.x; a.tz = p.z; a.tyaw = p.yaw; a.ty = p.y || 0; if (p.tag && Math.hypot(a.tx - a.x, a.tz - a.z) > 1.2) a.init = false; /* autour d'une table : on se place directement (sans traverser le billard) */ if (!a.init) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; a.y = a.ty; a.init = true; }
-      a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${people.get(id)?.k || (id === myId() && mode === 'kart') ? '🏎️ ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
+      a.tag.set(`${window.ProxVoice?.speaking(id) ? '🔊 ' : ''}${people.get(id)?.k === 1 || (id === myId() && mode === 'kart') ? '🏎️ ' : ''}${name}${extra}${p.tag ? ' · ' + p.tag : ''}`, bot ? '#ffd23f' : id === myId() ? '#2bff88' : '#38e8ff');
     };
     for (const p of people.values()) { if (p.id === myId()) continue; put(p.id, p.name, p.gender, false, { x: p.x, z: p.z, y: p.y || 0, yaw: p.yaw }, (p.drink && drinks[p.drink] ? ' ' + drinks[p.drink].split(' ')[0] : '') + (p.st ? ' · ' + p.st : '')); }
     const mine = people.get(myId()); if (mine) put(myId(), mine.name, mine.gender, false, { x: me.x, z: me.z, y: me.y, yaw: me.yaw }, mine.drink && drinks[mine.drink] ? ' ' + drinks[mine.drink].split(' ')[0] : '');
@@ -953,7 +953,7 @@ const Casino = (() => {
       a.x += (a.tx - a.x) * k; a.z += (a.tz - a.z) * k; const d = Math.hypot(a.tx - a.x, a.tz - a.z); if (d > 6) { a.x = a.tx; a.z = a.tz; }
       const sp = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-3);
       let da = ((a.tyaw - a.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI; a.yaw += da * Math.min(1, dt * 10);
-      const inKart = a.id === myId() ? mode === 'kart' : !!people.get(a.id)?.k; // en kart : on s'assoit dedans
+      const inKart = a.id === myId() ? mode === 'kart' : people.get(a.id)?.k === 1; // en kart : on s'assoit dedans
       if (inKart && !a.kart) { a.kart = makeKart([0xd42020, 0x1c4fd8, 0xffd23f, 0x2bff88, 0xff2bd6, 0xff8a3d][Math.abs(a.id) % 6], Math.abs(a.id) % 100); scene.add(a.kart); const hm = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), std(0xffffff, { metalness: .3, roughness: .2 })); hm.position.set(0, 1.08, .3); a.kart.add(hm); }
       if (!inKart && a.kart) { scene.remove(a.kart); a.kart = null; }
       if (a.kart) { if (a.id === myId()) { a.x = a.tx; a.z = a.tz; a.yaw = a.tyaw; } a.kart.position.set(a.x, 0, a.z); a.kart.rotation.y = a.yaw; }
@@ -961,7 +961,7 @@ const Casino = (() => {
       a.g.position.set(a.x - (a.kart ? Math.sin(a.yaw) * -.3 : 0), a.y - (a.kart ? .62 : 0), a.z - (a.kart ? Math.cos(a.yaw) * -.3 : 0)); a.g.rotation.y = a.yaw + Math.PI;
       a.spd = (a.spd || 0) + (Math.min(sp, 8) - (a.spd || 0)) * Math.min(1, dt * 6); // vitesse lissée
       const cur0 = a.cur === 'dance' ? 'idle' : a.cur, v = a.spd;
-      const still = !!a.kart || vy > .3 || (a.id === myId() && (me.ride || me.seat)) || (a.ty > 4.2 && Math.abs(a.ty - 5) > .05); // assis au cinéma (plus bas que le sol de l'étage, ou sur un gradin) // sur l'escalator ou assis : on ne marche pas
+      const still = !!a.kart || vy > .3 || (a.id === myId() ? !!(me.ride || me.seat) : people.get(a.id)?.k === 2); // en kart, sur l'escalator ou assis : on ne marche pas
       const w = a.dance > 0 ? 'dance' : still ? 'idle' : cur0 === 'run' ? (v > 2.4 ? 'run' : v > .3 ? 'walk' : 'idle') : cur0 === 'walk' ? (v > 3.4 ? 'run' : v > .2 ? 'walk' : 'idle') : (v > 3.4 ? 'run' : v > .5 ? 'walk' : 'idle');
       if (a.dance > 0) a.dance -= dt;
       if (w !== a.cur && a.act[w]) { const n = a.act[w]; n.reset().play(); a.act[a.cur]?.crossFadeTo(n, .25, false); a.cur = w; }
@@ -1238,7 +1238,7 @@ const Casino = (() => {
     // l'escalator m'emmène (on ne contrôle rien pendant la montée ou la descente)
     if (me.ride) {
       const R0 = me.ride, e = R0.e, Dz = e.z0 - e.z1, tot = Dz + 1.1; R0.t += dt * 1.9; const u = Math.min(1, R0.t / (tot + .3)), z = R0.dir > 0 ? e.z0 + .5 - u * tot : e.z1 - .6 + u * tot;
-      me.z = z; me.y = Math.max(0, Math.min(1, (e.z0 - z) / Dz)) * e.h; me.yaw = R0.dir > 0 ? 0 : Math.PI;
+      me.z = z; me.y = Math.max(0, Math.min(1, (e.z0 - z) / Dz)) * e.h + (z < e.z0 && z > e.z1 ? .09 : 0); me.yaw = R0.dir > 0 ? 0 : Math.PI; // les pieds posés sur la marche
       if (u >= 1) { me.lvl = R0.dir > 0 ? 1 : 0; me.y = me.lvl ? e.h : 0; me.z = R0.dir > 0 ? e.z1 - .75 : e.z0 + .9; me.ride = null;
         if (me.lvl) toast(e.zone === 'cine' ? '🎬 Les salles sont devant toi : entre, assieds-toi et lance un film !' : '🪩 À l\'étage : la boîte de nuit (à gauche) et le cinéma (à droite) !'); }
       if (ts - lastSend > 90) { lastSend = ts; socket.emit('cs_move', { x: me.x, z: me.z, y: me.y, yaw: me.yaw }); }
@@ -1316,6 +1316,6 @@ const Casino = (() => {
   socket.on('pk_table', P => { if (active) setPoker(P); });
   socket.on('pk_hole', h => { if (!active) return; pk.hole = h; sCard(); if (pk.st) setPoker(pk.st); });
   socket.on('connect', async () => { if (!active) return; const d = await ack('cs_enter', {}); if (d && !d.error && active) applyEnter(d); });
-  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, sitDown, me: () => ({ ...me }) } };
+  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, sitDown, me: () => ({ ...me }), av: () => { const a = avatars.get(myId()); return a && { cur: a.cur, spd: +(a.spd || 0).toFixed(2), y: +(a.y || 0).toFixed(2), ty: a.ty, w: Object.fromEntries(Object.entries(a.act).map(([k, x]) => [k, [+x.getEffectiveWeight().toFixed(2), x.isRunning(), +x.time.toFixed(2), x.enabled]])) }; } } };
 })();
 window.Casino = Casino;
