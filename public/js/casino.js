@@ -1278,7 +1278,7 @@ const Casino = (() => {
         const lines = []; for (let k = 0; k < 32; k++) { const a = k / 32 * Math.PI * 2; lines.push(0, 0, dz, Math.cos(a) * Rw, Math.sin(a) * Rw, dz); } const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)); G.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xdcdcdc }))); }
       for (let k = 0; k < NG; k++) { const a = k / NG * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 1.6), chrome); bar.rotation.x = Math.PI / 2; bar.position.set(Math.cos(a) * Rw, Math.sin(a) * Rw, 0); G.add(bar); }
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2, 32), std(0xd42050, { metalness: .5, roughness: .3 })); hub.rotation.x = Math.PI / 2; hub.position.copy(C); BG.add(hub); const hubG = new THREE.Mesh(new THREE.CircleGeometry(.8, 24), glowM(0xffd23f, 2)); hubG.position.set(C.x, C.y, C.z + 1.02); BG.add(hubG);
-      for (const s of [-1, 1]) for (const zz of [-1.6, 1.6]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(.22, .36, 17.6, 12), white); leg.position.set(C.x + s * 4.3, 8, C.z + zz); leg.rotation.z = s * .26; BG.add(leg); }
+      for (const s of [-1, 1]) for (const zz of [-2.6, 2.6]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(.22, .36, 17.6, 12), white); leg.position.set(C.x + s * 4.3, 8, C.z + zz); leg.rotation.z = s * .26; BG.add(leg); }
       const spokeBulbs = []; for (let k = 0; k < 16; k++) for (let j = 1; j <= 6; j++) { spokeBulbs.push([bulbHue.length, k, j]); bulbHue.push([0, 0, 0, k / 16]); }
       const gond = []; for (let k = 0; k < NG; k++) { const g = new THREE.Group(); const cab = new THREE.Mesh(new THREE.CapsuleGeometry(.75, .7, 8, 16), std([0xff2b7a, 0x38c8ff, 0xffc83f, 0x2bdf88][k % 4], { roughness: .3, metalness: .2 })); cab.scale.set(1, .9, .85); cab.position.y = -1.3; g.add(cab);
         const win = new THREE.Mesh(new THREE.CapsuleGeometry(.77, .35, 6, 16), new THREE.MeshPhysicalMaterial({ color: 0xcfe8ff, transparent: true, opacity: .45, roughness: .05 })); win.scale.set(1, .5, .87); win.position.y = -1.05; g.add(win);
@@ -1409,25 +1409,26 @@ const Casino = (() => {
   // ----- monter dans un manège -----
   const ride = { kind: null, idx: 0, until: 0, start: 0, look: { yaw: 0, pitch: 0 }, wait: 0, carMe: null };
   function boardRide(kind) {
-    const now0 = clock(); Object.assign(ride, { kind, look: { yaw: 0, pitch: 0 }, wait: 0 });
+    const now0 = clock(); Object.assign(ride, { kind, look: { yaw: 0, pitch: 0 }, wait: 0, dir: null });
     if (kind === 'wheel') { const R0 = RIDES.wheel; let best = 0, by = 1e9; for (let i = 0; i < R0.NG; i++) { const y = R0.seat(i).y; if (y < by) { by = y; best = i; } } ride.idx = best; ride.start = now0; ride.until = now0 + 48; }
     if (kind === 'carousel') { ride.idx = Math.floor(Math.random() * 12); ride.start = now0; ride.until = now0 + 40; }
-    if (kind === 'swing') { ride.idx = Math.floor(Math.random() * 16); const c = now0 % 40; ride.wait = c < 2 ? 0 : 40 - c; ride.start = now0 + ride.wait; ride.until = ride.start + 37; }
+    if (kind === 'swing') { ride.idx = Math.floor(Math.random() * 16); const c = now0 % 40; ride.wait = c < 28 ? 0 : 40 - c; ride.start = now0 + ride.wait; ride.until = now0 + (c < 28 ? 36 - c : 40 - c + 36); } // si ça tourne déjà, on saute dedans ; on descend quand ça s'arrête
     if (kind === 'drop') { const c = now0 % 30; ride.wait = c < 1 ? 0 : 30 - c; ride.start = now0 + ride.wait; ride.until = ride.start + 19; }
     if (kind === 'coaster') { const lap = coaster.lap; let best = null; for (const o of [0, 1]) { const tt = ((now0 + o * lap / 2) % lap), w = tt < 2 ? 0 : lap - tt; if (!best || w < best.w) best = { o, w }; } ride.idx = best.o; ride.wait = best.w; ride.start = now0 + best.w; ride.until = ride.start + lap - 3; }
     if (kind === 'bump') { const C2 = RIDES.bump.cars[0]; C2.me = true; C2.v = 0; ride.carMe = C2; ride.until = now0 + 9999; }
     mode = 'ride'; hidePanel(); hud.emotes.classList.add('hidden'); hud.joy.classList.toggle('hidden', !(kind === 'bump' && mobile())); hud.ride.classList.remove('hidden'); sDing();
-    toast(ride.wait > 1 ? `${RIDES[kind].name} : départ dans ${Math.ceil(ride.wait)} s… installe-toi !` : `${RIDES[kind].name} : c'est parti ! Glisse pour regarder autour de toi`);
+    toast(kind === 'bump' ? (mobile() ? '🚗 Joystick : en haut pour avancer, sur les côtés pour tourner. Fonce dans les autres !' : '🚗 Z / ↑ pour avancer, S / ↓ pour reculer, Q D / ← → pour tourner. Fonce dans les autres !') : ride.wait > 1 ? `${RIDES[kind].name} : départ dans ${Math.ceil(ride.wait)} s… installe-toi !` : `${RIDES[kind].name} : c'est parti ! Glisse pour regarder autour de toi`);
   }
   function leaveRide(quiet) { if (ride.carMe) { ride.carMe.me = false; ride.carMe = null; } const k = ride.kind; ride.kind = null; mode = 'walk'; hud.ride?.classList.add('hidden'); hud.emotes?.classList.remove('hidden'); hud.joy?.classList.toggle('hidden', !mobile());
     const exits = { wheel: [348, -16.5], carousel: [357.5, 18], coaster: [380, -5.5], swing: [382.5, 18], drop: [389.5, 5], bump: [347, -2] }, e = exits[k] || [370, 30]; me.x = e[0]; me.z = e[1]; me.y = 0; if (!quiet) socket.emit('cs_move', { x: me.x, z: me.z, y: 0, yaw: me.yaw, k: 0 }); }
   function rideFrame(dt, ts) { // la caméra suit mon siège
     const now0 = clock(), k = ride.kind; if (!k) return; let p, look;
     if (k === 'wheel') { p = RIDES.wheel.seat(ride.idx); look = [p.x, p.y - 1.5, p.z + 10]; }
-    else if (k === 'carousel') { p = RIDES.carousel.seat(ride.idx); const C = RIDES.carousel.C, d = new THREE.Vector3(p.x - C.x, 0, p.z - C.z).normalize(); look = [p.x - d.z * 5, p.y, p.z + d.x * 5]; p = p.clone(); p.y += 1.1; }
+    else if (k === 'carousel') { p = RIDES.carousel.seat(ride.idx); const C = RIDES.carousel.C, d = new THREE.Vector3(p.x - C.x, 0, p.z - C.z).normalize(); look = [p.x + d.z * 5, p.y, p.z - d.x * 5]; p = p.clone(); p.y += 1.1; }
+    else if (now0 < ride.start && (k === 'swing' || k === 'drop')) { const C = RIDES[k].C; p = k === 'swing' ? new THREE.Vector3(382.2, 1.7, 18) : new THREE.Vector3(384.5, 2.2, 8); look = [C.x, k === 'drop' ? 14 : 6, C.z]; } // en attendant le départ : on regarde le manège depuis le quai
     else if (k === 'swing') { p = RIDES.swing.seat(ride.idx); const C = RIDES.swing.C, d = new THREE.Vector3(p.x - C.x, 0, p.z - C.z).normalize(); look = [p.x + d.z * 6, p.y - 1, p.z - d.x * 6]; }
     else if (k === 'drop') { p = RIDES.drop.seat(); look = [p.x, p.y - 2, p.z + 10]; }
-    else if (k === 'coaster') { if (now0 < ride.start) { p = new THREE.Vector3(387, 2.4, -8); look = [395, 2, -9]; } else { const o = RIDES.coaster.pos(ride.idx, 0); p = o.p.clone(); p.y += 1.25; look = [p.x + o.d.x * 6, p.y + o.d.y * 6 - .3, p.z + o.d.z * 6]; ride.v = o.v; } }
+    else if (k === 'coaster') { if (now0 < ride.start) { p = new THREE.Vector3(387, 2.4, -8); look = [395, 2, -9]; } else { const o = RIDES.coaster.pos(ride.idx, 0); p = o.p.clone(); p.y += 1.25; ride.dir = ride.dir ? ride.dir.lerp(o.d, Math.min(1, dt * 6)).normalize() : o.d.clone(); const dd = ride.dir; look = [p.x + dd.x * 6, p.y + dd.y * 6 - .3, p.z + dd.z * 6]; ride.v = o.v; } }
     else if (k === 'bump') { const C2 = ride.carMe; let f = 0, s = 0; if (keys.has('z') || keys.has('w') || keys.has('ArrowUp')) f += 1; if (keys.has('s') || keys.has('ArrowDown')) f -= 1; if (keys.has('q') || keys.has('a') || keys.has('ArrowLeft')) s -= 1; if (keys.has('d') || keys.has('ArrowRight')) s += 1; if (stick.on) { f = Math.abs(stick.y) > .15 ? -stick.y : 0; s = stick.x; }
       C2.v += f * 7 * dt; C2.v -= C2.v * 1.2 * dt; C2.v = Math.max(-3, Math.min(6, C2.v)); C2.yaw -= s * 2.2 * dt; p = new THREE.Vector3(C2.x + Math.sin(C2.yaw) * 4, 2.6, C2.z + Math.cos(C2.yaw) * 4); look = [C2.x - Math.sin(C2.yaw) * 3, .5, C2.z - Math.cos(C2.yaw) * 3]; }
     // regarder autour (glisser le doigt / la souris)
