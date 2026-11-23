@@ -846,8 +846,8 @@ const Casino = (() => {
   const kartBlocks = [];
   function camInside(x, z) { // la caméra reste dans la pièce où je suis
     const inR = (L, m) => L.some(([a, b, c, d]) => x >= a - m && x <= c + m && z >= b - m && z <= d + m);
-    if (me.zone === 'hall') return inR(hallRects[me.lvl ? 1 : 0], .3) || (me.lvl === 0 && x > -99.7 && x < -60.3 && z > -3.7 && z < 19.7);
-    if (me.zone === 'cine') return inR(cineRects[me.lvl ? 1 : 0], .3);
+    if (me.zone === 'hall') return x > -99.7 && x < -60.3 && z > (me.lvl ? -19.7 : -3.7) && z < 19.7; // à l'étage, la caméra peut flotter au-dessus de l'atrium
+    if (me.zone === 'cine') return inR(cineRects[me.lvl ? 1 : 0], .3) || (me.lvl === 1 && salleAt(me.x, me.z) < 0 && inR(cineRects[0], .3)); // depuis la mezzanine, au-dessus du hall
     if (me.zone === 'night') return x > 100.2 && x < 129.8 && z > -14.8 && z < 14.8;
     if (me.zone === 'club') return x > -17.8 && x < 17.8 && z > -13.8 && z < 13.8;
     return true;
@@ -1316,6 +1316,6 @@ const Casino = (() => {
   socket.on('pk_table', P => { if (active) setPoker(P); });
   socket.on('pk_hole', h => { if (!active) return; pk.hole = h; sCard(); if (pk.st) setPoker(pk.st); });
   socket.on('connect', async () => { if (!active) return; const d = await ack('cs_enter', {}); if (d && !d.error && active) applyEnter(d); });
-  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, sitDown, me: () => ({ ...me }), av: () => { const a = avatars.get(myId()); return a && { cur: a.cur, spd: +(a.spd || 0).toFixed(2), y: +(a.y || 0).toFixed(2), ty: a.ty, w: Object.fromEntries(Object.entries(a.act).map(([k, x]) => [k, [+x.getEffectiveWeight().toFixed(2), x.isRunning(), +x.time.toFixed(2), x.enabled]])) }; } } };
+  return { open, active: () => active && !paused, go: { poolSit, pokerSit, drinkMenu, slotGame, goTo, tp: (x, z) => { me.x = x; me.z = z; }, goCine, goZone, takeKart, sitDown, me: () => ({ ...me }), set: o => Object.assign(me, o), av: () => { const a = avatars.get(myId()); return a && { cur: a.cur, spd: +(a.spd || 0).toFixed(2), y: +(a.y || 0).toFixed(2), ty: a.ty, w: Object.fromEntries(Object.entries(a.act).map(([k, x]) => [k, [+x.getEffectiveWeight().toFixed(2), x.isRunning(), +x.time.toFixed(2), x.enabled]])) }; } } };
 })();
 window.Casino = Casino;
