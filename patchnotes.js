@@ -1632,4 +1632,17 @@ module.exports = [
     changed: ['🚶 Les personnages marchent et courent à une vitesse réaliste : leurs pas suivent leur vitesse (fini l\'effet patinage)'],
     removed: ['Le bouton « Paradise Complex » de la barre d\'actions (on y va à pied maintenant)'],
   },
+  {
+    id: 116,
+    date: '2026-11-24',
+    title: 'Caméra sans micro, caméra privée et No PV 📷🔒🚫',
+    added: [
+      '📷 Tu peux allumer ta caméra même quand tu écoutes seulement le vocal (sans micro) : tout le monde peut la voir',
+      '🔒 Caméra privée : quand ta caméra est allumée, les autres doivent te demander la permission pour la voir. Tu reçois « … veut voir ta caméra » et tu choisis ✅ Accepter ou ❌ Refuser',
+      '🔒 Tu peux retirer la permission à quelqu\'un à tout moment (bouton 👁 de ta caméra), ou décocher « Demander ma permission » pour que tout le monde la voie directement',
+      '🚫 No PV : active-le dans ton menu (en touchant ta photo en haut). Tant qu\'il est activé, personne ne peut t\'envoyer de message privé. Désactive-le et on peut de nouveau t\'écrire',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -45,6 +45,10 @@ const Voice = {
   camBlocked: new Set(),  // personnes (userId) à qui je ne partage pas ma caméra
   blockedMe: new Set(),   // caméras (socketId) qui ne me sont pas partagées
   camViewers: [],         // qui regarde ma caméra en ce moment
+  camAsk: (() => { try { return localStorage.getItem('lc_camask') !== '0'; } catch (e) { return true; } })(), // 🔒 demander la permission avant qu'on voie ma caméra
+  camAllowed: new Set(),  // personnes (userId) qui ont eu ma permission
+  askMe: new Set(),       // caméras (socketId) qu'il faut demander à voir
+  camAsked: new Set(),    // caméras (socketId) à qui j'ai déjà demandé
   peerUsers: new Map(),   // socketId -> userId des personnes du vocal
   relayTo: new Set(),  // personnes à qui on envoie notre voix par le site (connexion directe impossible)
   relayProc: null,
@@ -99,7 +103,7 @@ const Voice = {
     this.stopLocal();
     this.slug = null;
     this.listening = false;
-    this.camViewers = []; this.blockedMe = new Set(); lastWatch = '';
+    this.camViewers = []; this.blockedMe = new Set(); this.askMe = new Set(); this.camAsked = new Set(); this.camAllowed = new Set(); lastWatch = '';
     this.joining = false;
     renderVoice();
   },
@@ -125,7 +129,7 @@ const Voice = {
     if (this.stream) this.stream.getTracks().forEach(t => pc.addTrack(t, this.stream));
     else if (initiator) pc.addTransceiver('audio', { direction: 'recvonly' }); // auditeur : on reçoit seulement
     // Un canal vidéo est toujours prévu : allumer la caméra n'a pas besoin de renégocier
-    if (initiator) { p.videoSender = pc.addTransceiver('video', { direction: this.stream ? 'sendrecv' : 'recvonly' }).sender; this.applyCamBlocks(); }
+    if (initiator) { p.videoSender = pc.addTransceiver('video', { direction: 'sendrecv' }).sender; this.applyCamBlocks(); } /* même sans micro, on peut montrer sa caméra */
     pc.onicecandidate = e => { if (e.candidate) socket.emit('voice_signal', { to: id, data: { candidate: e.candidate } }); };
     pc.ontrack = e => {
       if (e.track.kind === 'video') {
@@ -192,7 +196,7 @@ const Voice = {
         p.pending = [];
         if (data.sdp.type === 'offer') {
           const t = p.pc.getTransceivers().find(x => x.receiver.track && x.receiver.track.kind === 'video');
-          if (t && this.stream) { t.direction = 'sendrecv'; p.videoSender = t.sender; this.applyCamBlocks(); }
+          if (t) { t.direction = 'sendrecv'; p.videoSender = t.sender; this.applyCamBlocks(); }
           await p.pc.setLocalDescription(await p.pc.createAnswer());
           socket.emit('voice_signal', { to: from, data: { sdp: p.pc.localDescription } });
         }
@@ -215,8 +219,9 @@ const Voice = {
     if (this.cam) {
       this.cam.stop();
       this.cam = null;
+      this.camAllowed = new Set();
       this.applyCamBlocks();
-      socket.emit('voice_video', false);
+      socket.emit('voice_video', { on: false, ask: this.camAsk });
       this.camViewers = [];
       renderVoice(); renderVideoGrid();
       return;
@@ -226,8 +231,31 @@ const Voice = {
       this.cam = st.getVideoTracks()[0];
     } catch (e) { return toast('📷 Accès à la caméra refusé ou aucune caméra trouvée'); }
     this.applyCamBlocks();
-    socket.emit('voice_video', true);
+    socket.emit('voice_video', { on: true, ask: this.camAsk });
+    // 🎧 sans micro : on se connecte aussi aux autres auditeurs pour qu'ils voient la caméra
+    if (this.listening) for (const p of state.voice.get(this.slug) || []) if (p.socketId !== socket.id && !this.peers.has(p.socketId)) { this.peerUsers.set(p.socketId, p.userId); this.createPeer(p.socketId, true); }
     renderVoice(); renderVideoGrid();
+  },
+  setCamAsk(on) {
+    this.camAsk = !!on;
+    try { localStorage.setItem('lc_camask', on ? '1' : '0'); } catch (e) {}
+    if (this.cam) socket.emit('voice_video', { on: true, ask: this.camAsk });
+    this.applyCamBlocks(); renderVoice();
+  },
+  // 🔒 répondre à une demande « voir ta caméra »
+  answerCam(userId, ok) {
+    socket.emit('cam_answer', { userId, ok }, r => {
+      if (r?.error) return toast(r.error);
+      this.camAllowed = new Set(r.allowed || []);
+      this.applyCamBlocks();
+    });
+  },
+  requestCam(ownerSocket) {
+    socket.emit('cam_request', ownerSocket, r => {
+      if (r?.error) return toast(r.error);
+      this.camAsked.add(ownerSocket); renderVideoGrid();
+      if (!r.already) toast('📷 Demande envoyée : on attend sa réponse…');
+    });
   },
   async switchCam() {
     if (!this.cam) return;
@@ -247,7 +275,8 @@ const Voice = {
     for (const [id, p] of this.peers) {
       if (!p.videoSender) continue;
       const uid = this.peerUsers.get(id);
-      const track = this.cam && !(uid && this.camBlocked.has(uid)) ? this.cam : null;
+      const ok = uid && !this.camBlocked.has(uid) && (!this.camAsk || this.camAllowed.has(uid));
+      const track = this.cam && ok ? this.cam : null;
       if (!force && p.sentTrack === track) continue;
       p.sentTrack = track;
       p.videoSender.replaceTrack(track).catch(() => {});
@@ -452,15 +481,13 @@ function renderVoice() {
   /* 🎧 ceux qui écoutent : on voit leur pseudo (les 8 premiers, puis « +N ») */
   const listenInfo = listeners.length ? el('div', { class: 'voice-listeners', title: 'En écoute : ' + listeners.map(p => p.username).join(', ') },
     el('span', { class: 'vl-lbl' }, `🎧 ${listeners.length} écoute${listeners.length > 1 ? 'nt' : ''} :`),
-    ...listeners.slice(0, 8).map(p => el('span', { class: 'vl-chip', title: p.username + ' écoute', onclick: () => typeof openProfile === 'function' && openProfile(p.userId) }, LC.avatar(p), el('span', { class: 'vl-name' }, p.username))),
+    ...listeners.slice(0, 8).map(p => el('span', { class: 'vl-chip', title: p.username + ' écoute', onclick: () => typeof openProfile === 'function' && openProfile(p.userId) }, LC.avatar(p), el('span', { class: 'vl-name' }, p.username), p.video ? el('span', { title: 'Caméra allumée' }, '📷') : null)),
     listeners.length > 8 ? el('span', { class: 'vl-more' }, '+' + (listeners.length - 8)) : null) : null;
   let ctrl;
   if (speaking) {
     ctrl = el('div', { class: 'voice-ctrl' },
       el('button', { class: 'btn btn-sm' + (Voice.muted ? ' btn-danger' : ''), title: Voice.muted ? 'Rallumer le micro' : 'Couper le micro', onclick: () => Voice.toggleMute() }, Voice.muted ? '🔇' : '🎤', el('span', { class: 'lbl' }, Voice.muted ? ' Micro coupé' : ' Micro')),
-      el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
-      Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
-      Voice.cam ? el('button', { class: 'btn btn-sm cam-viewers-btn', title: 'Qui regarde ma caméra', onclick: () => openCamViewers() }, '👁 ' + Voice.camViewers.length) : null,
+      ...camButtons(),
       el('button', { class: 'btn btn-sm' + (Voice.deaf ? ' btn-danger' : ''), title: 'Son', onclick: () => Voice.toggleDeaf() }, Voice.deaf ? '🔈' : '🎧', el('span', { class: 'lbl' }, Voice.deaf ? ' Son coupé' : ' Son')),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
       el('button', { class: 'btn btn-sm', title: 'Écrire pour parler : les autres entendent ton texte à voix haute', onclick: () => A11y.sayBox() }, '⌨️'),
@@ -469,6 +496,7 @@ function renderVoice() {
   } else if (listening) {
     ctrl = el('div', { class: 'voice-ctrl' },
       el('span', { class: 'voice-listening' }, '🎧 Tu écoutes'),
+      ...camButtons(),
       el('button', { class: 'btn btn-sm', title: 'Régler le volume', onclick: () => openVoiceVolume() }, '🔊', el('span', { class: 'lbl' }, ' ' + pct(Voice.master))),
       el('button', { class: 'btn btn-sm btn-primary', title: 'Prendre la parole (avec ton micro)', onclick: () => Voice.join() }, '🎙️', el('span', { class: 'lbl' }, ' Parler')),
       el('button', { class: 'btn btn-sm' + (Voice.autoListen ? ' btn-ok' : ''), title: 'Écouter tout seul le vocal quand j\'arrive dans un salon', onclick: () => Voice.setAutoListen(!Voice.autoListen) }, Voice.autoListen ? '🔁 Auto ✓' : '🔁 Auto'),
@@ -493,6 +521,14 @@ function renderVoice() {
         manage && !mine && p.userId !== r.ownerId ? el('button', { class: 'voice-x', title: 'Retirer du vocal', onclick: () => socket.emit('voice_kick', p.socketId, res => res?.error && toast(res.error)) }, '✕') : null);
     }), listenInfo),
     ctrl].filter(Boolean));
+}
+// 📷 boutons de la caméra (avec ou sans micro)
+function camButtons() {
+  return [
+    el('button', { class: 'btn btn-sm' + (Voice.cam ? ' btn-primary' : ''), title: Voice.cam ? 'Couper la caméra' : 'Allumer la caméra', onclick: () => Voice.toggleCam() }, '📷', el('span', { class: 'lbl' }, Voice.cam ? ' Caméra on' : ' Caméra')),
+    Voice.cam ? el('button', { class: 'btn btn-sm', title: 'Changer de caméra', onclick: () => Voice.switchCam() }, '🔄') : null,
+    Voice.cam ? el('button', { class: 'btn btn-sm cam-viewers-btn', title: Voice.camAsk ? 'Qui regarde ma caméra (on doit te demander la permission)' : 'Qui regarde ma caméra', onclick: () => openCamViewers() }, (Voice.camAsk ? '🔒 ' : '') + '👁 ' + Voice.camViewers.length) : null,
+  ].filter(Boolean);
 }
 // Temps de micro : le 1er n'a pas de limite, les suivants ont un compte à rebours
 const micFmt = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); const m = Math.floor(t / 60), sec = t % 60; return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`; };
@@ -586,7 +622,7 @@ socket.on('voice_state', ({ slug, participants }) => {
   if (Voice.slug === slug) Voice.applyVolumes();
   maybeAutoListen();
   // Plus personne ne parle : l'auditeur arrête d'écouter
-  if (Voice.slug === slug && Voice.listening && !participants.some(p => !p.listener)) Voice.leave();
+  if (Voice.slug === slug && Voice.listening && !Voice.cam && !participants.some(p => !p.listener || (p.video && p.socketId !== socket.id))) Voice.leave();
   if (typeof afterMuteChange === 'function' && Voice.slug === slug) setTimeout(afterMuteChange, 500);
 });
 socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
@@ -594,7 +630,22 @@ socket.on('voice_signal', ({ from, data }) => Voice.signal(from, data));
 socket.on('voice_cam_refused', ({ error }) => { if (Voice.cam) { Voice.cam.stop(); Voice.cam = null; Voice.applyCamBlocks(); renderVoice(); renderVideoGrid(); } toast(error); });
 // Qui regarde ma caméra / quelles caméras ne me sont pas partagées
 socket.on('cam_viewers', ({ viewers }) => { Voice.camViewers = viewers || []; renderVoice(); });
-socket.on('cam_blocked_me', ({ sockets }) => { Voice.blockedMe = new Set(sockets || []); renderVideoGrid(); renderVoice(); });
+socket.on('cam_blocked_me', ({ sockets, ask }) => { Voice.blockedMe = new Set(sockets || []); Voice.askMe = new Set(ask || []); for (const id of [...Voice.camAsked]) if (!Voice.askMe.has(id)) Voice.camAsked.delete(id); renderVideoGrid(); renderVoice(); });
+// 🔒 quelqu'un demande à voir ma caméra
+socket.on('cam_request', u => {
+  if (!Voice.cam) return;
+  document.querySelector(`.cam-req[data-uid="${u.userId}"]`)?.remove();
+  const box = document.getElementById('camReqs') || document.body.appendChild(el('div', { id: 'camReqs', class: 'cam-reqs' }));
+  const card = el('div', { class: 'cam-req', 'data-uid': u.userId });
+  const done = ok => { Voice.answerCam(u.userId, ok); card.remove(); if (ok) toast(`📷 ${u.username} peut voir ta caméra`); };
+  card.append(LC.avatar(u), el('div', { class: 'cr-txt' }, el('b', { style: 'color:' + (u.color || 'inherit') }, u.username), el('span', {}, ' veut voir ta caméra')),
+    el('button', { class: 'btn btn-sm btn-ok', onclick: () => done(true) }, '✅ Accepter'),
+    el('button', { class: 'btn btn-sm btn-danger', onclick: () => done(false) }, '❌ Refuser'));
+  box.append(card);
+  try { LC.sound?.('notif'); } catch (e) {}
+  setTimeout(() => card.remove(), 60000);
+});
+socket.on('cam_answered', ({ ownerSocket, ok, username }) => { Voice.camAsked.delete(ownerSocket); toast(ok ? `✅ ${username} a accepté : tu vois sa caméra` : `❌ ${username} n'a pas accepté que tu voies sa caméra`); renderVideoGrid(); });
 socket.on('voice_relay_peer', ({ peer }) => Voice.onRelayPeer(peer));
 socket.on('voice_relay_audio', ({ from, data }) => Voice.playRelay(from, data));
 socket.on('voice_peer_left', ({ socketId }) => Voice.closePeer(socketId));
@@ -724,6 +775,17 @@ window.addEventListener('resize', () => {
   for (const [k, pos] of floatPos) { pos.w = Math.min(pos.w, innerWidth - 16); pos.x = clamp(pos.x, 0, innerWidth - pos.w); pos.y = clamp(pos.y, 0, innerHeight - 50); }
   if (floatPos.size) renderVideoGrid();
 });
+// 🔒 Vignette d'une caméra qu'il faut demander à voir
+function lockTile(p) {
+  const key = 'lock:' + p.socketId;
+  let t = videoEls.get(key);
+  if (!t) { t = el('div', { class: 'vtile vlock' }); videoEls.set(key, t); }
+  const asked = Voice.camAsked.has(p.socketId);
+  t.replaceChildren(el('div', { class: 'vlock-in' }, el('div', { class: 'vlock-ic' }, '🔒'), el('small', {}, 'Caméra privée'),
+    el('button', { class: 'btn btn-sm' + (asked ? '' : ' btn-primary'), disabled: asked, onclick: e => { e.stopPropagation(); Voice.requestCam(p.socketId); } }, asked ? '⏳ Demande envoyée' : '👀 Demander à voir')),
+    el('span', { class: 'vtile-name' }, p.username));
+  return t;
+}
 function renderVideoGrid() {
   const grid = $('videoGrid');
   const r = state.currentRoom;
@@ -734,6 +796,7 @@ function renderVideoGrid() {
   for (const p of parts) {
     const mine = p.socketId === socket.id;
     if (!mine && Voice.blockedMe.has(p.socketId)) continue; // cette personne ne me partage pas sa caméra
+    if (!mine && Voice.askMe.has(p.socketId)) { tiles.push(['lock:' + p.socketId, lockTile(p)]); continue; } // 🔒 il faut demander à voir
     const stream = mine ? (Voice.cam ? new MediaStream([Voice.cam]) : null) : Voice.peers.get(p.socketId)?.videoStream;
     if (!stream) continue;
     const key = mine ? 'me' : p.socketId;
@@ -764,12 +827,12 @@ function renderVideoGrid() {
     t.classList.add('floating'); t.classList.remove('big');
     t.style.left = pos.x + 'px'; t.style.top = pos.y + 'px'; t.style.width = pos.w + 'px';
     t.classList.toggle('hidden', hidden);
-    if (t.parentNode !== layer) { layer.append(t); t.querySelector('video').play().catch(() => {}); }
+    if (t.parentNode !== layer) { layer.append(t); t.querySelector('video')?.play().catch(() => {}); }
   }
   for (const [, t] of docked) { t.classList.remove('floating', 'hidden'); t.style.left = t.style.top = t.style.width = ''; }
   // Caméras de la bande quand on regarde un autre salon : on les retire de l'écran
   for (const [k, t] of tiles) if (!floatPos.has(k) && !inThis) t.remove();
-  docked.forEach(([, t]) => t.querySelector('video').play().catch(() => {}));
+  docked.forEach(([, t]) => t.querySelector('video')?.play().catch(() => {}));
   for (const [k, t] of docked) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '⤢'; b.title = 'Détacher et déplacer'; } }
   for (const [k, t] of floating) { const b = t.querySelector('.vt-detach'); if (b) { b.textContent = '↩'; b.title = 'Remettre dans la bande'; } }
   // Badge « 👁 n » sur ma propre caméra
@@ -780,7 +843,7 @@ function renderVideoGrid() {
     eye.textContent = '👁 ' + Voice.camViewers.length;
   }
   // Dire au serveur quelles caméras j'ai vraiment à l'écran
-  const shown = hidden ? [] : [...docked, ...floating].map(([k]) => k).filter(k => k !== 'me');
+  const shown = hidden ? [] : [...docked, ...floating].map(([k]) => k).filter(k => k !== 'me' && !k.startsWith('lock:'));
   const sig = shown.sort().join(',');
   if (Voice.slug && sig !== lastWatch) { lastWatch = sig; socket.emit('cam_watching', shown); }
 }
@@ -796,7 +859,13 @@ function openCamViewers() {
     const viewers = Voice.camViewers;
     const viewerIds = new Set(viewers.map(v => v.userId));
     const others = (state.voice.get(Voice.slug) || []).filter(p => p.userId !== state.me.id && !viewerIds.has(p.userId) && !Voice.camBlocked.has(p.userId));
+    const askBox = el('label', { class: 'cv-ask' }, el('input', { type: 'checkbox', checked: Voice.camAsk, onchange: e => { Voice.setCamAsk(e.target.checked); draw(); } }),
+      el('span', {}, '🔒 Demander ma permission avant qu\'on voie ma caméra'));
+    const allowed = (state.voice.get(Voice.slug) || []).filter(p => Voice.camAllowed.has(p.userId) && p.userId !== state.me.id).filter((p, i, a) => a.findIndex(x => x.userId === p.userId) === i);
     body.replaceChildren(...[
+      askBox,
+      Voice.camAsk && allowed.length ? el('h4', { class: 'cv-title' }, '✅ Ont ta permission') : null,
+      ...(Voice.camAsk ? allowed.map(p => person(p, el('button', { class: 'btn btn-sm', title: 'Retirer la permission', onclick: () => { Voice.answerCam(p.userId, false); Voice.camAllowed.delete(p.userId); toast(`🔒 ${p.username} ne voit plus ta caméra`); setTimeout(draw, 300); } }, '🔒 Retirer'))) : []),
       el('p', { class: 'help', style: 'margin:-4px 0 10px' }, Voice.cam ? 'Les personnes qui ont ta caméra à l\'écran en ce moment.' : 'Ta caméra est éteinte. Tu peux quand même choisir à qui tu ne veux pas la montrer.'),
       ...(viewers.length ? viewers.map(v => person(v, block(v))) : [el('p', { class: 'empty', style: 'padding:10px' }, 'Personne ne regarde ta caméra pour le moment')]),
       others.length ? el('h4', { class: 'cv-title' }, 'Autres personnes du vocal') : null,

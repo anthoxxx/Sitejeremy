@@ -435,7 +435,7 @@ function lockComposer(text) {
 }
 async function openPm(user) {
   state.view = { type: 'pm', userId: user.id };
-  lockComposer(!isStaff() && !state.me.dev && ((state.customs?.enabled && !state.me.verified) || state.currentRoom?.slug === 'douane') ? (state.currentRoom?.slug === 'douane' ? '🔒 Pas de messages privés depuis le salon Vérification' : '🔒 Tu pourras écrire en privé une fois vérifié 🛂') : '');
+  lockComposer(!isStaff() && !state.me.dev && ((state.customs?.enabled && !state.me.verified) || state.currentRoom?.slug === 'douane') ? (state.currentRoom?.slug === 'douane' ? '🔒 Pas de messages privés depuis le salon Vérification' : '🔒 Tu pourras écrire en privé une fois vérifié 🛂') : !isStaff() && (state.online.find(u => u.id === user.id) || user).noPm ? `🚫 ${user.username} a activé le No PV : pas de messages privés` : '');
   typers.clear(); renderTyping();
   if (!state.convs.has(user.id)) state.convs.set(user.id, { user, unread: 0, last: null });
   const conv = state.convs.get(user.id);
@@ -680,6 +680,8 @@ function askLogout() {
 // ---------- Menu de mon compte (clic sur mon pseudo) ----------
 // 🟢 Le statut façon Discord
 function setPresence(v) { socket.emit('presence_set', v, r => { if (!r?.ok) return; state.me.presence = r.presence; closeUserMenu(); toast({ auto: '🟢 Tu es en ligne', away: '🌙 Tu es absent', dnd: '⛔ Ne pas déranger : plus de sons de notification' }[r.presence]); renderMe?.(); }); }
+function setNoPm(on) { socket.emit('nopm_set', !!on, r => { if (!r?.ok) return toast(r?.error || 'Erreur'); state.me.noPm = r.noPm; toast(r.noPm ? '🚫 No PV activé : personne ne peut t\'écrire en privé' : '💌 No PV désactivé : on peut de nouveau t\'écrire en privé'); }); }
+window.setNoPm = setNoPm;
 const statusOfId = id => (state.online || []).find(u => u.id === id)?.status || 'online';
 const dotFor = id => el('span', { class: 'on st-' + statusOfId(id), title: { online: 'En ligne', away: 'Absent', dnd: 'Ne pas déranger' }[statusOfId(id)] });
 function closeUserMenu() { $('userMenu').classList.add('hidden'); }
@@ -690,6 +692,7 @@ function toggleUserMenu() {
   m.replaceChildren(...[
     el('div', { class: 'um-head' }, LC.avatar(state.me), el('div', {}, el('b', {}, state.me.username), el('div', { class: 'help' }, state.customs?.enabled && !state.me.verified ? (state.me.refused ? '❌ Refusé : aucun rôle' : '🛂 Aucun rôle : en attente de validation') : state.me.isGuest ? 'Invité' : LC.roleLabel(state.me.role)))),
     !state.me.isGuest ? el('div', { class: 'um-status' }, ...[['auto', '🟢', 'En ligne'], ['away', '🌙', 'Absent'], ['dnd', '⛔', 'Ne pas déranger']].map(([v, i, l]) => el('button', { class: 'um-st' + ((state.me.presence || 'auto') === v ? ' on' : ''), title: l, onclick: e => { e.stopPropagation(); setPresence(v); } }, el('span', { class: 'dot st-' + (v === 'auto' ? 'online' : v) }), l))) : null,
+    !state.me.isGuest ? el('button', { class: 'um-item um-nopm' + (state.me.noPm ? ' on' : ''), title: 'Quand le No PV est activé, personne ne peut t\'envoyer de message privé', onclick: () => { closeUserMenu(); setNoPm(!state.me.noPm); } }, el('span', {}, state.me.noPm ? '🚫' : '💌'), state.me.noPm ? 'No PV activé · le désactiver' : 'Activer le No PV') : null,
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     !state.me.isGuest ? item('📱', 'Mon téléphone', () => Phone.open()) : null,
     !state.me.isGuest ? item('🎯', 'Mes quêtes et mes badges', () => Progress.open()) : null,

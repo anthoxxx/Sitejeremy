@@ -4395,3 +4395,14 @@ body.casino-open .modal-back { z-index: 2100; }
 .nd-sick { font-size: 11px; font-weight: 800; color: #ffd23f; text-align: center; }
 .isl-nd { left: 12px; top: calc(148px + env(safe-area-inset-top)); }
 .cs-nd { left: 12px; top: calc(104px + env(safe-area-inset-top)); }
+/* 🔒 Caméra privée : demander à voir */
+.vtile.vlock { background: linear-gradient(135deg, #1b1430, #2a1840); cursor: default; display: flex; align-items: center; justify-content: center; }
+.vlock-in { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; text-align: center; padding: 6px; }
+.vlock-ic { font-size: 1.6rem; line-height: 1; }
+.vlock-in small { opacity: .75; font-size: .7rem; }
+.vlock-in .btn { font-size: .72rem; padding: 3px 8px; }
+.cam-reqs { position: fixed; right: 12px; bottom: 90px; z-index: 9000; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 24px); }
+.cam-req { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--panel, #1c1c28); color: var(--text, #fff); border: 1px solid var(--border, rgba(255,255,255,.15)); border-radius: 14px; padding: 10px 12px; box-shadow: 0 8px 28px rgba(0,0,0,.35); animation: camReqIn .25s ease; }
+.cam-req .cr-txt { flex: 1; min-width: 120px; }
+@keyframes camReqIn { from { transform: translateY(12px); opacity: 0; } }
+.cv-ask { display: flex; align-items: center; gap: 8px; padding: 10px; margin-bottom: 10px; border-radius: 12px; background: rgba(127,127,127,.12); cursor: pointer; font-weight: 600; }

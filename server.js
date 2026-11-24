@@ -130,6 +130,7 @@ function publicUser(u) {
     photoOk: !!u.avatar && !!u.avatar_ok, // badge V : photo de profil vérifiée par le staff
     refused: !!u.refused && !isVerified(u),
     isBirthday: isBirthday(u),
+    noPm: !!u.no_pm, // 🚫 No PV
   };
 }
 // Ce que la personne voit d'elle-même (âge et ville même s'ils sont cachés aux autres)
@@ -3183,14 +3184,21 @@ function emitCamViewers(ownerSocket) {
   io.to(ownerSocket).emit('cam_viewers', { viewers: [...seen.values()] });
 }
 // Indique à quelqu'un du vocal quelles caméras ne lui sont pas partagées
+// camAllowedOf : socket de la caméra -> Set(userId) des personnes qui ont eu la permission de la voir
+const camAllowedOf = new Map();
+const camReqAt = new Map(); // anti-spam des demandes « Demander à voir »
 function emitCamBlockedMe(socketId) {
   const me = voiceUserOf(socketId);
   if (!me) return;
   const owners = new Set(blockedByOwners(me.userId));
   const slug = voiceOf.get(socketId);
-  const sockets = voiceList(slug).filter(p => owners.has(p.userId)).map(p => p.socketId);
-  io.to(socketId).emit('cam_blocked_me', { sockets });
+  const list = voiceList(slug);
+  const sockets = list.filter(p => owners.has(p.userId)).map(p => p.socketId);
+  // 🔒 caméras qui demandent la permission avant d'être vues
+  const ask = list.filter(p => p.video && p.camAsk && p.userId !== me.userId && !owners.has(p.userId) && !camAllowedOf.get(p.socketId)?.has(me.userId)).map(p => p.socketId);
+  io.to(socketId).emit('cam_blocked_me', { sockets, ask });
 }
+function emitCamBlockedAll(slug) { for (const p of voiceList(slug)) emitCamBlockedMe(p.socketId); }
 function forgetWatcher(socketId) {
   const set = watching.get(socketId);
   watching.delete(socketId);
@@ -3202,6 +3210,7 @@ function leaveVoiceBySocket(socketId, reason) {
   const slug = voiceOf.get(socketId);
   if (!slug) return;
   forgetWatcher(socketId);
+  camAllowedOf.delete(socketId);
   voiceOf.delete(socketId);
   const m = voice.get(slug);
   if (m) { m.delete(socketId); if (!m.size) voice.delete(slug); }
@@ -3468,6 +3477,7 @@ io.on('connection', socket => {
     if (!u || u.is_guest || !target || target.id === uid) return ack && ack({ error: 'Impossible' });
     if (isBlocked(target.id, uid) || isBlocked(uid, target.id) || isMutedBy(target.id, uid)) return ack && ack({ error: 'Impossible d\'envoyer un wizz à cette personne' });
     if (!isVerified(u) && !isStaff(u) && !u.is_dev) return ack && ack({ error: NOT_VERIFIED });
+    if (target.no_pm && !isStaff(u)) return ack && ack({ error: `🚫 ${target.username} a activé le No PV : cette personne ne reçoit pas de messages privés pour le moment` });
     if (throttled(`wizz:${uid}:${target.id}`, 15000)) return ack && ack({ error: 'Attends un peu avant de renvoyer un wizz 😉' });
     const content = `📳 ${u.username} a envoyé un wizz !`;
     const info = db.prepare('INSERT INTO private_messages (from_id,to_id,content,created_at,kind,media,duration) VALUES (?,?,?,?,?,?,?)').run(uid, target.id, content, now(), 'text', '', 0);
@@ -3483,6 +3493,7 @@ io.on('connection', socket => {
     if (!u || !target || target.id === uid) return ack && ack({ error: 'Destinataire invalide' });
     if (u.muted_until && u.muted_until > now()) return ack && ack({ error: 'Tu es rendu muet pour le moment' });
     if (isBlocked(target.id, uid)) return ack && ack({ error: 'Cette personne ne reçoit pas tes messages' });
+    if (target.no_pm && !isStaff(u)) return ack && ack({ error: `🚫 ${target.username} a activé le No PV : cette personne ne reçoit pas de messages privés pour le moment` });
     if (!isVerified(u) && !isStaff(u) && !u.is_dev) return ack && ack({ error: '🔒 Tant que tu n\'es pas vérifié, tu ne peux pas écrire en privé. Passe d\'abord la vérification 🛂' });
     if (online.get(uid)?.room === 'douane' && !canWriteDouane(u)) return ack && ack({ error: '🔒 Pas de messages privés depuis le salon Vérification : seul le staff peut écrire ici' });
     if (!isVerified(target) && !isStaff(u)) return ack && ack({ error: `${target.username} n'a pas encore passé la douane` });
@@ -3537,6 +3548,14 @@ io.on('connection', socket => {
     const v = ['auto', 'away', 'dnd'].includes(st) ? st : 'auto';
     db.prepare('UPDATE users SET presence=? WHERE id=?').run(v, uid);
     e.user = getUser(uid) || e.user; schedulePresence(); ack && ack({ ok: true, presence: v });
+  });
+  // 🚫 No PV : plus personne ne peut m'écrire en privé (sauf le staff)
+  socket.on('nopm_set', (on, ack) => {
+    const u = current(); if (!u || u.is_guest) return ack && ack({ error: 'Inscris-toi d\'abord' });
+    db.prepare('UPDATE users SET no_pm=? WHERE id=?').run(on ? 1 : 0, uid);
+    const upd = getUser(uid); if (upd) refreshOnline(upd);
+    log(u, 'profile_update', on ? 'A activé le No PV 🚫' : 'A désactivé le No PV');
+    ack && ack({ ok: true, noPm: !!on });
   });
   socket.on('idle', on => { const e = online.get(uid); if (!e) return; const v = !!on; if (e.idle !== v) { e.idle = v; schedulePresence(); } });
   socket.on('ghost', (on, ack) => {
@@ -3688,14 +3707,14 @@ io.on('connection', socket => {
     if (u.refused && !isVerified(u)) return ack && ack({ error: '❌ Ta demande a été refusée' });
     if (!listen && slug !== 'douane' && !voiceAllowed(u)) return ack && ack({ error: VOICE_NEEDED, needVoice: true });
     const mine = voice.get(slug)?.get(socket.id);
-    if (mine && !!mine.listener === listen) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id && (!listen || !p.listener)) });
+    if (mine && !!mine.listener === listen) return ack && ack({ peers: voiceList(slug).filter(p => p.socketId !== socket.id && (!listen || !p.listener || p.camEver)) });
     leaveVoiceBySocket(socket.id, null);
     const max = parseInt(s.voiceMax, 10) || 10;
     const all = voiceList(slug);
     if (!listen && all.filter(p => !p.listener).length >= max) return ack && ack({ error: `Le vocal est plein (${max} personnes maximum) : tu peux écouter 🎧 en attendant` });
     if (listen && all.filter(p => p.listener).length >= 25) return ack && ack({ error: 'Trop de monde écoute déjà ce vocal' });
     // Un auditeur ne se connecte qu'à ceux qui parlent ; quelqu'un qui parle se connecte à tout le monde
-    const peers = listen ? all.filter(p => !p.listener) : all;
+    const peers = listen ? all.filter(p => !p.listener || p.camEver) : all;
     if (!voice.has(slug)) voice.set(slug, new Map());
     voice.get(slug).set(socket.id, { userId: uid, username: u.username, color: u.color, ...miniUser(u), muted: listen, video: false, listener: listen, micSince: listen ? 0 : now(), micUntil: 0 });
     log(u, 'voice_join', listen ? `Écoute le vocal du salon ${room.name} 🎧` : `A rejoint le vocal du salon ${room.name}`);
@@ -3729,14 +3748,19 @@ io.on('connection', socket => {
       if (id !== socket.id && voiceOf.get(id) === slug) io.to(id).emit('voice_relay_audio', { from: socket.id, data });
     }
   });
-  socket.on('voice_video', on => {
+  socket.on('voice_video', arg => {
     const slug = voiceOf.get(socket.id);
     const p = slug && voice.get(slug)?.get(socket.id);
-    if (!p || p.listener) return;
+    if (!p) return;
+    const on = typeof arg === 'object' && arg ? !!arg.on : !!arg;
     if (on && slug !== 'douane' && !camAllowed(entry.user)) { socket.emit('voice_cam_refused', { error: CAM_NEEDED }); return; }
     const was = p.video;
-    p.video = !!on;
+    p.video = on;
+    if (typeof arg === 'object' && arg && 'ask' in arg) p.camAsk = !!arg.ask;
+    if (on && p.listener) p.camEver = true; // un auditeur avec caméra se connecte aussi aux autres auditeurs
+    if (!on) camAllowedOf.delete(socket.id); // la caméra s'éteint : les permissions repartent de zéro
     emitVoiceState(slug);
+    emitCamBlockedAll(slug);
     // Prévenir le salon quand quelqu'un allume sa caméra
     if (p.video && !was && !entry.ghost) {
       io.to('room:' + slug).emit('system', { room: slug, text: `📷 ${entry.user.username} a allumé sa caméra` });
@@ -3747,7 +3771,8 @@ io.on('connection', socket => {
     const slug = voiceOf.get(socket.id);
     if (!slug || voiceOf.get(String(to)) !== slug || !data) return;
     const m = voice.get(slug);
-    if (m?.get(socket.id)?.listener && m?.get(String(to))?.listener) return;
+    const a = m?.get(socket.id), b = m?.get(String(to));
+    if (a?.listener && b?.listener && !a.camEver && !b.camEver) return;
     io.to(String(to)).emit('voice_signal', { from: socket.id, data });
   });
   // Caméras que j'ai à l'écran (pour que leurs propriétaires sachent qui les regarde)
@@ -3758,6 +3783,33 @@ io.on('connection', socket => {
     const before = watching.get(socket.id) || new Set();
     watching.set(socket.id, now);
     for (const id of new Set([...before, ...now])) if (before.has(id) !== now.has(id)) emitCamViewers(id);
+  });
+  // 🔒 « Demander à voir » une caméra : le propriétaire accepte ou refuse
+  socket.on('cam_request', (ownerSocket, ack) => {
+    const slug = voiceOf.get(socket.id); ownerSocket = String(ownerSocket || '');
+    const owner = slug && voiceOf.get(ownerSocket) === slug ? voice.get(slug)?.get(ownerSocket) : null;
+    if (!owner || !owner.video) return ack && ack({ error: 'Cette caméra est éteinte' });
+    if (owner.userId === uid) return ack && ack({ error: 'C\'est ta caméra 🙂' });
+    if (camBlocksOf(owner.userId).includes(uid)) return ack && ack({ error: 'Cette personne ne partage pas sa caméra avec toi' });
+    if (camAllowedOf.get(ownerSocket)?.has(uid)) return ack && ack({ ok: true, already: true });
+    const k = uid + '>' + ownerSocket, t = camReqAt.get(k) || 0;
+    if (now() - t < 20000) return ack && ack({ error: 'Demande déjà envoyée, patiente un peu ⏳' });
+    camReqAt.set(k, now());
+    const u = entry.user;
+    io.to(ownerSocket).emit('cam_request', { userId: uid, username: u.username, color: u.color, avatar: u.avatar, frame: u.frame });
+    ack && ack({ ok: true });
+  });
+  socket.on('cam_answer', ({ userId, ok } = {}, ack) => {
+    const slug = voiceOf.get(socket.id);
+    if (!slug) return ack && ack({ error: 'Tu n\'es pas dans le vocal' });
+    userId = parseInt(userId, 10); if (!userId || userId === uid) return ack && ack({ error: 'Personne introuvable' });
+    if (!camAllowedOf.has(socket.id)) camAllowedOf.set(socket.id, new Set());
+    const set = camAllowedOf.get(socket.id);
+    if (ok) set.add(userId); else set.delete(userId);
+    camReqAt.delete(userId + '>' + socket.id);
+    ack && ack({ ok: true, allowed: [...set] });
+    for (const p of voiceList(slug)) if (p.userId === userId) { emitCamBlockedMe(p.socketId); io.to(p.socketId).emit('cam_answered', { ownerSocket: socket.id, ok: !!ok, username: entry.user.username }); }
+    emitCamViewers(socket.id);
   });
   // Ne plus partager (ou partager de nouveau) sa caméra avec quelqu'un
   socket.on('cam_block', ({ userId, block } = {}, ack) => {

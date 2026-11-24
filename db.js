@@ -109,6 +109,7 @@ addColumn('users', 'interests', "TEXT DEFAULT '[]'");
 addColumn('users', 'games', "TEXT DEFAULT '[]'");
 addColumn('users', 'socials', "TEXT DEFAULT '{}'");
 addColumn('users', 'show_age', 'INTEGER NOT NULL DEFAULT 1');
+addColumn('users', 'no_pm', 'INTEGER NOT NULL DEFAULT 0'); // 🚫 No PV : ne reçoit pas de messages privés
 addColumn('users', 'show_city', 'INTEGER NOT NULL DEFAULT 1');
 // Limite de comptes par personne + fonds d'écran de salon + état des radios
 addColumn('users', 'device_id', "TEXT DEFAULT ''");
