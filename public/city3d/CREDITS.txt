@@ -6,3 +6,4 @@ Ville 3D — origine des fichiers de ce dossier
 - sky.hdr : « Blouberg Sunrise 2 » de Poly Haven (https://polyhaven.com), licence CC0.
 - grass.jpg : « Dark grass » sur OpenGameArt (http://opengameart.org/content/dark-grass), licence CC BY 3.0. Redimensionnée.
 - La bibliothèque three.js (dossier js/vendor) est sous licence MIT.
+- horse.glb, flamingo.glb, parrot.glb, stork.glb : animaux animés de mirada (ro.me, « 3 Dreams of Black »), fournis avec les exemples three.js (https://github.com/mrdoob/three.js, examples/models/gltf). Le cheval sert pour les zèbres du zoo (rayures ajoutées dans la 3D).

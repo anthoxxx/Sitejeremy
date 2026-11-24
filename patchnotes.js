@@ -1602,4 +1602,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 114,
+    date: '2026-11-24',
+    title: 'Le zoo refait en beaucoup plus beau 🦓🌳',
+    added: [
+      '🦓 De vrais zèbres animés qui galopent dans la savane, et des oiseaux qui volent au-dessus du zoo (flamants roses, perroquets, cigognes)',
+    ],
+    changed: [
+      '🌤️ Un vrai ciel avec des nuages, de l\'herbe réaliste, des collines et une forêt tout autour du zoo',
+      '🐘 Les animaux sont beaucoup plus détaillés : éléphants avec de grandes oreilles, une trompe qui bouge et des défenses ; girafes tachetées avec leur crinière ; lions à crinière touffue ; pingouins ; singes ; flamants roses',
+      '🪵 Des clôtures en bois arrondies, des rochers naturels, de l\'eau qui reflète le ciel, des arbres plus beaux et des ombres sous les animaux',
+      '🏛️ Une nouvelle entrée en pierre, des kiosques, des bancs et des lampadaires',
+    ],
+    removed: [],
+  },
 ];
