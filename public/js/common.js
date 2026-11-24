@@ -435,3 +435,12 @@ window.LC = {
 };
 
 document.addEventListener('DOMContentLoaded', () => LC.loadSite());
+
+// 👀 le compteur de visites : on compte une visite par jour et par appareil (le serveur ne compte pas deux fois la même)
+(() => {
+  const day = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  let last = ''; try { last = localStorage.getItem('lc_visit_day') || ''; } catch (e) {}
+  if (last === day) return;
+  try { localStorage.setItem('lc_visit_day', day); } catch (e) {}
+  fetch('/api/visit', { method: 'POST', headers: { 'X-LC-Pid': window.LC_DEV?.pid || '' }, keepalive: true }).catch(() => {});
+})();

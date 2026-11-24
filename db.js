@@ -341,6 +341,8 @@ addColumn('users', 'name_ring', "TEXT NOT NULL DEFAULT ''"); // ⭕ la couleur a
 addColumn('users', 'join_sound', "TEXT NOT NULL DEFAULT ''");
 addColumn('users', 'profile_fx', "TEXT NOT NULL DEFAULT ''"); // ✨ le fond animé du profil
 addColumn('users', 'profile_music', "TEXT NOT NULL DEFAULT ''"); // 🎵 la musique du profil (vidéo YouTube)
+// 👀 les visites : une ligne par appareil et par jour (pour compter les visites sans compter les rechargements de page)
+db.exec('CREATE TABLE IF NOT EXISTS visits (day TEXT NOT NULL, vid TEXT NOT NULL, PRIMARY KEY (day, vid))');
 db.exec('CREATE TABLE IF NOT EXISTS message_reactions (message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, emoji TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (message_id, user_id, emoji))'); // ❤️ les réactions aux messages
 db.exec('CREATE TABLE IF NOT EXISTS gallery (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, url TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'); // 🖼️ la galerie photos du profil // 🔔 le son que les autres entendent quand on arrive dans un salon
 addColumn('users', 'panel', 'INTEGER DEFAULT 0'); // compte de l'espace admin (identifiant + mot de passe du serveur)

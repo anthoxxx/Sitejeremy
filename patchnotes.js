@@ -1594,4 +1594,12 @@ module.exports = [
     changed: ['🎡 Les manèges sont corrigés : chaises volantes, carrousel dans le bon sens, grande roue, montagnes russes plus fluides, attente sur le quai'],
     removed: [],
   },
+  {
+    id: 113,
+    date: '2026-11-24',
+    title: 'Le compteur de visites sur la page d\'accueil 👀',
+    added: ['👀 La page d\'accueil affiche maintenant le nombre de visites du site, et combien de personnes sont venues aujourd\'hui (une visite = une personne, une fois par jour)'],
+    changed: [],
+    removed: [],
+  },
 ];

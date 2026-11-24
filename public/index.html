@@ -38,6 +38,7 @@
       <div class="stats">
         <div><b id="statMembers">–</b><span>membres</span></div>
         <div><b id="statRooms">–</b><span>salons</span></div>
+        <div title="Une visite = une personne, une fois par jour"><b id="statVisits">–</b><span id="statVisitsLbl">visites</span></div>
         <div><b>100%</b><span>gratuit</span></div>
       </div>
     </div>
@@ -250,6 +251,7 @@
     onlineLabel.textContent = s.online > 1 ? "personnes connectées" : "personne connectée";
     statMembers.textContent = s.members;
     statRooms.textContent = s.rooms;
+    if (s.visits != null) { statVisits.textContent = s.visits.toLocaleString('fr-FR'); statVisitsLbl.textContent = s.visits > 1 ? `visites · ${s.visitsToday.toLocaleString('fr-FR')} aujourd'hui` : `visite · ${s.visitsToday} aujourd'hui`; }
     document.querySelectorAll('input[name=age]').forEach(i => i.min = s.minAge);
     if (!s.registrationOpen) { document.querySelector('[data-tab=register]').classList.add('hidden'); document.querySelector('[data-tab=login]').click(); }
     if (s.googleLogin) document.querySelectorAll('.google-btn, .or-sep').forEach(e => e.classList.remove('hidden'));

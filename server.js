@@ -1109,8 +1109,24 @@ app.get('/api/home/live', (req, res) => {
     .map(e => ({ username: e.user.username, color: e.user.color, gender: e.user.gender, avatar: e.user.avatar || '', frame: e.user.avatar_frame || 'none' }));
   res.set('Cache-Control', 'no-store').json({ list });
 });
+// 👀 le compteur de visites : chaque appareil compte une fois par jour (les robots des moteurs de recherche ne comptent pas)
+const visitDay = () => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); // 2026-11-24
+const visitStats = { total: 0, today: 0, day: '', at: 0 };
+function refreshVisits() { const d = visitDay(); visitStats.total = db.prepare('SELECT COUNT(*) c FROM visits').get().c; visitStats.today = db.prepare('SELECT COUNT(*) c FROM visits WHERE day = ?').get(d).c; visitStats.day = d; visitStats.at = Date.now(); }
+const addVisit = db.prepare('INSERT OR IGNORE INTO visits (day, vid) VALUES (?, ?)');
+app.post('/api/visit', (req, res) => {
+  const ua = String(req.headers['user-agent'] || '');
+  if (/bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit/i.test(ua) && !/Mobile Safari/i.test(ua)) return res.json({ ok: true });
+  const pid = String(req.headers['x-lc-pid'] || ''), vid = /^[a-f0-9]{32}$/.test(pid) ? pid : 'ip:' + (req.ip || '');
+  if (tooMany('visit:' + (req.ip || ''), 30, 3600000)) return res.json({ ok: true });
+  const d = visitDay(), r = addVisit.run(d, vid);
+  if (r.changes) { if (visitStats.day !== d) refreshVisits(); else { visitStats.total++; visitStats.today++; } }
+  res.json({ ok: true });
+});
 app.get('/api/stats', (req, res) => {
+  if (visitStats.day !== visitDay() || Date.now() - visitStats.at > 600000) refreshVisits();
   res.json({
+    visits: visitStats.total, visitsToday: visitStats.today,
     online: [...online.values()].filter(e => !e.ghost).length,
     members: db.prepare('SELECT COUNT(*) c FROM users WHERE is_guest=0').get().c,
     rooms: db.prepare('SELECT COUNT(*) c FROM rooms').get().c,
