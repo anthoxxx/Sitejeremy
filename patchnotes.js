@@ -1617,4 +1617,19 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 115,
+    date: '2026-11-24',
+    title: 'La Ville devient un vrai jeu de vie : faim, soif, santé et maladies 🍔💧❤️',
+    added: [
+      '🍔💧❤️ Ton personnage a maintenant une barre de faim, de soif et de santé (dans la Ville et le Paradise Complex) : elles baissent pendant que tu joues',
+      '🍕 Manger et boire sert enfin à quelque chose : pizzeria, sushi, burger, boulangerie, glacier, bar, supermarché… et les snacks du complexe remplissent tes barres',
+      '🤧 Tu peux attraper un rhume (tu tousses !), et s\'il n\'est pas soigné il devient une grippe 🤒. Attention : la pluie et le froid donnent plus de risques, et trop manger donne une indigestion 🤢',
+      '💊 La pharmacie vend des remèdes pour toi : sirop contre la toux, médicament contre la grippe, tisane, vitamine C, trousse de soin',
+      '🩺 L\'hôpital te soigne gratuitement une fois par jour',
+      '🏬 Le Paradise Complex est maintenant un grand bâtiment dans la Ville, face à la grande place : marche jusqu\'à ses portes pour y entrer',
+    ],
+    changed: ['🚶 Les personnages marchent et courent à une vitesse réaliste : leurs pas suivent leur vitesse (fini l\'effet patinage)'],
+    removed: ['Le bouton « Paradise Complex » de la barre d\'actions (on y va à pied maintenant)'],
+  },
 ];

@@ -64,7 +64,7 @@ function ballAt(b, t) {
   }
   return { x, y, vx, vy };
 }
-const EMOTES = ['👋', '❤️', '😂', '🎉', '🔥', '😍'];
+const EMOTES = ['👋', '❤️', '😂', '🎉', '🔥', '😍', '🤧', '🤒', '🤢', '😵'];
 const THEMES = ['cosy', 'ocean', 'rose', 'nuit', 'jungle', 'or'];
 const ACCESS = ['all', 'friends', 'bell', 'closed'];
 const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };

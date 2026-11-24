@@ -62,6 +62,11 @@ const City = (() => {
     if (name === 'Bijouterie') return [el('div', { class: 'city-actions' },
       el('button', { class: 'city-big', onclick: lookShop(['acc', 'extra'], { title: '💍 La vitrine de la bijouterie', sub: 'Couronnes, auréoles, ailes d\'ange… Les pièces rares se paient en pièces 💰', done: '💎 Tu brilles de mille feux !', confetti: ['💍', '👑', '✨'] }) }, el('span', {}, '💎'), el('b', {}, 'Voir la vitrine'), el('small', {}, 'Accessoires de tête et ailes dans le dos')))];
     const parts = [];
+    // 💊 la pharmacie soigne aussi ton personnage (toux, grippe, indigestion…) ; 🩺 l'hôpital remet en pleine forme
+    if (name === 'Pharmacie') { const { meds } = await api('/api/needs/meds'), N = window.Needs?.state?.() || {};
+      parts.push(el('h4', { class: 'city-h' }, '💊 Pour toi'), el('p', { class: 'help' }, N.sick ? `${N.sickInfo?.icon || '🤧'} Tu as ${N.sickInfo?.name || 'quelque chose'} : choisis le bon remède !` : '❤️ Tu vas bien ! La vitamine C te protège du rhume pendant 1 heure.'),
+        el('div', { class: 'city-grid' }, ...Object.entries(meds).map(([id, m]) => el('button', { class: 'city-item', onclick: async () => { try { const r = await api('/api/needs/med', { method: 'POST', body: { id } }); toast(r.msg); setCoins(r.coins); } catch (e) { toast(e.message); } } }, el('span', {}, m.icon), el('b', {}, m.name), el('small', {}, `${m.price} 💰`))))); }
+    if (name === 'Hôpital') parts.push(el('div', { class: 'city-actions' }, el('button', { class: 'city-big', onclick: async () => { try { await api('/api/needs/hospital', { method: 'POST', body: {} }); } catch (e) { toast(e.message); } } }, el('span', {}, '🩺'), el('b', {}, 'Me faire soigner'), el('small', {}, 'Gratuit une fois par jour : santé au maximum et plus aucune maladie'))));
     if (c.food[name]) parts.push(el('h4', { class: 'city-h' }, name === 'Hôtel' ? '🛎️ Le room service' : name === 'Bar' ? '🍹 La carte' : '🍽️ Le menu'), foodGrid(name, c.food[name]));
     const petItems = Object.entries(c.pet).filter(([, p]) => p.shop === name);
     if (petItems.length) parts.push(el('h4', { class: 'city-h' }, '🐾 Pour ton animal'), el('div', { class: 'city-grid' }, ...petItems.map(([id, p]) => el('button', { class: 'city-item', onclick: () => petBuy(id, p) }, el('span', {}, p.icon), el('b', {}, p.name), el('em', {}, p.price ? `${p.price} 💰` : 'Gratuit')))));

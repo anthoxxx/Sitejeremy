@@ -1703,7 +1703,7 @@ const Casino = (() => {
     hud.rideTxt = el('b', {}); hud.ride = el('div', { class: 'cs-ride hidden' }, hud.rideTxt, el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Descendre'));
     hud.kart = el('div', { class: 'cs-kart hidden' }, hud.kartSpd, hud.kartLap, hud.kartBest, el('div', { class: 'cs-krow' }, el('button', { class: 'btn btn-sm', onclick: () => kartBoardPanel() }, '🏁 Classement'), el('button', { class: 'btn btn-sm', onclick: () => backToWalk() }, '🚶 Descendre du kart')));
     const tvBtns = el('div', { class: 'cs-tv' }, hud.zoneBtn, el('button', { class: 'cs-tvb yt', onclick: () => ytPanel() }, '📺 YouTube'), hud.mute);
-    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, hud.kart, hud.ride, hud.game, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
+    const box = el('div', { class: 'lg-hud cs-hud' }, hud.frame, hud.kart, hud.ride, hud.game, tvBtns, window.ProxVoice ? ProxVoice.button('cs-pv') : null, window.Needs ? Needs.bar('cs-nd') : null, hud.top, hud.emotes, hud.act, hud.poolTop, hud.pool, hud.poker, hud.panel, hud.hint, quit);
     const knob = el('div', { class: 'joy-knob' }), pad = el('div', { class: 'joy lg-joy cs-joy' + (mobile() ? '' : ' hidden') }, el('i', { class: 'joy-ring' }), knob); hud.joy = pad;
     let id = null;
     const mv = e => { const r = pad.getBoundingClientRect(), Rr = r.width / 2; let dx = e.clientX - (r.left + Rr), dy = e.clientY - (r.top + Rr); const d = Math.hypot(dx, dy), mx = Rr * .62; if (d > mx) { dx *= mx / d; dy *= mx / d; } knob.style.transform = `translate(${dx}px, ${dy}px)`; stick.x = dx / mx; stick.y = dy / mx; };
@@ -1941,7 +1941,7 @@ const Casino = (() => {
       const len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
       if (len > .08) {
         const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
-        const vx = (fx * f + rx * s) * SPEED, vz = (fz * f + rz * s) * SPEED, dx = vx * dt, dz = vz * dt;
+        const sl = window.Needs?.slow?.() || 1, vx = (fx * f + rx * s) * SPEED * sl, vz = (fz * f + rz * s) * SPEED * sl, dx = vx * dt, dz = vz * dt;
         if (fits(me.x + dx, me.z)) me.x += dx; if (fits(me.x, me.z + dz)) me.z += dz; me.yaw = Math.atan2(-vx, -vz);
         // monter / descendre par l'escalator électrique
         for (const e of ESC) { if (e.zone !== me.zone || Math.abs(me.x - e.x) > .6) continue;

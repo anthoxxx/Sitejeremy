@@ -27,7 +27,7 @@ const Island = (() => {
     { slug: 'paroles', label: "Paroles d'Or", icon: '🎤', x: 1050, y: 1270, c: 'gold', kind: 'kiosk' },
     { slug: 'motdor', label: "Mot d'Or", icon: '✨', x: 1350, y: 1270, c: 'gold', kind: 'kiosk' },
     // Les lieux virtuels où l'on entre vraiment
-    { inst: 'club', label: 'Paradise Club', icon: '🪩', x: 850, y: 640, c: '#c64dff', kind: 'nightclub' },
+    { inst: 'complex', label: 'Paradise Complex', icon: '🏬', x: 2390, y: 1262, c: '#ff2bd6', kind: 'nightclub', huge: true }, // le grand complexe : on y entre à pied
     { inst: 'cinema', label: 'Ciné Paradise', icon: '🎬', x: 1360, y: 985, c: '#ff2d55', kind: 'cinema' },
     { inst: 'houses', label: 'Les Maisons', icon: '🏠', x: 590, y: 640, c: '#ffd34d', kind: 'houses' },
     { inst: 'pool', label: 'Pool Party', icon: '🏊', x: 1900, y: 620, c: '#38dce6', kind: 'poolplace' },
@@ -1659,10 +1659,10 @@ const Island = (() => {
       return card.classList.remove('hidden');
     }
     if (best.inst) {
-      const txt = { club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma : regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
+      const txt = { complex: ['Casino, bowling, laser game, cinéma, boîte de nuit, karting, aquarium, zoo, fête foraine…', '🏬 Entrer'], club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma : regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
         pool: ['Piscine, plongeoir, ballon et cocktails', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
       card.replaceChildren(el('div', {}, el('b', {}, `${best.icon} ${best.label}`), el('small', {}, txt[0])),
-        el('button', { class: 'btn btn-primary', onclick: () => (best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
+        el('button', { class: 'btn btn-primary', onclick: () => (best.inst === 'complex' ? window.Casino?.open() : best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
     } else {
       const room = state.rooms.find(r => r.slug === best.slug);
       const n = (state.online || []).filter(u => u.room === best.slug && !u.ghost).length;
@@ -1861,7 +1861,7 @@ const Island = (() => {
     if (kind === 'house' && house?.ownerId === state.me.id) acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => startBuild() }, el('span', {}, '🧱'), 'Construire'), el('button', { type: 'button', class: 'isl-act', onclick: () => startEdit() }, el('span', {}, '🛠️'), 'Mes meubles'), el('button', { type: 'button', class: 'isl-act', onclick: () => houseSettings() }, el('span', {}, '⚙️'), 'Ma maison'));
     if (kind === 'island' && window.CityGames?.winter()) acts.push(el('button', { type: 'button', class: 'isl-act snow' + (window.CityGames.snowOn() ? ' on' : ''), onclick: e => { window.CityGames.toggleSnow(); e.currentTarget.classList.toggle('on', window.CityGames.snowOn()); } }, el('span', {}, '⛄'), 'Boules de neige'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
-    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act casino', onclick: () => window.Casino?.open() }, el('span', {}, '🏬'), 'Paradise Complex')); // tout le reste (bowling, laser game, cinéma…) est dans le complexe
+    // (le Paradise Complex n'est plus un bouton : c'est un grand bâtiment dans la Ville, on y entre à pied)
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
     if (kind === 'island' || kind === 'pool' || kind === 'campfire') acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (!confirm('Lancer un feu d\'artifice pour toute l\'Île ? (30 pièces 💰)')) return; socket.emit('island_fw', r => r?.error && toast(r.error)); } }, el('span', {}, '🎆'), 'Feu d\'artifice'));
@@ -2008,6 +2008,7 @@ const Island = (() => {
     resize();
     setTimeout(() => root.querySelector('.isl-hint')?.classList.add('gone'), 7000);
     socket.emit('island_join');
+    if (window.Needs && !root.querySelector('.nd-bars')) root.append(Needs.bar('isl-nd'));
     if (window.ProxVoice) { if (!root.querySelector('.pv-btn')) root.append(ProxVoice.button('isl-pv')); ProxVoice.use('island', { space: () => (scene ? 'isl:' + scene : null), me: () => { const m = players.get(me); return m ? { x: m.x, z: m.y } : null; }, pos: uid => { const p = players.get(uid), m = players.get(me); return p && uid !== me && (p.floor || 0) === (m?.floor || 0) ? { x: p.x, z: p.y } : null; }, yaw: () => (view3d && window.City3D?.yaw ? City3D.yaw() : null) }); }
     last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
   }

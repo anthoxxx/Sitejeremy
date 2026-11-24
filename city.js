@@ -52,7 +52,7 @@ const BOOKS = [
   ['🌙 Horoscope du jour', 'Ta bonne humeur sera contagieuse aujourd\'hui : partage-la dans Général ☀️'],
 ];
 
-module.exports = function setupCity({ db, coins, pets, getUser, publicUser, notify, emitToUser, areFriends, isBlocked, throttled, track = () => {}, filterWords = t => t, sendPm }) {
+module.exports = function setupCity({ onEat = () => null, db, coins, pets, getUser, publicUser, notify, emitToUser, areFriends, isBlocked, throttled, track = () => {}, filterWords = t => t, sendPm }) {
   const now = () => Date.now();
   const guestNo = u => !u || u.is_guest;
   const coinsNow = uid => coins.balance(uid);
@@ -62,7 +62,8 @@ module.exports = function setupCity({ db, coins, pets, getUser, publicUser, noti
     if (!it) return { error: 'Cet article n\'existe pas' };
     if (!coins.spend(uid, it[2], `${it[0]} ${it[1]} (${shop})`)) return { error: `Il te faut ${it[2]} pièces 💰` };
     track(uid, 'cafe');
-    return { ok: true, emoji: it[0], name: it[1], coins: coinsNow(uid) };
+    const needs = onEat(uid, it[1], it[0]); // 🍔💧 la faim et la soif remontent
+    return { ok: true, emoji: it[0], name: it[1], coins: coinsNow(uid), needs };
   }
   function petCare(uid, id) {
     const c = PET[id]; if (!c) return { error: 'Introuvable' };

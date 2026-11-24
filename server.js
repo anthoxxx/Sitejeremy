@@ -2955,7 +2955,7 @@ function sendPmAs(from, to, content) {
   const fu = publicUser(getUser(from));
   emitToUser(to, 'pm', { ...m, fromUser: fu }); emitToUser(from, 'pm', { ...m, fromUser: fu });
 }
-const City = require('./city')({ db, coins: Coins, pets: Pets, getUser: id => getUser(id), publicUser: u => publicUser(u), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a),
+const City = require('./city')({ onEat: (uid, name, emoji) => Needs?.consume(uid, name, emoji), db, coins: Coins, pets: Pets, getUser: id => getUser(id), publicUser: u => publicUser(u), notify: (...a) => notify(...a), emitToUser: (...a) => emitToUser(...a),
   areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', isBlocked, throttled: (...a) => throttled(...a), track, filterWords: t => filterWords(t), sendPm: sendPmAs });
 City.routes(app, auth);
 // 🧍 Les personnages de l'Île
@@ -2981,8 +2981,11 @@ const LaserGame = require('./lasergame')({ io, coins: Coins, track });
 // 🎳 Le Bowling en 3D (pistes à part, seul, entre amis ou contre les soldats)
 const Bowling = require('./bowling')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎰 Le Paradise Club : le complexe en 3D (bar, bowling, laser game, billards, poker)
-const Casino = require('./casino')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
+const Casino = require('./casino')({ onEat: (uid, name, emoji) => Needs?.consume(uid, name, emoji), io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎙️ Le vocal de proximité (la Ville, les maisons, le Paradise Club)
+// 🍔💧❤️ La faim, la soif, la santé et les maladies du personnage (Ville et complexe)
+var Needs = require('./needs')({ db, coins: Coins, emitToUser: (...a) => emitToUser(...a), weatherNow: () => Weather.current(), presentIn: () => [...new Set([...Island.islanders(), ...Casino.list()])] });
+Needs.routes(app, auth);
 const ProxVoice = require('./proxvoice')({ io, canTalk: u => voiceAllowed(u), spacesOf: uid => { const L = [], c = Casino.where(uid), s = Island.where(uid); if (c) L.push('cs:' + c); if (s) L.push('isl:' + s); return L; } });
 const Pageant = PageantRef = require('./pageant')({ db, coins: Coins, notify: (...a) => notify(...a), getUser: id => getUser(id), publicUser: u => publicUser(u), isStaff: u => isStaff(u), track, botSay: t => generalBot(t, '👑', 'Miss & Mister'), onWinners: () => { try { for (const e of online.values()) e.user = getUser(e.user.id) || e.user; schedulePresence(); } catch (e) {} } });
 Pageant.routes(app, auth);

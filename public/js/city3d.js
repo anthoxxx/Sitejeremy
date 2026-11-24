@@ -387,11 +387,22 @@ const City3D = (() => {
     // 📍 les lieux : bâtiments avec leur enseigne néon
     for (const p of A.PLACES) {
       const col = p.c === 'rainbow' ? '#ff4fd8' : p.c === 'gold' ? '#ffd34d' : p.c, big = p.big || p.inst;
-      const w = big ? 190 : 124, d = big ? 120 : 92, floors = big ? 3 : 2, z = p.y - 46 - d / 2; // le bâtiment est derrière le point d'entrée
+      const huge = !!p.huge, w = huge ? 200 : big ? 190 : 124, d = huge ? 170 : big ? 120 : 92, floors = huge ? 8 : big ? 3 : 2, z = p.y - 46 - d / 2; // le bâtiment est derrière le point d'entrée
       const b = building(p.x, z, w, d, floors, (p.label.length * 3) % 7, { simple: true });
       const sm = signMat(`${p.icon} ${p.label}`, col);
       for (const [zz, ry] of [[z + d / 2 + 2, 0], [z - d / 2 - 2, Math.PI]]) { const s = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(w + 10, 230), 36), sm); s.position.set(p.x, b.h + 24, zz); s.rotation.y = ry; scene.add(s); }
-      const door = new THREE.Mesh(new THREE.BoxGeometry(44, 58, 4), STD({ color: new THREE.Color(col).multiplyScalar(.6), emissive: new THREE.Color(col), emissiveIntensity: .35, roughness: .4 })); door.position.set(p.x, 29, z + d / 2 + 1); scene.add(door);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(huge ? 90 : 44, huge ? 70 : 58, 4), huge ? STD({ color: 0x0c1020, metalness: .9, roughness: .08, emissive: 0x200818, emissiveIntensity: 1 }) : STD({ color: new THREE.Color(col).multiplyScalar(.6), emissive: new THREE.Color(col), emissiveIntensity: .35, roughness: .4 })); door.position.set(p.x, huge ? 35 : 29, z + d / 2 + 1); scene.add(door);
+      if (huge) { // 🏬 le Paradise Complex : marquise lumineuse, grande enseigne sur le toit, bandes néon sur la façade
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(150, 6, 40), STD({ color: 0x1a1024, metalness: .6, roughness: .3 })); canopy.position.set(p.x, 80, z + d / 2 + 20); scene.add(canopy);
+        for (const s2 of [-1, 1]) { const pil = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 80, 12), STD({ color: 0xd4a24a, metalness: .9, roughness: .25 })); pil.position.set(p.x + s2 * 68, 40, z + d / 2 + 36); scene.add(pil); }
+        const under = new THREE.Mesh(new THREE.PlaneGeometry(146, 36), new THREE.MeshBasicMaterial({ color: 0xffe6f6 })); under.rotation.x = Math.PI / 2; under.position.set(p.x, 76.8, z + d / 2 + 20); scene.add(under);
+        const big2 = new THREE.Mesh(new THREE.PlaneGeometry(240, 60), signMat('🏬 PARADISE COMPLEX', '#ff2bd6')); big2.position.set(p.x, b.h + 70, z + d / 2 - 10); scene.add(big2);
+        for (const [cc, yy] of [[0xff2bd6, .3], [0x38e8ff, .55], [0xffd23f, .8]]) { const strip = new THREE.Mesh(new THREE.BoxGeometry(w + 2, 3, 2), new THREE.MeshBasicMaterial({ color: cc })); strip.position.set(p.x, b.h * yy, z + d / 2 + 1.5); scene.add(strip); }
+        for (const [w2, h2, x2, y2] of [[96, 3, 0, 71], [3, 72, -46.5, 35], [3, 72, 46.5, 35], [2, 70, 0, 35]]) { const fr = new THREE.Mesh(new THREE.BoxGeometry(w2, h2, 3), new THREE.MeshBasicMaterial({ color: 0xff2bd6 })); fr.position.set(p.x + x2, y2, z + d / 2 + 3); scene.add(fr); } // le cadre néon des portes vitrées
+        const vs = new THREE.Mesh(new THREE.PlaneGeometry(34, 150), (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 560; const g = c.getContext('2d'); g.fillStyle = '#12081e'; g.fillRect(0, 0, 128, 560); g.strokeStyle = '#ff2bd6'; g.lineWidth = 6; g.strokeRect(5, 5, 118, 550); g.font = '900 54px Outfit, Inter, sans-serif'; g.textAlign = 'center'; g.shadowColor = '#ff2bd6'; g.shadowBlur = 18; g.fillStyle = '#fff'; [...'COMPLEX'].forEach((ch, i) => g.fillText(ch, 64, 80 + i * 70)); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t }); })());
+        vs.position.set(p.x + w / 2 - 22, 110, z + d / 2 + 6); scene.add(vs);
+        const carpet = new THREE.Mesh(new THREE.PlaneGeometry(40, 70), STD({ color: 0xb01030, roughness: .9 })); carpet.rotation.x = -Math.PI / 2; carpet.position.set(p.x, .6, z + d / 2 + 35); scene.add(carpet);
+      }
     }
     // le sol (après les bâtiments, pour dessiner leur ombre douce à leurs pieds)
     trees.push(...A.palms.map(p => ({ x: p.x, y: p.y, s: (p.s || 1) * (.9 + rnd() * .45) })), ...streetTrees());
@@ -597,10 +608,11 @@ const City3D = (() => {
     if (Math.hypot(dx, dy) > .3) o.face = Math.atan2(dx, dy);
     o.x = nx; o.y = ny; o.g.position.set(o.x, onWalk(o.x, o.y) ? CURB : 0, o.y);
     o.g.rotation.y = mine ? Math.atan2(-Math.sin(yaw), -Math.cos(yaw)) : o.face;
-    const moving = sp > 20 || (mine && Math.abs(speed) > 5), run = mine && Math.abs(speed) > 200;
+    const moving = sp > 12 || (mine && Math.abs(speed) > 5), run = mine ? Math.abs(speed) > 80 : sp > 80;
     if (o.mixer) { // le vrai personnage : on passe en douceur d'une animation à l'autre
-      const want = p.action === 'dance' ? 'dance' : moving ? (run || (!mine && sp > 230) ? 'run' : 'walk') : 'idle';
+      const want = p.action === 'dance' ? 'dance' : moving ? (run ? 'run' : 'walk') : 'idle';
       if (want !== o.cur) { const a = o.act[want]; a.reset().play(); o.act[o.cur].crossFadeTo(a, .25, false); o.cur = want; }
+      const v = mine ? Math.abs(speed) : sp; if (o.act.walk) o.act.walk.timeScale = Math.max(.7, Math.min(1.6, v / 36)); if (o.act.run) o.act.run.timeScale = Math.max(.8, Math.min(1.5, v / 100)); // les pas suivent la vitesse
       o.mixer.update(dt);
       tag(p, o); o.tag.position.set(o.x, o.g.position.y + 54, o.y);
       return o;
@@ -644,7 +656,7 @@ const City3D = (() => {
     if (stick.on) { push = -dz(stick.y); turn = -dz(stick.x); }
     const m = A.players.get(A.me);
     if (driving) { const target = push * 620; speed += (target - speed) * Math.min(1, dt * (push ? 1.6 : 2.5)); yaw += turn * 1.9 * dt * Math.max(-1, Math.min(1, speed / 200)); }
-    else { yaw += turn * 2.3 * dt; speed = push * (Math.abs(push) > .85 ? 250 : 160); }
+    else { yaw += turn * 2.3 * dt; const sl = window.Needs?.slow?.() || 1; speed = push * (Math.abs(push) > .85 ? 125 : 48) * sl; } // marcher ≈ 2 m/s, courir ≈ 5 m/s (24 unités = 1 m)
     const dir = { x: -Math.sin(yaw), y: -Math.cos(yaw) };
     if (m && Math.abs(speed) > 2) {
       const sp = speed * (window.CityGames?.speed?.() ?? 1) * dt, nx = m.x + dir.x * sp, ny = m.y + dir.y * sp;

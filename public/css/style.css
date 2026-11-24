@@ -4384,3 +4384,14 @@ body.casino-open .modal-back { z-index: 2100; }
 .cs-ride { position: absolute; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(10,6,20,.75); padding: 8px 14px; border-radius: 999px; pointer-events: auto; border: 1px solid rgba(255,43,214,.4); }
 .cs-ride.hidden { display: none; }
 .cs-ride b { font: 800 16px Outfit, Inter, sans-serif; white-space: nowrap; }
+
+/* ---------- 🍔💧❤️ Les barres de faim, de soif et de santé ---------- */
+.nd-bars { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-radius: 12px; background: rgba(8,6,18,.72); border: 1px solid rgba(255,255,255,.14); pointer-events: auto; font-family: Outfit, Inter, sans-serif; color: #fff; width: 128px; }
+.nd-row { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.nd-row i { flex: 1; height: 7px; border-radius: 999px; background: rgba(255,255,255,.14); overflow: hidden; display: block; }
+.nd-row i b { display: block; height: 100%; border-radius: 999px; transition: width .6s; }
+.nd-row.low span { animation: ndBlink 1s infinite; }
+@keyframes ndBlink { 50% { opacity: .3; } }
+.nd-sick { font-size: 11px; font-weight: 800; color: #ffd23f; text-align: center; }
+.isl-nd { left: 12px; top: calc(148px + env(safe-area-inset-top)); }
+.cs-nd { left: 12px; top: calc(104px + env(safe-area-inset-top)); }
