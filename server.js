@@ -1114,6 +1114,26 @@ const visitDay = () => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Pari
 const visitStats = { total: 0, today: 0, day: '', at: 0 };
 function refreshVisits() { const d = visitDay(); visitStats.total = db.prepare('SELECT COUNT(*) c FROM visits').get().c; visitStats.today = db.prepare('SELECT COUNT(*) c FROM visits WHERE day = ?').get(d).c; visitStats.day = d; visitStats.at = Date.now(); }
 const addVisit = db.prepare('INSERT OR IGNORE INTO visits (day, vid) VALUES (?, ?)');
+// 📜 une seule fois : on retrouve les visites d'avant le compteur, grâce aux traces laissées par les membres
+// (chaque jour où un membre s'est connecté, a écrit, s'est inscrit… = une visite). C'est un minimum : les simples curieux n'avaient pas laissé de trace.
+try {
+  if (!db.prepare("SELECT value FROM settings WHERE key = 'visitsBackfill'").get()) {
+    const before = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date()); // on ne touche pas à aujourd'hui (déjà compté pour de vrai)
+    const day = "date((created_at / 1000) + 3600, 'unixepoch')"; // le jour, à l'heure de Paris (à peu près)
+    const src = [
+      `SELECT DISTINCT ${day} d, actor_id u FROM logs WHERE actor_id IS NOT NULL`,
+      `SELECT DISTINCT ${day} d, user_id u FROM messages`,
+      `SELECT DISTINCT ${day} d, from_id u FROM private_messages`,
+      `SELECT DISTINCT ${day} d, user_id u FROM sessions`,
+      `SELECT DISTINCT ${day} d, user_id u FROM coin_log`,
+      `SELECT DISTINCT ${day} d, id u FROM users`,
+      "SELECT DISTINCT date((last_seen / 1000) + 3600, 'unixepoch') d, id u FROM users WHERE last_seen IS NOT NULL",
+    ];
+    let n = 0; const tx = db.transaction(() => { for (const q of src) { try { for (const r of db.prepare(q).all()) if (r.d && r.d < before && r.u) n += addVisit.run(r.d, 'u:' + r.u).changes; } catch (e) {} } });
+    tx(); db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('visitsBackfill', ?)").run(String(n));
+    console.log(`👀 Historique des visites retrouvé : ${n} visites d'avant le compteur`);
+  }
+} catch (e) { console.error('visits backfill', e.message); }
 app.post('/api/visit', (req, res) => {
   const ua = String(req.headers['user-agent'] || '');
   if (/bot|crawl|spider|slurp|preview|headless|lighthouse|facebookexternalhit/i.test(ua) && !/Mobile Safari/i.test(ua)) return res.json({ ok: true });

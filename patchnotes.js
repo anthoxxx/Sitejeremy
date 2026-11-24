@@ -1598,7 +1598,7 @@ module.exports = [
     id: 113,
     date: '2026-11-24',
     title: 'Le compteur de visites sur la page d\'accueil 👀',
-    added: ['👀 La page d\'accueil affiche maintenant le nombre de visites du site, et combien de personnes sont venues aujourd\'hui (une visite = une personne, une fois par jour)'],
+    added: ['👀 La page d\'accueil affiche maintenant le nombre de visites du site, et combien de personnes sont venues aujourd\'hui (une visite = une personne, une fois par jour)', '📜 Le total compte aussi les visites depuis le début du site, retrouvées grâce aux connexions et aux messages des membres'],
     changed: [],
     removed: [],
   },
