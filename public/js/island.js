@@ -28,9 +28,9 @@ const Island = (() => {
     { slug: 'motdor', label: "Mot d'Or", icon: '✨', x: 1350, y: 1270, c: 'gold', kind: 'kiosk' },
     // Les lieux virtuels où l'on entre vraiment
     { inst: 'complex', label: 'Paradise Complex', icon: '🏬', x: 2390, y: 1262, c: '#ff2bd6', kind: 'nightclub', huge: true }, // le grand complexe : on y entre à pied
-    { inst: 'cinema', label: 'Ciné Paradise', icon: '🎬', x: 1360, y: 985, c: '#ff2d55', kind: 'cinema' },
+    { inst: 'cinema', zone: 'cine', label: 'Ciné Paradise', icon: '🎬', x: 1360, y: 985, c: '#ff2d55', kind: 'cinema' }, // 🎬 mène au vrai cinéma 3D du complexe
     { inst: 'houses', label: 'Les Maisons', icon: '🏠', x: 590, y: 640, c: '#ffd34d', kind: 'houses' },
-    { inst: 'pool', label: 'Pool Party', icon: '🏊', x: 1900, y: 620, c: '#38dce6', kind: 'poolplace' },
+    { inst: 'pool', zone: 'aqua', label: 'Pool Party', icon: '🏊', x: 1900, y: 620, c: '#38dce6', kind: 'poolplace' }, // 🏊 mène au parc aquatique 3D du complexe
     { inst: 'cafe', label: 'Café Paradise', icon: '☕', x: 1060, y: 635, c: '#ffd76a', kind: 'cafeplace' },
     { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 590, y: 975, c: '#ff4fd8', kind: 'arcadeplace' },
     { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 2050, y: 1300, c: '#ff8a1f', kind: 'campplace' },
@@ -1659,10 +1659,10 @@ const Island = (() => {
       return card.classList.remove('hidden');
     }
     if (best.inst) {
-      const txt = { complex: ['Casino, bowling, laser game, cinéma, boîte de nuit, karting, aquarium, zoo, fête foraine…', '🏬 Entrer'], club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma : regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
-        pool: ['Piscine, plongeoir, ballon et cocktails', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
+      const txt = { complex: ['Casino, bowling, laser game, cinéma, boîte de nuit, karting, aquarium, zoo, fête foraine…', '🏬 Entrer'], club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma 3D : plusieurs salles et des escalators, regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
+        pool: ['Le parc aquatique 3D : piscine, toboggans et aquarium', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
       card.replaceChildren(el('div', {}, el('b', {}, `${best.icon} ${best.label}`), el('small', {}, txt[0])),
-        el('button', { class: 'btn btn-primary', onclick: () => (best.inst === 'complex' ? window.Casino?.open() : best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
+        el('button', { class: 'btn btn-primary', onclick: () => (best.zone ? window.Casino?.open({ zone: best.zone }) : best.inst === 'complex' ? window.Casino?.open() : best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
     } else {
       const room = state.rooms.find(r => r.slug === best.slug);
       const n = (state.online || []).filter(u => u.room === best.slug && !u.ghost).length;
