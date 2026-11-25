@@ -1,6 +1,7 @@
 // The Paradise — 🔑 Mot de passe oublié
 // 1) La personne donne son pseudo (ou son e-mail) sur la page de connexion.
-// 2) Si son compte a une adresse e-mail et que l'envoi d'e-mails est réglé (BREVO_API_KEY ou RESEND_API_KEY + MAIL_FROM sur Render),
+// 2) Si son compte a une adresse e-mail et que l'envoi d'e-mails est réglé sur Render (EmailJS avec un Gmail : EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID,
+//    EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY ; ou Brevo / Resend : BREVO_API_KEY ou RESEND_API_KEY + MAIL_FROM),
 //    elle reçoit un lien valable 1 heure pour choisir un nouveau mot de passe.
 // 3) Sinon, la demande arrive à l'équipe (espace admin → 🔑 Mots de passe) : un admin vérifie que c'est bien la personne,
 //    crée un lien (valable 24 h) et le lui transmet.
@@ -13,9 +14,18 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
   const now = () => Date.now();
   // l'adresse du site dans les liens : celle réglée sur le serveur (jamais celle envoyée par le navigateur, qu'on peut truquer)
   const base = req => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-  const mailOn = () => !!((process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) && process.env.MAIL_FROM);
+  const ejsOn = () => !!(process.env.EMAILJS_SERVICE_ID && process.env.EMAILJS_TEMPLATE_ID && process.env.EMAILJS_PUBLIC_KEY && process.env.EMAILJS_PRIVATE_KEY);
+  const mailOn = () => ejsOn() || !!((process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) && process.env.MAIL_FROM);
   async function sendMail(to, subject, html, text) {
     const from = process.env.MAIL_FROM, name = process.env.MAIL_FROM_NAME || 'The Paradise';
+    // ✉️ EmailJS : les e-mails partent du Gmail branché sur EmailJS (le modèle utilise {{to_email}}, {{subject}} et {{message}})
+    if (ejsOn()) {
+      const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ service_id: process.env.EMAILJS_SERVICE_ID, template_id: process.env.EMAILJS_TEMPLATE_ID, user_id: process.env.EMAILJS_PUBLIC_KEY, accessToken: process.env.EMAILJS_PRIVATE_KEY,
+          template_params: { to_email: to, subject, message: text, name } }) });
+      if (!r.ok) throw new Error('EmailJS ' + r.status + ' ' + (await r.text()).slice(0, 200));
+      return;
+    }
     if (process.env.BREVO_API_KEY) {
       const r = await fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'api-key': process.env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ sender: { email: from, name }, to: [{ email: to }], subject, htmlContent: html, textContent: text }) });
