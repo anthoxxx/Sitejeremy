@@ -310,6 +310,7 @@ const Bowling = (() => {
   }
   function big(text, cls) { hud.big.textContent = text; hud.big.className = 'bw-big ' + cls; clearTimeout(msgT); msgT = setTimeout(() => hud.big.classList.add('hidden'), 1800); }
 
+  addEventListener('outfit3d', () => { try { if (active) setHall(hall); } catch (e) {} }); // 👗 une tenue vient d'arriver : on habille le joueur
   // ---------- 👀 les autres pistes de la salle ----------
   function setHall(L) {
     hall = L || []; if (!active || !groups.length) return;
@@ -318,7 +319,8 @@ const Bowling = (() => {
     const seen = new Set();
     for (const ln of hall) ln.players.forEach((p, i) => {
       if (p.id === myId()) return; seen.add(p.id);
-      let a = avatars.get(p.id); if (!a) { a = makeAvatar(p); avatars.set(p.id, a); }
+      let a = avatars.get(p.id); if (a && K.outfitKey && a.mk !== K.outfitKey(p)) { /* 👗 tenue changée (ou enfin chargée) */ const w = a.want; scene.remove(a.g); a = null; avatars.delete(p.id); a = makeAvatar(p); a.want = w; avatars.set(p.id, a); }
+      if (!a) { a = makeAvatar(p); avatars.set(p.id, a); }
       const x = (ln.pos - 2) * 1.7, up = ln.status === 'playing' && ln.turn === i && ln.pos !== myPos(); // sur ma piste, on ne se met pas devant la caméra
       a.want = up ? [x - .12, -1.1, 0] : [x + [-.95, .95, -.4, .4][i % 4], [-6.15, -6.15, -6.9, -6.9][i % 4], i % 4 < 2 ? (i % 4 ? -Math.PI / 2 : Math.PI / 2) : 0];
       a.tagText(`${p.name} · ${p.total}`);
@@ -326,7 +328,7 @@ const Bowling = (() => {
     for (const [id, a] of avatars) if (!seen.has(id)) { scene.remove(a.g); avatars.delete(id); }
   }
   function makeAvatar(p) {
-    const L = p.gender === 'f' ? K.people.women : K.people.men, src = L[Math.abs(p.id) % L.length], h = K.makeHuman(src, src.k * 1.74 / 43);
+    const L = p.gender === 'f' ? K.people.women : K.people.men, src = (K.pick && K.pick(p)) || L[Math.abs(p.id) % L.length], h = K.makeHuman(src, src.k * 1.74 / 43); h.mk = K.outfitKey ? K.outfitKey(p) : '';
     const [c, g] = cnv(512, 96), t = tex(c), tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false })); tag.scale.set(1.3, .25, 1); tag.position.y = 2.05; h.g.add(tag);
     h.tagText = txt => { if (h._t === txt) return; h._t = txt; g.clearRect(0, 0, 512, 96); g.font = '800 44px Outfit, Inter, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; const w = Math.min(500, g.measureText(txt).width + 36); g.fillStyle = 'rgba(8,6,20,.75)'; g.beginPath(); g.roundRect?.(256 - w / 2, 8, w, 80, 40); g.fill(); g.fillStyle = p.bot ? '#ffd23f' : '#38e8ff'; g.fillText(txt, 256, 50, 480); t.needsUpdate = true; };
     h.g.position.set((Math.random() - .5) * 2, 0, -6.5); scene.add(h.g); return h;

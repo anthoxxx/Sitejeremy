@@ -3,7 +3,7 @@
 // tout le monde voit exactement la même chose, et personne ne peut tricher sur son score.
 const Phys = require('./public/js/bowlphys');
 const MAX = 4, TURN_MS = 45000;
-module.exports = function setupBowling({ io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
+module.exports = function setupBowling({ outfitOf = () => '', io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
   const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
   const now = () => Date.now();
   const lanes = new Map(), where = new Map(), sockets = new Map(); let nextId = 1;
@@ -12,7 +12,7 @@ module.exports = function setupBowling({ io, coins = null, track = () => {}, sea
   const slots = new Map(); // numéro de piste → id de la partie
   const hallOf = l => Math.floor(l.slot / 5), hallRoom = h => 'bwh:' + h;
   const hallOut = h => [...lanes.values()].filter(l => hallOf(l) === h).map(l => ({ id: l.id, pos: l.slot % 5, status: l.status, turn: l.turn, standing: l.standing, busy: l.busy,
-    players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, gender: p.gender || 'h', total: Phys.score(p.rolls).total })) }));
+    players: l.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, gender: p.gender || 'h', outfit: p.bot ? '' : outfitOf(p.id), total: Phys.score(p.rolls).total })) }));
   const sendHall = l => io.to(hallRoom(hallOf(l))).emit('bw_hall', { hall: hallOf(l), lanes: hallOut(hallOf(l)) });
   const humans = l => l.players.filter(p => !p.bot);
   const out = l => ({ slot: l.slot, hall: hallOf(l), id: l.id, name: l.name, host: l.host, status: l.status, turn: l.turn, busy: l.busy, turnEnd: l.turnEnd, serverNow: now(),

@@ -103,7 +103,7 @@ function path(M, from, to) {
   return out;
 }
 
-module.exports = function setupLaserGame({ io, coins = null, track = () => {} }) {
+module.exports = function setupLaserGame({ outfitOf = () => '', io, coins = null, track = () => {} }) {
   const now = () => Date.now();
   const rooms = new Map(); // id -> partie
   const where = new Map(); // userId -> id de la partie
@@ -113,7 +113,7 @@ module.exports = function setupLaserGame({ io, coins = null, track = () => {} })
   const count = (r, team) => [...r.players.values()].filter(p => p.team === team).length;
   const lessTeam = r => (count(r, 'red') <= count(r, 'blue') ? 'red' : 'blue');
 
-  const pubPlayer = p => ({ id: p.id, name: p.name, team: p.team, bot: !!p.bot, gender: p.gender || '', tags: p.tags, deaths: p.deaths, host: false });
+  const pubPlayer = p => ({ id: p.id, name: p.name, team: p.team, bot: !!p.bot, gender: p.gender || '', outfit: p.bot ? '' : outfitOf(p.id), tags: p.tags, deaths: p.deaths, host: false });
   function roomOut(r) {
     return { id: r.id, name: r.name, map: r.map, host: r.host, status: r.status, bots: r.bots, players: [...r.players.values()].map(p => ({ ...pubPlayer(p), host: p.id === r.host })),
       score: r.score, startAt: r.startAt, endAt: r.endAt, serverNow: now(), results: r.results || null, win: WIN };

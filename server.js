@@ -2984,9 +2984,9 @@ const generalBot = (content, icon = '🏙️', name = 'La Ville') => io.to('room
 const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id), island: Island, emitToUser: (...a) => emitToUser(...a), botSay: t => generalBot(t), throttled: (...a) => throttled(...a) });
 CityGames.routes(app, auth);
 // 🔫 Le Laser Game : parties en équipes (Rouges contre Bleus), 3 cartes, robots
-const LaserGame = require('./lasergame')({ io, coins: Coins, track });
+const LaserGame = require('./lasergame')({ outfitOf: id => Outfits.of(id), io, coins: Coins, track });
 // 🎳 Le Bowling en 3D (pistes à part, seul, entre amis ou contre les soldats)
-const Bowling = require('./bowling')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
+const Bowling = require('./bowling')({ outfitOf: id => Outfits.of(id), io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎰 Le Paradise Club : le complexe en 3D (bar, bowling, laser game, billards, poker)
 const Casino = require('./casino')({ outfitOf: id => Outfits.of(id), onEat: (uid, name, emoji) => Needs?.consume(uid, name, emoji), io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎙️ Le vocal de proximité (la Ville, les maisons, le Paradise Club)
