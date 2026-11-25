@@ -217,8 +217,23 @@ async function passwords() {
       el('button', { class: 'btn btn-sm', onclick: async () => { if (!confirm('Refuser cette demande ?')) return; try { await api(`/api/admin/pwreq/${r.id}/refuse`, { method: 'POST' }); passwords(); } catch (e) { toast(e.message); } } }, '✖ Refuser'))
       : pwLinks.has(r.id) ? el('div', {}, el('p', { class: 'help' }, `🔗 Envoie ce lien à ${r.user.username}, en privé. Il marche une seule fois, pendant 24 heures :`), el('input', { class: 'input', value: pwLinks.get(r.id), readonly: true, onclick: e => e.target.select() }))
       : el('p', { class: 'help' }, r.status === 'done' ? '✅ Traitée' : '✖ Refusée'));
+  // 📧 l'envoi d'e-mails : état, dernière erreur, et bouton de test
+  let ms = null; try { ms = await api('/api/admin/mailstatus'); } catch (e) {}
+  const out = el('div', { class: 'help', style: 'margin-top:8px' });
+  const toIn = el('input', { class: 'input', type: 'email', placeholder: 'ton.adresse@gmail.com', value: me?.email || '', style: 'flex:1;min-width:180px' });
+  const mailBox = ms ? el('div', { class: 'panel', style: 'margin-bottom:14px' },
+    el('b', {}, ms.on ? '📧 Envoi d\'e-mails : réglé' : '📧 Envoi d\'e-mails : pas encore réglé'),
+    !ms.on && ms.missing?.length ? el('p', { class: 'help' }, 'Il manque sur Render (Environment) : ' + ms.missing.join(', ')) : null,
+    ms.last ? el('p', { class: 'help' }, ms.last.ok ? `✅ Dernier e-mail parti le ${when(ms.last.at)}` : `❌ Dernier essai raté le ${when(ms.last.at)} : ${ms.last.error}${ms.last.hint ? ' → ' + ms.last.hint : ''}`) : null,
+    isSuper() ? el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center' }, toIn,
+      el('button', { class: 'btn btn-sm btn-primary', onclick: async e => { const b = e.currentTarget; b.disabled = true; out.textContent = '⏳ Envoi…';
+        try { await api('/api/admin/mailtest', { method: 'POST', body: { to: toIn.value } }); out.textContent = '✅ E-mail de test envoyé ! Regarde ta boîte (et les spams).'; }
+        catch (x) { out.textContent = '❌ ' + x.message; try { const st = await api('/api/admin/mailstatus'); if (st.last?.hint) out.textContent += ' → ' + st.last.hint; } catch (y) {} }
+        b.disabled = false; } }, '📨 Tester l\'envoi d\'e-mail')) : null,
+    out) : null;
   page.replaceChildren(
     el('h2', {}, '🔑 Mots de passe oubliés'),
+    mailBox,
     el('p', { class: 'help' }, d.mail ? '📧 L\'envoi d\'e-mails est réglé : les membres qui ont une adresse e-mail reçoivent leur lien tout seuls. Ici, il reste ceux qui n\'en ont pas.' : '📧 L\'envoi d\'e-mails n\'est pas encore réglé : toutes les demandes arrivent ici. Vérifie que c\'est bien la personne (par exemple sur Snap, Insta ou Discord), puis crée-lui un lien.'),
     ...(d.list.length ? d.list.map(card) : [el('p', { class: 'empty' }, 'Aucune demande pour le moment 👍')]));
 }

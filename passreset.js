@@ -16,7 +16,23 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
   const base = req => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
   const ejsOn = () => !!(process.env.EMAILJS_SERVICE_ID && process.env.EMAILJS_TEMPLATE_ID && process.env.EMAILJS_PUBLIC_KEY && process.env.EMAILJS_PRIVATE_KEY);
   const mailOn = () => ejsOn() || !!((process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) && process.env.MAIL_FROM);
+  // 📧 le dernier envoi (pour l'espace admin : savoir pourquoi un e-mail n'est pas parti)
+  let lastMail = null;
+  const hint = e => { const m = String(e?.message || e);
+    if (/non-browser/i.test(m)) return 'Dans EmailJS → Account → Security, coche « Allow EmailJS API for non-browser applications » puis Save.';
+    if (/public key|user id|user_id/i.test(m)) return 'La Public Key (EMAILJS_PUBLIC_KEY) n\'est pas bonne : recopie-la depuis EmailJS → Account → General.';
+    if (/private key|access ?token/i.test(m)) return 'La Private Key (EMAILJS_PRIVATE_KEY) n\'est pas bonne : recopie-la depuis EmailJS → Account → General.';
+    if (/service/i.test(m) && /not found|invalid/i.test(m)) return 'Le Service ID (EMAILJS_SERVICE_ID) n\'est pas bon : il est dans EmailJS → Email Services.';
+    if (/template/i.test(m) && /not found|invalid/i.test(m)) return 'Le Template ID (EMAILJS_TEMPLATE_ID) n\'est pas bon : il est dans EmailJS → Email Templates → Settings.';
+    if (/scope|gmail_api|insufficient|invalid_grant|reconnect/i.test(m)) return 'Gmail n\'autorise pas l\'envoi : dans EmailJS → Email Services → Gmail, touche « Disconnect » puis « Connect Account » et coche bien la case qui autorise l\'envoi d\'e-mails.';
+    if (/recipients address is empty|to_email|recipient/i.test(m)) return 'Dans le modèle EmailJS, la case « To Email » doit contenir exactement {{to_email}}.';
+    if (/limit|quota|429/i.test(m)) return 'La limite d\'e-mails gratuits est atteinte pour ce mois.';
+    return ''; };
   async function sendMail(to, subject, html, text) {
+    try { await sendMail0(to, subject, html, text); lastMail = { at: now(), ok: true }; }
+    catch (e) { lastMail = { at: now(), ok: false, error: String(e.message || e).slice(0, 300), hint: hint(e) }; throw e; }
+  }
+  async function sendMail0(to, subject, html, text) {
     const from = process.env.MAIL_FROM, name = process.env.MAIL_FROM_NAME || 'The Paradise';
     // ✉️ EmailJS : les e-mails partent du Gmail branché sur EmailJS (le modèle utilise {{to_email}}, {{subject}} et {{message}})
     if (ejsOn()) {
@@ -54,19 +70,20 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
         if (tooMany('pwforgot:' + req.ip, 6, 3600000)) return res.status(429).json({ error: 'Trop de demandes, réessaie dans une heure' });
         const login = String(req.body?.login || '').trim().slice(0, 120), contact = String(req.body?.contact || '').trim().slice(0, 200);
         if (login.length < 3) return res.status(400).json({ error: 'Écris ton pseudo (ou ton adresse e-mail)' });
-        let u = login.includes('@') ? db.prepare("SELECT * FROM users WHERE lower(email)=lower(?) AND is_guest=0 ORDER BY last_seen DESC LIMIT 1").get(login) : getUserByName(login);
+        let u = login.includes('@') ? db.prepare("SELECT * FROM users WHERE (lower(email)=lower(?) OR lower(google_email)=lower(?)) AND is_guest=0 ORDER BY last_seen DESC LIMIT 1").get(login, login) : getUserByName(login);
         if (u && (u.is_guest || u.panel)) u = null;
         res.json({ ok: true, msg: GENERIC }); // même réponse dans tous les cas
         if (!u || tooMany('pwforgot-u:' + u.id, 3, 3600000)) return;
         try {
-          if (u.email && mailOn()) {
+          const to = u.email || u.google_email || '';
+          if (to && mailOn()) try {
             const t = newToken(u.id, 3600000), link = `${base(req)}/?reset=${t}`;
-            await sendMail(u.email, '🔑 Ton nouveau mot de passe — The Paradise',
+            await sendMail(to, '🔑 Ton nouveau mot de passe — The Paradise',
               `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;border-radius:16px;background:#1b1230;color:#fff"><h2 style="margin-top:0">🌴 The Paradise</h2><p>Coucou <b>${esc(u.username)}</b> !</p><p>Tu as demandé à changer ton mot de passe. Touche le bouton ci-dessous pour en choisir un nouveau :</p><p style="text-align:center;margin:28px 0"><a href="${link}" style="background:#ff4fa8;color:#fff;padding:14px 22px;border-radius:12px;text-decoration:none;font-weight:bold">Choisir mon nouveau mot de passe</a></p><p style="font-size:13px;opacity:.8">Ce lien marche pendant 1 heure, une seule fois. Si ce n'est pas toi qui as demandé, ignore ce message : ton mot de passe ne change pas.</p></div>`,
               `Coucou ${u.username} ! Pour choisir un nouveau mot de passe sur The Paradise, ouvre ce lien (valable 1 heure) : ${link}\nSi ce n'est pas toi, ignore ce message.`);
             log(u, 'password_forgot', '🔑 Mot de passe oublié : lien envoyé par e-mail', { ip: req.ip });
             return;
-          }
+          } catch (e) { console.error('mot de passe oublié : e-mail non envoyé', e.message); log(u, 'password_forgot', '🔑 Mot de passe oublié : l\'e-mail n\'a pas pu partir (' + String(e.message).slice(0, 120) + ') → demande envoyée à l\'équipe', { ip: req.ip }); }
           // pas d'e-mail (ou pas d'envoi d'e-mails réglé) : l'équipe s'en occupe
           if (db.prepare("SELECT 1 FROM pw_requests WHERE user_id=? AND status='open'").get(u.id)) { if (contact) db.prepare("UPDATE pw_requests SET contact=? WHERE user_id=? AND status='open'").run(contact, u.id); return; }
           db.prepare('INSERT INTO pw_requests (user_id, created_at, contact, ip) VALUES (?,?,?,?)').run(u.id, now(), contact, req.ip || '');
@@ -124,6 +141,15 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
         log(req.user, 'password_link', `🔑 Lien « nouveau mot de passe » créé pour ${u.username}`);
         res.json({ ok: true, token: t, link: `${base(req)}/?reset=${t}`, username: u.username }); // le navigateur de l'admin refait le lien avec l'adresse du site où il est
       });
+      // 📧 tester l'envoi d'e-mails (super-admin) : on voit tout de suite l'erreur exacte
+      admin.post('/mailtest', requireRole('superadmin'), async (req, res) => {
+        const to = String(req.body?.to || '').trim().slice(0, 120);
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return res.status(400).json({ error: 'Adresse e-mail invalide' });
+        if (!mailOn()) return res.status(400).json({ error: 'L\'envoi d\'e-mails n\'est pas réglé sur Render : il manque une ou plusieurs variables (EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY).', missing: ['EMAILJS_SERVICE_ID', 'EMAILJS_TEMPLATE_ID', 'EMAILJS_PUBLIC_KEY', 'EMAILJS_PRIVATE_KEY'].filter(k => !process.env[k]) });
+        try { await sendMail(to, '✅ Test — The Paradise', '<p>Ça marche ! Les e-mails « mot de passe oublié » de The Paradise partent bien.</p>', 'Ça marche ! Les e-mails « mot de passe oublié » de The Paradise partent bien. 🎉'); res.json({ ok: true }); }
+        catch (e) { res.status(400).json({ error: lastMail?.error || String(e.message), hint: lastMail?.hint || '' }); }
+      });
+      admin.get('/mailstatus', requireRole('admin'), (req, res) => res.json({ on: mailOn(), last: lastMail, missing: ['EMAILJS_SERVICE_ID', 'EMAILJS_TEMPLATE_ID', 'EMAILJS_PUBLIC_KEY', 'EMAILJS_PRIVATE_KEY'].filter(k => !process.env[k]) }));
       admin.get('/pwreq/count', requireRole('admin'), (req, res) => res.json({ count: db.prepare("SELECT COUNT(*) c FROM pw_requests WHERE status='open'").get().c }));
     },
   };
