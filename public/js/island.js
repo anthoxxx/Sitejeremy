@@ -1863,7 +1863,7 @@ const Island = (() => {
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act race', onclick: () => window.CityGames?.racePanel() }, el('span', {}, '🏁'), 'Course'), el('button', { type: 'button', class: 'isl-act treasure', onclick: () => window.CityGames?.treasurePanel() }, el('span', {}, '🗺️'), 'Trésor'));
     // (le Paradise Complex n'est plus un bouton : c'est un grand bâtiment dans la Ville, on y entre à pied)
     if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => housesPanel() }, el('span', {}, '🏠'), 'Les maisons'));
-    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Look?.open() }, el('span', {}, '🧍'), 'Mon perso'));
+    if (kind === 'island') acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Outfits?.open() }, el('span', {}, '👗'), 'Ma tenue'));
     if (kind === 'island' || kind === 'pool' || kind === 'campfire') acts.push(el('button', { type: 'button', class: 'isl-act media', onclick: () => { if (!confirm('Lancer un feu d\'artifice pour toute l\'Île ? (30 pièces 💰)')) return; socket.emit('island_fw', r => r?.error && toast(r.error)); } }, el('span', {}, '🎆'), 'Feu d\'artifice'));
     acts.push(el('button', { type: 'button', class: 'isl-act', onclick: () => window.Pets?.open() }, el('span', {}, players.get(me)?.pet?.icon || '🐾'), players.get(me)?.pet ? players.get(me).pet.name : 'Adopter un animal'));
     root.querySelector('.isl-actions').replaceChildren(...acts);
@@ -2046,7 +2046,7 @@ const Island = (() => {
   });
   socket.on('island_joined', p => { if (!open) return; offline.delete(p.id); players.set(p.id, p); count(); });
   socket.on('island_offline', p => { if (open && kind === 'island' && !players.has(p.id)) offline.set(p.id, { ...p, dx: p.x, dy: p.y }); });
-  socket.on('island_pet', ({ id, pet, look, mode }) => { const p = players.get(id); if (p) { p.pet = pet; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
+  socket.on('island_pet', ({ id, pet, look, mode, outfit }) => { const p = players.get(id); if (p) { p.pet = pet; if (outfit !== undefined) p.outfit = outfit; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
   // 🏁 le serveur nous place sur la ligne de départ

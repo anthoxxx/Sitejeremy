@@ -4,7 +4,7 @@
 const City = (() => {
   const SHOPS = {
     Coiffeur: { icon: '💇', color: '#ff4fd8', npc: '✂️ Jessy, la coiffeuse', hello: 'Installe-toi dans le fauteuil ! On change de tête aujourd\'hui ?', blurb: 'Change de coupe et de couleur de cheveux' },
-    Boutique: { icon: '👗', color: '#c64dff', npc: '🛍️ Inès, la vendeuse', hello: 'Bienvenue ! Les cabines d\'essayage sont au fond, essaie tout ce que tu veux.', blurb: 'Change de tenue : hauts, bas et chaussures' },
+    Boutique: { icon: '👗', color: '#c64dff', npc: '🛍️ Inès, la vendeuse', hello: 'Bienvenue ! Les cabines d\'essayage sont au fond, essaie tout ce que tu veux.', blurb: 'Le magasin de vêtements 3D : essaie et achète de vraies tenues' },
     Bijouterie: { icon: '💍', color: '#ffd76a', npc: '💎 Monsieur Diamant', hello: 'Couronnes, auréoles, ailes… rien n\'est trop beau pour toi.', blurb: 'Accessoires et ailes pour ton personnage' },
     Boulangerie: { icon: '🥖', color: '#ffd34d', npc: '🥐 Paulette, la boulangère', hello: 'Tout est sorti du four ce matin, ça sent bon hein ?', blurb: 'Baguette, croissants et gâteaux' },
     Pizzeria: { icon: '🍕', color: '#ff2d55', npc: '🇮🇹 Luigi, le pizzaïolo', hello: 'Mamma mia ! Qu\'est-ce que je te prépare ?', blurb: 'Pizzas et pâtes tout juste sorties du four' },
@@ -32,6 +32,7 @@ const City = (() => {
   async function open(name) {
     const S = SHOPS[name]; if (!S) return;
     if (state.me?.isGuest) return toast('Inscris-toi pour entrer dans les boutiques 🏙️');
+    if (name === 'Boutique' && window.Outfits) return window.Outfits.open(); // 👗 directement dans le magasin 3D
     if (close) close();
     const body = el('div', { class: 'city-body' }, el('p', { class: 'help' }, 'Chargement…'));
     const box = el('div', { class: 'city-shop', style: `--shop:${S.color}` },
@@ -57,8 +58,8 @@ const City = (() => {
         el('button', { class: 'city-big', onclick: lookShop(['hair', 'face'], { title: '💇 Le salon de coiffure', sub: 'Choisis ta coupe, ta couleur, ta barbe… C\'est offert par la maison !', done: '💇 Superbe nouvelle coupe ! Va te montrer dans la Ville ✨', confetti: ['✂️', '💇', '✨'] }) }, el('span', {}, '💺'), el('b', {}, 'M\'asseoir dans le fauteuil'), el('small', {}, 'Choisis toi-même ta nouvelle coupe et ta couleur')),
         el('button', { class: 'city-big', onclick: surpriseCut }, el('span', {}, '🎲'), el('b', {}, 'Coupe surprise !'), el('small', {}, 'Jessy choisit pour toi… tu ne sais pas ce qui t\'attend 😱'))),
       el('p', { class: 'help' }, '✂️ Toutes les coupes et les couleurs sont gratuites.')];
-    if (name === 'Boutique') return [el('div', { class: 'city-actions' },
-      el('button', { class: 'city-big', onclick: lookShop(['top', 'bottom', 'shoes'], { title: '👗 Les cabines d\'essayage', sub: 'Essaie tout ! Les pièces rares se paient en pièces 💰', done: '👗 Trop stylé ! Ta nouvelle tenue est prête', confetti: ['👗', '👟', '✨'] }) }, el('span', {}, '🚪'), el('b', {}, 'Aller en cabine'), el('small', {}, 'Hauts, bas, chaussures et couleurs')))];
+    // 👗 la boutique de vêtements : on entre dans le vrai magasin 3D et le personnage 3D se change
+    if (name === 'Boutique') { setTimeout(leaveTo(() => window.Outfits?.open()), 0); return [el('p', { class: 'help' }, '👗 On entre dans le magasin…')]; }
     if (name === 'Bijouterie') return [el('div', { class: 'city-actions' },
       el('button', { class: 'city-big', onclick: lookShop(['acc', 'extra'], { title: '💍 La vitrine de la bijouterie', sub: 'Couronnes, auréoles, ailes d\'ange… Les pièces rares se paient en pièces 💰', done: '💎 Tu brilles de mille feux !', confetti: ['💍', '👑', '✨'] }) }, el('span', {}, '💎'), el('b', {}, 'Voir la vitrine'), el('small', {}, 'Accessoires de tête et ailes dans le dos')))];
     const parts = [];

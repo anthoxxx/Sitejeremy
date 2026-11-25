@@ -101,8 +101,31 @@ const City3D = (() => {
       return { scene: g.scene, k: hy > 0 ? 39 / hy : 1, turn: -yawOf(b.L_Thigh, b.R_Thigh), clips, foot: b.L_Foot ? Math.min(wp(b.L_Foot).y, wp(b.R_Foot).y) : 0 };
     };
     const people3d = ppl.map(prep);
-    return { men: people3d.slice(0, 2), women: people3d.slice(2) };
+    const by = {}; [...MEN, ...WOMEN].forEach((n, i) => { by[n] = people3d[i]; });
+    return { men: people3d.slice(0, 2), women: people3d.slice(2), by, prep };
   }
+  // 👗 les tenues du magasin de vêtements : chaque tenue est un vrai personnage, chargé seulement quand quelqu'un la porte
+  const OUTFIT_IDS = ['m16', 'm01', 'm08', 'm04', 'm13', 'm06', 'm10', 'm12', 'f08', 'f17', 'f01', 'f15', 'f02', 'f12', 'f04', 'fp1'];
+  const outfitLoads = {};
+  function loadOutfit(id) {
+    if (!PEOPLE || !id) return Promise.resolve(null);
+    if (PEOPLE.by[id]) return Promise.resolve(PEOPLE.by[id]);
+    if (!OUTFIT_IDS.includes(id)) return Promise.resolve(null);
+    if (!outfitLoads[id]) {
+      const gl = new LIB.GLTFLoader(); gl.setMeshoptDecoder(LIB.Meshopt);
+      outfitLoads[id] = gl.loadAsync('/city3d/outfits/' + id + '.glb').then(g => { PEOPLE.by[id] = PEOPLE.prep(g); try { window.dispatchEvent(new CustomEvent('outfit3d', { detail: id })); } catch (e) {} return PEOPLE.by[id]; })
+        .catch(e => { console.warn('tenue 3D', id, e); delete outfitLoads[id]; return null; });
+    }
+    return outfitLoads[id];
+  }
+  // quel personnage montrer pour ce joueur (sa tenue si elle est prête, sinon celle de départ en attendant)
+  function outfitKey(p) {
+    const o = p?.outfit || '';
+    if (o && PEOPLE?.by[o]) return o;
+    if (o) loadOutfit(o);
+    const L = p?.gender === 'f' ? WOMEN : MEN; return L[Math.abs(p?.id || 0) % L.length];
+  }
+  const pickHuman = p => PEOPLE ? PEOPLE.by[outfitKey(p)] : null;
   const pmremOf = t => { const g = new THREE.PMREMGenerator(R); const rt = g.fromEquirectangular(t); g.dispose(); return rt.texture; };
   // ---------- le bouton « 🎥 Vue » en haut de la Ville ----------
   const LABEL = { top: ['🗺️', 'Vue du dessus'], third: ['🎥', '3ᵉ personne'], first: ['👀', '1ʳᵉ personne'] };
@@ -559,13 +582,10 @@ const City3D = (() => {
       const [am, af, ...ppl] = await Promise.all([glb('anim_m.glb'), glb('anim_f.glb'), ...MEN.map(n => glb(n + '.glb')), ...WOMEN.map(n => glb(n + '.glb'))]);
       if (!PEOPLE) PEOPLE = peopleFrom(am, af, ppl);
     }
-    return { THREE, LIB, people: PEOPLE, makeHuman };
+    return { THREE, LIB, people: PEOPLE, makeHuman, pick: pickHuman, outfitKey, loadOutfit };
   }
   function human(p) {
-    if (ASSET) {
-      const L = p.gender === 'f' ? ASSET.women : ASSET.men, src = L[(p.id || 0) % L.length];
-      return makeHuman(src);
-    }
+    if (ASSET && PEOPLE) { const mk = outfitKey(p); return { ...makeHuman(PEOPLE.by[mk]), mk }; }
     const id = p.id || 0, g = new THREE.Group();
     const shirt = STD({ color: p.color || '#8b6cff', roughness: .8 }), pants = STD({ color: [0x2a3550, 0x3b3b40, 0x5a4632, 0x1d2430][id % 4], roughness: .85 }), skin = STD({ color: SKIN[id % SKIN.length], roughness: .7 }), hair = STD({ color: HAIR[id % HAIR.length], roughness: .9 }), shoe = STD({ color: 0x141414, roughness: .6 });
     const legL = new THREE.Group(), legR = new THREE.Group(), armL = new THREE.Group(), armR = new THREE.Group();
@@ -603,6 +623,7 @@ const City3D = (() => {
   function person(p, t, dt) {
     let o = people.get(p.id);
     if (!o) { const h = human(p); scene.add(h.g); o = { ...h, x: p.x, y: p.y, face: 0, walk: 0 }; people.set(p.id, o); }
+    else if (o.mk && o.mk !== outfitKey(p)) { /* 👗 nouvelle tenue : on change le personnage */ scene.remove(o.g); const h = human(p); scene.add(h.g); Object.assign(o, h); }
     const mine = p.id === A.me, tx = mine ? pos.x : p.x, ty = mine ? pos.y : p.y;
     const nx = o.x + (tx - o.x) * .25, ny = o.y + (ty - o.y) * .25, dx = nx - o.x, dy = ny - o.y, sp = Math.hypot(dx, dy) / Math.max(dt, .001);
     if (Math.hypot(dx, dy) > .3) o.face = Math.atan2(dx, dy);
@@ -697,6 +718,7 @@ const City3D = (() => {
     }
     for (const [id, o] of people) if (!seen.has(id)) { scene.remove(o.g); if (o.tag) { scene.remove(o.tag); o.tag.material.map.dispose(); o.tag.material.dispose(); } people.delete(id); }
     if (t - lastSky > 15) { lastSky = t; sky(); }
+    if (window.Outfits?.isOpen?.()) return; /* 👗 la cabine d'essayage est ouverte par-dessus : on ne dessine pas la Ville en même temps */
     R.render(scene, camera);
   }
   // on ajoute le bouton quand la Ville s'ouvre, et on relance la 3D si c'était la vue choisie

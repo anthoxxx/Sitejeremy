@@ -696,7 +696,7 @@ function toggleUserMenu() {
     item('✏️', 'Personnaliser mon profil', openMyProfile),
     !state.me.isGuest ? item('📱', 'Mon téléphone', () => Phone.open()) : null,
     !state.me.isGuest ? item('🎯', 'Mes quêtes et mes badges', () => Progress.open()) : null,
-    !state.me.isGuest ? item('🧍', 'Mon personnage de l\'Île', () => Look.open()) : null,
+    !state.me.isGuest ? item('👗', 'Ma tenue 3D (magasin de vêtements)', () => Outfits.open()) : null,
     !state.me.isGuest ? item('🐾', 'Mon animal', () => Pets.open()) : null,
     item('🔮', 'La Voyante du Paradise', () => Fortune.open()),
     item('🎄', 'Calendrier de l\'Avent', () => Advent.open()),

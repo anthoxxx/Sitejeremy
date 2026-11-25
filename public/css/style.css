@@ -4406,3 +4406,49 @@ body.casino-open .modal-back { z-index: 2100; }
 .cam-req .cr-txt { flex: 1; min-width: 120px; }
 @keyframes camReqIn { from { transform: translateY(12px); opacity: 0; } }
 .cv-ask { display: flex; align-items: center; gap: 8px; padding: 10px; margin-bottom: 10px; border-radius: 12px; background: rgba(127,127,127,.12); cursor: pointer; font-weight: 600; }
+/* 👗 Paradise Mode : le magasin de vêtements 3D */
+body.ofs-on { overflow: hidden; }
+.ofs { position: fixed; inset: 0; z-index: 8000; background: #2a1d2e; color: #fff; font-family: inherit; overscroll-behavior: contain; }
+.ofs-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.ofs-top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 14px 10px; background: linear-gradient(rgba(20,10,22,.75), transparent); }
+.ofs-sign { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.ofs-sign > span { font-size: 1.6rem; filter: drop-shadow(0 0 8px #ff4fa8); }
+.ofs-sign b { display: block; font-size: 1.15rem; letter-spacing: .02em; text-shadow: 0 0 12px #ff4fa8; }
+.ofs-sign small { opacity: .75; font-size: .75rem; }
+.ofs-coins { background: rgba(0,0,0,.45); border-radius: 999px; padding: 6px 12px; font-weight: 700; }
+.ofs-x { background: rgba(0,0,0,.45) !important; color: #fff !important; }
+.ofs-npc { position: absolute; top: calc(64px + env(safe-area-inset-top)); left: 14px; max-width: min(340px, calc(100% - 28px)); background: rgba(255,255,255,.94); color: #2a1730; border-radius: 16px 16px 16px 4px; padding: 9px 13px; font-size: .85rem; box-shadow: 0 6px 22px rgba(0,0,0,.3); display: flex; flex-direction: column; gap: 2px; }
+.ofs-npc b { color: #c2187a; font-size: .78rem; }
+.ofs-load { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #2a1d2e; font-weight: 700; }
+.ofs-spin { width: 42px; height: 42px; border-radius: 50%; border: 4px solid rgba(255,255,255,.2); border-top-color: #ff4fa8; animation: ofsSpin .8s linear infinite; }
+@keyframes ofsSpin { to { transform: rotate(360deg); } }
+.ofs-panel { position: absolute; right: 14px; top: calc(70px + env(safe-area-inset-top)); bottom: 14px; width: 380px; background: rgba(22,12,26,.86); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ofs-tabs { display: flex; gap: 6px; }
+.ofs-tab { flex: 1; border: 0; border-radius: 12px; padding: 8px 6px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
+.ofs-tab.on { background: linear-gradient(135deg, #ff4fa8, #b84dff); }
+.ofs-cards { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; padding: 2px; }
+.ofs-card { position: relative; border: 2px solid transparent; border-radius: 14px; background: rgba(255,255,255,.06); color: #fff; padding: 6px 5px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font: inherit; text-align: center; }
+.ofs-card img { width: 100%; aspect-ratio: 150 / 260; object-fit: cover; border-radius: 10px; background: #000; }
+.ofs-card b { font-size: .72rem; line-height: 1.15; }
+.ofs-card small { font-size: .64rem; opacity: .6; }
+.ofs-card.sel { border-color: #ff4fa8; background: rgba(255,79,168,.16); }
+.ofs-card.wear::after { content: '👕'; position: absolute; top: 4px; right: 4px; background: #2bff88; border-radius: 50%; width: 22px; height: 22px; display: grid; place-items: center; font-size: .75rem; }
+.ofs-price { font-size: .72rem; font-weight: 800; color: #ffd76a; }
+.ofs-price.own { color: #2bff88; }
+.ofs-cl { position: absolute; inset: 0; border-radius: 12px; background: rgba(0,0,0,.45); }
+.ofs-cl::after { content: ''; position: absolute; left: 50%; top: 40%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; animation: ofsSpin .8s linear infinite; }
+.ofs-act { display: flex; flex-direction: column; gap: 8px; }
+.ofs-anims { display: flex; gap: 6px; }
+.ofs-an { flex: 1; border: 0; border-radius: 10px; padding: 7px 4px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: .8rem; cursor: pointer; }
+.ofs-an.on { background: rgba(255,255,255,.24); }
+.ofs-buy { width: 100%; padding: 12px; font-size: 1rem; font-weight: 800; border-radius: 14px; }
+.ofs-buy.done { opacity: .8; background: rgba(43,255,136,.2) !important; color: #2bff88 !important; }
+.ofs-buy.poor { filter: grayscale(.5); }
+@media (max-width: 759px) {
+  .ofs-panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 44%; border-radius: 20px 20px 0 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); }
+  .ofs-cards { display: flex; overflow-x: auto; overflow-y: hidden; gap: 8px; scroll-snap-type: x proximity; }
+  .ofs-card { flex: 0 0 31%; scroll-snap-align: center; }
+  .ofs-card img { max-height: 15vh; width: auto; }
+  .ofs-npc { font-size: .76rem; top: auto; bottom: calc(44% + 10px); padding: 7px 11px; }
+  .ofs-an span { display: none; }
+}

@@ -2961,6 +2961,9 @@ const City = require('./city')({ onEat: (uid, name, emoji) => Needs?.consume(uid
 City.routes(app, auth);
 // 🧍 Les personnages de l'Île
 const Looks = require('./looks')({ db, coins: Coins, onChange: uid => Island.refreshPet(uid) });
+// 👗 Le magasin de vêtements 3D : la tenue du personnage 3D (Ville, complexe, bowling, laser game)
+var Outfits = require('./outfits')({ db, coins: Coins, onChange: uid => { try { Island.refreshPet(uid); } catch (e) {} try { Casino.refreshOutfit(uid); } catch (e) {} } });
+Outfits.routes(app, auth);
 const reward = (id, key, ...rest) => {
   // les jeux comptent aussi pour les quêtes du jour et les succès
   const kind = /^win_/.test(key) ? 'game_win' : /^play_/.test(key) ? 'game' : key === 'bf_win' || key === 'bf_bot' ? 'babyfoot_win' : key === 'bf_play' ? 'babyfoot' : null;
@@ -2972,7 +2975,7 @@ const BlindTest = require('./blindtest')({ io, db, reward, getOnline: () => onli
 const Sommet = require('./sommet')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const Paroles = require('./paroles')({ io, db, reward, getOnline: () => online, ytSearch: Jukebox.playableSearch, isStaff: u => isStaff(u), notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
 const MotDor = require('./motdor')({ io, db, reward, getOnline: () => online, notify: (...a) => notify(...a), notifyLive: (...a) => notifyLive(...a) });
-const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins, track, petOf: id => Pets.mini(id), lookOf: id => Looks.get(id), onMove: (...a) => CityGames.onMove(...a) });
+const Island = require('./island')({ io, db, modScan: t => modScan(t), isStaff: u => isStaff(u), getUser: id => getUser(id), notify: (...a) => notify(...a), throttled: (...a) => throttled(...a), areFriends: (a, b) => friendRow(a, b)?.status === 'accepted', search: (q, max) => Jukebox.playableSearch(q, max), isEmbeddable: id => Jukebox.isEmbeddable(id), emitToUser: (...a) => emitToUser(...a), isOnline: id => online.has(id), coins: Coins, track, petOf: id => Pets.mini(id), lookOf: id => ({ ...Looks.get(id), outfit: Outfits.of(id) }), onMove: (...a) => CityGames.onMove(...a) });
 // 🗺️🏁 La chasse au trésor et les courses de la Ville
 const generalBot = (content, icon = '🏙️', name = 'La Ville') => io.to('room:general').emit('message', { room: 'general', id: 'city' + now() + Math.random().toString(36).slice(2, 6), userId: 0, username: name, color: '#c64dff', gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: icon, content, createdAt: now(), kind: 'text' });
 const CityGames = require('./citygames')({ db, io, coins: Coins, notify: (...a) => notify(...a), track, getUser: id => getUser(id), island: Island, emitToUser: (...a) => emitToUser(...a), botSay: t => generalBot(t), throttled: (...a) => throttled(...a) });
@@ -2982,7 +2985,7 @@ const LaserGame = require('./lasergame')({ io, coins: Coins, track });
 // 🎳 Le Bowling en 3D (pistes à part, seul, entre amis ou contre les soldats)
 const Bowling = require('./bowling')({ io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎰 Le Paradise Club : le complexe en 3D (bar, bowling, laser game, billards, poker)
-const Casino = require('./casino')({ onEat: (uid, name, emoji) => Needs?.consume(uid, name, emoji), io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
+const Casino = require('./casino')({ outfitOf: id => Outfits.of(id), onEat: (uid, name, emoji) => Needs?.consume(uid, name, emoji), io, coins: Coins, track, search: q => Jukebox.playableSearch(q), isEmbeddable: id => Jukebox.isEmbeddable(id), modScan: t => modScan(t) });
 // 🎙️ Le vocal de proximité (la Ville, les maisons, le Paradise Club)
 // 🍔💧❤️ La faim, la soif, la santé et les maladies du personnage (Ville et complexe)
 var Needs = require('./needs')({ db, coins: Coins, emitToUser: (...a) => emitToUser(...a), weatherNow: () => Weather.current(), presentIn: () => [...new Set([...Island.islanders(), ...Casino.list()])] });

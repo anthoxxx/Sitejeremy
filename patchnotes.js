@@ -1645,4 +1645,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 117,
+    date: '2026-11-25',
+    title: 'Paradise Mode : le magasin de vêtements 3D 👗',
+    added: [
+      '👗 La Boutique de la Ville devient « Paradise Mode », un vrai magasin en 3D : portants, miroirs, cabines, et ton personnage sur un podium',
+      '🪞 Touche une tenue pour l\'essayer : ton personnage 3D se change devant toi. Tu peux le faire tourner du doigt, le faire défiler 🚶 ou danser 💃',
+      '🛍️ 20 vraies tenues (10 pour femme, 10 pour homme) : 4 gratuites, les autres de 30 à 120 pièces 💰. Tu peux porter n\'importe laquelle',
+      '👕 Ta tenue se voit partout : dans la Ville et au Paradise Complex, tout le monde voit ton nouveau style',
+    ],
+    changed: [
+      '🧍 Le bouton « Mon perso » de la Ville et « Mon personnage de l\'Île » du menu deviennent « 👗 Ma tenue » : ils ouvrent le magasin 3D (l\'ancien atelier 2D ne changeait pas le personnage 3D)',
+    ],
+    removed: [],
+  },
 ];
