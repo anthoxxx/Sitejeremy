@@ -114,6 +114,16 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
         const u = getUser(r.user_id); log(req.user, 'password_link', `🔑 Demande de mot de passe de ${u?.username || '?'} refusée`);
         res.json({ ok: true });
       });
+      // 🔑 depuis la liste des utilisateurs : créer un lien pour n'importe quel membre (même sans demande)
+      admin.post('/users/:id/pwlink', requireRole('admin'), (req, res) => {
+        const u = getUser(parseInt(req.params.id, 10));
+        if (!u || u.is_guest || u.panel) return res.status(404).json({ error: 'Compte introuvable' });
+        if (rank(u) >= 1 && !isSuper(req.user)) return res.status(403).json({ error: 'Pour un compte du staff, seul le super-admin peut créer le lien' });
+        const t = newToken(u.id, 24 * 3600000, req.user.id);
+        db.prepare("UPDATE pw_requests SET status='done', handled_by=?, handled_at=? WHERE user_id=? AND status='open'").run(req.user.id, now(), u.id);
+        log(req.user, 'password_link', `🔑 Lien « nouveau mot de passe » créé pour ${u.username}`);
+        res.json({ ok: true, link: `${base(req)}/?reset=${t}`, username: u.username });
+      });
       admin.get('/pwreq/count', requireRole('admin'), (req, res) => res.json({ count: db.prepare("SELECT COUNT(*) c FROM pw_requests WHERE status='open'").get().c }));
     },
   };

@@ -145,6 +145,12 @@ async function users() {
           muted ? el('button', { class: 'btn btn-sm', title: 'Rendre la parole', onclick: async () => { await run(() => api(`/api/admin/users/${u.id}/mute`, { method: 'POST', body: { minutes: 0 } }), 'Parole rendue (notifié)'); load(); } }, '🔊') : null,
           u.banned ? el('button', { class: 'btn btn-sm', onclick: async () => { await run(() => api('/api/admin/users/' + u.id, { method: 'PATCH', body: { banned: false } }), 'Débanni (notifié)'); load(); } }, '✅ Débannir') : null,
           el('button', { class: 'btn btn-sm', title: 'Réinitialiser le profil (photo, bannière, bio…)', onclick: async () => { if (confirm(`Effacer la photo, la bannière, la bio et les infos de profil de ${u.username} ?`)) { await run(() => api(`/api/admin/users/${u.id}/reset-profile`, { method: 'POST' }), 'Profil réinitialisé'); load(); } } }, '🧹'),
+          isAdmin() && !u.isGuest ? el('button', { class: 'btn btn-sm', title: 'Mot de passe oublié : créer un lien pour choisir un nouveau mot de passe', onclick: async () => {
+            if (!confirm(`Créer un lien de nouveau mot de passe pour ${u.username} ?\n\nVérifie bien que c'est la vraie personne : le lien permet de changer le mot de passe de ce compte.`)) return;
+            const x = await run(() => api(`/api/admin/users/${u.id}/pwlink`, { method: 'POST' }));
+            try { await navigator.clipboard.writeText(x.link); } catch (e) {}
+            prompt(`🔑 Lien pour ${x.username} (déjà copié) : envoie-le en privé. Il marche une seule fois, pendant 24 heures.`, x.link);
+          } }, '🔑') : null,
           isAdmin() ? el('button', { class: 'btn btn-sm btn-danger', title: 'Supprimer le compte', onclick: async () => { if (confirm(`Supprimer définitivement ${u.username} et tous ses messages ?`)) { await run(() => api('/api/admin/users/' + u.id, { method: 'DELETE' }), 'Compte supprimé'); load(); } } }, '🗑') : null,
         ] : null));
   }
