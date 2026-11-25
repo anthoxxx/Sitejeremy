@@ -1672,4 +1672,17 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 119,
+    date: '2026-11-25',
+    title: 'Coiffeur et Bijouterie en 3D 💇💍',
+    added: [
+      '💇 Le Coiffeur de la Ville change la couleur des cheveux (et de la barbe) de ton personnage 3D : 12 couleurs, du naturel au rose bonbon, et c\'est gratuit',
+      '💍 La Bijouterie vend de vrais accessoires 3D : couronne, diadème, auréole, oreilles de chat, cornes, casquette, bonnet, casque audio, lunettes, masque, ailes d\'ange, de démon ou de papillon, cape, chaîne en or, perles, nœud papillon',
+      '👀 Tout le monde voit ta couleur de cheveux et tes accessoires sur ton personnage, dans la Ville, au Paradise Complex, au bowling et au laser game',
+      '🎳 Ta tenue 3D se voit maintenant aussi au bowling et au laser game',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

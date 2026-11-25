@@ -3,9 +3,9 @@
 // supermarché et pharmacie (pour son animal), hôpital, salle de sport, banque, fleuriste, poste, librairie, hôtel, bar…
 const City = (() => {
   const SHOPS = {
-    Coiffeur: { icon: '💇', color: '#ff4fd8', npc: '✂️ Jessy, la coiffeuse', hello: 'Installe-toi dans le fauteuil ! On change de tête aujourd\'hui ?', blurb: 'Change de coupe et de couleur de cheveux' },
+    Coiffeur: { icon: '💇', color: '#ff4fd8', npc: '✂️ Jessy, la coiffeuse', hello: 'Installe-toi dans le fauteuil ! On change de tête aujourd\'hui ?', blurb: 'Change la couleur de tes cheveux (en 3D)' },
     Boutique: { icon: '👗', color: '#c64dff', npc: '🛍️ Inès, la vendeuse', hello: 'Bienvenue ! Les cabines d\'essayage sont au fond, essaie tout ce que tu veux.', blurb: 'Le magasin de vêtements 3D : essaie et achète de vraies tenues' },
-    Bijouterie: { icon: '💍', color: '#ffd76a', npc: '💎 Monsieur Diamant', hello: 'Couronnes, auréoles, ailes… rien n\'est trop beau pour toi.', blurb: 'Accessoires et ailes pour ton personnage' },
+    Bijouterie: { icon: '💍', color: '#ffd76a', npc: '💎 Monsieur Diamant', hello: 'Couronnes, auréoles, ailes… rien n\'est trop beau pour toi.', blurb: 'Couronnes, lunettes, ailes et bijoux en 3D' },
     Boulangerie: { icon: '🥖', color: '#ffd34d', npc: '🥐 Paulette, la boulangère', hello: 'Tout est sorti du four ce matin, ça sent bon hein ?', blurb: 'Baguette, croissants et gâteaux' },
     Pizzeria: { icon: '🍕', color: '#ff2d55', npc: '🇮🇹 Luigi, le pizzaïolo', hello: 'Mamma mia ! Qu\'est-ce que je te prépare ?', blurb: 'Pizzas et pâtes tout juste sorties du four' },
     Sushi: { icon: '🍣', color: '#ff8a1f', npc: '🍱 Kenji, le chef', hello: 'Irasshaimase ! Tout est frais du jour.', blurb: 'Sushis, ramen et mochis' },
@@ -32,7 +32,8 @@ const City = (() => {
   async function open(name) {
     const S = SHOPS[name]; if (!S) return;
     if (state.me?.isGuest) return toast('Inscris-toi pour entrer dans les boutiques 🏙️');
-    if (name === 'Boutique' && window.Outfits) return window.Outfits.open(); // 👗 directement dans le magasin 3D
+    // 👗💇💍 directement dans le magasin 3D (vêtements, coiffeur, bijouterie) : ça change le vrai personnage 3D
+    if (window.Outfits && { Boutique: 1, Coiffeur: 1, Bijouterie: 1 }[name]) return window.Outfits.open({ Boutique: 'clothes', Coiffeur: 'hair', Bijouterie: 'acc' }[name]);
     if (close) close();
     const body = el('div', { class: 'city-body' }, el('p', { class: 'help' }, 'Chargement…'));
     const box = el('div', { class: 'city-shop', style: `--shop:${S.color}` },

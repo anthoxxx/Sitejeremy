@@ -147,7 +147,7 @@ const LaserGame = (() => {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(c), transparent: true, depthWrite: false, depthTest: false })); s.scale.set(1.4, .35, 1); s.renderOrder = 5; return s;
   }
   function makeOther(p) {
-    const L = p.gender === 'f' ? K.people.women : K.people.men, src = (K.pick && K.pick(p)) || L[Math.abs(p.id) % L.length], h = K.makeHuman(src, src.k * 1.78 / 43); h.mk = K.outfitKey ? K.outfitKey(p) : '';
+    const L = p.gender === 'f' ? K.people.women : K.people.men, src = (K.pick && K.pick(p)) || L[Math.abs(p.id) % L.length], h = K.makeHuman(src, src.k * 1.78 / 43, p.deco || ''); h.mk = K.lookKey ? K.lookKey(p) : '';
     const col = TEAM[p.team].hex, g = h.g;
     const belt = new THREE.Mesh(new THREE.TorusGeometry(.2, .03, 6, 24), new THREE.MeshBasicMaterial({ color: col })); belt.rotation.x = Math.PI / 2; belt.scale.set(1.05, .8, 1); belt.position.y = 1.0; g.add(belt);
     const vest = new THREE.Mesh(new THREE.TorusGeometry(.19, .025, 6, 24), new THREE.MeshBasicMaterial({ color: col })); vest.rotation.x = Math.PI / 2; vest.scale.set(1.1, .75, 1); vest.position.y = 1.36; g.add(vest);
@@ -360,7 +360,7 @@ const LaserGame = (() => {
       if (id === myId()) { if (!alive && me.alive) me.alive = false; me.shield = !!shield; continue; }
       let o = others.get(id);
       if (!o) { const p = room.players.find(q => q.id === id); if (!p || !K) continue; o = makeOther(p); o.x = o.tx = x; o.z = o.tz = z; others.set(id, o); }
-      else if (K?.outfitKey) { const p = room.players.find(q => q.id === id); if (p && o.mk !== K.outfitKey(p)) { /* 👗 tenue chargée ou changée */ scene.remove(o.g); const n = makeOther(p); Object.assign(n, { x: o.x, z: o.z, tx: o.tx, tz: o.tz, yaw: o.yaw, tyaw: o.tyaw }); o = n; others.set(id, o); } }
+      else if (K?.lookKey) { const p = room.players.find(q => q.id === id); if (p && o.mk !== K.lookKey(p)) { /* 👗 tenue chargée ou changée */ scene.remove(o.g); const n = makeOther(p); Object.assign(n, { x: o.x, z: o.z, tx: o.tx, tz: o.tz, yaw: o.yaw, tyaw: o.tyaw }); o = n; others.set(id, o); } }
       o.tx = x; o.tz = z; o.tyaw = yaw; o.alive = !!alive; o.shield = !!shield;
       if (Math.hypot(o.x - x, o.z - z) > 6) { o.x = x; o.z = z; } // il vient de réapparaître
     }

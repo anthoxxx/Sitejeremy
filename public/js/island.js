@@ -2046,7 +2046,7 @@ const Island = (() => {
   });
   socket.on('island_joined', p => { if (!open) return; offline.delete(p.id); players.set(p.id, p); count(); });
   socket.on('island_offline', p => { if (open && kind === 'island' && !players.has(p.id)) offline.set(p.id, { ...p, dx: p.x, dy: p.y }); });
-  socket.on('island_pet', ({ id, pet, look, mode, outfit }) => { const p = players.get(id); if (p) { p.pet = pet; if (outfit !== undefined) p.outfit = outfit; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
+  socket.on('island_pet', ({ id, pet, look, mode, outfit, deco }) => { const p = players.get(id); if (p) { p.pet = pet; if (outfit !== undefined) p.outfit = outfit; if (deco !== undefined) p.deco = deco; if (look !== undefined) { p.look = look; p.mode = mode; } if (id === me) renderUI(); } });
   socket.on('island_left', ({ id }) => { players.delete(id); count(); });
   socket.on('island_move', ({ id, x, y }) => { const p = players.get(id); if (p && id !== me) { p.x = x; p.y = y; } });
   // 🏁 le serveur nous place sur la ligne de départ

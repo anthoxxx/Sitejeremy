@@ -1594,11 +1594,11 @@ const Casino = (() => {
 
   // ---------- 🧍 les personnages ----------
   function avatarFor(id, name, gender, bot) {
-    const pp = { id, gender, outfit: bot ? '' : people.get(id)?.outfit || '' };
-    const mk = K.outfitKey ? K.outfitKey(pp) : null;
+    const pp = { id, gender, outfit: bot ? '' : people.get(id)?.outfit || '', deco: bot ? '' : people.get(id)?.deco || '' };
+    const mk = K.lookKey ? K.lookKey(pp) : K.outfitKey ? K.outfitKey(pp) : null;
     let a = avatars.get(id);
     if (a && (!mk || a.mk === mk)) return a;
-    const L = gender === 'f' ? K.people.women : K.people.men, src = (K.pick && K.pick(pp)) || L[Math.abs(id) % L.length], h = K.makeHuman(src, src.k * 1.76 / 43);
+    const L = gender === 'f' ? K.people.women : K.people.men, src = (K.pick && K.pick(pp)) || L[Math.abs(id) % L.length], h = K.makeHuman(src, src.k * 1.76 / 43, pp.deco);
     if (a) { /* 👗 nouvelle tenue : on garde la position et l'étiquette, on change le personnage */ scene.remove(a.g); a.g.remove(a.tag); if (a.bubble) a.g.remove(a.bubble); h.g.add(a.tag); if (a.bubble) h.g.add(a.bubble); h.g.position.copy(a.g.position); h.g.rotation.copy(a.g.rotation); Object.assign(a, h, { mk }); scene.add(h.g); return a; }
     const tag = tagSprite(); tag.position.y = 2.08; h.g.add(tag);
     a = { ...h, mk, id, name, tag, bot, x: me.x, z: me.z, yaw: 0, tx: 0, tz: 0, tyaw: 0, init: false, bubble: null, bubbleT: 0 }; scene.add(h.g); avatars.set(id, a); return a;

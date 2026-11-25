@@ -5,7 +5,7 @@ const Pool = require('./public/js/poolphys');
 const MAX_INST = 30, POOL_TABLES = 2, SEATS = 6, START_CHIPS = 1000, SB = 10, BB = 20, POOL_TURN = 45000, PK_TURN = 25000;
 const DRINKS = { barbe: '🍭 Barbe à papa', churros: '🥨 Churros', popcorn: '🍿 Popcorn', nachos: '🌮 Nachos', glace: '🍦 Glace', slush: '🧊 Slush', mojito: '🍹 Mojito', cocktail: '🍸 Cocktail', biere: '🍺 Bière', soda: '🥤 Soda', cafe: '☕ Café', jus: '🧃 Jus de fruits', champ: '🍾 Champagne', milk: '🥛 Milkshake' };
 const BOT_NAMES = ['Soldat76-Bluff', 'Soldat76-AllIn', 'Soldat76-Croupier', 'Soldat76-Jetons', 'Soldat76-As', 'Soldat76-Brelan'];
-module.exports = function setupCasino({ outfitOf = () => '', onEat = () => null, io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
+module.exports = function setupCasino({ outfitOf = () => '', decoOf = () => '', onEat = () => null, io, coins = null, track = () => {}, search = null, isEmbeddable = null, modScan = null }) {
   const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([\w-]{11})/) || String(s || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
   const now = () => Date.now();
   const insts = new Map(), where = new Map(), sockets = new Map(); let nextInst = 1, botSeq = 1;
@@ -19,7 +19,7 @@ module.exports = function setupCasino({ outfitOf = () => '', onEat = () => null,
     I.poker = newPoker(I); insts.set(I.id, I); return I;
   }
   const pickInst = () => [...insts.values()].find(I => I.players.size < MAX_INST) || makeInst();
-  const pubPlayer = p => ({ id: p.id, name: p.name, gender: p.gender, outfit: p.outfit || '', x: p.x, z: p.z, y: p.y || 0, k: p.k || 0, yaw: p.yaw, st: p.st || '', drink: p.drink || '' });
+  const pubPlayer = p => ({ id: p.id, name: p.name, gender: p.gender, outfit: p.outfit || '', deco: p.deco || '', x: p.x, z: p.z, y: p.y || 0, k: p.k || 0, yaw: p.yaw, st: p.st || '', drink: p.drink || '' });
   // 10 fois par seconde : les positions de ceux qui ont bougé
   setInterval(() => { for (const I of insts.values()) { if (!I.dirty.size) continue; const L = []; for (const id of I.dirty) { const p = I.players.get(id); if (p) L.push([id, +p.x.toFixed(2), +p.z.toFixed(2), +p.yaw.toFixed(2), +(p.y || 0).toFixed(2), p.k || 0]); } I.dirty.clear(); io.to(room(I.id)).emit('cs_pos', L); } }, 100).unref?.();
 
@@ -261,7 +261,7 @@ module.exports = function setupCasino({ outfitOf = () => '', onEat = () => null,
     socket.on('cs_enter', (o, cb) => {
       const u = currentUser(); if (!u) return ack(cb, { error: 'Connecte-toi d\'abord' });
       let I = mine();
-      if (!I) { I = pickInst(); where.set(uid, I.id); I.players.set(uid, { id: uid, name: u.username, gender: u.gender || 'h', outfit: outfitOf(uid), x: (Math.random() - .5) * 3, z: 11, yaw: Math.PI, st: '', drink: '' }); io.to(room(I.id)).emit('cs_join', pubPlayer(I.players.get(uid))); }
+      if (!I) { I = pickInst(); where.set(uid, I.id); I.players.set(uid, { id: uid, name: u.username, gender: u.gender || 'h', outfit: outfitOf(uid), deco: decoOf(uid), x: (Math.random() - .5) * 3, z: 11, yaw: Math.PI, st: '', drink: '' }); io.to(room(I.id)).emit('cs_join', pubPlayer(I.players.get(uid))); }
       for (const s of sockets.get(uid) || []) s.join(room(I.id));
       const P = I.poker, me = P.seats.find(s => s && s.id === uid);
       ack(cb, { inst: I.id, me: uid, video: I.video, cine: I.cine, kart: kartBoard(I), serverNow: now(), drinks: DRINKS, players: [...I.players.values()].map(pubPlayer), pool: I.pool.map(poolOut), poker: pkOut(P), hole: me && me.hole.length ? { hand: P.hand, cards: me.hole } : null });
@@ -333,6 +333,6 @@ module.exports = function setupCasino({ outfitOf = () => '', onEat = () => null,
     socket.on('disconnect', () => { set.delete(socket); if (set.size) return; sockets.delete(uid); leave(uid); });
   }
   // 👗 nouvelle tenue : les autres du complexe la voient tout de suite
-  function refreshOutfit(uid) { const I = insts.get(where.get(uid)), p = I && I.players.get(uid); if (!p) return; p.outfit = outfitOf(uid); io.to(room(I.id)).emit('cs_player', pubPlayer(p)); }
+  function refreshOutfit(uid) { const I = insts.get(where.get(uid)), p = I && I.players.get(uid); if (!p) return; p.outfit = outfitOf(uid); p.deco = decoOf(uid); io.to(room(I.id)).emit('cs_player', pubPlayer(p)); }
   return { onConnection, refreshOutfit, list: () => [...where.keys()], where: uid => where.get(uid) || null, _test: { eval5, best7 } };
 };

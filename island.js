@@ -72,7 +72,7 @@ const ytId = s => { const m = String(s || '').match(/(?:youtu\.be\/|v=|embed\/|s
 module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notify, throttled, areFriends, search, isEmbeddable, emitToUser, isOnline, coins = null, track = () => {}, petOf = () => null, lookOf = () => ({ look: null, mode: 'look' }), onMove = () => {} }) {
   const now = () => Date.now();
   const players = new Map(); // userId -> { id, x, y, scene, action, username, color, avatar, gender, role, sockets:Set, said, saidAt }
-  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', floor: p.floor || 0, pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', outfit: p.outfit || '', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
+  const out = p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), action: p.action || '', floor: p.floor || 0, pet: p.pet || null, look: p.look || null, mode: p.mode || 'look', outfit: p.outfit || '', deco: p.deco || '', item: p.itemAt > now() - 120000 ? p.item : '', prize: p.prize || '', username: p.username, color: p.color, avatar: p.avatar, gender: p.gender, role: p.role, said: p.saidAt > now() - 6000 ? p.said : '', saidAt: p.saidAt });
   const roomOf = scene => 'isl:' + scene;
   // 💤 Ceux qui se déconnectent restent dans la Ville (endormis) à l'endroit où ils étaient
   db.exec('CREATE TABLE IF NOT EXISTS island_spots (user_id INTEGER PRIMARY KEY, x REAL NOT NULL, y REAL NOT NULL, at INTEGER NOT NULL)');
@@ -82,7 +82,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
   function offlineOut(r) {
     const u = getUser(r.user_id); if (!u || u.banned) return null;
     const lk = lookOf(r.user_id);
-    return { id: u.id, x: Math.round(r.x), y: Math.round(r.y), offline: true, since: r.at, username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, look: lk.look, mode: lk.mode, outfit: lk.outfit || '', pet: petOf(u.id), action: '' };
+    return { id: u.id, x: Math.round(r.x), y: Math.round(r.y), offline: true, since: r.at, username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, look: lk.look, mode: lk.mode, outfit: lk.outfit || '', deco: lk.deco || '', pet: petOf(u.id), action: '' };
   }
   const offlineList = () => db.prepare('SELECT * FROM island_spots WHERE at>? ORDER BY at DESC LIMIT 60').all(now() - 7 * 86400000).filter(r => !players.has(r.user_id)).map(offlineOut).filter(Boolean).slice(0, 40);
   // ⚽ Le babyfoot : dans la salle d'arcade, et chez les membres qui en ont mis un dans leur maison
@@ -279,7 +279,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
         const sp = spotOf(uid), [x, y] = sp && SCENES.island.walk(sp.x, sp.y) ? [sp.x, sp.y] : spawn(); // on se réveille là où on s'était endormi
         track(uid, 'island');
         const lk = lookOf(uid);
-        p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), look: lk.look, mode: lk.mode, outfit: lk.outfit || '', username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
+        p = { id: uid, x, y, scene: null, action: '', pet: petOf(uid), look: lk.look, mode: lk.mode, outfit: lk.outfit || '', deco: lk.deco || '', username: u.username, color: u.color, avatar: u.avatar || '', gender: u.gender, role: u.role, sockets: new Set([socket.id]), said: '', saidAt: 0 };
         players.set(uid, p);
         move(p, 'island', [x, y]);
       } else {
@@ -657,7 +657,7 @@ module.exports = function setupIsland({ io, db, modScan, isStaff, getUser, notif
     nextMedia(scene);
   }
   // L'animal a changé (repas, accessoire…) : ceux qui sont à côté le voient tout de suite
-  function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); const lk = lookOf(uid); p.look = lk.look; p.mode = lk.mode; p.outfit = lk.outfit || ''; emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet, look: p.look, mode: p.mode, outfit: p.outfit }); }
+  function refreshPet(uid) { const p = players.get(uid); if (!p) return; p.pet = petOf(uid); const lk = lookOf(uid); p.look = lk.look; p.mode = lk.mode; p.outfit = lk.outfit || ''; p.deco = lk.deco || ''; emitScene(p.scene, 'island_pet', { id: uid, pet: p.pet, look: p.look, mode: p.mode, outfit: p.outfit, deco: p.deco }); }
   // 🏁 placer quelqu'un ailleurs dans la Ville (départ des courses)
   function teleport(uid, x, y) { const p = players.get(uid); if (!p || p.scene !== 'island') return false; p.x = x; p.y = y; emitToUser(uid, 'island_teleport', { x, y }); emitScene('island', 'island_move', { id: uid, x: Math.round(x), y: Math.round(y) }); return true; }
   const posOf = uid => { const p = players.get(uid); return p ? { scene: p.scene, x: p.x, y: p.y } : null; };

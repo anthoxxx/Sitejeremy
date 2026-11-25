@@ -5,23 +5,33 @@
 const Outfits = (() => {
   let open_ = false, root = null, R = null, scene = null, camera = null, K = null, THREE = null, raf = 0;
   let data = null, sel = '', tab = '', hum = null, anim = 'idle', spin = 0, drag = null, clock = null, loadingId = '';
+  // mode : 'clothes' (Paradise Mode), 'hair' (le coiffeur), 'acc' (la bijouterie) ; tryDeco = ce qu'on essaie (cheveux + accessoires)
+  let mode = 'clothes', tryDeco = {}, selAcc = '', accTab = 'head', freeze = null;
+  const SHOPS = {
+    clothes: { icon: '👗', name: 'Paradise Mode', sub: 'La boutique de vêtements', npc: '🛍️ Inès, la vendeuse', hello: 'Bienvenue ! Touche une tenue pour l\'essayer, ton personnage se change devant toi ✨' },
+    hair: { icon: '💇', name: 'Salon de Jessy', sub: 'Le coiffeur : change la couleur de tes cheveux', npc: '✂️ Jessy, la coiffeuse', hello: 'Installe-toi ! Touche une couleur pour voir ce que ça donne, c\'est offert par la maison 💇' },
+    acc: { icon: '💍', name: 'Bijouterie Diamant', sub: 'Couronnes, lunettes, ailes et bijoux', npc: '💎 Monsieur Diamant', hello: 'Couronnes, auréoles, ailes… Touche un bijou pour l\'essayer, rien n\'est trop beau pour toi ✨' },
+  };
+  const decoStr = d => Object.entries(d).filter(([, v]) => v).map(([k, v]) => k + '=' + v).join(';');
+  const SLOTN = { head: '👑 Tête', face: '🕶️ Visage', back: '🪽 Dos', neck: '📿 Cou' };
   const IMG = id => `/city3d/outfits/img/${id}.jpg`;
   const mob = () => innerWidth < 760;
   const myKey = () => K?.outfitKey ? K.outfitKey({ id: state.me.id, gender: state.me.gender, outfit: data?.current || '' }) : 'h1';
   const coinsTxt = () => `💰 ${state.me?.coins ?? 0}`;
 
-  async function open() {
+  async function open(m) {
     if (open_) return;
+    mode = SHOPS[m] ? m : 'clothes'; const SH = SHOPS[mode];
     if (state.me?.isGuest) return toast('Inscris-toi pour entrer au magasin de vêtements 🛍️');
     if (!window.City3D?.kit) return toast('😕 La 3D ne marche pas sur cet appareil');
     open_ = true;
     root = el('div', { class: 'ofs' },
       el('canvas', { class: 'ofs-cv' }),
       el('div', { class: 'ofs-top' },
-        el('div', { class: 'ofs-sign' }, el('span', {}, '👗'), el('div', {}, el('b', {}, 'Paradise Mode'), el('small', {}, 'La boutique de vêtements'))),
+        el('div', { class: 'ofs-sign' }, el('span', {}, SH.icon), el('div', {}, el('b', {}, SH.name), el('small', {}, SH.sub))),
         el('span', { class: 'ofs-coins' }, coinsTxt()),
         el('button', { class: 'btn btn-sm ofs-x', title: 'Sortir du magasin', onclick: close }, '✕')),
-      el('div', { class: 'ofs-npc' }, el('b', {}, '🛍️ Inès, la vendeuse'), el('span', { class: 'ofs-say' }, 'Bienvenue ! Touche une tenue pour l\'essayer, ton personnage se change devant toi ✨')),
+      el('div', { class: 'ofs-npc' }, el('b', {}, SH.npc), el('span', { class: 'ofs-say' }, SH.hello)),
       el('div', { class: 'ofs-load' }, el('div', { class: 'ofs-spin' }), el('span', {}, 'On ouvre la boutique…')),
       el('div', { class: 'ofs-panel' }));
     document.body.append(root);
@@ -32,6 +42,7 @@ const Outfits = (() => {
       THREE = K.THREE;
       tab = state.me.gender === 'f' ? 'f' : 'h';
       sel = data.current || myKey();
+      tryDeco = { ...(data.deco || {}) }; selAcc = ''; accTab = 'head';
       build();
       await tryOn(sel);
       root.querySelector('.ofs-load')?.remove();
@@ -125,13 +136,16 @@ const Outfits = (() => {
     if (!R || !root) return; const w = innerWidth, h = innerHeight; R.setSize(w, h, false); camera.aspect = w / h;
     // téléphone : le personnage au-dessus du panneau des tenues ; ordinateur : à gauche du panneau
     camera.clearViewOffset();
-    if (mob()) { camera.fov = 34; camera.position.set(0, 1.4, 8.4); camera.lookAt(0, .9, 0); camera.setViewOffset(w, h, 0, h * .15, w, h); /* le personnage au-dessus du panneau */ }
-    else { camera.fov = 34; camera.position.set(.85, 1.2, 4.3); camera.lookAt(.85, .92, 0); }
+    // chez le coiffeur et pour les bijoux de tête : on regarde de plus près
+    const close = mode === 'hair' || (mode === 'acc' && (accTab === 'head' || accTab === 'face'));
+    if (mob()) { camera.fov = 34; if (close) { camera.position.set(0, 1.78, 3.3); camera.lookAt(0, 1.62, 0); camera.setViewOffset(w, h, 0, h * .17, w, h); } else { camera.position.set(0, 1.4, 8.4); camera.lookAt(0, .9, 0); camera.setViewOffset(w, h, 0, h * .15, w, h); } /* le personnage au-dessus du panneau */ }
+    else { camera.fov = 34; if (close) { camera.position.set(.42, 1.78, 2.5); camera.lookAt(.42, 1.6, 0); } else { camera.position.set(.85, 1.2, 4.3); camera.lookAt(.85, .92, 0); } }
     camera.updateProjectionMatrix();
   }
   function frame() {
     const dt = Math.min(.05, clock.getDelta());
-    if (!drag) spin += dt * .35; // le personnage tourne doucement sur le podium
+    if (!drag && freeze == null) spin += dt * .35; // le personnage tourne doucement sur le podium
+    if (freeze != null) spin = freeze;
     if (hum) { hum.g.rotation.y = spin; hum.mixer.update(dt); }
     R.render(scene, camera);
   }
@@ -140,16 +154,16 @@ const Outfits = (() => {
   async function tryOn(id) {
     sel = id; loadingId = id; renderPanel();
     let src = K.people.by?.[id];
-    if (!src) { say('Je vais te chercher ça en réserve… ⏳'); src = await K.loadOutfit(id); }
+    if (!src) { if (mode === 'clothes') say('Je vais te chercher ça en réserve… ⏳'); src = await K.loadOutfit(id); }
     if (!open_ || loadingId !== id) return;
     loadingId = '';
     if (!src) { say('😕 Cette tenue n\'a pas pu se charger, réessaie'); renderPanel(); return; }
     if (hum) scene.remove(hum.g);
-    hum = K.makeHuman(src, src.k * 1.72 / 43);
+    hum = K.makeHuman(src, src.k * 1.72 / 43, decoStr(tryDeco));
     hum.g.position.y = .16; hum.g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     scene.add(hum.g);
     playAnim(anim, true);
-    const o = data.list[id]; say(o ? `${o.name} : ${o.price ? 'trop beau sur toi ! 😍' : 'un classique qui te va bien 👌'}` : '✨');
+    const o = data.list[id]; if (mode === 'clothes') say(o ? `${o.name} : ${o.price ? 'trop beau sur toi ! 😍' : 'un classique qui te va bien 👌'}` : '✨');
     renderPanel();
   }
   function playAnim(n, now) {
@@ -160,9 +174,46 @@ const Outfits = (() => {
   }
   const say = t => { const s = root?.querySelector('.ofs-say'); if (s) s.textContent = t; };
 
+  // 💇💍 essayer une couleur ou un bijou : on rhabille le personnage avec
+  function tryDecoNow(slot, id) { if (id) tryDeco[slot] = id; else delete tryDeco[slot]; tryOn(data.current || myKey()); }
+  const animRow = () => el('div', { class: 'ofs-anims' }, ...[['idle', '🧍', 'Pose'], ['walk', '🚶', 'Défilé'], ['dance', '💃', 'Danse']].map(([k, ic, l]) => el('button', { class: 'ofs-an' + (anim === k ? ' on' : ''), title: l, onclick: () => { playAnim(k); renderPanel(); } }, ic, el('span', {}, ' ' + l))));
+  function hairPanel(P) {
+    const cur = (data.deco || {}).hair || '', want = tryDeco.hair || '';
+    const sw = (id, d) => el('button', { class: 'ofs-dye' + (want === id ? ' sel' : '') + (cur === id ? ' wear' : ''), title: d ? d.name : 'Ma couleur d\'origine', onclick: () => { say(d ? `${d.name} ? Ça va trop bien avec ton teint 😍` : 'Retour à ta couleur naturelle ✨'); tryDecoNow('hair', id); } },
+      el('i', { style: d ? `background:${d.hex}` : 'background:conic-gradient(#3a2416,#c89a5a,#16110d,#3a2416)' }), el('small', {}, d ? d.name : 'Naturelle'));
+    const main = want === cur ? el('button', { class: 'btn ofs-buy done', disabled: true }, cur ? '💇 Tu as cette couleur' : '💇 Ta couleur naturelle')
+      : el('button', { class: 'btn btn-primary ofs-buy', onclick: () => saveDeco('hair', want) }, '💇 Garder cette couleur · gratuit');
+    P.replaceChildren(el('div', { class: 'ofs-h' }, '🎨 Choisis ta couleur de cheveux (et de barbe)'), el('div', { class: 'ofs-dyes' }, sw('', null), ...Object.entries(data.dyes || {}).map(([id, d]) => sw(id, d))), el('div', { class: 'ofs-act' }, animRow(), main));
+  }
+  function accPanel(P) {
+    const owned = new Set(data.owned || []), worn = data.deco || {};
+    const tabs = el('div', { class: 'ofs-tabs' }, ...Object.entries(SLOTN).map(([k, l]) => el('button', { class: 'ofs-tab' + (accTab === k ? ' on' : ''), onclick: () => { accTab = k; selAcc = ''; resize(); renderPanel(); } }, l)));
+    const items = Object.entries(data.acc || {}).filter(([, a]) => a.slot === accTab);
+    const card = (id, a) => el('button', { class: 'ofs-card ofs-acc' + ((tryDeco[accTab] || '') === id ? ' sel' : '') + ((worn[accTab] || '') === id ? ' wear' : ''), onclick: () => { selAcc = id; if (a) say(`${a.icon} ${a.name} : ${owned.has(id) ? 'il est à toi !' : 'magnifique sur toi ✨'}`); tryDecoNow(accTab, id); } },
+      el('span', { class: 'ofs-ico' }, a ? a.icon : '🚫'), el('b', {}, a ? a.name : 'Rien'),
+      el('span', { class: 'ofs-price' + (!a || owned.has(id) ? ' own' : '') }, (worn[accTab] || '') === id ? '✨ Porté' : !a ? 'Enlever' : owned.has(id) ? '✅ À toi' : `💰 ${a.price}`));
+    const cards = el('div', { class: 'ofs-cards' }, card('', null), ...items.map(([id, a]) => card(id, a)));
+    const want = tryDeco[accTab] || '', a = data.acc[want];
+    const main = want === (worn[accTab] || '') ? el('button', { class: 'btn ofs-buy done', disabled: true }, want ? '✨ Tu le portes' : 'Rien sur ' + SLOTN[accTab].split(' ')[1].toLowerCase())
+      : !want ? el('button', { class: 'btn btn-primary ofs-buy', onclick: () => saveDeco(accTab, '') }, '🚫 Enlever')
+      : owned.has(want) ? el('button', { class: 'btn btn-primary ofs-buy', onclick: () => saveDeco(accTab, want) }, '✨ Le porter')
+      : el('button', { class: 'btn btn-primary ofs-buy' + ((state.me.coins || 0) >= a.price ? '' : ' poor'), onclick: () => buyAcc(want) }, `💍 Acheter et porter · ${a.price} 💰`);
+    P.replaceChildren(tabs, cards, el('div', { class: 'ofs-act' }, animRow(), main));
+  }
+  async function saveDeco(slot, id) {
+    try { const r = await api('/api/outfits/deco', { method: 'POST', body: { slot, id } }); data.deco = r.deco || {}; tryDeco = { ...data.deco }; say(slot === 'hair' ? '💇 Et voilà ! Va te montrer dans la Ville 😍' : id ? '✨ Tu le portes ! Tout le monde va le voir dans la Ville' : 'C\'est enlevé 👌'); toast(slot === 'hair' ? '💇 Nouvelle couleur de cheveux !' : id ? '✨ Accessoire porté' : 'Accessoire enlevé'); renderPanel(); } catch (e) { toast(e.message); }
+  }
+  async function buyAcc(id) {
+    const a = data.acc[id]; if ((state.me.coins || 0) < a.price) { say(`Il te manque ${a.price - (state.me.coins || 0)} pièces 💰 Joue dans la Ville ou au complexe pour en gagner !`); return toast(`Il te faut ${a.price} pièces 💰`); }
+    try { const r = await api('/api/outfits/buy', { method: 'POST', body: { id } }); data.owned = [...new Set([...(data.owned || []), id])]; data.deco = r.deco || data.deco; tryDeco = { ...data.deco };
+      if (r.coins != null) { state.me.coins = r.coins; window.Shop?.counter?.(); } root.querySelector('.ofs-coins').textContent = coinsTxt(); try { window.LC?.confetti?.(['💍', '✨', '💎']); } catch (e) {}
+      say(`💎 Merci ! « ${a.name} » est à toi, et tu le portes déjà 😍`); toast(`💍 ${a.name} acheté !`); renderPanel(); } catch (e) { toast(e.message); }
+  }
   // ---------- 🛍️ le panneau des tenues ----------
   function renderPanel() {
     const P = root?.querySelector('.ofs-panel'); if (!P || !data) return;
+    if (mode === 'hair') return hairPanel(P);
+    if (mode === 'acc') return accPanel(P);
     const owned = new Set(data.owned || []), wearing = data.current || myKey();
     const has = id => data.list[id].price === 0 || owned.has(id);
     const ids = Object.keys(data.list).filter(id => data.list[id].g === tab);
@@ -196,6 +247,6 @@ const Outfits = (() => {
       renderPanel();
     } catch (e) { toast(e.message); }
   }
-  return { open, close, isOpen: () => open_ };
+  return { open, close, isOpen: () => open_, pose: a => { freeze = a; } /* pour les tests : fige la rotation */ };
 })();
 window.Outfits = Outfits;
