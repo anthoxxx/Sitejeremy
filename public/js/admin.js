@@ -147,7 +147,7 @@ async function users() {
           el('button', { class: 'btn btn-sm', title: 'Réinitialiser le profil (photo, bannière, bio…)', onclick: async () => { if (confirm(`Effacer la photo, la bannière, la bio et les infos de profil de ${u.username} ?`)) { await run(() => api(`/api/admin/users/${u.id}/reset-profile`, { method: 'POST' }), 'Profil réinitialisé'); load(); } } }, '🧹'),
           isAdmin() && !u.isGuest ? el('button', { class: 'btn btn-sm', title: 'Mot de passe oublié : créer un lien pour choisir un nouveau mot de passe', onclick: async () => {
             if (!confirm(`Créer un lien de nouveau mot de passe pour ${u.username} ?\n\nVérifie bien que c'est la vraie personne : le lien permet de changer le mot de passe de ce compte.`)) return;
-            const x = await run(() => api(`/api/admin/users/${u.id}/pwlink`, { method: 'POST' }));
+            const x = await run(() => api(`/api/admin/users/${u.id}/pwlink`, { method: 'POST' })); x.link = location.origin + '/?reset=' + x.token;
             try { await navigator.clipboard.writeText(x.link); } catch (e) {}
             prompt(`🔑 Lien pour ${x.username} (déjà copié) : envoie-le en privé. Il marche une seule fois, pendant 24 heures.`, x.link);
           } }, '🔑') : null,
@@ -212,7 +212,7 @@ async function passwords() {
     r.status === 'open' ? el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
       el('button', { class: 'btn btn-sm btn-primary', onclick: async () => {
         if (!confirm(`As-tu bien vérifié que c'est vraiment ${r.user.username} qui demande ?\n\nLe lien permet de changer le mot de passe de ce compte : ne le donne qu'à la vraie personne.`)) return;
-        try { const x = await api(`/api/admin/pwreq/${r.id}/link`, { method: 'POST' }); try { await navigator.clipboard.writeText(x.link); } catch (e) {}
+        try { const x = await api(`/api/admin/pwreq/${r.id}/link`, { method: 'POST' }); x.link = location.origin + '/?reset=' + x.token; try { await navigator.clipboard.writeText(x.link); } catch (e) {}
           pwLinks.set(r.id, x.link); await passwords(); toast('📋 Lien copié : envoie-le à ' + x.username); } catch (e) { toast(e.message); } } }, '🔗 Créer un lien de nouveau mot de passe'),
       el('button', { class: 'btn btn-sm', onclick: async () => { if (!confirm('Refuser cette demande ?')) return; try { await api(`/api/admin/pwreq/${r.id}/refuse`, { method: 'POST' }); passwords(); } catch (e) { toast(e.message); } } }, '✖ Refuser'))
       : pwLinks.has(r.id) ? el('div', {}, el('p', { class: 'help' }, `🔗 Envoie ce lien à ${r.user.username}, en privé. Il marche une seule fois, pendant 24 heures :`), el('input', { class: 'input', value: pwLinks.get(r.id), readonly: true, onclick: e => e.target.select() }))

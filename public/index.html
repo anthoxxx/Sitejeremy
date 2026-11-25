@@ -195,7 +195,7 @@
       btn.disabled = true;
       try { const r = await LC.api('/api/password/reset', { method: 'POST', body: { t: resetTok, password: f.password.value } }); history.replaceState(null, '', '/');
         if (r.banned) { err.textContent = '✅ Mot de passe changé. ' + r.banned; return; }
-        btn.textContent = '✅ C\'est bon ! On te connecte…'; setTimeout(() => { location.href = '/chat'; }, 900); }
+        btn.textContent = '✅ Mot de passe changé ! On te connecte…'; f.querySelector('.reset-who').textContent = ' pour ' + (r.user?.username || ''); err.style.color = 'var(--text)'; err.textContent = `✅ C'est enregistré. La prochaine fois, connecte-toi avec le pseudo « ${r.user?.username || ''} » et ce nouveau mot de passe.`; setTimeout(() => { location.href = '/chat'; }, 3500); }
       catch (ex) { err.textContent = ex.message; btn.disabled = false; }
     };
   }

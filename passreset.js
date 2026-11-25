@@ -106,7 +106,7 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
         const t = newToken(u.id, 24 * 3600000, req.user.id);
         db.prepare("UPDATE pw_requests SET status='done', handled_by=?, handled_at=? WHERE id=?").run(req.user.id, now(), r.id);
         log(req.user, 'password_link', `🔑 Lien « nouveau mot de passe » créé pour ${u.username}`);
-        res.json({ ok: true, link: `${base(req)}/?reset=${t}`, username: u.username });
+        res.json({ ok: true, token: t, link: `${base(req)}/?reset=${t}`, username: u.username }); // le navigateur de l'admin refait le lien avec l'adresse du site où il est
       });
       admin.post('/pwreq/:id/refuse', requireRole('admin'), (req, res) => {
         const r = db.prepare('SELECT * FROM pw_requests WHERE id=?').get(parseInt(req.params.id, 10)); if (!r) return res.status(404).json({ error: 'Demande introuvable' });
@@ -122,7 +122,7 @@ module.exports = function setupPassReset({ db, bcrypt, getUser, getUserByName, t
         const t = newToken(u.id, 24 * 3600000, req.user.id);
         db.prepare("UPDATE pw_requests SET status='done', handled_by=?, handled_at=? WHERE user_id=? AND status='open'").run(req.user.id, now(), u.id);
         log(req.user, 'password_link', `🔑 Lien « nouveau mot de passe » créé pour ${u.username}`);
-        res.json({ ok: true, link: `${base(req)}/?reset=${t}`, username: u.username });
+        res.json({ ok: true, token: t, link: `${base(req)}/?reset=${t}`, username: u.username }); // le navigateur de l'admin refait le lien avec l'adresse du site où il est
       });
       admin.get('/pwreq/count', requireRole('admin'), (req, res) => res.json({ count: db.prepare("SELECT COUNT(*) c FROM pw_requests WHERE status='open'").get().c }));
     },
