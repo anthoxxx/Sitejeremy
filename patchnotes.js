@@ -1660,4 +1660,16 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 118,
+    date: '2026-11-25',
+    title: 'Mot de passe oublié 🔑',
+    added: [
+      '🔑 Sur la page de connexion, touche « Mot de passe oublié ? » : écris ton pseudo (ou ton e-mail)',
+      '📧 Si ton compte a une adresse e-mail, tu reçois un lien pour choisir un nouveau mot de passe (valable 1 heure). Pense à ajouter ton e-mail dans ton profil !',
+      '🛡️ Sinon, ta demande arrive à l\'équipe : laisse ton Snap, Insta ou Discord pour qu\'elle puisse vérifier que c\'est bien toi et t\'envoyer ton lien',
+    ],
+    changed: [],
+    removed: [],
+  },
 ];

@@ -74,6 +74,28 @@
         <div class="field"><label>Mot de passe</label><input class="input" name="password" type="password" required autocomplete="current-password"></div>
         <div class="error"></div>
         <button class="btn btn-primary" style="width:100%">Se connecter</button>
+        <a href="#" class="forgot-link" id="forgotLink">🔑 Mot de passe oublié ?</a>
+      </form>
+
+      <form id="form-forgot" class="hidden" data-custom="1">
+        <h3 class="forgot-title">🔑 Mot de passe oublié</h3>
+        <p class="note forgot-help">Pas de panique ! Écris ton pseudo (ou l'adresse e-mail de ton compte). Si ton compte a une adresse e-mail, tu reçois un lien pour choisir un nouveau mot de passe. Sinon, l'équipe du Paradise s'en occupe.</p>
+        <div class="field"><label>Ton pseudo ou ton e-mail</label><input class="input" name="login" maxlength="120" required autocomplete="username"></div>
+        <div class="field"><label>Comment te recontacter ? <span style="opacity:.6">(facultatif : Snap, Insta, Discord…)</span></label><input class="input" name="contact" maxlength="200"></div>
+        <div class="error"></div>
+        <div class="ok-msg hidden"></div>
+        <button class="btn btn-primary" style="width:100%">Envoyer ma demande</button>
+        <small class="note">Tu t'es inscrit avec Google ? Pas besoin de mot de passe : touche « Continuer avec Google ».</small>
+        <a href="#" class="forgot-link" data-back="1">← Retour à la connexion</a>
+      </form>
+
+      <form id="form-reset" class="hidden" data-custom="1">
+        <h3 class="forgot-title">🔑 Nouveau mot de passe</h3>
+        <p class="note forgot-help">Choisis ton nouveau mot de passe<span class="reset-who"></span>.</p>
+        <div class="field"><label>Nouveau mot de passe</label><input class="input" name="password" type="password" minlength="6" required autocomplete="new-password"></div>
+        <div class="field"><label>Encore une fois</label><input class="input" name="password2" type="password" minlength="6" required autocomplete="new-password"></div>
+        <div class="error"></div>
+        <button class="btn btn-primary" style="width:100%">Changer mon mot de passe</button>
       </form>
 
       <form id="form-register" data-endpoint="/api/register">
@@ -154,7 +176,30 @@
     document.querySelectorAll('#authCard form').forEach(f => f.classList.toggle('hidden', f.id !== 'form-' + b.dataset.tab));
   });
   // Envoi
-  document.querySelectorAll('#authCard form').forEach(f => f.onsubmit = async e => {
+  // 🔑 Mot de passe oublié
+  const showForm = id => { document.querySelectorAll('#authCard form').forEach(f => f.classList.toggle('hidden', f.id !== id)); document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', 'form-' + x.dataset.tab === id)); };
+  document.getElementById('forgotLink').onclick = e => { e.preventDefault(); const f = document.getElementById('form-forgot'); f.login.value = document.querySelector('#form-login [name=username]').value; showForm('form-forgot'); f.login.focus(); };
+  document.querySelector('#form-forgot [data-back]').onclick = e => { e.preventDefault(); showForm('form-login'); };
+  document.getElementById('form-forgot').onsubmit = async e => {
+    e.preventDefault(); const f = e.target, err = f.querySelector('.error'), ok = f.querySelector('.ok-msg'), btn = f.querySelector('button'); err.textContent = ''; btn.disabled = true;
+    try { const r = await LC.api('/api/password/forgot', { method: 'POST', body: { login: f.login.value, contact: f.contact.value } }); ok.textContent = r.msg; ok.classList.remove('hidden'); btn.textContent = '✅ Demande envoyée'; }
+    catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+  };
+  const resetTok = new URLSearchParams(location.search).get('reset');
+  if (resetTok) {
+    const f = document.getElementById('form-reset'); showForm('form-reset'); document.getElementById('authCard')?.scrollIntoView({ block: 'center' });
+    LC.api('/api/password/check?t=' + encodeURIComponent(resetTok)).then(r => { f.querySelector('.reset-who').textContent = ' pour ' + r.username; }).catch(ex => { f.querySelector('.error').textContent = ex.message; f.querySelector('button').disabled = true; });
+    f.onsubmit = async e => {
+      e.preventDefault(); const err = f.querySelector('.error'), btn = f.querySelector('button'); err.textContent = '';
+      if (f.password.value !== f.password2.value) { err.textContent = 'Les deux mots de passe ne sont pas pareils'; return; }
+      btn.disabled = true;
+      try { const r = await LC.api('/api/password/reset', { method: 'POST', body: { t: resetTok, password: f.password.value } }); history.replaceState(null, '', '/');
+        if (r.banned) { err.textContent = '✅ Mot de passe changé. ' + r.banned; return; }
+        btn.textContent = '✅ C\'est bon ! On te connecte…'; setTimeout(() => { location.href = '/chat'; }, 900); }
+      catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    };
+  }
+  document.querySelectorAll('#authCard form:not([data-custom])').forEach(f => f.onsubmit = async e => {
     e.preventDefault();
     const err = f.querySelector('.error');
     const btn = f.querySelector('button');
@@ -245,7 +290,7 @@
     tick(); setInterval(tick, 1000);
   }).catch(() => {});
   // Déjà connecté ?
-  if (!exited) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
+  if (!exited && !new URLSearchParams(location.search).get('reset')) LC.api('/api/me').then(() => location.href = '/chat').catch(() => {});
   LC.api('/api/stats').then(s => {
     onlineCount.textContent = s.online;
     onlineLabel.textContent = s.online > 1 ? "personnes connectées" : "personne connectée";

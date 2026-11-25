@@ -4452,3 +4452,13 @@ body.ofs-on { overflow: hidden; }
   .ofs-npc { font-size: .76rem; top: auto; bottom: calc(44% + 10px); padding: 7px 11px; }
   .ofs-an span { display: none; }
 }
+/* 🔑 Mot de passe oublié */
+.forgot-link { display: block; text-align: center; margin-top: 12px; font-size: .85rem; color: var(--muted); text-decoration: none; }
+.forgot-link:hover { color: var(--text); text-decoration: underline; }
+.forgot-title { margin: 0 0 6px; font-size: 1.15rem; }
+.card p.note.forgot-help { color: var(--muted); font-size: .85rem; margin: 0 0 14px; line-height: 1.4; }
+.card .ok-msg { background: rgba(43, 255, 136, .12); border: 1px solid rgba(43, 255, 136, .35); color: var(--text); border-radius: 12px; padding: 10px 12px; font-size: .85rem; margin-bottom: 12px; line-height: 1.4; }
+.pw-card { margin-bottom: 12px; }
+.pw-card.done { opacity: .6; }
+.pw-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pw-contact { margin: 6px 0 10px; }

@@ -17,10 +17,10 @@ const header = (title, sub) => [el('h1', {}, title), el('p', { class: 'subtitle'
 const roleLabel = LC.roleLabel;
 
 // ---------- Navigation ----------
-const pages = { dashboard, users, reports, photos, applications, messages, rooms, radios, fetes, settings, site, emails, backups, logs };
+const pages = { dashboard, users, reports, photos, passwords, applications, messages, rooms, radios, fetes, settings, site, emails, backups, logs };
 function go() {
   let name = location.hash.slice(1) || 'dashboard';
-  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'fetes', 'settings', 'applications'].includes(name)) || (!isSuper() && ['site', 'backups', 'emails'].includes(name))) name = 'dashboard';
+  if (!pages[name] || (!isAdmin() && ['rooms', 'radios', 'fetes', 'settings', 'applications', 'passwords'].includes(name)) || (!isSuper() && ['site', 'backups', 'emails'].includes(name))) name = 'dashboard';
   document.querySelectorAll('#nav [data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
   page.replaceChildren(el('p', { class: 'empty' }, 'Chargement…'));
   pages[name]().catch(e => page.replaceChildren(el('p', { class: 'empty' }, e.message)));
@@ -37,6 +37,7 @@ function diagPanel(d) {
   const rows = [
     row(d.adminPassword, 'Mot de passe de l\'espace admin (ADMIN_PASSWORD)', d.adminPassword ? 'Bien reçu.' : 'Pas reçu : la connexion « admin » est désactivée.'),
     row(persistent, 'Dossier des données (DATA_DIR)', persistent ? `${d.dataDir} : les données sont gardées.` : `${d.dataDir} : ⚠️ dossier du site, les données peuvent s'effacer à chaque mise à jour. Règle DATA_DIR = /var/data avec un disque.`),
+    d.mail ? row((d.mail.brevo || d.mail.resend) && d.mail.from, 'Envoi d\'e-mails (mot de passe oublié)', (d.mail.brevo || d.mail.resend) && d.mail.from ? `Bien reçu (${d.mail.brevo ? 'Brevo' : 'Resend'}).` : 'Pas réglé : ajoute BREVO_API_KEY et MAIL_FROM dans Environment. En attendant, les demandes « mot de passe oublié » arrivent dans 🔑 Mots de passe.') : null,
     row(t.cfKeyId, 'Relais vocal : CF_TURN_KEY_ID', t.cfKeyId ? 'Bien reçu.' : 'Pas reçu : vérifie le nom exact dans Environment.'),
     row(t.cfToken, 'Relais vocal : CF_TURN_API_TOKEN', t.cfToken ? 'Bien reçu.' : 'Pas reçu : vérifie le nom exact dans Environment.'),
     t.configured ? row(t.ok, 'Test du relais auprès de ' + (t.provider || 'Cloudflare'), t.ok === true ? 'Cloudflare accepte les codes : le vocal et la caméra passent partout.' : t.ok === false ? t.error : 'Pas encore testé (ça se fait au démarrage et au premier vocal).') : null,
@@ -191,6 +192,29 @@ async function photos() {
         el('button', { class: 'btn btn-sm btn-primary', onclick: async () => { await run(() => api('/api/admin/gallery/' + g.id, { method: 'POST', body: { approve: true } }), `Photo de ${g.username} vérifiée ✓`); photos(); } }, '✓ Accepter'),
         el('button', { class: 'btn btn-sm btn-danger', onclick: async () => { const reason = prompt(`Refuser la photo de ${g.username} ? Raison (facultatif) :`, ''); if (reason === null) return; await run(() => api('/api/admin/gallery/' + g.id, { method: 'POST', body: { approve: false, reason } }), `Photo de ${g.username} refusée`); photos(); } }, '✕ Refuser')))))
       : el('div', { class: 'panel' }, el('p', { class: 'empty' }, '✅ Aucune photo de galerie à vérifier.')));
+}
+// ---------- 🔑 Mots de passe oubliés (admins) ----------
+function setPwBadge(n) { const b = document.getElementById('navPw'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
+const pwLinks = new Map();
+async function passwords() {
+  const d = await api('/api/admin/pwreq');
+  const open = d.list.filter(r => r.status === 'open'); setPwBadge(open.length);
+  const when = t => new Date(t).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  const card = r => el('div', { class: 'panel pw-card' + (r.status === 'open' ? '' : ' done') },
+    el('div', { class: 'pw-head' }, LC.avatar(r.user), el('div', {}, el('b', { style: 'color:' + (r.user.color || 'inherit') }, r.user.username), el('div', { class: 'help' }, `Demandé le ${when(r.createdAt)} · ${r.user.email ? '📧 a une adresse e-mail' : 'pas d\'adresse e-mail'}${r.user.google ? ' · 🔵 compte Google' : ''}`))),
+    r.contact ? el('p', { class: 'pw-contact' }, '📞 Pour la recontacter : ', el('b', {}, r.contact)) : el('p', { class: 'help' }, 'Aucun moyen de contact laissé.'),
+    r.status === 'open' ? el('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
+      el('button', { class: 'btn btn-sm btn-primary', onclick: async () => {
+        if (!confirm(`As-tu bien vérifié que c'est vraiment ${r.user.username} qui demande ?\n\nLe lien permet de changer le mot de passe de ce compte : ne le donne qu'à la vraie personne.`)) return;
+        try { const x = await api(`/api/admin/pwreq/${r.id}/link`, { method: 'POST' }); try { await navigator.clipboard.writeText(x.link); } catch (e) {}
+          pwLinks.set(r.id, x.link); await passwords(); toast('📋 Lien copié : envoie-le à ' + x.username); } catch (e) { toast(e.message); } } }, '🔗 Créer un lien de nouveau mot de passe'),
+      el('button', { class: 'btn btn-sm', onclick: async () => { if (!confirm('Refuser cette demande ?')) return; try { await api(`/api/admin/pwreq/${r.id}/refuse`, { method: 'POST' }); passwords(); } catch (e) { toast(e.message); } } }, '✖ Refuser'))
+      : pwLinks.has(r.id) ? el('div', {}, el('p', { class: 'help' }, `🔗 Envoie ce lien à ${r.user.username}, en privé. Il marche une seule fois, pendant 24 heures :`), el('input', { class: 'input', value: pwLinks.get(r.id), readonly: true, onclick: e => e.target.select() }))
+      : el('p', { class: 'help' }, r.status === 'done' ? '✅ Traitée' : '✖ Refusée'));
+  page.replaceChildren(
+    el('h2', {}, '🔑 Mots de passe oubliés'),
+    el('p', { class: 'help' }, d.mail ? '📧 L\'envoi d\'e-mails est réglé : les membres qui ont une adresse e-mail reçoivent leur lien tout seuls. Ici, il reste ceux qui n\'en ont pas.' : '📧 L\'envoi d\'e-mails n\'est pas encore réglé : toutes les demandes arrivent ici. Vérifie que c\'est bien la personne (par exemple sur Snap, Insta ou Discord), puis crée-lui un lien.'),
+    ...(d.list.length ? d.list.map(card) : [el('p', { class: 'empty' }, 'Aucune demande pour le moment 👍')]));
 }
 function setPhotoBadge(n) { const b = document.getElementById('navPhotos'); if (b) { b.textContent = n; b.classList.toggle('hidden', !n); } }
 
@@ -789,6 +813,7 @@ function showAdminLogin() {
     return;
   }
   api('/api/admin/photos').then(d => setPhotoBadge(d.photos.length + (d.gallery || []).length)).catch(() => {});
+  if (isAdmin()) api('/api/admin/pwreq/count').then(d => setPwBadge(d.count)).catch(() => {});
   if (isAdmin()) api('/api/admin/applications').then(d => setAppsBadge(d.applications.filter(a => a.status === 'pending').length)).catch(() => {});
   if (!isAdmin()) document.querySelectorAll('.admin-only').forEach(x => x.remove());
   if (!isSuper()) document.querySelectorAll('.super-only').forEach(x => x.remove());

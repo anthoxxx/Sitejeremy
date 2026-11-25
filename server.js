@@ -1718,7 +1718,7 @@ function diagnostics() {
   const t = turnEnv();
   return {
     version: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
-    dataDir, adminPassword: !!PANEL_HASH,
+    dataDir, adminPassword: !!PANEL_HASH, mail: { brevo: !!process.env.BREVO_API_KEY, resend: !!process.env.RESEND_API_KEY, from: !!process.env.MAIL_FROM },
     turn: { configured: turnConfigured(), provider: t.cfId || t.cfToken ? 'Cloudflare' : t.mDomain || t.mKey ? 'Metered' : t.url ? 'Serveur TURN' : '',
       cfKeyId: !!t.cfId, cfToken: !!t.cfToken, mDomain: !!t.mDomain, mKey: !!t.mKey, url: !!t.url, ...turnCheck },
     // Noms de réglages qui ressemblent à ceux attendus mais ne sont pas exactement pareils (fautes de frappe)
@@ -2964,6 +2964,9 @@ const Looks = require('./looks')({ db, coins: Coins, onChange: uid => Island.ref
 // 👗 Le magasin de vêtements 3D : la tenue du personnage 3D (Ville, complexe, bowling, laser game)
 var Outfits = require('./outfits')({ db, coins: Coins, onChange: uid => { try { Island.refreshPet(uid); } catch (e) {} try { Casino.refreshOutfit(uid); } catch (e) {} } });
 Outfits.routes(app, auth);
+// 🔑 Mot de passe oublié (lien par e-mail, ou demande à l'équipe)
+const PassReset = require('./passreset')({ db, bcrypt, getUser: id => getUser(id), getUserByName: n => getUserByName(n), tooMany: (...a) => tooMany(...a), emitToStaff: (...a) => emitToStaff(...a), log: (...a) => log(...a), createSession: (...a) => createSession(...a), publicUser: u => publicUser(u), isSuper: u => isSuper(u), rank: u => rank(u), banBlock: u => banBlock(u) });
+PassReset.routes(app, admin, requireRole);
 const reward = (id, key, ...rest) => {
   // les jeux comptent aussi pour les quêtes du jour et les succès
   const kind = /^win_/.test(key) ? 'game_win' : /^play_/.test(key) ? 'game' : key === 'bf_win' || key === 'bf_bot' ? 'babyfoot_win' : key === 'bf_play' ? 'babyfoot' : null;
