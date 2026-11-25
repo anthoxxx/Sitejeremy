@@ -12,6 +12,7 @@ const City = (() => {
     Burger: { icon: '🍔', color: '#ffd34d', npc: '🍟 Max, au comptoir', hello: 'Salut ! Menu XXL ou petite faim ?', blurb: 'Burgers, frites et sodas' },
     Glacier: { icon: '🍦', color: '#38dce6', npc: '🍨 Lola, la glacière', hello: 'Il fait toujours beau pour une glace !', blurb: 'Glaces, bubble tea et smoothies' },
     Bar: { icon: '🍸', color: '#ff2d55', npc: '🍹 Tony, le barman', hello: 'Qu\'est-ce que je te sers ? La maison offre le sourire.', blurb: 'Cocktails et boissons' },
+    'Station-service': { icon: '⛽', color: '#2bff88', npc: '🧢 Kevin, à la caisse', hello: 'Un petit café pour la route ? Le plein, c\'est offert aujourd\'hui ⛽', blurb: 'Café, sandwichs et boissons pour la route' },
     Supermarché: { icon: '🛒', color: '#2fa8ff', npc: '🧾 Nadia, à la caisse', hello: 'Il y a tout ce qu\'il faut, même pour ton animal !', blurb: 'Courses, friandises et croquettes pour ton animal' },
     Pharmacie: { icon: '💊', color: '#2bff88', npc: '⚕️ Le Dr Pilule', hello: 'Bonjour ! Ton compagnon a besoin d\'un petit remontant ?', blurb: 'Vitamines et soins pour ton animal' },
     Hôpital: { icon: '🏥', color: '#ffffff', npc: '🩺 La Dre Bobo', hello: 'Pas de panique, ici on soigne tout le monde (même les animaux).', blurb: 'Check-up gratuit pour toi et ton animal' },

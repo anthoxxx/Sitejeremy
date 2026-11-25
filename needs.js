@@ -14,7 +14,7 @@ function effectOf(name, emoji) {
   const n = String(name || '') + ' ' + String(emoji || '');
   const drink = DRINK.test(n) || /[🥤🧋🍹🍸🥂🍾🧃☕🍺🥛]/u.test(emoji || '');
   if (drink) return { hunger: /smoothie|milkshake|bubble/i.test(n) ? 8 : 0, thirst: /champagne|cocktail|mojito/i.test(n) ? 25 : 40 };
-  const big = /(plateau|pizza|margherita|fromages|calzone|burger|ramen|pâtes|pates|petit-déjeuner|nachos|menu)/i.test(n);
+  const big = /(plateau|pizza|margherita|fromages|calzone|burger|ramen|pâtes|pates|petit-déjeuner|nachos|menu|plat cuisiné)/i.test(n);
   const small = /(bonbon|chocolat|pomme|croissant|cupcake|donut|mochi|glace|granité|popcorn|pop-corn|churros|barbe)/i.test(n);
   return { hunger: big ? 45 : small ? 15 : 28, thirst: /glace|granité|pomme|fruit|salade/i.test(n) ? 10 : 0 };
 }

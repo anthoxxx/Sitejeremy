@@ -2,7 +2,7 @@
 // Chaque salon est un lieu de l'île. On se déplace (clic / toucher / flèches), on parle avec des bulles,
 // et on entre dans un salon en s'approchant de son bâtiment. Tout est dessiné par le navigateur.
 const Island = (() => {
-  const W = 4200, H = 2900;
+  const W = 5800, H = 2900; // 🌍 la Ville s'étend à l'est avec la zone commerciale (garage, station-service, hypermarché, centre commercial)
   // 🏙️ la grande ville : un rectangle de rues et de quartiers (même formule côté serveur)
   const onLand = (x, y) => x > 70 && x < W - 70 && y > 160 && y < H - 60 && Math.hypot((x - 2200) / 300, (y - 2600) / 105) > 1; // pas dans le lac
   // Les lieux de l'île (un par salon) : position, icône, couleur néon, forme du bâtiment
@@ -35,12 +35,20 @@ const Island = (() => {
     { inst: 'arcade', label: 'Arcade', icon: '🕹️', x: 590, y: 975, c: '#ff4fd8', kind: 'arcadeplace' },
     { inst: 'campfire', label: 'Feu de camp', icon: '🔥', x: 2050, y: 1300, c: '#ff8a1f', kind: 'campplace' },
     { inst: 'fortune', label: 'La Voyante', icon: '🔮', x: 1050, y: 360, c: '#c64dff', kind: 'fortuneplace' },
+    // 🛣️ la zone commerciale, à l'est de la Ville
+    { inst: 'garage', label: 'Garage Paradise', icon: '🔧', c: '#ff8a1f', kind: 'house', big: true },
+    { inst: 'station', label: 'Station-service', icon: '⛽', c: '#2bff88', kind: 'kiosk' },
+    { inst: 'hyper', label: 'Hypermarché', icon: '🛒', c: '#2fa8ff', kind: 'house', big: true },
+    { inst: 'mall', label: 'Centre commercial', icon: '🛍️', c: '#ff4fd8', kind: 'house', big: true },
+    { inst: 'dealer', label: 'Concession auto', icon: '🚗', c: '#ffd34d', kind: 'house', big: true },
+    { inst: 'carwash', label: 'Lavage auto', icon: '🧽', c: '#38dce6', kind: 'kiosk' },
   ];
   // 🗺️ le plan de la ville : 5 colonnes × 3 rangées de quartiers, 2 lieux par quartier (bien espacés, ils ne se touchent jamais)
-  const BLOCK_X = [200, 1000, 1800, 2600, 3400, 4000], BLOCK_Y = [260, 980, 1700, 2420];  // (la dernière rue, en bas, est en y = 2790)
+  const BLOCK_X = [200, 1000, 1800, 2600, 3400, 4000, 4800, 5600], BLOCK_Y = [260, 980, 1700, 2420];  // (la dernière rue, en bas, est en y = 2790)
   const SLOTS = {
     douane: [0, 0, 0], amitie: [0, 0, 1], fierte: [1, 0, 0], rencontres: [1, 0, 1], fortune: [2, 0, 0], '18-25': [2, 0, 1], '25-40': [3, 0, 0], '40-plus': [3, 0, 1], patchnote: [4, 0, 0], membres: [4, 0, 1],
     houses: [0, 1, 0], gaming: [0, 1, 1], club: [1, 1, 0], cafe: [1, 1, 1], cinema: [3, 1, 0], tv: [3, 1, 1], pool: [4, 1, 0], roue: [4, 1, 1],
+    garage: [5, 0, 0], station: [5, 0, 1], hyper: [5, 1, 0], mall: [5, 1, 1], dealer: [6, 0, 0], carwash: [6, 0, 1],
     arcade: [0, 2, 0], musique: [0, 2, 1], karaoke: [1, 2, 0], sommet: [1, 2, 1], paroles: [2, 2, 0], motdor: [2, 2, 1], blindtest: [3, 2, 0], thevoice: [3, 2, 1], campfire: [4, 2, 0], suggestions: [4, 2, 1],
   };
   PLACES.push({ slug: 'thevoice', label: 'The Voice', icon: '🎤', c: '#ff2d55', kind: 'stage' }, { slug: 'suggestions', label: 'Suggestions', icon: '💡', c: '#ff8a1f', kind: 'house' });
@@ -61,7 +69,7 @@ const Island = (() => {
   // ---------- Le décor fixe (dessiné une seule fois) ----------
   window.Decor?.setNight(() => nightLevel());
   // ---------- La ville du Paradise : avenues, trottoirs, passages piétons, grande place, parcs et plage ----------
-  const STREETS_Y = [260, 980, 1700, 2420, 2790], STREETS_X = [200, 1000, 1800, 2600, 3400, 4000], PLAZA = { x: 2200, y: 1430, r: 190 };
+  const STREETS_Y = [260, 980, 1700, 2420, 2790], STREETS_X = [200, 1000, 1800, 2600, 3400, 4000, 4800, 5600], PLAZA = { x: 2200, y: 1430, r: 190 };
   const shops = [];
   const SHOP_TYPES = [['Boulangerie', '🥖', '#ffd34d'], ['Pizzeria', '🍕', '#ff2d55'], ['Pharmacie', '💊', '#2bff88'], ['Hôtel', '🏨', '#c64dff'], ['Banque', '🏦', '#38dce6'], ['Fleuriste', '💐', '#ff4fd8'], ['Sushi', '🍣', '#ff8a1f'], ['Coiffeur', '💇', '#ff4fd8'], ['Burger', '🍔', '#ffd34d'], ['Glacier', '🍦', '#38dce6'], ['Boutique', '👗', '#c64dff'], ['Salle de sport', '🏋️', '#2fa8ff'], ['Bar', '🍸', '#ff2d55'], ['Hôpital', '🏥', '#ffffff'], ['Poste', '📮', '#ffd34d'], ['Librairie', '📚', '#2bff88'], ['Supermarché', '🛒', '#2fa8ff'], ['Bijouterie', '💍', '#ffd76a']];
   // 🏢 les grands immeubles du quartier des affaires (au sud), à côté du parc et de son lac
@@ -1660,9 +1668,9 @@ const Island = (() => {
     }
     if (best.inst) {
       const txt = { complex: ['Casino, bowling, laser game, cinéma, boîte de nuit, karting, aquarium, zoo, fête foraine…', '🏬 Entrer'], club: ['La boîte de nuit : musique YouTube, piste de danse, bar…', '🪩 Entrer'], cinema: ['Le cinéma 3D : plusieurs salles et des escalators, regardez des films ensemble', '🎬 Entrer'], houses: ['Ta maison et celles de tes amis', '🏠 Voir les maisons'],
-        pool: ['Le parc aquatique 3D : piscine, toboggans et aquarium', '🏊 Entrer'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
+        pool: ['Le parc aquatique 3D : piscine, toboggans et aquarium', '🏊 Entrer'], garage: ['Le mécano : peinture, néons et jantes pour ta voiture', '🔧 Entrer'], station: ['Café, sandwichs et boissons pour la route', '⛽ Entrer'], hyper: ['Plein de courses : de quoi manger et boire, et pour ton animal', '🛒 Entrer'], mall: ['Vêtements, coiffeur, bijouterie, glacier, librairie…', '🛍️ Entrer'], dealer: ['Choisis la couleur de ta voiture et pars l\'essayer', '🚗 Entrer'], carwash: ['Ta voiture comme neuve, toute brillante', '🧽 Laver ma voiture'], cafe: ['Commande, trinque et joue du piano', '☕ Entrer'], arcade: ['Machine à sous, fléchettes, pince à peluches', '🕹️ Entrer'], campfire: ['Guitare, chamallows et vœux sous les étoiles', '🔥 Entrer'], fortune: ['Madame Paradisia lit ton avenir dans sa boule de cristal', '🔮 Consulter'] }[best.inst];
       card.replaceChildren(el('div', {}, el('b', {}, `${best.icon} ${best.label}`), el('small', {}, txt[0])),
-        el('button', { class: 'btn btn-primary', onclick: () => (best.zone ? window.Casino?.open({ zone: best.zone }) : best.inst === 'complex' ? window.Casino?.open() : best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
+        el('button', { class: 'btn btn-primary', onclick: () => (best.zone ? window.Casino?.open({ zone: best.zone }) : { garage: 1, dealer: 1 }[best.inst] ? window.Garage?.open() : best.inst === 'carwash' ? window.Garage?.wash() : best.inst === 'station' ? window.City?.open('Station-service') : best.inst === 'hyper' ? window.City?.open('Supermarché') : best.inst === 'mall' ? mallPanel() : best.inst === 'complex' ? window.Casino?.open() : best.inst === 'houses' ? housesPanel() : best.inst === 'fortune' ? window.Fortune?.open() : socket.emit('inst_enter', best.inst, r => r?.error && toast(r.error))) }, txt[1]));
     } else {
       const room = state.rooms.find(r => r.slug === best.slug);
       const n = (state.online || []).filter(u => u.room === best.slug && !u.ghost).length;
@@ -2081,6 +2089,13 @@ const Island = (() => {
   // 🍽️ Ce qu'on achète en boutique : le personnage le tient et le mange dans la Ville
   function eat(e) { const mine = players.get(me); if (!open || !mine || !['island', 'cafe'].includes(kind)) return; mine.action = 'eat'; mine.item = e; mine.itemAt = Date.now(); socket.emit('island_action', 'eat', { x: mine.x, y: mine.y }, e); }
   const goHome = () => openHouse(state.me.id);
+  // 🛍️ le centre commercial : toutes ses boutiques
+  function mallPanel() {
+    const L = [['Boutique', '👗', 'Paradise Mode : les vêtements 3D'], ['Coiffeur', '💇', 'Le salon de Jessy'], ['Bijouterie', '💍', 'Bijouterie Diamant'], ['Glacier', '🍦', 'Glaces et bubble tea'], ['Librairie', '📚', 'Blagues, anecdotes et citations'], ['Fleuriste', '💐', 'Envoie des fleurs'], ['Sushi', '🍣', 'Le resto du centre'], ['Burger', '🍔', 'Le fast-food du centre']];
+    const close = modal(el('h3', {}, '🛍️ Centre commercial du Paradise'), el('p', { class: 'help' }, 'Toutes les boutiques au même endroit. Choisis où aller :'),
+      el('div', { class: 'mall-grid' }, ...L.map(([n, ic, d]) => el('button', { class: 'mall-shop', onclick: () => { close(); window.City?.open(n); } }, el('span', {}, ic), el('b', {}, n), el('small', {}, d)))),
+      el('button', { class: 'btn btn-ghost', style: 'width:100%;margin-top:10px', onclick: () => close() }, 'Fermer'));
+  }
   // ---------- 🎥 pour la vue 3D (city3d.js) : on prête les dessins de la Ville et le déplacement du personnage ----------
   let view3d = null;
   function sprite3d(fn, x, y, W2, H2, AX, AY, k = innerWidth < 700 ? 1 : 1.5) {

@@ -43,7 +43,7 @@ const City3D = (() => {
         g.scene.traverse(o => { if (!o.isMesh) return; const k = kindOf(o.material.name || '', o.name + ' ' + (o.parent?.name || '')), ge = o.geometry.clone(); for (const a of Object.keys(ge.attributes)) { if (a !== 'position' && a !== 'normal') { ge.deleteAttribute(a); continue; } const at = ge.attributes[a], f = new Float32Array(at.count * 3); for (let i = 0; i < at.count; i++) { f[i * 3] = at.getX(i); f[i * 3 + 1] = at.getY(i); f[i * 3 + 2] = at.getZ(i); } ge.setAttribute(a, new THREE.BufferAttribute(f, 3)); } /* en vrais nombres (le fichier les stocke compressés) */ if (!ge.attributes.normal) ge.computeVertexNormals(); ge.applyMatrix4(o.matrixWorld); (parts[k] = parts[k] || []).push(ge.index ? ge : ge); if (k === 'body' && !carMats.body) carMats.body = o.material;  });
         { const cab = new THREE.CylinderGeometry(.62, .78, .5, 4, 1); cab.rotateY(Math.PI / 4); cab.scale(1.25, 1, 1.35); cab.deleteAttribute('uv'); cab.translate(0, .86, -.2); (parts.glass = parts.glass || []).push(cab.toNonIndexed()); } // l'habitacle fermé, en vitres teintées
         const out = new THREE.Group();
-        for (const k in parts) { const list = parts[k].map(x => x.index ? x : x), merged = LIB.BGU.mergeGeometries(list.some(x => !x.index) ? list.map(x => x.index ? x.toNonIndexed() : x) : list); if (!merged) continue; const m = new THREE.Mesh(merged, carMats[k] || carMats.dark); m.castShadow = SH; if (k === 'body') m.userData.body = true; out.add(m); }
+        for (const k in parts) { const list = parts[k].map(x => x.index ? x : x), merged = LIB.BGU.mergeGeometries(list.some(x => !x.index) ? list.map(x => x.index ? x.toNonIndexed() : x) : list); if (!merged) continue; const m = new THREE.Mesh(merged, carMats[k] || carMats.dark); m.castShadow = SH; if (k === 'body') m.userData.body = true; m.userData.kind = k; out.add(m); }
         return out;
       };
       sky.mapping = THREE.EquirectangularReflectionMapping;
@@ -630,6 +630,21 @@ const City3D = (() => {
   }
   let lampMat = null, traffic = [], pmrem = null, envRT = null;
   // une voiture aux formes arrondies : carrosserie, vitres teintées, jantes, phares
+  // 🔧 la voiture personnalisée au Garage Paradise : peinture, jantes (et chromes), néons sous la caisse
+  let myCarCfg = null;
+  function styleCar(g, cfg) {
+    if (!g || !cfg) return g;
+    g.traverse(o => { if (!o.isMesh) return;
+      if (cfg.paintHex && (o.userData.body || o.userData.paint)) { o.material = o.material.clone(); o.material.color = new THREE.Color(cfg.paintHex); }
+      if (cfg.rimsHex && (o.userData.kind === 'metal' || o.userData.rim)) { o.material = o.material.clone(); o.material.color = new THREE.Color(cfg.rimsHex); } });
+    const old = g.getObjectByName('neon'); if (old) g.remove(old);
+    if (cfg.neonHex) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.45, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(120, 70), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: new THREE.Color(cfg.neonHex), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      glow.rotation.x = -Math.PI / 2; glow.position.y = 1.2; glow.name = 'neon'; g.add(glow);
+    }
+    return g;
+  }
   function carMesh(color, hi) {
     if (ASSET) { // la vraie voiture, avec sa couleur
       const g = new THREE.Group(), m = (hi ? ASSET.carHi : ASSET.carLo).clone(true), paint = new THREE.Color(color);
@@ -637,10 +652,10 @@ const City3D = (() => {
       m.scale.setScalar(19); m.rotation.y = -Math.PI / 2; g.add(m); return g; // l'avant de la voiture dans le sens où elle roule
     }
     const g = new THREE.Group();
-    const paint = STD({ color, metalness: .55, roughness: .28, envMapIntensity: 1.2 }), glass = STD({ color: 0x0f1a24, metalness: .3, roughness: .05, envMapIntensity: 1.5 });
+    const paint = STD({ color, metalness: .55, roughness: .28, envMapIntensity: 1.2 }); paint.userData = {}; const glass = STD({ color: 0x0f1a24, metalness: .3, roughness: .05, envMapIntensity: 1.5 });
     const tire = STD({ color: 0x111214, roughness: .9 }), rim = STD({ color: 0xc8ccd2, metalness: .9, roughness: .25 });
     const prof = new THREE.Shape(); prof.moveTo(-38, 6); prof.lineTo(38, 6); prof.quadraticCurveTo(40, 6, 40, 12); prof.lineTo(39, 18); prof.quadraticCurveTo(36, 21, 26, 21); prof.lineTo(14, 22); prof.lineTo(4, 33); prof.lineTo(-18, 33); prof.lineTo(-27, 22); prof.lineTo(-36, 21); prof.quadraticCurveTo(-40, 20, -40, 14); prof.lineTo(-40, 10); prof.quadraticCurveTo(-40, 6, -38, 6);
-    const body = new THREE.Mesh(new THREE.ExtrudeGeometry(prof, { depth: 32, bevelEnabled: true, bevelThickness: 2.5, bevelSize: 2, bevelSegments: 2, curveSegments: 6 }), paint); body.position.z = -16; g.add(body);
+    const body = new THREE.Mesh(new THREE.ExtrudeGeometry(prof, { depth: 32, bevelEnabled: true, bevelThickness: 2.5, bevelSize: 2, bevelSegments: 2, curveSegments: 6 }), paint); body.position.z = -16; body.userData.paint = true; g.add(body);
     const win = new THREE.Shape(); win.moveTo(12, 23); win.lineTo(3, 32); win.lineTo(-17, 32); win.lineTo(-25, 23); win.closePath();
     const wm = new THREE.Mesh(new THREE.ExtrudeGeometry(win, { depth: 34.5, bevelEnabled: false }), glass); wm.position.z = -17.25; wm.scale.set(1, 1, 1); g.add(wm);
     for (const x of [-24, 24]) for (const z of [-17.5, 17.5]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 6, 16), tire); w.rotation.x = Math.PI / 2; w.position.set(x, 7.5, z); g.add(w); const r = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 6.4, 10), rim); r.rotation.x = Math.PI / 2; r.position.set(x, 7.5, z); g.add(r); }
@@ -696,7 +711,7 @@ const City3D = (() => {
       const [am, af, ...ppl] = await Promise.all([glb('anim_m.glb'), glb('anim_f.glb'), ...MEN.map(n => glb(n + '.glb')), ...WOMEN.map(n => glb(n + '.glb'))]);
       if (!PEOPLE) PEOPLE = peopleFrom(am, af, ppl);
     }
-    return { THREE, LIB, people: PEOPLE, makeHuman, pick: pickHuman, outfitKey, lookKey, loadOutfit, ACC3D };
+    return { THREE, LIB, people: PEOPLE, makeHuman, pick: pickHuman, outfitKey, lookKey, loadOutfit, ACC3D, car: cfg => styleCar(carMesh(new THREE.Color(cfg?.paintHex || '#c0161c'), true), cfg), hasRealCar: () => !!ASSET };
   }
   function human(p) {
     if (ASSET && PEOPLE) { const mk = outfitKey(p); return { ...makeHuman(PEOPLE.by[mk], undefined, p.deco || ''), mk, lk: lookKey(p) }; }
@@ -762,9 +777,13 @@ const City3D = (() => {
   const onWalk = (x, y) => A.STREETS_Y.some(sy => { const d = Math.abs(y - sy); return d > RW / 2 && d < RW / 2 + SW; }) || A.STREETS_X.some(sx => { const d = Math.abs(x - sx); return d > RW / 2 && d < RW / 2 + SW; });
   // ---------- 🚗 conduire une voiture ----------
   let myCar = null;
+  // 🔧 la voiture réglée au Garage : on la charge, et on la refait quand on la change
+  const loadCarCfg = () => api('/api/garage').then(r => { myCarCfg = r.car; }).catch(() => {});
+  if (typeof socket !== 'undefined') { socket.on('garage_car', c => { myCarCfg = c; if (myCar && scene) { const was = myCar.visible; scene.remove(myCar); myCar = null; if (was && driving) { myCar = styleCar(carMesh(new THREE.Color(myCarCfg?.paintHex || '#c0392b'), true), myCarCfg); scene.add(myCar); } } }); socket.on('connect', loadCarCfg); }
+  setTimeout(loadCarCfg, 3000);
   function toggleCar() {
     driving = !driving; speed = 0;
-    if (driving) { if (!myCar) { myCar = carMesh(new THREE.Color(A.players.get(A.me)?.color || '#c0392b'), true); scene.add(myCar); } myCar.visible = true; toast('🚗 Tu conduis ! Pousse le joystick (ou ▲) pour accélérer, et tourne à gauche ou à droite'); }
+    if (driving) { if (!myCar) { myCar = styleCar(carMesh(new THREE.Color(myCarCfg?.paintHex || A.players.get(A.me)?.color || '#c0392b'), true), myCarCfg); scene.add(myCar); } myCar.visible = true; toast('🚗 Tu conduis ! Pousse le joystick (ou ▲) pour accélérer, et tourne à gauche ou à droite'); }
     else if (myCar) myCar.visible = false;
     carBtn.textContent = driving ? '🚶 Descendre' : '🚗 Conduire'; carBtn.classList.toggle('on', driving);
   }
@@ -832,7 +851,7 @@ const City3D = (() => {
     }
     for (const [id, o] of people) if (!seen.has(id)) { scene.remove(o.g); if (o.tag) { scene.remove(o.tag); o.tag.material.map.dispose(); o.tag.material.dispose(); } people.delete(id); }
     if (t - lastSky > 15) { lastSky = t; sky(); }
-    if (window.Outfits?.isOpen?.()) return; /* 👗 la cabine d'essayage est ouverte par-dessus : on ne dessine pas la Ville en même temps */
+    if (window.Outfits?.isOpen?.() || window.Garage?.isOpen?.()) return; /* 👗 la cabine d'essayage est ouverte par-dessus : on ne dessine pas la Ville en même temps */
     R.render(scene, camera);
   }
   // on ajoute le bouton quand la Ville s'ouvre, et on relance la 3D si c'était la vue choisie

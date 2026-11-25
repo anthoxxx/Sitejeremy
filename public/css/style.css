@@ -4471,3 +4471,9 @@ body.ofs-on { overflow: hidden; }
 .ofs-dye.wear::after { content: '✓'; position: absolute; top: 4px; right: 6px; color: #2bff88; font-weight: 900; }
 .ofs-acc .ofs-ico { font-size: 2rem; line-height: 1.4; }
 @media (max-width: 759px) { .ofs-dyes { display: flex; overflow-x: auto; overflow-y: hidden; align-items: flex-start; flex: 1; } .ofs-dye { flex: 0 0 74px; } .ofs-acc { flex: 0 0 26% !important; align-self: flex-start; } }
+/* 🛍️ le centre commercial */
+.mall-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.mall-shop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line, rgba(255,255,255,.12)); background: rgba(127,127,127,.08); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mall-shop span { font-size: 1.5rem; }
+.mall-shop small { color: var(--muted); font-size: .74rem; }
+.mall-shop:hover { background: rgba(255,79,216,.12); }

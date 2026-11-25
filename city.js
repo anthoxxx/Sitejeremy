@@ -10,7 +10,8 @@ const FOOD = {
   Burger: [['🍔', 'Burger', 10], ['🍟', 'Frites', 5], ['🌭', 'Hot-dog', 7], ['🥤', 'Soda', 4], ['🍗', 'Nuggets', 8]],
   Glacier: [['🍦', 'Glace italienne', 5], ['🍨', 'Coupe glacée', 8], ['🍧', 'Granité', 5], ['🧋', 'Bubble tea', 7], ['🍓', 'Smoothie fraise', 6]],
   Bar: [['🍹', 'Cocktail des îles', 9], ['🍸', 'Mojito sans alcool', 8], ['🥂', 'Champagne', 15], ['🍾', 'Bouteille pour la table', 30], ['🧃', 'Jus de fruits', 4], ['☕', 'Café', 3]],
-  Supermarché: [['🍎', 'Pomme', 2], ['🍫', 'Tablette de chocolat', 4], ['🍬', 'Bonbons', 3], ['🥤', 'Canette', 3], ['🍿', 'Pop-corn', 4]],
+  Supermarché: [['🍎', 'Pomme', 2], ['🍌', 'Bananes', 2], ['🥖', 'Pain de mie', 3], ['🥪', 'Sandwich', 5], ['🍝', 'Pâtes et sauce', 6], ['🍲', 'Plat cuisiné', 7], ['🧀', 'Fromage', 5], ['🥛', 'Bouteille de lait', 3], ['💧', 'Pack d\'eau', 3], ['🧃', 'Jus d\'orange', 4], ['🍫', 'Tablette de chocolat', 4], ['🍬', 'Bonbons', 3], ['🥤', 'Canette', 3], ['🍿', 'Pop-corn', 4]],
+  'Station-service': [['☕', 'Café', 2], ['🥪', 'Sandwich', 5], ['🌭', 'Hot-dog', 6], ['💧', 'Bouteille d\'eau', 2], ['🥤', 'Canette', 3], ['🍫', 'Barre chocolatée', 2], ['🥐', 'Croissant', 2]],
   Hôtel: [['🥞', 'Petit-déjeuner', 10], ['🍾', 'Champagne en chambre', 25]],
 };
 // 🐾 Les soins pour l'animal

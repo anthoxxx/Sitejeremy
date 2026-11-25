@@ -2967,6 +2967,9 @@ Outfits.routes(app, auth);
 // 🔑 Mot de passe oublié (lien par e-mail, ou demande à l'équipe)
 const PassReset = require('./passreset')({ db, bcrypt, getUser: id => getUser(id), getUserByName: n => getUserByName(n), tooMany: (...a) => tooMany(...a), emitToStaff: (...a) => emitToStaff(...a), log: (...a) => log(...a), createSession: (...a) => createSession(...a), publicUser: u => publicUser(u), isSuper: u => isSuper(u), rank: u => rank(u), banBlock: u => banBlock(u) });
 PassReset.routes(app, admin, requireRole);
+// 🔧 Le Garage Paradise : peinture, néons et jantes de la voiture 3D
+const Garage = require('./garage')({ db, coins: Coins, emitToUser: (...a) => emitToUser(...a) });
+Garage.routes(app, auth);
 const reward = (id, key, ...rest) => {
   // les jeux comptent aussi pour les quêtes du jour et les succès
   const kind = /^win_/.test(key) ? 'game_win' : /^play_/.test(key) ? 'game' : key === 'bf_win' || key === 'bf_bot' ? 'babyfoot_win' : key === 'bf_play' ? 'babyfoot' : null;

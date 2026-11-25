@@ -8,7 +8,7 @@
 
 // Taille et zone où l'on peut marcher pour chaque type de lieu (même formules côté navigateur)
 const SCENES = {
-  island: { W: 4200, H: 2900, walk: (x, y) => x > 70 && x < 4130 && y > 160 && y < 2840 && Math.hypot((x - 2200) / 300, (y - 2600) / 105) > 1 }, // la grande ville du Paradise
+  island: { W: 5800, H: 2900, walk: (x, y) => x > 70 && x < 5730 && y > 160 && y < 2840 && Math.hypot((x - 2200) / 300, (y - 2600) / 105) > 1 }, // la grande ville du Paradise
   club: { W: 1200, H: 760, walk: (x, y) => x > 60 && x < 1140 && y > 290 && y < 720 },
   cinema: { W: 1200, H: 800, walk: (x, y) => x > 60 && x < 1140 && y > 575 && y < 770 },
   // la grande maison : 4 pièces séparées par des murs avec des portes (même formule côté navigateur)

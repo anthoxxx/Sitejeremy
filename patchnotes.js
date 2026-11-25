@@ -1685,4 +1685,19 @@ module.exports = [
     changed: [],
     removed: [],
   },
+  {
+    id: 120,
+    date: '2026-11-25',
+    title: 'La Ville s\'agrandit : la zone commerciale 🛣️🔧',
+    added: [
+      '🌍 La Ville est plus grande : un tout nouveau quartier à l\'est, avec des rues, des voitures et plein de nouvelles boutiques',
+      '🔧 Le Garage Paradise : ta voiture tourne sur le pont élévateur en 3D, choisis sa peinture, des néons sous la caisse et la couleur des jantes. Elle garde ce style quand tu touches « Conduire »',
+      '⛽ La Station-service : café, sandwichs, hot-dogs et boissons pour la route',
+      '🛒 L\'Hypermarché : beaucoup plus de courses (sandwichs, pâtes, plats cuisinés, lait, eau, jus…) pour remplir ta faim et ta soif',
+      '🛍️ Le Centre commercial : toutes les boutiques au même endroit (vêtements 3D, coiffeur, bijouterie, glacier, librairie, fleuriste, sushi, burger)',
+      '🚗 La Concession auto et 🧽 le Lavage auto',
+    ],
+    changed: ['🎬 Le Ciné Paradise et 🏊 la Pool Party de la Ville t\'emmènent maintenant directement dans le cinéma et le parc aquatique 3D du Paradise Complex'],
+    removed: [],
+  },
 ];
