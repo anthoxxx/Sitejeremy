@@ -4477,3 +4477,31 @@ body.ofs-on { overflow: hidden; }
 .mall-shop span { font-size: 1.5rem; }
 .mall-shop small { color: var(--muted); font-size: .74rem; }
 .mall-shop:hover { background: rgba(255,79,216,.12); }
+/* le joystick de la Ville ne passe jamais par-dessus une fenêtre ouverte */
+body:has(.modal-back) .joy, body.ofs-on .joy { display: none !important; }
+/* 📱 la bulle « retour au téléphone » : plus petite et discrète ; dans la Ville, le bouton 📱 du haut suffit */
+@media (max-width: 760px) { .ph-return { width: 42px; height: 42px; right: 6px; top: 46%; opacity: .8; } .ph-return span { font-size: 19px; } }
+body.island-open .ph-return { display: none !important; }
+/* 📱 « recalibrage » téléphone : les bandeaux du salon prennent moins de place, les messages en gagnent */
+@media (max-width: 760px) {
+  .ev-banner { margin: 6px 10px 0; padding: 6px 10px; gap: 8px; font-size: .86rem; }
+  .ev-banner > *:first-child { font-size: 1.15rem; }
+  .season-banner { margin: 6px 10px 0; padding: 4px 6px 4px 12px; font-size: .8rem; border-radius: 12px; }
+  .season-banner .btn-icon { width: 26px; height: 26px; }
+  .uv-banner { margin: 6px 10px 0; }
+  .typing { height: 18px; }
+}
+/* petits téléphones (écran peu haut) : on cache le bandeau de saison et on serre encore */
+@media (max-width: 760px) and (max-height: 700px) {
+  .season-banner { display: none; }
+  .ev-banner small, .ev-banner .ev-sub { display: none; }
+  .uv-banner.small { --uv-h: 20px; padding: 4px 36px 4px 10px; margin-top: 4px; }
+  .room-head { padding-top: 6px; padding-bottom: 6px; }
+}
+/* la Ville 3D sur un petit téléphone : le joystick et « Conduire » ne recouvrent plus les barres de faim */
+@media (max-width: 760px) and (max-height: 700px) {
+  .joy { width: 100px; height: 100px; bottom: calc(196px + env(safe-area-inset-bottom)); }
+  .joy-knob { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+  .car3d { bottom: calc(210px + env(safe-area-inset-bottom)); padding: 9px 14px; font-size: .85rem; }
+  .isl-nd { top: calc(112px + env(safe-area-inset-top)); transform: scale(.85); transform-origin: top left; }
+}

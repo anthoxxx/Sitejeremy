@@ -773,6 +773,32 @@ const City3D = (() => {
     tag(p, o); o.tag.position.set(o.x, o.g.position.y + 60, o.y);
     return o;
   }
+  // ---------- 🐾 les animaux de compagnie : ils trottinent derrière leur maître (le même dessin que sur le plan) ----------
+  function petFollow(p, o, t, dt) {
+    const P = p.pet;
+    if (!P) { if (o.pet) { scene.remove(o.pet.s); o.pet.s.material.map.dispose(); o.pet.s.material.dispose(); o.pet = null; } return; }
+    if (!o.pet) { const c = document.createElement('canvas'); c.width = c.height = 256; const T = new THREE.CanvasTexture(c); T.colorSpace = THREE.SRGBColorSpace;
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: T, transparent: true, depthWrite: false })); s.center.set(.5, .04); scene.add(s);
+      const side = p.id % 2 ? 1 : -1; o.pet = { s, c, key: '', at: 0, x: o.x - side * 24, y: o.y + 14, side }; }
+    const Q = o.pet, r = o.g.rotation.y, fx = Math.sin(r), fy = Math.cos(r);
+    const tx = o.x - fx * 26 + fy * Q.side * 18, ty = o.y - fy * 26 - fx * Q.side * 18;
+    const k = Math.min(1, dt * 4); Q.x += (tx - Q.x) * k; Q.y += (ty - Q.y) * k;
+    const moving = Math.hypot(tx - Q.x, ty - Q.y) > 3, hop = moving ? Math.abs(Math.sin(t * 14 + p.id)) * 3 : Math.abs(Math.sin(t * 2.5 + p.id)) * .8;
+    const size = ({ bebe: 15, ado: 18, adulte: 21, legende: 24 }[P.stage] || 17);
+    Q.s.scale.set(size, size, 1); Q.s.position.set(Q.x, (onWalk(Q.x, Q.y) ? CURB : 0) + hop, Q.y); Q.s.visible = o.g.visible;
+    // on redessine l'animal quand il change, et un peu en continu s'il marche (ses pattes bougent)
+    const key = [P.icon, P.species, P.stage, P.acc, P.creature, P.mood].join('|');
+    if (key !== Q.key || (P.creature && moving && t - Q.at > .12)) {
+      Q.key = key; Q.at = t; const g = Q.c.getContext('2d'); g.clearRect(0, 0, 256, 256); g.save(); g.translate(128, 236);
+      if (P.stage === 'legende') { g.shadowColor = '#ffd76a'; g.shadowBlur = 24; }
+      if (P.creature && window.Look?.drawCreature) { const kk = 3.6; g.save(); g.translate(0, -20 * kk); g.scale(kk, kk); window.Look.drawCreature(g, P.species, { t, walking: moving, seed: p.id + 7 }); g.restore(); }
+      else { g.font = '170px "Noto Color Emoji", "Apple Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(P.icon || '🐾', 0, 0); }
+      g.shadowBlur = 0;
+      if (P.acc) { g.font = '84px "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(P.acc, 0, -150); }
+      if (P.mood === 'sad' || P.mood === 'starving') { g.font = '56px sans-serif'; g.fillText(P.mood === 'starving' ? '🍖' : '💧', 78, -110); }
+      g.restore(); Q.s.material.map.needsUpdate = true;
+    }
+  }
   // est-ce qu'on est sur un trottoir (un peu plus haut que la route) ?
   const onWalk = (x, y) => A.STREETS_Y.some(sy => { const d = Math.abs(y - sy); return d > RW / 2 && d < RW / 2 + SW; }) || A.STREETS_X.some(sx => { const d = Math.abs(x - sx); return d > RW / 2 && d < RW / 2 + SW; });
   // ---------- 🚗 conduire une voiture ----------
@@ -798,6 +824,10 @@ const City3D = (() => {
     pad.addEventListener('pointermove', e => { if (e.pointerId === id) move(e); });
     const up = e => { if (e.pointerId !== id) return; id = null; stick.on = false; stick.x = stick.y = 0; knob.style.transform = ''; pad.classList.remove('on'); };
     pad.addEventListener('pointerup', up); pad.addEventListener('pointercancel', up);
+    // si une fenêtre s'ouvre pendant qu'on a le doigt dessus (ou qu'on change d'appli), le joystick se relâche tout seul
+    const release = () => { id = null; stick.on = false; stick.x = stick.y = 0; knob.style.transform = ''; pad.classList.remove('on'); };
+    pad.addEventListener('lostpointercapture', release); addEventListener('blur', release); document.addEventListener('visibilitychange', release);
+    new MutationObserver(() => { if (stick.on && document.querySelector('.modal-back, .ofs')) release(); }).observe(document.body, { childList: true });
     root.append(pad);
   }
   // ---------- chaque image ----------
@@ -848,8 +878,9 @@ const City3D = (() => {
     for (const p of A.players.values()) {
       const hide = p.id === A.me && (mode === 'first' || driving);
       const o = person(p, t, dt); o.g.visible = !hide; o.tag.visible = !hide; seen.add(p.id);
+      petFollow(p, o, t, dt);
     }
-    for (const [id, o] of people) if (!seen.has(id)) { scene.remove(o.g); if (o.tag) { scene.remove(o.tag); o.tag.material.map.dispose(); o.tag.material.dispose(); } people.delete(id); }
+    for (const [id, o] of people) if (!seen.has(id)) { scene.remove(o.g); if (o.pet) { scene.remove(o.pet.s); o.pet = null; } if (o.tag) { scene.remove(o.tag); o.tag.material.map.dispose(); o.tag.material.dispose(); } people.delete(id); }
     if (t - lastSky > 15) { lastSky = t; sky(); }
     if (window.Outfits?.isOpen?.() || window.Garage?.isOpen?.()) return; /* 👗 la cabine d'essayage est ouverte par-dessus : on ne dessine pas la Ville en même temps */
     R.render(scene, camera);

@@ -1700,4 +1700,17 @@ module.exports = [
     changed: ['🎬 Le Ciné Paradise et 🏊 la Pool Party de la Ville t\'emmènent maintenant directement dans le cinéma et le parc aquatique 3D du Paradise Complex'],
     removed: [],
   },
+  {
+    id: 121,
+    date: '2026-11-26',
+    title: 'Ton animal dans la Ville 3D 🐾 et un site mieux réglé sur téléphone 📱',
+    added: ['🐾 Ton animal de compagnie te suit maintenant dans la Ville 3D, avec ses accessoires, et tout le monde le voit trottiner derrière toi'],
+    changed: [
+      '🕹️ Le joystick de la Ville ne reste plus bloqué en rose par-dessus les fenêtres (animal, boutiques…)',
+      '📱 Sur téléphone, les bandeaux du salon prennent moins de place : on voit plus de messages',
+      '📱 Sur les petits téléphones, le joystick et le bouton « Conduire » ne cachent plus les barres de faim et de soif',
+      '📱 La bulle « Retour au téléphone » est plus discrète, et cachée dans la Ville (le bouton 📱 du haut suffit)',
+    ],
+    removed: [],
+  },
 ];
