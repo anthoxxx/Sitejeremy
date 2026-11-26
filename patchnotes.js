@@ -1713,4 +1713,12 @@ module.exports = [
     ],
     removed: [],
   },
+  {
+    id: 122,
+    date: '2026-11-26',
+    title: 'La bouteille à la mer 🍾',
+    added: ['🍾 Pour t\'inscrire ou te connecter, touche la bouteille qui flotte près de l\'île : le bouchon saute, un parchemin se déroule… et devient le formulaire ! (le bouton « Passer » va plus vite)'],
+    changed: [],
+    removed: [],
+  },
 ];

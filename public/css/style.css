@@ -4505,3 +4505,50 @@ body.island-open .ph-return { display: none !important; }
   .car3d { bottom: calc(210px + env(safe-area-inset-bottom)); padding: 9px 14px; font-size: .85rem; }
   .isl-nd { top: calc(112px + env(safe-area-inset-top)); transform: scale(.85); transform-origin: top left; }
 }
+/* 🍾 La bouteille à la mer (avant l'inscription / la connexion) */
+#authCard.gated { position: relative; min-height: 460px; overflow: hidden; }
+#authCard.gated > :not(.bgate) { visibility: hidden; }
+.bgate { position: absolute; inset: 0; z-index: 5; border-radius: inherit; overflow: hidden; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+.bgate .bg-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bg-stars circle { animation: bgTwinkle 2.4s ease-in-out infinite; }
+@keyframes bgTwinkle { 50% { opacity: .2; } }
+.bg-wave { animation: bgWave 7s linear infinite; } .bg-wave.w2 { animation-duration: 10s; animation-direction: reverse; }
+@keyframes bgWave { to { transform: translateX(400px); } }
+.bg-foam { animation: bgFoam 3.5s ease-in-out infinite; } @keyframes bgFoam { 50% { opacity: .25; transform: translateY(4px); } }
+.bg-palm { transform-box: fill-box; } .bg-palm g { animation: bgPalm 4s ease-in-out infinite; transform-origin: 0 0; } @keyframes bgPalm { 50% { transform: translate(-14px, -122px) rotate(-4deg); } }
+.bg-palm g { transform: translate(-14px, -122px); }
+.bg-bottle { position: absolute; left: 22%; top: 54%; width: 46px; height: 116px; padding: 0; border: 0; background: none; cursor: pointer; transform-origin: 50% 60%; animation: bgBob 2.6s ease-in-out infinite; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); transition: left .75s cubic-bezier(.3,.7,.3,1), top .75s cubic-bezier(.3,.7,.3,1); z-index: 2; }
+.bg-bottle svg { width: 100%; height: 100%; display: block; overflow: visible; }
+@keyframes bgBob { 0%, 100% { transform: translateY(0) rotate(-62deg); } 50% { transform: translateY(-8px) rotate(-52deg); } }
+.bg-bottle::after { content: ''; position: absolute; left: 50%; top: 50%; width: 90px; height: 90px; margin: -45px; border-radius: 50%; border: 2px solid rgba(255,255,255,.7); animation: bgRing 1.8s ease-out infinite; pointer-events: none; }
+@keyframes bgRing { from { transform: scale(.4); opacity: .9; } to { transform: scale(1.3); opacity: 0; } }
+.bg-hint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); white-space: nowrap; background: rgba(20,10,40,.62); color: #fff; font-weight: 800; font-size: .9rem; padding: 9px 16px; border-radius: 999px; backdrop-filter: blur(6px); animation: bgPulse 1.6s ease-in-out infinite; z-index: 3; }
+@keyframes bgPulse { 50% { transform: translateX(-50%) scale(1.05); } }
+.bg-title { position: absolute; top: 20px; left: 0; right: 0; text-align: center; color: #fff; font-weight: 900; font-size: 1.25rem; text-shadow: 0 2px 10px rgba(0,0,0,.4); z-index: 3; }
+.bg-skip { position: absolute; top: 12px; right: 12px; z-index: 4; border: 0; border-radius: 999px; padding: 6px 12px; background: rgba(0,0,0,.35); color: #fff; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+/* 1) la bouteille arrive sur la plage et se redresse */
+.bgate.bg-go .bg-bottle { left: calc(50% - 23px); top: 60%; animation: bgLand .75s ease-out forwards; }
+@keyframes bgLand { from { transform: rotate(-62deg); } 70% { transform: rotate(6deg) translateY(-6px); } to { transform: rotate(0); } }
+.bgate.bg-go .bg-hint, .bgate.bg-go .bg-title, .bgate.bg-go .bg-skip, .bgate.bg-go .bg-bottle::after { opacity: 0; transition: opacity .3s; }
+.bgate.bg-go .bg-bottle::after { animation: none; }
+/* 2) le bouchon saute */
+.bg-cork { transform-box: fill-box; transform-origin: 50% 100%; }
+.bgate.bg-pop .bg-cork { animation: bgCork .7s cubic-bezier(.2,.8,.3,1) forwards; }
+@keyframes bgCork { to { transform: translate(40px, -120px) rotate(400deg); opacity: 0; } }
+.bg-spark { position: absolute; left: 50%; top: 58%; font-style: normal; font-size: 1.2rem; pointer-events: none; animation: bgSpark .9s ease-out forwards; z-index: 4; }
+@keyframes bgSpark { from { transform: translate(0, 0) scale(.4); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; } }
+/* 3) le parchemin sort de la bouteille et se déroule */
+.bg-scroll { position: absolute; left: 50%; top: 50%; width: 86%; height: 80%; transform: translate(-50%, -30%) scale(.08, .02); opacity: 0; z-index: 4; border-radius: 10px; background: radial-gradient(ellipse at 30% 20%, #fff7e2, #f1dcae 70%, #e2c48a); box-shadow: 0 20px 50px rgba(0,0,0,.35), inset 0 0 40px rgba(160,110,40,.35); display: grid; place-items: center; }
+.bg-scroll::before, .bg-scroll::after { content: ''; position: absolute; left: -8px; right: -8px; height: 26px; border-radius: 13px; background: linear-gradient(#d9b877, #f6e3b5 45%, #c9a15c); box-shadow: 0 4px 10px rgba(0,0,0,.25); }
+.bg-scroll::before { top: -12px; } .bg-scroll::after { bottom: -12px; }
+.bg-scroll-in { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #6b4316; font-weight: 900; font-size: 1.3rem; font-family: Georgia, 'Times New Roman', serif; font-style: italic; opacity: 0; transition: opacity .3s .45s; }
+.bg-scroll-in span { font-size: 2.4rem; font-style: normal; }
+.bgate.bg-unroll .bg-scroll { animation: bgUnroll .95s cubic-bezier(.2,.8,.2,1) forwards; }
+.bgate.bg-unroll .bg-scroll-in { opacity: 1; }
+.bgate.bg-unroll .bg-bottle { opacity: 0; transition: opacity .4s .2s; }
+@keyframes bgUnroll { 0% { transform: translate(-50%, -30%) scale(.08, .02); opacity: 1; } 45% { transform: translate(-50%, -50%) scale(1, .06); } 100% { transform: translate(-50%, -50%) scale(1, 1); opacity: 1; } }
+/* 4) … et devient le formulaire */
+.bgate.bg-out { opacity: 0; transform: scale(1.04); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
+#authCard.bg-revealed > :not(.bgate) { animation: bgReveal .6s ease both; }
+@keyframes bgReveal { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+@media (max-width: 760px) { #authCard.gated { min-height: 420px; } .bg-title { font-size: 1.1rem; } }
