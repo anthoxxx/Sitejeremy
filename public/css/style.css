@@ -4507,7 +4507,7 @@ body.island-open .ph-return { display: none !important; }
 }
 /* 🍾 La bouteille à la mer (avant l'inscription / la connexion) */
 #authCard.gated { position: relative; min-height: 460px; overflow: hidden; }
-#authCard.gated > :not(.bgate) { visibility: hidden; }
+#authCard.gated > :not(.bgate):not(.igate) { visibility: hidden; }
 .bgate { position: absolute; inset: 0; z-index: 5; border-radius: inherit; overflow: hidden; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .bgate .bg-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bg-stars circle { animation: bgTwinkle 2.4s ease-in-out infinite; }
@@ -4552,3 +4552,48 @@ body.island-open .ph-return { display: none !important; }
 #authCard.bg-revealed > :not(.bgate) { animation: bgReveal 1s ease both; }
 @keyframes bgReveal { from { opacity: 0; transform: translateY(10px) scale(.98); } }
 @media (max-width: 760px) { #authCard.gated { min-height: 420px; } .bg-title { font-size: 1.1rem; } }
+/* 🚪🔑 La porte de l'île (avant l'inscription / la connexion) */
+#authCard.gated > :not(.igate):not(.bgate) { visibility: hidden; }
+.igate { position: absolute; inset: 0; z-index: 5; border-radius: inherit; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+.igate .ig-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ig-star { animation: bgTwinkle 2.6s ease-in-out infinite; }
+.ig-flame { transform-box: fill-box; transform-origin: 50% 100%; animation: igFlame .5s ease-in-out infinite alternate; }
+@keyframes igFlame { to { transform: scale(1.12, .9); opacity: .85; } }
+.ig-leaves { transform-box: fill-box; transform-origin: 0 50%; animation: igLeaves 4.5s ease-in-out infinite; } @keyframes igLeaves { 50% { transform: translate(18px, -230px) rotate(3deg); } }
+.ig-leaves { transform: translate(18px, -230px); }
+/* l'ouverture de la porte, dans l'arche (en % de la scène) */
+.ig-doorway { position: absolute; left: 25%; right: 25%; top: 20%; bottom: 10.5%; perspective: 700px; border-radius: 50% 50% 0 0 / 22% 22% 0 0; overflow: hidden; }
+.ig-light { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 60%, #fff8dc, #ffd36b 40%, #ff8a3d 80%); opacity: .0; transition: opacity 1.6s ease; }
+.ig-door { position: absolute; top: 0; bottom: 0; width: 50%; background:
+  linear-gradient(90deg, rgba(0,0,0,.25), transparent 12%, transparent 88%, rgba(0,0,0,.25)),
+  repeating-linear-gradient(90deg, #7a4a24 0 22px, #5e3818 22px 24px),
+  linear-gradient(#8a5a2e, #6b4220);
+  box-shadow: inset 0 0 30px rgba(0,0,0,.45); transition: transform 2.2s cubic-bezier(.45,.05,.25,1); backface-visibility: hidden; }
+.ig-door::before, .ig-door::after { content: ''; position: absolute; left: 0; right: 0; height: 12px; background: linear-gradient(#3a3a40, #1e1e22); box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+.ig-door::before { top: 22%; } .ig-door::after { bottom: 18%; }
+.ig-door.l { left: 0; transform-origin: 0 50%; border-right: 2px solid #3a2410; }
+.ig-door.r { right: 0; transform-origin: 100% 50%; border-left: 2px solid #3a2410; }
+.igate.ig-open .ig-door.l { transform: rotateY(-108deg); }
+.igate.ig-open .ig-door.r { transform: rotateY(108deg); }
+.igate.ig-open .ig-light { opacity: 1; }
+/* le cadenas, au milieu des deux battants */
+.ig-lock { position: absolute; left: 50%; top: 52%; width: 64px; height: 80px; margin-left: -32px; z-index: 3; filter: drop-shadow(0 6px 8px rgba(0,0,0,.45)); transition: transform .3s; }
+.ig-lock svg { width: 100%; height: 100%; overflow: visible; }
+.ig-lock.near { transform: scale(1.12); filter: drop-shadow(0 0 14px #ffd24a); }
+.ig-shackle { transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.igate.ig-click .ig-shackle { transform: translateY(-14px); }
+.igate.ig-drop .ig-key { opacity: 0; transition: opacity .6s .3s; }
+.igate.ig-drop .ig-lock { transition: transform 1s cubic-bezier(.5,0,.8,.6), opacity 1s; transform: translateY(170px) rotate(40deg); opacity: 0; }
+/* la clé dorée, posée sur le sable */
+.ig-key { position: absolute; left: 50%; bottom: 3.5%; width: 104px; height: 44px; margin-left: -52px; z-index: 4; cursor: grab; touch-action: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.4)); animation: igKey 2s ease-in-out infinite; }
+.ig-key svg { width: 100%; height: 100%; display: block; }
+.ig-key::after { content: ''; position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(255,215,90,.45), transparent 65%); pointer-events: none; animation: bgRing 1.8s ease-out infinite; }
+.ig-key.held { cursor: grabbing; animation: none; }
+.ig-key.held::after, .igate.ig-go .ig-key::after { display: none; }
+@keyframes igKey { 50% { transform: translateY(-6px) rotate(-6deg); } }
+.igate.ig-go .ig-key { animation: none; }
+.ig-hint { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); white-space: nowrap; background: rgba(20,10,40,.62); color: #fff; font-weight: 800; font-size: .9rem; padding: 9px 16px; border-radius: 999px; backdrop-filter: blur(6px); z-index: 4; animation: bgPulse 1.6s ease-in-out infinite; }
+.ig-skip { position: absolute; bottom: 12px; right: 12px; z-index: 6; border: 0; border-radius: 999px; padding: 6px 12px; background: rgba(0,0,0,.4); color: #fff; font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.igate.ig-go .ig-hint, .igate.ig-go .ig-skip { opacity: 0; transition: opacity .5s; pointer-events: none; }
+.igate.ig-out { opacity: 0; transform: scale(1.06); transition: opacity .9s ease, transform .9s ease; pointer-events: none; }
+@media (max-width: 760px) { .ig-hint { font-size: .82rem; padding: 8px 13px; } }
