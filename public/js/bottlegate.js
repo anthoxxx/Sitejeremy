@@ -67,13 +67,13 @@
     try { localStorage.setItem('lc_bottle', '1'); } catch (e) {}
     if (fast) { reveal(); setTimeout(finish, 450); return; }
     gate.classList.add('bg-go');                  // la bouteille arrive sur la plage
-    setTimeout(() => { gate.classList.add('bg-pop'); pop(); sparkle(); }, 750);   // le bouchon saute
-    setTimeout(() => gate.classList.add('bg-unroll'), 1050);                       // le parchemin se déroule
-    setTimeout(reveal, 2050);                                                       // … et devient le formulaire
-    setTimeout(finish, 2550);
+    setTimeout(() => { gate.classList.add('bg-pop'); pop(); sparkle(); }, 1500);  // le bouchon saute
+    setTimeout(() => gate.classList.add('bg-unroll'), 2100);                       // le parchemin se déroule
+    setTimeout(reveal, 4800);                                                       // … et devient le formulaire
+    setTimeout(finish, 5700);
   }
   // le formulaire apparaît pendant que le parchemin s'efface (pas de moment vide)
-  function reveal() { card.classList.remove('gated'); card.classList.add('bg-revealed'); gate.classList.add('bg-out'); setTimeout(() => card.classList.remove('bg-revealed'), 900); }
+  function reveal() { card.classList.remove('gated'); card.classList.add('bg-revealed'); gate.classList.add('bg-out'); setTimeout(() => card.classList.remove('bg-revealed'), 1300); }
   function finish() { gate.remove(); card.querySelector('form:not(.hidden) input:not([type=hidden])')?.focus({ preventScroll: true }); }
   gate.querySelector('.bg-bottle').addEventListener('click', () => open(false));
   gate.querySelector('.bg-skip').addEventListener('click', e => { e.stopPropagation(); open(true); });
