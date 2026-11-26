@@ -1713,12 +1713,4 @@ module.exports = [
     ],
     removed: [],
   },
-  {
-    id: 122,
-    date: '2026-11-26',
-    title: 'La porte de l\'île 🚪🔑',
-    added: ['🔑 Pour t\'inscrire ou te connecter, fais glisser la clé dorée dans le cadenas de la grande porte de l\'île : la clé tourne, le cadenas tombe, les portes s\'ouvrent… et le formulaire apparaît dans la lumière ! (le bouton « Passer » va plus vite)'],
-    changed: [],
-    removed: [],
-  },
 ];
