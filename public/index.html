@@ -32,7 +32,7 @@
   <!-- 🕯️ En mémoire de Jérôme -->
   <button type="button" class="tribute" id="tributeBtn" aria-label="En mémoire de Jérôme">
     <span class="tr-photo"><img src="/img/jerome.jpg" alt="Jérôme" width="64" height="64"><i class="tr-candle">🕯️</i></span>
-    <span class="tr-text"><b>En mémoire de Jérôme</b><small>Il rêvait d'un site comme celui-ci, et c'est lui qui l'avait appelé « Paradise ». Parti trop tôt, à 44 ans. On pense à toi 🕊️</small></span>
+    <span class="tr-text"><b>En mémoire de Jérôme</b><small>Il rêvait d'un site comme celui-ci, et c'est lui qui l'avait appelé « Paradise ». Il nous a quittés le 7 août, beaucoup trop vite, emporté par la maladie, à 45 ans. On pense à toi 🕊️</small></span>
   </button>
 
   <section class="hero">
@@ -231,8 +231,9 @@
     back.append(LC.el('div', { class: 'tr-modal' },
       LC.el('button', { type: 'button', class: 'tr-close', 'aria-label': 'Fermer', onclick: () => back.remove() }, '✕'),
       LC.el('img', { class: 'tr-big', src: '/img/jerome-full.jpg', alt: 'Jérôme' }),
-      LC.el('h2', {}, 'Jérôme'), LC.el('div', { class: 'tr-age' }, 'Parti trop tôt, à 44 ans'),
+      LC.el('h2', {}, 'Jérôme'), LC.el('div', { class: 'tr-age' }, 'Parti le 7 août, à 45 ans'),
       LC.el('p', {}, 'De son vivant, Jérôme rêvait de créer un site comme celui-ci, un endroit où l\'on se retrouve, où l\'on se fait des amis, où l\'on rit ensemble. C\'est lui qui l\'avait déjà appelé « Paradise ».'),
+      LC.el('p', {}, 'Il nous a quittés le 7 août, beaucoup trop vite, emporté par sa maladie, à l\'âge de 45 ans.'),
       LC.el('p', {}, 'The Paradise est né de son rêve. Chaque message, chaque rencontre, chaque fou rire ici porte un peu de lui.'),
       LC.el('p', { class: 'tr-rip' }, 'Repose en paix, Jérôme. On ne t\'oublie pas. 🕊️'),
       flame, btn, LC.el('div', { class: 'tr-count' }, count, label)));
