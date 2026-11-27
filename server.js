@@ -3924,6 +3924,7 @@ function modBotStrike(u, room, scanned) {
 
 // ---------- Salon « Patch note » : le bot annonce les nouveautés (voir patchnotes.js) ----------
 const PATCH_SLUG = 'patchnote';
+const PATCH_SHOWN = 20; // 📝 nombre de patch notes affichées dans le salon (les plus récentes)
 const PATCH_BOT = { username: 'Soldat76-Patch', color: '#7cc8ff', icon: '📝' };
 function patchText(n) {
   const d = new Date(n.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
@@ -3933,7 +3934,7 @@ function patchText(n) {
     + '\n\ncreate by Anthony';
 }
 const patchMsg = n => ({ room: PATCH_SLUG, id: 'patch' + n.id, userId: 0, username: PATCH_BOT.username, color: PATCH_BOT.color, gender: 'x', role: 'bot', avatar: '', bot: true, botIcon: PATCH_BOT.icon, content: patchText(n), createdAt: new Date(n.date + 'T12:00:00Z').getTime(), kind: 'text' });
-const patchHistory = () => { try { delete require.cache[require.resolve('./patchnotes')]; return [...require('./patchnotes')].sort((a, b) => a.id - b.id).map(patchMsg); /* toujours dans l'ordre des numéros */ } catch (e) { console.error('patchnotes.js', e.message); return []; } };
+const patchHistory = () => { try { delete require.cache[require.resolve('./patchnotes')]; return [...require('./patchnotes')].sort((a, b) => a.id - b.id).slice(-PATCH_SHOWN).map(patchMsg); /* seulement les plus récentes, pour que le salon reste lisible */ /* toujours dans l'ordre des numéros */ } catch (e) { console.error('patchnotes.js', e.message); return []; } };
 const patchLast = () => { try { return Math.max(0, ...require('./patchnotes').map(n => n.id)); } catch (e) { return 0; } };
 // Nouvelle patch note : tous les membres venus ces 30 derniers jours reçoivent une notification (une seule fois)
 setTimeout(() => {
