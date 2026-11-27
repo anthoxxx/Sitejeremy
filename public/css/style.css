@@ -4661,3 +4661,32 @@ body.island-open .ph-return { display: none !important; }
 @keyframes tcCoin { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) rotate(var(--r)) scale(1.1); opacity: 0; } }
 .tchest.tc-out { opacity: 0; transform: scale(1.06); transition: opacity .9s ease, transform .9s ease; pointer-events: none; }
 @media (max-width: 760px) { #authCard.gated { min-height: 440px; } }
+/* 🎬 L'intro vidéo de l'accueil (vraies îles filmées en drone) */
+.hv-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #0b2a3a url(/video/paradise-poster.jpg) center / cover no-repeat; }
+.hv-bg video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.04); transition: transform 2.4s ease; }
+.hv-dim { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(8,10,30,.05), rgba(8,10,30,.45)); transition: background 1.2s ease; }
+body.hv-in .hv-dim { background: linear-gradient(180deg, rgba(10,8,26,.62), rgba(10,8,26,.78) 60%, rgba(10,8,26,.9)); }
+body.hv-in .hv-bg video { transform: scale(1.12); }
+body.hv-on .home-bg { display: none; }
+body.hv-on .landing { position: relative; z-index: 1; background: transparent; }
+body.hv-locked { overflow: hidden; }
+body.hv-locked .landing { opacity: 0; transform: translateY(30px); }
+body.hv-on .landing { transition: opacity 1.1s ease .25s, transform 1.1s cubic-bezier(.2,.8,.2,1) .25s; }
+.hv-intro { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; cursor: pointer; padding: 24px; transition: opacity 1.1s ease, transform 1.1s ease; }
+.hv-intro.hv-leave { opacity: 0; transform: scale(1.06); pointer-events: none; }
+.hv-center { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: hvIn 1.6s cubic-bezier(.2,.8,.2,1) both .3s; }
+@keyframes hvIn { from { opacity: 0; transform: translateY(24px); filter: blur(6px); } }
+.hv-logo { width: min(210px, 48vw); height: auto; filter: drop-shadow(0 10px 30px rgba(0,0,0,.45)); }
+.hv-title { margin: 6px 0 0; font-size: clamp(2rem, 6.4vw, 4rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; text-shadow: 0 4px 30px rgba(0,0,0,.45); }
+.hv-title em { font-style: normal; background: linear-gradient(90deg, #ffe08a, #ff9ac8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hv-sub { margin: 0 0 18px; font-size: clamp(1rem, 2.4vw, 1.25rem); font-weight: 500; opacity: .95; text-shadow: 0 2px 14px rgba(0,0,0,.5); }
+.hv-enter { display: inline-flex; align-items: center; gap: 14px; padding: 16px 18px 16px 28px; border-radius: 999px; border: 1px solid rgba(255,255,255,.55); background: rgba(255,255,255,.16); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); color: #fff; font: inherit; font-size: 1.1rem; font-weight: 700; cursor: pointer; box-shadow: 0 10px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .25s, background .25s; }
+.hv-enter b { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #0b3a52; font-size: 1.2rem; transition: transform .3s; }
+.hv-enter:hover { background: rgba(255,255,255,.26); transform: translateY(-2px); } .hv-enter:hover b { transform: translateX(4px); }
+.hv-scroll { position: absolute; bottom: calc(26px + env(safe-area-inset-bottom)); font-size: .8rem; letter-spacing: .18em; text-transform: uppercase; opacity: .75; animation: hvBlink 2.4s ease-in-out infinite; }
+@keyframes hvBlink { 50% { opacity: .3; transform: translateY(4px); } }
+/* le formulaire, en verre, par-dessus la vidéo */
+body.hv-on #authCard { background: rgba(16,12,36,.55); backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+body.hv-on #authCard .input { background: rgba(8,6,20,.5); }
+body.hv-on .card:not(#authCard) { background: rgba(16,12,36,.5); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+html.hv-pre .landing { opacity: 0; }
