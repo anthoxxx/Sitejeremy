@@ -48,6 +48,7 @@
         <div title="Une visite = une personne, une fois par jour"><b id="statVisits">–</b><span id="statVisitsLbl">visites</span></div>
         <div><b>100%</b><span>gratuit</span></div>
       </div>
+      <div class="born" id="bornLine">🌴 Site créé le <b>31 octobre 2026</b> <span id="bornDays"></span></div>
     </div>
 
     <div>
@@ -219,6 +220,8 @@
     } catch (ex) { err.textContent = ex.message; }
     btn.disabled = false;
   });
+  // 🌴 depuis combien de jours le site existe (créé le 31 octobre 2026)
+  { const d = Math.floor((Date.now() - new Date('2026-10-31T11:35:00+01:00').getTime()) / 86400000); const el = document.getElementById('bornDays'); if (el && d >= 1) el.textContent = `· il y a ${d} jour${d > 1 ? 's' : ''} 🎂`; }
   // 🕯️ En mémoire de Jérôme : sa photo en grand, son histoire, et une bougie à allumer
   document.getElementById('tributeBtn').onclick = () => {
     const back = LC.el('div', { class: 'tr-back', onclick: e => { if (e.target === back) back.remove(); } });

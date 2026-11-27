@@ -4722,3 +4722,6 @@ html.hv-pre .landing { opacity: 0; }
 .hv-memory img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1.5px solid #f6d58a; }
 .hv-memory b { color: #ffe6a8; }
 @media (max-width: 400px) { .hv-memory { font-size: .74rem; } }
+/* 🌴 la date de création du site */
+.born { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); font-size: .88rem; color: var(--muted, #cfc6e6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.born b { color: #ffe08a; }
