@@ -428,7 +428,7 @@ async function settings() {
   const modWarn = el('input', { class: 'input', type: 'number', min: 1, max: 10, value: s.modBotWarnings || 3, style: 'max-width:100px' });
   const modMute = el('input', { class: 'input', type: 'number', min: 1, max: 1440, value: s.modBotMuteMinutes || 5, style: 'max-width:100px' });
   const reg = el('input', { type: 'checkbox', checked: s.registrationOpen === '1' });
-  const gOnly = el('input', { type: 'checkbox', checked: s.googleOnly !== '0' });
+  const gOnly = el('input', { type: 'checkbox', checked: s.googleOnly === '1' });
   const minAge = el('input', { class: 'input', type: 'number', min: 13, max: 99, value: s.minAge, style: 'max-width:100px' });
   const voiceOn = el('input', { type: 'checkbox', checked: s.voiceEnabled === '1' });
   const shieldOnBox = el('input', { type: 'checkbox', checked: s.shieldEnabled !== '0' });

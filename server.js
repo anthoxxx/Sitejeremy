@@ -582,7 +582,9 @@ app.post('/api/admin/users/:id/vpn-ok', auth, requireRole('admin'), (req, res) =
 const cleanEmail = v => { const e = String(v || '').trim().toLowerCase().slice(0, 120); if (!e) return ''; return /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/.test(e) ? e : null; };
 const googleOn = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 // 🔒 inscription seulement avec Google (si Google est bien réglé : sinon plus personne ne pourrait s'inscrire)
-const googleOnly = () => googleOn() && getSettings().googleOnly !== '0';
+const googleOnly = () => googleOn() && getSettings().googleOnly === '1'; // désactivé sauf si on l'active dans l'espace admin
+// l'inscription normale (pseudo + mot de passe + e-mail) est remise une fois pour toutes ; on peut toujours réactiver « Google seulement » dans les réglages
+if (getSettings().googleOnlyReset !== '1') { setSetting('googleOnly', '0'); setSetting('googleOnlyReset', '1'); }
 const googleRedirect = req => (process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/$/, '') : `${req.protocol}://${req.get('host')}`) + '/auth/google/callback';
 const googlePending = new Map(); // jeton -> { sub, email, name, at } en attente du choix du pseudo
 app.get('/auth/google', (req, res) => {
@@ -680,6 +682,7 @@ app.post('/api/register', vpnGuard, (req, res) => {
   const password = String(req.body.password || '');
   const email = cleanEmail(req.body.email);
   if (email === null) return res.status(400).json({ error: 'Adresse e-mail invalide (exemple : prenom@gmail.com)' });
+  if (!email) return res.status(400).json({ error: '📧 Ton adresse e-mail est obligatoire : elle sert à retrouver ton compte si tu oublies ton mot de passe' });
   if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ ou -)' });
   if (isPanelName(username)) return res.status(409).json({ error: 'Ce pseudo est réservé' });
   if (password.length < 6) return res.status(400).json({ error: 'Mot de passe : 6 caractères minimum' });
