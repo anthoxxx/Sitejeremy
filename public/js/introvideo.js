@@ -23,6 +23,7 @@
       <p class="hv-sub">Le chat où l'on se retrouve, au bout du monde 🌴</p>
       <button type="button" class="hv-enter"><span>Entrer au Paradise</span><b>→</b></button>
     </div>
+    <div class="hv-memory"><img src="/img/jerome.jpg" alt=""><span>🕯️ En mémoire de <b>Jérôme</b>, qui a rêvé ce Paradise</span></div>
     <div class="hv-scroll">Touche pour entrer</div>`;
   document.body.append(intro); document.body.classList.add('hv-locked');
   let gone = false;

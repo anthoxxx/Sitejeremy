@@ -29,6 +29,12 @@
     </nav>
   </header>
 
+  <!-- 🕯️ En mémoire de Jérôme -->
+  <button type="button" class="tribute" id="tributeBtn" aria-label="En mémoire de Jérôme">
+    <span class="tr-photo"><img src="/img/jerome.jpg" alt="Jérôme" width="64" height="64"><i class="tr-candle">🕯️</i></span>
+    <span class="tr-text"><b>En mémoire de Jérôme</b><small>Il rêvait d'un site comme celui-ci, et c'est lui qui l'avait appelé « Paradise ». Parti trop tôt, à 44 ans. On pense à toi 🕊️</small></span>
+  </button>
+
   <section class="hero">
     <div>
       <picture><source srcset="/img/logo.png?v=3" media="(prefers-reduced-motion: reduce)"><img class="hero-logo" src="/img/logo.webp?v=3" alt="The Paradise" width="400" height="344"></picture>
@@ -213,6 +219,25 @@
     } catch (ex) { err.textContent = ex.message; }
     btn.disabled = false;
   });
+  // 🕯️ En mémoire de Jérôme : sa photo en grand, son histoire, et une bougie à allumer
+  document.getElementById('tributeBtn').onclick = () => {
+    const back = LC.el('div', { class: 'tr-back', onclick: e => { if (e.target === back) back.remove(); } });
+    const count = LC.el('b', {}, '…'), label = LC.el('span', {}, ' bougies allumées pour lui'), btn = LC.el('button', { type: 'button', class: 'tr-light' }, '🕯️ Allumer une bougie pour Jérôme');
+    const flame = LC.el('div', { class: 'tr-flames' });
+    const show = n => { count.textContent = n; label.textContent = n > 1 ? ' bougies allumées pour lui' : ' bougie allumée pour lui'; };
+    fetch('/api/candles').then(r => r.json()).then(d => show(d.count)).catch(() => show(0));
+    btn.onclick = () => { fetch('/api/candles', { method: 'POST' }).then(r => r.json()).then(d => { show(d.count); btn.disabled = true; btn.textContent = d.already ? '🕯️ Ta bougie brille déjà aujourd\'hui' : '🕯️ Merci, ta bougie est allumée'; }).catch(() => {});
+      for (let i = 0; i < 9; i++) { const c = LC.el('i', { style: `--x:${Math.random() * 100}%;--d:${Math.random() * .8}s` }, '🕯️'); flame.append(c); setTimeout(() => c.remove(), 3200); } };
+    back.append(LC.el('div', { class: 'tr-modal' },
+      LC.el('button', { type: 'button', class: 'tr-close', 'aria-label': 'Fermer', onclick: () => back.remove() }, '✕'),
+      LC.el('img', { class: 'tr-big', src: '/img/jerome-full.jpg', alt: 'Jérôme' }),
+      LC.el('h2', {}, 'Jérôme'), LC.el('div', { class: 'tr-age' }, 'Parti trop tôt, à 44 ans'),
+      LC.el('p', {}, 'De son vivant, Jérôme rêvait de créer un site comme celui-ci, un endroit où l\'on se retrouve, où l\'on se fait des amis, où l\'on rit ensemble. C\'est lui qui l\'avait déjà appelé « Paradise ».'),
+      LC.el('p', {}, 'The Paradise est né de son rêve. Chaque message, chaque rencontre, chaque fou rire ici porte un peu de lui.'),
+      LC.el('p', { class: 'tr-rip' }, 'Repose en paix, Jérôme. On ne t\'oublie pas. 🕊️'),
+      flame, btn, LC.el('div', { class: 'tr-count' }, count, label)));
+    document.body.append(back);
+  };
   // 👑 Les gagnants de Miss & Mister Paradise, avec leur photo
   fetch('/api/pageant/winners').then(r => r.json()).then(({ winners }) => {
     if (!winners || !winners.list.length) return;

@@ -2970,6 +2970,14 @@ Outfits.routes(app, auth);
 // 🔑 Mot de passe oublié (lien par e-mail, ou demande à l'équipe)
 const PassReset = require('./passreset')({ db, bcrypt, getUser: id => getUser(id), getUserByName: n => getUserByName(n), tooMany: (...a) => tooMany(...a), emitToStaff: (...a) => emitToStaff(...a), log: (...a) => log(...a), createSession: (...a) => createSession(...a), publicUser: u => publicUser(u), isSuper: u => isSuper(u), rank: u => rank(u), banBlock: u => banBlock(u) });
 PassReset.routes(app, admin, requireRole);
+// 🕯️ En mémoire de Jérôme : les bougies allumées par les visiteurs (une par appareil et par jour)
+app.get('/api/candles', (req, res) => res.json({ count: parseInt(getSettings().jeromeCandles || '0', 10) || 0 }));
+app.post('/api/candles', (req, res) => {
+  const key = 'candle:' + (req.cookies.lc_dev || req.ip) + ':' + new Date().toDateString();
+  let count = parseInt(getSettings().jeromeCandles || '0', 10) || 0;
+  if (tooMany(key, 1, 24 * 3600 * 1000)) return res.json({ count, already: true });
+  count++; setSetting('jeromeCandles', String(count)); res.json({ count });
+});
 // 🔧 Le Garage Paradise : peinture, néons et jantes de la voiture 3D
 const Garage = require('./garage')({ db, coins: Coins, emitToUser: (...a) => emitToUser(...a) });
 Garage.routes(app, auth);
