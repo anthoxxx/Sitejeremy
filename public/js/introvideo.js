@@ -13,6 +13,28 @@
   bg.append(v, Object.assign(document.createElement('div'), { className: 'hv-dim' }));
   document.body.prepend(bg); document.body.classList.add('hv-on');
   const play = () => v.play?.().catch(() => {}); play();
+  // 🎵 la musique d'ambiance (vagues + marimba + steel drum, composée pour le site, libre de droits) : elle démarre quand on entre
+  let AC = null, gain = null, src = null, loading = null, muted = false;
+  try { muted = localStorage.getItem('lc_home_sound') === '0'; } catch (e) {}
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'hv-sound'; btn.title = 'Musique';
+  const paint = () => { const on = !!src && !muted; btn.textContent = on ? '🔊' : '🔇'; btn.classList.toggle('on', on); btn.setAttribute('aria-label', on ? 'Couper la musique' : 'Mettre la musique'); };
+  async function music() {
+    if (muted) return paint();
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') await AC.resume();
+      if (!src) { if (!loading) loading = fetch('/video/paradise-music.mp3').then(r => r.arrayBuffer()).then(b => new Promise((ok, ko) => AC.decodeAudioData(b, ok, ko)));
+        const buf = await loading; if (src || muted) return paint();
+        gain = AC.createGain(); gain.gain.value = 0; gain.connect(AC.destination);
+        src = AC.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(gain); src.start(); }
+      gain.gain.cancelScheduledValues(AC.currentTime); gain.gain.setValueAtTime(gain.gain.value, AC.currentTime); gain.gain.linearRampToValueAtTime(.55, AC.currentTime + 2.5);
+    } catch (e) { console.warn('musique', e); }
+    paint();
+  }
+  function hush() { if (!gain || !AC) return; gain.gain.cancelScheduledValues(AC.currentTime); gain.gain.setValueAtTime(gain.gain.value, AC.currentTime); gain.gain.linearRampToValueAtTime(0, AC.currentTime + .6); setTimeout(() => { try { src?.stop(); } catch (e) {} src = null; paint(); }, 700); }
+  btn.addEventListener('click', e => { e.stopPropagation(); muted = !!src && !muted ? true : false; try { localStorage.setItem('lc_home_sound', muted ? '0' : '1'); } catch (x) {} if (muted) hush(); else music(); paint(); });
+  document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) AC.suspend(); else if (src) AC.resume(); });
+  addEventListener('pagehide', () => { try { AC?.close(); } catch (e) {} });
+  document.body.append(btn); paint();
   document.addEventListener('visibilitychange', () => { if (document.hidden) v.pause(); else play(); });
   // 🌴 l'écran d'accueil (pas quand on revient d'un lien « mot de passe oublié » ou de Google)
   if (q.get('reset') || q.get('google') || calm) { document.body.classList.add('hv-in'); document.documentElement.classList.remove('hv-pre'); return; }
@@ -27,7 +49,7 @@
     <div class="hv-scroll">Touche pour entrer</div>`;
   document.body.append(intro); document.body.classList.add('hv-locked');
   let gone = false;
-  const enter = () => { if (gone) return; gone = true; document.documentElement.classList.remove('hv-pre'); intro.classList.add('hv-leave'); document.body.classList.remove('hv-locked'); document.body.classList.add('hv-in');
+  const enter = () => { if (gone) return; gone = true; music(); document.documentElement.classList.remove('hv-pre'); intro.classList.add('hv-leave'); document.body.classList.remove('hv-locked'); document.body.classList.add('hv-in');
     setTimeout(() => intro.remove(), 1400); setTimeout(() => document.getElementById('authCard')?.scrollIntoView({ behavior: 'smooth', block: innerWidth < 760 ? 'start' : 'center' }), innerWidth < 760 ? 900 : 0); };
   intro.querySelector('.hv-enter').addEventListener('click', e => { e.stopPropagation(); enter(); });
   intro.addEventListener('click', enter);

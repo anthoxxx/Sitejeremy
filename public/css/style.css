@@ -4725,3 +4725,8 @@ html.hv-pre .landing { opacity: 0; }
 /* 🌴 la date de création du site */
 .born { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); font-size: .88rem; color: var(--muted, #cfc6e6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .born b { color: #ffe08a; }
+/* 🎵 le bouton de la musique de l'accueil */
+.hv-sound { position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 60; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: rgba(10,8,24,.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; font-size: 1.25rem; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.3); transition: transform .2s, background .2s; }
+.hv-sound:hover { transform: scale(1.06); }
+.hv-sound.on { background: rgba(255,95,162,.35); border-color: rgba(255,180,210,.6); animation: hvBeat 1.3s ease-in-out infinite; }
+@keyframes hvBeat { 50% { box-shadow: 0 0 0 6px rgba(255,95,162,.18), 0 6px 20px rgba(0,0,0,.3); } }
