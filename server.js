@@ -2970,8 +2970,8 @@ Outfits.routes(app, auth);
 // 🔑 Mot de passe oublié (lien par e-mail, ou demande à l'équipe)
 const PassReset = require('./passreset')({ db, bcrypt, getUser: id => getUser(id), getUserByName: n => getUserByName(n), tooMany: (...a) => tooMany(...a), emitToStaff: (...a) => emitToStaff(...a), log: (...a) => log(...a), createSession: (...a) => createSession(...a), publicUser: u => publicUser(u), isSuper: u => isSuper(u), rank: u => rank(u), banBlock: u => banBlock(u) });
 PassReset.routes(app, admin, requireRole);
-// ✈️ Le vol pour The Paradise à la connexion (la ville vient de l'adresse IP, montrée seulement à la personne, jamais enregistrée)
-require('./flight')({ ipOf: r => ipOf(r), isLocalIp: ip => isLocalIp(ip) }).routes(app, auth);
+// ✈️ Le vol pour The Paradise à la connexion (la personne écrit elle-même sa ville, pas de géolocalisation)
+require('./flight')().routes(app, auth);
 // 🕯️ En mémoire de Jérôme : les bougies allumées par les visiteurs (une par appareil et par jour)
 app.get('/api/candles', (req, res) => res.json({ count: parseInt(getSettings().jeromeCandles || '0', 10) || 0 }));
 app.post('/api/candles', (req, res) => {

@@ -1,9 +1,10 @@
 // The Paradise — ✈️ « Le vol pour The Paradise » : juste après l'inscription ou la connexion.
+// 0) le comptoir d'enregistrement : on écrit soi-même sa ville, la borne imprime le billet, l'étiquette part sur la valise
 // 1) le hall de l'aéroport le plus proche de chez toi, le tableau des départs, ton perso marche jusqu'à la porte
 // 2) ta carte d'embarquement (pseudo, ville, vol, date, heure, porte, siège) + le tampon « EMBARQUÉ »
 // 3) le vol sur la vraie carte du monde : le tracé jusqu'à l'île, l'avion qui avance, les km qui défilent
 // 4) l'atterrissage à l'aéroport international de The Paradise 🏝️ et « Bienvenue ! »
-// La ville vient de l'adresse IP (approximative) : elle n'est montrée qu'à toi et n'est jamais enregistrée.
+// Aucune géolocalisation : c'est la personne qui écrit sa ville (gardée seulement sur son appareil pour la fois suivante).
 const Flight = (() => {
   let root = null, raf = 0, timers = [], done = false;
   const T = (fn, ms) => timers.push(setTimeout(fn, ms));
@@ -11,19 +12,58 @@ const Flight = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let AC = null;
   const chime = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const t = AC.currentTime; [[659, 0], [523, .55]].forEach(([f, d]) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(.18, t + d + .03); g.gain.exponentialRampToValueAtTime(.0001, t + d + 1.2); o.connect(g).connect(AC.destination); o.start(t + d); o.stop(t + d + 1.3); }); } catch (e) {} };
+  // le bruit de l'imprimante de la borne
+  const printer = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const t = AC.currentTime; for (let i = 0; i < 16; i++) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.value = 1800 + (i % 3) * 250; g.gain.setValueAtTime(.0001, t + i * .09); g.gain.exponentialRampToValueAtTime(.05, t + i * .09 + .01); g.gain.exponentialRampToValueAtTime(.0001, t + i * .09 + .06); o.connect(g).connect(AC.destination); o.start(t + i * .09); o.stop(t + i * .09 + .07); } } catch (e) {} };
   const whoosh = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const t = AC.currentTime, n = Math.ceil(AC.sampleRate * 2.4), b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n) * .3; const s = AC.createBufferSource(), f = AC.createBiquadFilter(); s.buffer = b; f.type = 'lowpass'; f.frequency.setValueAtTime(300, t); f.frequency.linearRampToValueAtTime(1400, t + 1.2); f.frequency.linearRampToValueAtTime(250, t + 2.4); s.connect(f).connect(AC.destination); s.start(t); } catch (e) {} };
 
-  async function play() {
+  // 🛄 0) le comptoir d'enregistrement : on écrit soi-même sa ville, la borne imprime le billet, l'étiquette part sur la valise
+  function play() {
     if (root || done) return; done = true;
-    let F, land;
-    try { [F, land] = await Promise.all([api('/api/flight'), fetch('/city3d/land.json').then(r => r.json())]); } catch (e) { return; }
+    const me = state.me || {}; let saved = ''; try { saved = localStorage.getItem('lc_fly_city') || ''; } catch (e) {}
+    const landP = fetch('/city3d/land.json').then(r => r.json()).catch(() => []);
+    root = el('div', { class: 'fl' });
+    root.innerHTML = `
+      <section class="fl-s fl-check on">
+        <div class="fl-ck-wall"><span>🛄 Enregistrement</span><span>✈️ Paradise Airlines</span><span>🏝️ Vols pour The Paradise</span></div>
+        <div class="fl-ck-lights"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="fl-belt"><div class="fl-belt-track">${'<i>🧳</i><i>🎒</i><i>💼</i><i>🧳</i><i>👜</i><i>🎒</i>'.repeat(3)}</div></div>
+        <div class="fl-agent"><span>👩‍✈️</span><em>Bonjour ! D'où partez-vous ?</em></div>
+        <div class="fl-kiosk">
+          <div class="fl-k-head">✈️ PARADISE AIRLINES · BORNE N°7</div>
+          <form class="fl-k-screen"><b>Bienvenue ${esc(me.username || '')} ! 🌴</b><span>Ton vol pour <b>The Paradise 🏝️</b> t'attend.</span>
+            <label>📍 D'où pars-tu ?</label><input class="input" name="city" maxlength="40" placeholder="Ta ville (ex. Le Havre)" autocomplete="address-level2" value="${esc(saved || me.city || '')}">
+            <button class="btn btn-primary">🎫 Imprimer mon billet</button><small class="fl-k-err"></small></form>
+          <div class="fl-k-slot"><div class="fl-k-paper"><b>🌴 PARADISE AIRLINES</b><span class="fl-k-route">…</span><i></i></div></div>
+        </div>
+        <div class="fl-tag"><span>🏷️</span><b class="fl-tag-code">···</b><small>→ TPR</small></div>
+      </section>
+      <button type="button" class="fl-skip">Passer ›</button>`;
+    document.body.append(root); document.body.classList.add('fl-on');
+    root.querySelector('.fl-skip').onclick = end;
+    const form = root.querySelector('.fl-k-screen'), input = form.querySelector('input'), err = form.querySelector('.fl-k-err'), btn = form.querySelector('button');
+    setTimeout(() => { if (!input.value) input.focus(); }, 900);
+    form.onsubmit = async e => {
+      e.preventDefault(); const city = input.value.trim(); if (city.length < 2) { err.textContent = 'Écris le nom de ta ville 😉'; input.focus(); return; }
+      btn.disabled = true; btn.textContent = '🖨️ Impression du billet…'; err.textContent = '';
+      let F; try { F = await api('/api/flight?city=' + encodeURIComponent(city)); } catch (x) { btn.disabled = false; btn.textContent = '🎫 Imprimer mon billet'; err.textContent = x.message; return; }
+      try { localStorage.setItem('lc_fly_city', city); } catch (x) {}
+      const land = await landP; if (!root) return;
+      // la borne imprime : le billet sort, l'étiquette se colle sur la valise qui part sur le tapis
+      root.querySelector('.fl-k-route').textContent = `${F.from.code} ${F.from.city.toUpperCase()} → TPR THE PARADISE`;
+      root.querySelector('.fl-tag-code').textContent = F.from.code;
+      root.querySelector('.fl-check').classList.add('printing'); printer();
+      T(() => root?.querySelector('.fl-check')?.classList.add('tagged'), 2300);
+      T(() => trip(F, land), 5200);
+    };
+  }
+  function trip(F, land) {
+    if (!root) return;
     const me = state.me || {}, now = new Date(), board = new Date(now.getTime() + 5 * 60000);
     const date = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`, hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     const seat = (12 + (me.id || 7) % 20) + 'ABCDEF'[(me.id || 3) % 6], gate = 'P' + (1 + (me.id || 5) % 9);
     const hours = F.km / 900, arr = new Date(now.getTime() + hours * 3600000);
     const name = (me.username || 'Voyageur').toUpperCase(), from = F.from;
-    root = el('div', { class: 'fl' });
-    root.innerHTML = `
+    root.insertAdjacentHTML('beforeend', `
       <section class="fl-s fl-hall">
         <div class="fl-windows"><i class="fl-plane-park">✈️</i><i class="fl-plane-take">✈️</i></div>
         <div class="fl-board"><div class="fl-board-h"><b>🛫 Départs</b><span>${esc(from.name)}</span><em class="fl-clock">${hm(now)}</em></div><div class="fl-rows"></div></div>
@@ -47,22 +87,9 @@ const Flight = (() => {
       <section class="fl-s fl-land"><div class="fl-land-bg"></div><i class="fl-plane-land">✈️</i>
         <div class="fl-welcome"><small>🛬 Aéroport international The Paradise</small><b>Bienvenue au Paradise,</b><b class="fl-name">${esc(me.username || 'voyageur')} ! 🌴</b></div>
       </section>
-      <button type="button" class="fl-skip">Passer ›</button>
-      <button type="button" class="fl-where">📍 Pas ta ville ?</button>`;
-    document.body.append(root); document.body.classList.add('fl-on');
+`);
+    root.append(root.querySelector('.fl-skip')); // le bouton « Passer » reste au-dessus
     root.querySelector('.fl-av').append(LC.avatar(me));
-    root.querySelector('.fl-skip').onclick = end;
-    // 📍 la ville n'est pas la bonne (l'adresse IP donne souvent la grande ville voisine) : on la corrige, et on repart du bon aéroport
-    root.querySelector('.fl-where').onclick = () => {
-      if (root.querySelector('.fl-ask')) return;
-      const input = el('input', { class: 'input', placeholder: 'Ta ville (ex. Le Havre)', maxlength: 40, value: me.city || '' });
-      const box = el('form', { class: 'fl-ask', onsubmit: async e => { e.preventDefault(); const city = input.value.trim(); if (city.length < 2) return;
-          try { await api('/api/me', { method: 'PUT', body: { city } }); if (state.me) state.me.city = city; } catch (x) { return toast(x.message); }
-          end(); setTimeout(() => { done = false; play(); }, 950); } },
-        el('b', {}, '📍 D\'où pars-tu ?'), el('small', {}, 'Ta ville est enregistrée dans ton profil : le prochain vol partira de l\'aéroport le plus proche.'), input,
-        el('div', { class: 'fl-ask-row' }, el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => box.remove() }, 'Annuler'), el('button', { class: 'btn btn-primary' }, '✈️ Repartir de là')));
-      root.append(box); input.focus();
-    };
     // 🛫 le tableau des départs qui s'affiche lettre par lettre
     const rows = [[F.flight, 'THE PARADISE 🏝️', hm(board), 'EMBARQUEMENT', 1], ['AF 1180', 'NEW YORK', hm(new Date(now.getTime() + 35 * 60000)), 'À L\'HEURE'], ['TP 0007', 'BORA-BORA', hm(new Date(now.getTime() + 50 * 60000)), 'À L\'HEURE'], ['IB 3402', 'MADRID', hm(new Date(now.getTime() + 70 * 60000)), 'RETARDÉ']];
     const R = root.querySelector('.fl-rows');
