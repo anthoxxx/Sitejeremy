@@ -47,10 +47,22 @@ const Flight = (() => {
       <section class="fl-s fl-land"><div class="fl-land-bg"></div><i class="fl-plane-land">✈️</i>
         <div class="fl-welcome"><small>🛬 Aéroport international The Paradise</small><b>Bienvenue au Paradise,</b><b class="fl-name">${esc(me.username || 'voyageur')} ! 🌴</b></div>
       </section>
-      <button type="button" class="fl-skip">Passer ›</button>`;
+      <button type="button" class="fl-skip">Passer ›</button>
+      <button type="button" class="fl-where">📍 Pas ta ville ?</button>`;
     document.body.append(root); document.body.classList.add('fl-on');
     root.querySelector('.fl-av').append(LC.avatar(me));
     root.querySelector('.fl-skip').onclick = end;
+    // 📍 la ville n'est pas la bonne (l'adresse IP donne souvent la grande ville voisine) : on la corrige, et on repart du bon aéroport
+    root.querySelector('.fl-where').onclick = () => {
+      if (root.querySelector('.fl-ask')) return;
+      const input = el('input', { class: 'input', placeholder: 'Ta ville (ex. Le Havre)', maxlength: 40, value: me.city || '' });
+      const box = el('form', { class: 'fl-ask', onsubmit: async e => { e.preventDefault(); const city = input.value.trim(); if (city.length < 2) return;
+          try { await api('/api/me', { method: 'PUT', body: { city } }); if (state.me) state.me.city = city; } catch (x) { return toast(x.message); }
+          end(); setTimeout(() => { done = false; play(); }, 950); } },
+        el('b', {}, '📍 D\'où pars-tu ?'), el('small', {}, 'Ta ville est enregistrée dans ton profil : le prochain vol partira de l\'aéroport le plus proche.'), input,
+        el('div', { class: 'fl-ask-row' }, el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => box.remove() }, 'Annuler'), el('button', { class: 'btn btn-primary' }, '✈️ Repartir de là')));
+      root.append(box); input.focus();
+    };
     // 🛫 le tableau des départs qui s'affiche lettre par lettre
     const rows = [[F.flight, 'THE PARADISE 🏝️', hm(board), 'EMBARQUEMENT', 1], ['AF 1180', 'NEW YORK', hm(new Date(now.getTime() + 35 * 60000)), 'À L\'HEURE'], ['TP 0007', 'BORA-BORA', hm(new Date(now.getTime() + 50 * 60000)), 'À L\'HEURE'], ['IB 3402', 'MADRID', hm(new Date(now.getTime() + 70 * 60000)), 'RETARDÉ']];
     const R = root.querySelector('.fl-rows');

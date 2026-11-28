@@ -26,6 +26,19 @@ const DEST = { code: 'TPR', name: 'Aéroport international The Paradise', city: 
 const km = (a, b, c, d) => { const R = 6371, r = x => x * Math.PI / 180, dl = r(c - a), dn = r(d - b); const h = Math.sin(dl / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 module.exports = function setupFlight({ ipOf, isLocalIp }) {
   const cache = new Map(); // ip -> { at, geo } (en mémoire seulement, pas dans la base)
+  // 📍 la ville du profil, retrouvée sur la carte avec le service gratuit de l'État (toutes les communes de France)
+  const towns = new Map();
+  async function town(name) {
+    const k = String(name || '').trim().toLowerCase(); if (k.length < 2) return null;
+    const c = towns.get(k); if (c !== undefined) return c;
+    let g = null;
+    try { const r = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(name)}&fields=nom,centre,population&boost=population&limit=1`, { signal: AbortSignal.timeout(4000) });
+      const d = await r.json(); const t = Array.isArray(d) && d[0]; if (t && t.centre?.coordinates) g = { city: t.nom, lat: t.centre.coordinates[1], lon: t.centre.coordinates[0], country: 'France', from: 'profil' }; } catch (e) {}
+    // pas en France (ou service en panne) : on regarde si c'est la ville d'un des aéroports de la liste
+    if (!g) { const a = AIRPORTS.find(x => x[2].toLowerCase() === k); if (a) g = { city: a[2], lat: a[3], lon: a[4], country: '', from: 'profil' }; }
+    towns.set(k, g); if (towns.size > 3000) towns.delete(towns.keys().next().value);
+    return g;
+  }
   async function geo(ip) {
     if (isLocalIp(ip)) return { city: 'Rouen', lat: 49.4431, lon: 1.0993, country: 'France' };
     const c = cache.get(ip); if (c && Date.now() - c.at < 6 * 3600000) return c.geo;
@@ -37,10 +50,11 @@ module.exports = function setupFlight({ ipOf, isLocalIp }) {
   return {
     routes(app, auth) {
       app.get('/api/flight', auth, async (req, res) => {
-        const g = await geo(ipOf(req)) || { city: 'Paris', lat: 48.8566, lon: 2.3522, country: 'France' };
+        // d'abord la ville du profil (précise), sinon l'adresse IP (approximative : souvent la grande ville voisine)
+        const g = (req.user.city && await town(req.user.city)) || await geo(ipOf(req)) || { city: 'Paris', lat: 48.8566, lon: 2.3522, country: 'France' };
         let best = null, bd = Infinity; for (const a of AIRPORTS) { const d = km(g.lat, g.lon, a[3], a[4]); if (d < bd) { bd = d; best = a; } }
-        const from = bd < 350 ? { code: best[0], name: 'Aéroport de ' + best[1], city: best[2], lat: best[3], lon: best[4] } : { code: (g.city || 'XXX').normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'XXX', name: 'Aéroport de ' + (g.city || 'ta ville'), city: g.city || 'Ta ville', lat: g.lat, lon: g.lon };
-        res.json({ home: g.city || from.city, from, to: DEST, km: Math.round(km(from.lat, from.lon, DEST.lat, DEST.lon)), flight: 'TP' + String(1000 + (req.user.id * 37) % 9000) });
+        const from = bd < 350 ? { code: best[0], name: ('Aéroport de ' + best[1]).replace(/^Aéroport de Le /, 'Aéroport du '), city: best[2], lat: best[3], lon: best[4] } : { code: (g.city || 'XXX').normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'XXX', name: 'Aéroport de ' + (g.city || 'ta ville'), city: g.city || 'Ta ville', lat: g.lat, lon: g.lon };
+        res.json({ home: g.city || from.city, source: g.from || 'ip', from, to: DEST, km: Math.round(km(from.lat, from.lon, DEST.lat, DEST.lon)), flight: 'TP' + String(1000 + (req.user.id * 37) % 9000) });
       });
     },
   };
