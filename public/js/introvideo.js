@@ -13,20 +13,20 @@
   bg.append(v, Object.assign(document.createElement('div'), { className: 'hv-dim' }));
   document.body.prepend(bg); document.body.classList.add('hv-on');
   const play = () => v.play?.().catch(() => {}); play();
-  // 🎵 la musique d'ambiance (vagues + marimba + steel drum, composée pour le site, libre de droits) : elle démarre quand on entre
+  // 🌊 le bruit de la mer et des mouettes (vrais enregistrements Mixkit, libres de droits) : il démarre quand on entre
   let AC = null, gain = null, src = null, loading = null, muted = false;
   try { muted = localStorage.getItem('lc_home_sound') === '0'; } catch (e) {}
-  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'hv-sound'; btn.title = 'Musique';
-  const paint = () => { const on = !!src && !muted; btn.textContent = on ? '🔊' : '🔇'; btn.classList.toggle('on', on); btn.setAttribute('aria-label', on ? 'Couper la musique' : 'Mettre la musique'); };
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'hv-sound'; btn.title = 'Bruit de la mer';
+  const paint = () => { const on = !!src && !muted; btn.textContent = on ? '🔊' : '🔇'; btn.classList.toggle('on', on); btn.setAttribute('aria-label', on ? 'Couper le bruit de la mer' : 'Mettre le bruit de la mer'); };
   async function music() {
     if (muted) return paint();
     try {
       AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') await AC.resume();
-      if (!src) { if (!loading) loading = fetch('/video/paradise-music.mp3').then(r => r.arrayBuffer()).then(b => new Promise((ok, ko) => AC.decodeAudioData(b, ok, ko)));
+      if (!src) { if (!loading) loading = fetch('/video/paradise-mer.mp3').then(r => r.arrayBuffer()).then(b => new Promise((ok, ko) => AC.decodeAudioData(b, ok, ko)));
         const buf = await loading; if (src || muted) return paint();
         gain = AC.createGain(); gain.gain.value = 0; gain.connect(AC.destination);
         src = AC.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(gain); src.start(); }
-      gain.gain.cancelScheduledValues(AC.currentTime); gain.gain.setValueAtTime(gain.gain.value, AC.currentTime); gain.gain.linearRampToValueAtTime(.55, AC.currentTime + 2.5);
+      gain.gain.cancelScheduledValues(AC.currentTime); gain.gain.setValueAtTime(gain.gain.value, AC.currentTime); gain.gain.linearRampToValueAtTime(.7, AC.currentTime + 3);
     } catch (e) { console.warn('musique', e); }
     paint();
   }
