@@ -8,3 +8,4 @@ Ville 3D — origine des fichiers de ce dossier
 - La bibliothèque three.js (dossier js/vendor) est sous licence MIT.
 - horse.glb, flamingo.glb, parrot.glb, stork.glb : animaux animés de mirada (ro.me, « 3 Dreams of Black »), fournis avec les exemples three.js (https://github.com/mrdoob/three.js, examples/models/gltf). Le cheval sert pour les zèbres du zoo (rayures ajoutées dans la 3D).
 - outfits/*.glb et outfits/img/*.jpg : les tenues du magasin de vêtements, personnages « Microsoft Rocketbox » (Male_Adult_01, 04, 06, 08, 10, 12, 13, 16 ; Female_Adult_01, 02, 04, 08, 12, 15, 17 ; Female_Party_01), https://github.com/microsoft/Microsoft-Rocketbox, licence MIT, Copyright (c) 2020 Microsoft. Convertis et allégés pour le web ; vignettes tirées des images d'aperçu du projet.
+- land.json : contours des terres du monde (Natural Earth, domaine public), via le paquet « world-atlas » de Mike Bostock (licence ISC). Simplifiés pour la carte du vol.

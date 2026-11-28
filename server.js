@@ -616,7 +616,7 @@ app.get('/auth/google/callback', async (req, res) => {
       Ident.trace(known.id, Ident.fromReq(req));
       createSession(res, known.id);
       log(known, 'login', 'Connexion avec Google', { ip: req.ip });
-      return res.redirect('/chat');
+      return res.redirect('/chat?vol=1');
     }
     // Quelqu'un déjà connecté veut relier son compte à Google
     const cur = userFromToken(req.cookies[COOKIE]);
@@ -2970,6 +2970,8 @@ Outfits.routes(app, auth);
 // 🔑 Mot de passe oublié (lien par e-mail, ou demande à l'équipe)
 const PassReset = require('./passreset')({ db, bcrypt, getUser: id => getUser(id), getUserByName: n => getUserByName(n), tooMany: (...a) => tooMany(...a), emitToStaff: (...a) => emitToStaff(...a), log: (...a) => log(...a), createSession: (...a) => createSession(...a), publicUser: u => publicUser(u), isSuper: u => isSuper(u), rank: u => rank(u), banBlock: u => banBlock(u) });
 PassReset.routes(app, admin, requireRole);
+// ✈️ Le vol pour The Paradise à la connexion (la ville vient de l'adresse IP, montrée seulement à la personne, jamais enregistrée)
+require('./flight')({ ipOf: r => ipOf(r), isLocalIp: ip => isLocalIp(ip) }).routes(app, auth);
 // 🕯️ En mémoire de Jérôme : les bougies allumées par les visiteurs (une par appareil et par jour)
 app.get('/api/candles', (req, res) => res.json({ count: parseInt(getSettings().jeromeCandles || '0', 10) || 0 }));
 app.post('/api/candles', (req, res) => {
