@@ -54,19 +54,19 @@ const Flight = (() => {
     // 🛫 le tableau des départs qui s'affiche lettre par lettre
     const rows = [[F.flight, 'THE PARADISE 🏝️', hm(board), 'EMBARQUEMENT', 1], ['AF 1180', 'NEW YORK', hm(new Date(now.getTime() + 35 * 60000)), 'À L\'HEURE'], ['TP 0007', 'BORA-BORA', hm(new Date(now.getTime() + 50 * 60000)), 'À L\'HEURE'], ['IB 3402', 'MADRID', hm(new Date(now.getTime() + 70 * 60000)), 'RETARDÉ']];
     const R = root.querySelector('.fl-rows');
-    rows.forEach(([v, d, h, st, hot], i) => { const r = el('div', { class: 'fl-row' + (hot ? ' hot' : '') }); [v, d, h, st].forEach((txt, k) => { const c = el('span', { class: 'fl-cell c' + k }); r.append(c); flap(c, txt, 300 + i * 220 + k * 90); }); R.append(r); });
+    rows.forEach(([v, d, h, st, hot], i) => { const r = el('div', { class: 'fl-row' + (hot ? ' hot' : '') }); [v, d, h, st].forEach((txt, k) => { const c = el('span', { class: 'fl-cell c' + k }); r.append(c); flap(c, txt, 600 + i * 700 + k * 260); }); R.append(r); });
     chime();
     const show = (sel, at) => T(() => { root.querySelectorAll('.fl-s').forEach(s => s.classList.toggle('on', s.matches(sel))); }, at);
-    show('.fl-hall', 30); show('.fl-pass', 4200); show('.fl-map', 8200); show('.fl-land', 14200);
-    T(() => root.querySelector('.fl-ticket')?.classList.add('stamped'), 6300);
-    T(() => { mapStart(root.querySelector('.fl-cv'), land, from, F.to, F.km); whoosh(); }, 8200);
-    T(() => { root.querySelector('.fl-land')?.classList.add('go'); }, 14300);
-    T(end, 19000);
+    show('.fl-hall', 30); show('.fl-pass', 10500); show('.fl-map', 19500); show('.fl-land', 35500);
+    T(() => root.querySelector('.fl-ticket')?.classList.add('stamped'), 15500);
+    T(() => { mapStart(root.querySelector('.fl-cv'), land, from, F.to, F.km); whoosh(); }, 19500); T(whoosh, 27000);
+    T(() => { root.querySelector('.fl-land')?.classList.add('go'); }, 35700);
+    T(end, 45000);
   }
   // une case du tableau : les lettres défilent puis se fixent (comme un vrai tableau à palettes)
   function flap(cell, text, delay) {
     const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    T(() => { let k = 0; const it = setInterval(() => { k++; const fixed = Math.floor(k / 2); cell.textContent = [...text].map((ch, i) => i < fixed || ch === ' ' ? ch : A[Math.floor(Math.random() * A.length)]).join(''); if (fixed >= text.length) clearInterval(it); }, 35); timers.push(it); }, delay);
+    T(() => { let k = 0; const it = setInterval(() => { k++; const fixed = Math.floor(k / 3); cell.textContent = [...text].map((ch, i) => i < fixed || ch === ' ' ? ch : A[Math.floor(Math.random() * A.length)]).join(''); if (fixed >= text.length) clearInterval(it); }, 70); timers.push(it); }, delay);
   }
   // 🗺️ la carte du vol : vraie carte du monde, tracé en arc, l'avion qui avance
   function mapStart(cv, land, A, B, km) {
@@ -84,7 +84,7 @@ const Flight = (() => {
     const W = innerWidth, H = innerHeight, mx = (lo1 - lo0) * .22 + 6, my = (la1 - la0) * .22 + 6; lo0 -= mx; lo1 += mx; la0 -= my; la1 += my;
     const asp = W / H; { const w = lo1 - lo0, h = (la1 - la0) * 1.25; if (w / h < asp) { const add = (h * asp - w) / 2; lo0 -= add; lo1 += add; } else { const add = (w / asp - h) / 2 / 1.25; la0 -= add; la1 += add; } }
     const X = lon => (lon - lo0) / (lo1 - lo0) * W, Y = lat => (la1 - lat) / (la1 - la0) * H;
-    const t0 = performance.now(), D = 5600, left = root.querySelector('.fl-left');
+    const t0 = performance.now(), D = 14500, left = root.querySelector('.fl-left');
     const draw = now => {
       if (!root) return; const k = Math.min(1, (now - t0) / D), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);

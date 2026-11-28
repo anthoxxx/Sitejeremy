@@ -4734,8 +4734,8 @@ html.hv-pre .landing { opacity: 0; }
 body.fl-on { overflow: hidden; }
 .fl { position: fixed; inset: 0; z-index: 6000; background: #0b0f1e; color: #fff; overflow: hidden; font-family: inherit; transition: opacity .8s ease; }
 .fl.fl-out { opacity: 0; pointer-events: none; }
-.fl-s { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .7s ease, visibility 0s .7s; }
-.fl-s.on { opacity: 1; visibility: visible; transition: opacity .7s ease; }
+.fl-s { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 1.2s ease, visibility 0s 1.2s; }
+.fl-s.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease; }
 .fl-skip { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; z-index: 5; border: 0; border-radius: 999px; padding: 8px 14px; background: rgba(0,0,0,.45); color: #fff; font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; backdrop-filter: blur(6px); }
 .fl-cap { position: absolute; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom)); transform: translateX(-50%); white-space: nowrap; max-width: 94%; overflow: hidden; text-overflow: ellipsis; padding: 9px 16px; border-radius: 999px; background: rgba(10,8,24,.6); backdrop-filter: blur(8px); font-weight: 800; font-size: .92rem; z-index: 4; }
 /* 1) le hall */
@@ -4744,7 +4744,7 @@ body.fl-on { overflow: hidden; }
   -webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(25% - 8px), transparent calc(25% - 8px) 25%); mask: repeating-linear-gradient(90deg, #000 0 calc(25% - 8px), transparent calc(25% - 8px) 25%); }
 .fl-windows::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 18%; background: linear-gradient(#7d8796, #5b6473); }
 .fl-plane-park { position: absolute; left: 8%; bottom: 10%; font-size: min(26vw, 150px); font-style: normal; transform: rotate(-45deg) scaleX(-1); filter: saturate(.6) brightness(1.1); }
-.fl-plane-take { position: absolute; left: 60%; bottom: 20%; font-size: 48px; font-style: normal; transform: rotate(-60deg); animation: flTake 4.5s ease-in forwards; }
+.fl-plane-take { position: absolute; left: 60%; bottom: 20%; font-size: 48px; font-style: normal; transform: rotate(-60deg); animation: flTake 9s ease-in 1s forwards; }
 @keyframes flTake { to { transform: translate(60vw, -50vh) rotate(-60deg) scale(.5); opacity: .4; } }
 .fl-board { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%); width: min(560px, 92%); border-radius: 12px; background: #11131a; border: 3px solid #2a2e3a; box-shadow: 0 14px 40px rgba(0,0,0,.45); padding: 10px 10px 8px; z-index: 3; }
 .fl-board-h { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px; border-bottom: 1px solid #2a2e3a; margin-bottom: 6px; font-size: .78rem; color: #c7cbd6; }
@@ -4757,13 +4757,13 @@ body.fl-on { overflow: hidden; }
 .fl-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 2px, transparent 2px 120px), linear-gradient(#a4adbd, #7d8696); }
 .fl-gate { position: absolute; right: 6%; bottom: 38%; display: flex; flex-direction: column; align-items: center; padding: 10px 14px; border-radius: 12px; background: #1b2a6b; border: 2px solid #5b7cff; box-shadow: 0 0 24px rgba(91,124,255,.5); z-index: 2; }
 .fl-gate b { font-size: 1.8rem; color: #ffd23f; line-height: 1; } .fl-gate small { font-size: .68rem; opacity: .85; } .fl-gate span { font-size: .78rem; font-weight: 800; }
-.fl-walker { position: absolute; left: -12%; bottom: 18%; display: flex; align-items: flex-end; gap: 4px; z-index: 3; animation: flWalk 3.9s cubic-bezier(.4,0,.5,1) .3s forwards; }
+.fl-walker { position: absolute; left: -12%; bottom: 18%; display: flex; align-items: flex-end; gap: 4px; z-index: 3; animation: flWalk 8.5s cubic-bezier(.4,0,.5,1) .8s forwards; }
 .fl-av .avatar, .fl-av > * { width: 74px !important; height: 74px !important; font-size: 2rem; box-shadow: 0 8px 18px rgba(0,0,0,.35); border: 3px solid #fff; border-radius: 50%; animation: flBob .38s ease-in-out infinite alternate; }
 .fl-bag { font-style: normal; font-size: 40px; animation: flBob .38s ease-in-out infinite alternate-reverse; }
 @keyframes flWalk { to { left: 62%; } } @keyframes flBob { to { transform: translateY(-7px); } }
 /* 2) la carte d'embarquement */
 .fl-pass { background: radial-gradient(ellipse at 50% 30%, #2d3f8a, #0f1430); display: grid; place-items: center; padding: 18px; }
-.fl-ticket { position: relative; width: min(440px, 100%); border-radius: 22px; background: #fffaf0; color: #1a1a2e; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); transform: translateY(60px) rotate(-3deg); opacity: 0; transition: transform .9s cubic-bezier(.2,.9,.3,1.2), opacity .6s; }
+.fl-ticket { position: relative; width: min(440px, 100%); border-radius: 22px; background: #fffaf0; color: #1a1a2e; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.5); transform: translateY(60px) rotate(-3deg); opacity: 0; transition: transform 1.6s cubic-bezier(.2,.9,.3,1.2), opacity 1.1s; }
 .fl-pass.on .fl-ticket { transform: none; opacity: 1; }
 .fl-t-top { display: flex; align-items: center; gap: 8px; padding: 14px 18px; background: linear-gradient(135deg, #ff5fa2, #ff9a3d); color: #fff; }
 .fl-t-top b { font-size: 1.05rem; } .fl-t-top span { font-size: .75rem; opacity: .9; } .fl-t-top span:nth-child(2) { flex: 1; }
@@ -4778,24 +4778,24 @@ body.fl-on { overflow: hidden; }
 .fl-t-bar { padding: 12px 18px 16px; background: #f5efe2; display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .fl-t-bar i { display: block; width: 92%; height: 46px; background: repeating-linear-gradient(90deg, #1a1a2e 0 2px, transparent 2px 4px, #1a1a2e 4px 7px, transparent 7px 9px, #1a1a2e 9px 10px, transparent 10px 13px); }
 .fl-t-bar span { font-family: ui-monospace, monospace; font-size: .7rem; color: #555; }
-.fl-stamp { position: absolute; right: 18px; top: 42%; padding: 8px 14px; border: 4px solid #1fa463; border-radius: 10px; color: #1fa463; font-weight: 900; font-size: 1.3rem; letter-spacing: .06em; transform: rotate(-14deg) scale(2.4); opacity: 0; transition: transform .35s cubic-bezier(.3,1.6,.5,1), opacity .2s; background: rgba(255,250,240,.6); }
+.fl-stamp { position: absolute; right: 18px; top: 42%; padding: 8px 14px; border: 4px solid #1fa463; border-radius: 10px; color: #1fa463; font-weight: 900; font-size: 1.3rem; letter-spacing: .06em; transform: rotate(-14deg) scale(2.4); opacity: 0; transition: transform .6s cubic-bezier(.3,1.6,.5,1), opacity .3s; background: rgba(255,250,240,.6); }
 .fl-ticket.stamped .fl-stamp { transform: rotate(-14deg) scale(1); opacity: .92; }
 /* 3) le vol sur la carte */
 .fl-cv { position: absolute; inset: 0; width: 100%; height: 100%; }
-.fl-clouds i { position: absolute; width: 60vw; height: 22vh; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,255,255,.35), rgba(255,255,255,0) 70%); animation: flCloud 6s linear infinite; pointer-events: none; }
-.fl-clouds i:nth-child(1) { top: 10%; left: 100%; } .fl-clouds i:nth-child(2) { top: 55%; left: 130%; animation-duration: 8s; } .fl-clouds i:nth-child(3) { top: 30%; left: 160%; animation-duration: 7s; }
+.fl-clouds i { position: absolute; width: 60vw; height: 22vh; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,255,255,.35), rgba(255,255,255,0) 70%); animation: flCloud 12s linear infinite; pointer-events: none; }
+.fl-clouds i:nth-child(1) { top: 10%; left: 100%; } .fl-clouds i:nth-child(2) { top: 55%; left: 130%; animation-duration: 16s; } .fl-clouds i:nth-child(3) { top: 30%; left: 160%; animation-duration: 14s; }
 @keyframes flCloud { to { transform: translateX(-260vw); } }
 .fl-hud { position: absolute; top: calc(60px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; width: min(620px, 94%); z-index: 3; }
 .fl-hud div { flex: 1; min-width: 90px; padding: 7px 10px; border-radius: 12px; background: rgba(8,10,24,.6); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.12); text-align: center; }
 .fl-hud small { display: block; font-size: .64rem; opacity: .7; text-transform: uppercase; letter-spacing: .08em; } .fl-hud b { font-size: .95rem; color: #ffd36b; }
 /* 4) l'atterrissage */
-.fl-land-bg { position: absolute; inset: 0; background: url(/video/paradise-poster.jpg) center / cover; transform: scale(1.15); transition: transform 4.5s ease-out; }
+.fl-land-bg { position: absolute; inset: 0; background: url(/video/paradise-poster.jpg) center / cover; transform: scale(1.15); transition: transform 9s ease-out; }
 .fl-land.go .fl-land-bg { transform: scale(1); }
 .fl-land::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(10,8,26,.1), rgba(10,8,26,.55)); }
 .fl-plane-land { position: absolute; right: -10%; top: 6%; font-size: 72px; font-style: normal; z-index: 2; transform: rotate(-135deg) scale(1.2); filter: drop-shadow(0 12px 14px rgba(0,0,0,.4)); }
-.fl-land.go .fl-plane-land { animation: flLand 3.2s cubic-bezier(.3,.1,.3,1) forwards; }
+.fl-land.go .fl-plane-land { animation: flLand 6.5s cubic-bezier(.3,.1,.3,1) forwards; }
 @keyframes flLand { to { right: 64%; top: 62%; transform: rotate(-135deg) scale(.55); } }
-.fl-welcome { position: absolute; left: 0; right: 0; bottom: calc(18% + env(safe-area-inset-bottom)); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; opacity: 0; transform: translateY(16px); transition: opacity .8s 2.4s, transform .8s 2.4s; padding: 0 16px; }
+.fl-welcome { position: absolute; left: 0; right: 0; bottom: calc(18% + env(safe-area-inset-bottom)); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; opacity: 0; transform: translateY(16px); transition: opacity 1.4s 5s, transform 1.4s 5s; padding: 0 16px; }
 .fl-land.go .fl-welcome { opacity: 1; transform: none; }
 .fl-welcome small { padding: 6px 12px; border-radius: 999px; background: rgba(10,8,24,.5); backdrop-filter: blur(6px); font-weight: 700; font-size: .82rem; }
 .fl-welcome b { font-size: clamp(1.6rem, 6vw, 2.8rem); font-weight: 900; text-shadow: 0 4px 24px rgba(0,0,0,.5); line-height: 1.1; }
